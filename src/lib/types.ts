@@ -345,7 +345,8 @@ export interface ChatAttachment {
   name: string;
   size: number;
   mime: string;
-  data: string; // base64 data URL (client-side mock)
+  url?: string; // real HTTP URL from server-side object storage, e.g. "/api/storage/chat-attachments/xyz" (preferred)
+  data?: string; // base64 data URL (client-side mock / legacy) - fall back to this if `url` is absent
 }
 
 // ---- Chat mention / channel-ref tokens ----
@@ -373,8 +374,11 @@ export interface ChatMessage {
   reactions?: MessageReaction[];
   parentId?: ID;         // for threaded replies
   pinned?: boolean;
+  deleted?: boolean;     // soft-delete tombstone - text is cleared, "This message was deleted" renders in its place
+  edited?: boolean;
+  editedAt?: ISODate;
   forwardedFrom?: { conversationId: ID; conversationName: string; sender: string };
-  isPoll?: { question: string; options: { text: string; votes: string[] }[] };
+  isPoll?: { question: string; options: { id: string; text: string; votes: string[] }[] };
   isCommandResult?: boolean;
 }
 

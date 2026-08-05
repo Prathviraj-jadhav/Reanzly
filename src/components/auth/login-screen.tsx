@@ -88,11 +88,11 @@ const PORTALS: {
   },
   {
     id: "driver",
-    label: "Driver",
+    label: "Field",
     domain: "driver.reanzly.com",
     icon: Truck,
-    blurb: "Field drivers - job orders, capture, POD, offline-first. Mobile only.",
-    roles: ["driver"],
+    blurb: "Field workers - drivers and warehouse crews. Job orders, POD, tasks, captures. Mobile only.",
+    roles: ["driver", "warehouse-crew"],
   },
   {
     id: "vendor",
@@ -121,6 +121,7 @@ const ROLE_TAG: Record<string, string> = {
   "finance-manager": "FIN",
   dispatcher: "DSP",
   driver: "TRK",
+  "warehouse-crew": "WHC",
   customer: "VND",
   broker: "BRK",
 };
@@ -220,8 +221,8 @@ export function LoginScreen() {
     },
     driver: {
       tag: "Field-first, offline-first",
-      title: "Your truck. Your trips. Your captures. Even with no signal.",
-      body: "Job orders, e-POD with photo + GPS, fuel logs, inspections, expenses. Autosaved offline, synced the moment you're back online. One-thumb operable.",
+      title: "Your trucks. Your floor. Your captures. Even with no signal.",
+      body: "Drivers get job orders, e-POD with photo + GPS, fuel logs, inspections, expenses. Warehouse crews get putaway, picking & dispatch tasks with SKU scan + photo confirmation. Autosaved offline, synced the moment you're back online. One-thumb operable.",
       stats: [
         { k: "Avg sync", v: "1.2s" },
         { k: "Offline", v: "∞" },
@@ -730,7 +731,7 @@ export function LoginScreen() {
                   {portal === "app"
                     ? "Onboard your organisation in under 2 minutes."
                     : portal === "driver"
-                      ? "Driver accounts are created by your fleet manager."
+                      ? "Driver and warehouse crew accounts are created by your fleet or warehouse manager."
                       : portal === "broker"
                         ? "Become a Reanzly Broker Partner - start your brokerage in minutes."
                         : "Vendor portals are issued by your logistics partner."}

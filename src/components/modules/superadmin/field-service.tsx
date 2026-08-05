@@ -113,7 +113,7 @@ export function FieldServiceView() {
 
   function handleSchedule(form: typeof EMPTY_VISIT_FORM) {
     const id = `fv-${String(visits.length + 100).padStart(3, "0")}`;
-    const org = orgs.find((o) => o.name === form.customer);
+    const org = orgs.find((o) => o.brandName === form.customer);
     const newVisit: FieldVisit = {
       id,
       customer: form.customer.trim(),
@@ -550,7 +550,7 @@ function ScheduleVisitSheetBody({
             />
             <datalist id="fs-customer-list">
               {orgs.slice(0, 50).map((o) => (
-                <option key={o.id} value={o.name}>
+                <option key={o.id} value={o.brandName}>
                   {o.id}
                 </option>
               ))}

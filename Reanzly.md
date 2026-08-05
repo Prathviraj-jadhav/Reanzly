@@ -52,13 +52,13 @@
 
 ### What was actually built (as of this revision)
 
-- **53+ functional modules** routed through a single `ModuleRouter`.
-- **5 portals**: App (organisation desktop), Driver (mobile field), Vendor, Broker, Superadmin.
+- **56+ functional modules** routed through a single `ModuleRouter`, plus a Warehouse Field crew app sharing the mobile field-app shell.
+- **5 portals**: App (organisation desktop), Field (mobile — drivers and warehouse crews), Vendor, Broker, Superadmin.
 - **A public marketing site + marketplace** rendered on the same `/` route.
 - **A real-time chat service** (Socket.IO on port 3003) with typing, reactions, pins, read receipts, presence.
 - **A Prisma schema** (SQLite dev / Postgres prod) covering tenancy, vehicles, drivers, trips, invoices, broker network, chat, audit.
 - **Rean AI + SLM (Small Language Model) layer** with agents, tools, approvals, playground, run traces.
-- **16 demo roles** with curated permission sets and featured modules.
+- **18 demo roles** with curated permission sets and featured modules.
 - **Realistic Indian logistics mock data** — 28 vehicles, 32 drivers, 24 customers, 40 trips, 30 invoices, and more.
 - **GSAP + Locomotive Scroll** animation utilities, **Framer Motion** drawers, **Leaflet** fleet maps, **Recharts** dashboards.
 
@@ -479,6 +479,14 @@ Self-service portal for vendors/partners.
 Offline-first mobile driver app.
 - `driver-home.tsx`, `driver-trips.tsx`, `driver-capture.tsx` (POD/fuel/issue capture with photo), `driver-records.tsx`, `driver-profile.tsx`, `driver-earnings.tsx`, `driver-performance.tsx`, `index.tsx`, `_helpers.ts`.
 - **Features**: trip list, POD capture (photo + signature), fuel logging, issue reporting, expense entry, earnings summary, performance score, profile, offline queue.
+- `src/lib/store/driver-store.ts` — identity, per-trip status overrides, activity log, GPS pings, duty session, earnings.
+
+### 7.38a Warehouse Field — `modules/warehouse-field/`
+Sibling field app for warehouse floor crews (Field portal, `role: warehouse-crew`), sharing the same mobile-first chrome as Driver Field but task-centric instead of trip-centric — no GPS, no earnings.
+- `index.tsx` (exports `WarehouseFieldApp`), `warehouse-field-home.tsx`, `warehouse-field-tasks.tsx`, `warehouse-field-capture.tsx` (SKU/barcode entry + photo confirm), `warehouse-field-records.tsx`, `warehouse-field-profile.tsx`, `_helpers.ts`.
+- **Features**: 5-tab shell (Home/Tasks/Capture/Records/Profile), today's putaway/pick/dispatch tasks sourced from the existing Warehouse module's inbound/outbound/pick-list mock data (no duplicated data), duty check-in/out, activity log.
+- `src/lib/store/warehouse-field-store.ts` — crew identity, per-task status overrides, activity log, duty session.
+- Wired into `login-screen.tsx`'s "Field" portal (relabelled from "Driver") alongside the driver role, and `app-shell.tsx`'s field-app gate branches on `currentRole.id`.
 
 ### 7.39 Marketing (in-app) — `modules/marketing/`
 Marketing automation module.
@@ -534,7 +542,24 @@ Marketing automation module.
 - **Features**: recurring service programs (AMC), schedules, SLA, escalation.
 
 ### 7.52 CRM/HR/Ledger shared stores
-- `src/lib/store/dashboard-store.ts`, `chat-store.ts`, `financial-ops-store.ts`, `integrations-store.ts`, `ledger-store.ts`, `ledger-tally-store.ts`, `pod-store.ts`, `rate-cards-store.ts`, `sync-store.ts`, `driver-store.ts`, `app-store.ts`.
+- `src/lib/store/dashboard-store.ts`, `chat-store.ts`, `financial-ops-store.ts`, `integrations-store.ts`, `ledger-store.ts`, `ledger-tally-store.ts`, `pod-store.ts`, `rate-cards-store.ts`, `sync-store.ts`, `driver-store.ts`, `warehouse-field-store.ts`, `partner-store.ts`, `financial-services-store.ts`, `app-store.ts`.
+
+### 7.53 App Store — `modules/app-store/`
+Odoo-style "Apps" screen — self-service module install/uninstall, independent of the signup wizard.
+- `index.tsx`, `app-store-card.tsx`, `app-store-detail-dialog.tsx`, `_helpers.tsx`.
+- **Features**: browses the same `ONBOARDING_MODULES` catalog used at signup (`src/lib/onboarding/module-catalog.ts`), category filter, search, install/uninstall toggle per module (via `app-store.ts`'s `toggleModuleProvisioned` action, which edits `authUser.selectedModules`), live KPI recompute (installed count, available count, est. monthly spend), detail dialog, "Open" deep-link into an installed module.
+
+### 7.54 Partner Programme — `modules/partner-programme/`
+Reanzly's own reseller/implementation-partner programme — distinct from Broker Network (which is freight brokerage, not software resale).
+- `index.tsx`, `apply-partner-drawer.tsx`, `_data.ts`, `_helpers.tsx`.
+- **Features**: 3-tier comparison (Referral / Reseller / Implementation Partner — commission %, requirements, support level), application flow, referred-orgs `DataTable`, commission ledger `DataTable`, static partner resource collateral.
+- `src/lib/store/partner-store.ts` — application status, tier, referrals, commission ledger.
+
+### 7.55 Financial Services — `modules/financial-services/`
+Embedded fintech surfaced against the org's own invoice book — demo/illustrative only, no real credit decision or fund movement (explicit on-page disclaimer).
+- `index.tsx`, `apply-financing-drawer.tsx`, `_data.ts`, `_helpers.tsx`.
+- **Features**: 3 offers (Invoice Discounting / Working Capital Loan / Fuel Card Credit Line), eligibility computed from real `INVOICES` mock data (unpaid/overdue/partially-paid, 80% advance rate), application history `DataTable`, invoice-picker apply flow.
+- `src/lib/store/financial-services-store.ts` — financing applications and their status.
 
 ---
 
@@ -562,7 +587,7 @@ Reanzly is multi-surface. Each portal has its own shell.
 | Subdomain | Portal | Shell file | Description |
 |-----------|--------|-----------|-------------|
 | `app.reanzly.com` | App | `app-shell.tsx` | Full desktop ERP — sidebar + header + module router |
-| `driver.reanzly.com` | Driver | (driver-field module, mobile) | Offline-first field app |
+| `driver.reanzly.com` | Field | (driver-field / warehouse-field modules, mobile) | Offline-first field app — drivers and warehouse crews |
 | `vendor.reanzly.com` | Vendor | `vendor-shell.tsx` | Vendor self-service portal |
 | `broker.reanzly.com` | Broker | `broker-shell.tsx` | Broker console + sub-brokers |
 | `admin.reanzly.com` | Superadmin | `superadmin-shell.tsx` | Reanzly internal operator console |
@@ -570,7 +595,7 @@ Reanzly is multi-surface. Each portal has its own shell.
 ### Layout components (`components/layout/`)
 - `app-shell.tsx` — orchestrator: reads store, renders marketing/auth/ERP; sticky footer.
 - `sidebar.tsx` — 4 primary groups + "More" Sheet drawer (7 secondary groups), role-based filtering, collapsed icon rail, Quick Add FAB, user profile strip.
-- `header.tsx` — logo, search (⌘K), right-aligned cluster: Notification, Ask Rean, company/month toggle, profile dropdown (16 demo roles), theme toggle; mobile overflow menu.
+- `header.tsx` — logo, search (⌘K), right-aligned cluster: Notification, Ask Rean, company/month toggle, profile dropdown (18 demo roles), theme toggle; mobile overflow menu.
 - `chat-panel.tsx` — bottom-right chat drawer (Rean AI via `/api/rean`).
 - `command-palette.tsx` — ⌘K searches modules + trips + vehicles + people + customers + invoices.
 - `notification-panel.tsx` — slide-in right, categorised, mark read.
@@ -719,8 +744,8 @@ Superadmin SLM UI (`modules/superadmin/slm*.tsx`): agents tab, approvals tab, me
 
 ## 15. Roles, Permissions & Security
 
-### 15.1 Role catalogue (16 demo roles)
-Owner/Director, Operations Manager, Fleet Manager, Finance Manager, HR Manager, Dispatcher, Driver, Analyst, Warehouse Manager, Customer (shipper), Vendor/Partner, Broker, Safety Officer, Mechanic, Branch Manager, Accountant, Superadmin.
+### 15.1 Role catalogue (18 demo roles)
+Owner/Director, Operations Manager, Fleet Manager, Finance Manager, HR Manager, Dispatcher, Driver, Warehouse Crew, Analyst, Warehouse Manager, Customer (shipper), Vendor/Partner, Broker, Safety Officer, Mechanic, Branch Manager, Accountant, Superadmin.
 
 Each defined in `src/lib/mock-data.ts` (`ROLE_ARCHETYPES`) with: id, name, initials, branch, permissions[], featuredModules[], quickActions[], device preference.
 
@@ -886,14 +911,14 @@ Ten phases:
 2. **Move + Fleet + Compliance** — trips, dispatch, LR, POD, vehicles, tracking, regulatory. ✅
 3. **Money** — invoicing, payments, settlements, expenses, costing, ledger. ✅
 4. **People + Maintenance** — employees, drivers, attendance, payroll, workshop, parts, fuel, inspections. ✅
-5. **Field application** — driver mode built; warehouse crews next. 🟡
+5. **Field application** — driver mode + warehouse-crew mode both built (mobile-first field app, 5-tab crew view: Home/Tasks/Capture/Records/Profile). ✅
 6. **Warehouse** — receiving through dispatch, inventory, storage billing. ✅
 7. **Intelligence, automation, analytics, studio** — Rean + SLM + reports + document studio built. ✅
 8. **Portals, website, storefronts, discoverability** — vendor/broker/superadmin portals + marketing site + marketplace built. ✅
 9. **Marketplace, tender desk, operator console** — marketplace + superadmin operator console built. ✅
-10. **Ecosystem** — app store, partner programme, financial services. 🔲 (planned)
+10. **Ecosystem** — App Store (self-service module install/uninstall), Partner Programme (referral/reseller/implementation tiers, commission ledger), Financial Services (invoice-financing offers against the org's own invoice book) all built. ✅
 
-**Status:** Phases 1–9 substantially built. Phase 10 planned.
+**Status:** All ten phases built.
 
 ---
 

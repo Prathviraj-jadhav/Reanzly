@@ -6,17 +6,20 @@
 //   - REST:    GET /api/chat/init?userId=...  (hydration on login)
 //              POST /api/chat/conversations    (DM / group / join-channel)
 //   - Socket:  mini-services/chat-service (port 3003) for live events:
-//              message:send, typing:start/stop, reaction:toggle,
-//              message:read, message:pin, message:delete
+//              message:send, message:edit, message:delete (soft-delete),
+//              typing:start/stop, reaction:toggle, message:read,
+//              message:pin, poll:vote
 //              + inbound: message:new, typing:update, reaction:update,
 //                         read:update, presence:update, conversation:new,
-//                         message:updated, message:deleted
+//                         message:updated (carries pinned/deleted/text/edited/
+//                         editedAt - deletion flows through this, there is no
+//                         separate message:deleted event), poll:updated
 //
 // NO mock data. NO simulate* functions. Every message persists to the DB and
 // fans out to every connected client in real time.
 //
-// Drafts remain local-only (persisted to localStorage) since they're a
-// per-device UI affordance, not shared state.
+// Drafts + mutedConversationIds remain local-only (persisted to localStorage)
+// since they're per-device / personal UI preferences, not shared state.
 // ===========================================================================
 
 import { create } from "zustand";
@@ -40,6 +43,7 @@ interface ChatState {
   entities: ChatEntity[];
   activeConversationId: string;
   drafts: Record<string, { text: string; replyToId?: string }>;
+  mutedConversationIds: string[];
   presence: Record<string, PresenceState>;
   typing: Record<string, { userId: string; name: string; until: number } | undefined>;
   currentUserId: string;
@@ -67,10 +71,12 @@ interface ChatState {
     senderRole: string;
     attachment?: ChatAttachment;
     parentId?: string;
-    isPoll?: { question: string; options: { text: string; votes: string[] }[] };
+    isPoll?: { question: string; options: { id: string; text: string; votes: string[] }[] };
     isCommandResult?: boolean;
+    forwardedFrom?: ChatMessage["forwardedFrom"];
   }) => string;
   deleteMessage: (messageId: string) => void;
+  editMessage: (messageId: string, newText: string) => void;
 
   // ===== Reactions =====
   addReaction: (messageId: string, emoji: string, userId: string) => void;
@@ -117,7 +123,10 @@ interface ChatState {
   setPresence: (entityId: string, state: PresenceState) => void;
 
   // ===== Polls =====
-  castVote: (messageId: string, optionIndex: number, userId: string) => void;
+  castVote: (messageId: string, optionId: string, userId: string) => void;
+
+  // ===== Mute =====
+  toggleMute: (conversationId: string) => void;
 }
 
 // Per-conversation typing throttle state (module-level, not persisted).
@@ -132,6 +141,7 @@ export const useChatStore = create<ChatState>()(
       entities: [],
       activeConversationId: "",
       drafts: {},
+      mutedConversationIds: [],
       presence: {},
       typing: {},
       currentUserId: "",
@@ -192,7 +202,7 @@ export const useChatStore = create<ChatState>()(
               "read:update",
               "conversation:new",
               "message:updated",
-              "message:deleted",
+              "poll:updated",
               "disconnect",
             ] as const;
             for (const ev of INBOUND_EVENTS) {
@@ -214,10 +224,12 @@ export const useChatStore = create<ChatState>()(
                             ? `Poll: ${msg.isPoll.question}`
                             : msg.text.slice(0, 120),
                         lastTimestamp: msg.timestamp,
-                        // Bump unread only if this isn't the active conversation and
-                        // the sender isn't the current user.
+                        // Bump unread only if this isn't the active conversation, the
+                        // sender isn't the current user, and the conversation isn't muted.
                         unread:
-                          s.activeConversationId === msg.conversationId || msg.senderId === s.currentUserId
+                          s.activeConversationId === msg.conversationId ||
+                          msg.senderId === s.currentUserId ||
+                          s.mutedConversationIds.includes(c.id)
                             ? c.unread
                             : c.unread + 1,
                       }
@@ -301,17 +313,44 @@ export const useChatStore = create<ChatState>()(
               });
             });
 
-            s.on("message:updated", (payload: { id: string; pinned?: boolean }) => {
-              set((st) => ({
-                messages: st.messages.map((m) =>
-                  m.id === payload.id ? { ...m, pinned: payload.pinned ?? m.pinned } : m
-                ),
-              }));
-            });
+            s.on(
+              "message:updated",
+              (payload: {
+                id: string;
+                pinned?: boolean;
+                deleted?: boolean;
+                text?: string;
+                edited?: boolean;
+                editedAt?: string;
+              }) => {
+                set((st) => ({
+                  messages: st.messages.map((m) => {
+                    if (m.id !== payload.id) return m;
+                    return {
+                      ...m,
+                      pinned: payload.pinned ?? m.pinned,
+                      deleted: payload.deleted ?? m.deleted,
+                      text: payload.text ?? m.text,
+                      edited: payload.edited ?? m.edited,
+                      editedAt: payload.editedAt ?? m.editedAt,
+                    };
+                  }),
+                }));
+              }
+            );
 
-            s.on("message:deleted", (payload: { id: string }) => {
-              set((st) => ({ messages: st.messages.filter((m) => m.id !== payload.id) }));
-            });
+            s.on(
+              "poll:updated",
+              (payload: { messageId: string; options: { id: string; text: string; votes: string[] }[] }) => {
+                set((st) => ({
+                  messages: st.messages.map((m) =>
+                    m.id === payload.messageId && m.isPoll
+                      ? { ...m, isPoll: { ...m.isPoll, options: payload.options } }
+                      : m
+                  ),
+                }));
+              }
+            );
 
             // On reconnect, re-hydrate in case we missed events while disconnected.
             s.io.on("reconnect", () => {
@@ -369,6 +408,7 @@ export const useChatStore = create<ChatState>()(
           parentId: params.parentId,
           isPoll: params.isPoll,
           isCommandResult: params.isCommandResult,
+          forwardedFrom: params.forwardedFrom,
           reactions: [],
           readBy: [],
         };
@@ -397,6 +437,7 @@ export const useChatStore = create<ChatState>()(
             attachment: params.attachment ?? null,
             isPoll: params.isPoll ?? null,
             isCommandResult: !!params.isCommandResult,
+            forwardedFrom: params.forwardedFrom ?? null,
           });
           // When the server echoes the real message back via `message:new`,
           // remove the optimistic temp entry (matched by conversationId + text + senderId).
@@ -431,8 +472,24 @@ export const useChatStore = create<ChatState>()(
         if (sock && sock.connected) {
           sock.emit("message:delete", { messageId });
         }
-        // Optimistic removal; server broadcast will confirm.
-        set((s) => ({ messages: s.messages.filter((m) => m.id !== messageId) }));
+        // Optimistic soft-delete (tombstone): keep the message in place so the
+        // UI can render "This message was deleted", rather than removing it
+        // from the array. Server broadcasts message:updated with deleted:true
+        // to confirm/sync across clients.
+        set((s) => ({
+          messages: s.messages.map((m) => (m.id === messageId ? { ...m, deleted: true, text: "" } : m)),
+        }));
+      },
+
+      editMessage: (messageId, newText) => {
+        const sock = getChatSocket();
+        // Optimistic.
+        set((s) => ({
+          messages: s.messages.map((m) =>
+            m.id === messageId ? { ...m, text: newText, edited: true, editedAt: new Date().toISOString() } : m
+          ),
+        }));
+        if (sock && sock.connected) sock.emit("message:edit", { messageId, text: newText });
       },
 
       addReaction: (messageId, emoji, userId) => {
@@ -489,6 +546,7 @@ export const useChatStore = create<ChatState>()(
       forwardMessage: (messageId, targetConversationId, senderId, senderName, senderRole) => {
         const src = get().messages.find((m) => m.id === messageId);
         if (!src) return;
+        const srcConversation = get().conversations.find((c) => c.id === src.conversationId);
         // Forward = send a new message in the target conversation with a
         // forwardedFrom marker. Goes through the normal socket pipeline so it
         // persists and fans out.
@@ -499,6 +557,11 @@ export const useChatStore = create<ChatState>()(
           senderName,
           senderRole,
           attachment: src.attachment,
+          forwardedFrom: {
+            conversationId: src.conversationId,
+            conversationName: srcConversation?.name ?? "",
+            sender: src.sender,
+          },
         });
       },
 
@@ -687,17 +750,17 @@ export const useChatStore = create<ChatState>()(
       setPresence: (entityId, state) =>
         set((s) => ({ presence: { ...s.presence, [entityId]: state } })),
 
-      castVote: (messageId, optionIndex, userId) => {
-        // Polls: re-send the poll message with updated votes. Since polls are
-        // stored as JSON in the message text, voting updates local state and
-        // would need a dedicated socket event to sync. For now, vote locally
-        // (per-device) - a full poll-sync can be added if needed.
+      castVote: (messageId, optionId, userId) => {
+        const sock = getChatSocket();
+        // Optimistic local update for instant feedback; the authoritative
+        // state comes back via the inbound "poll:updated" listener, which
+        // replaces isPoll.options wholesale with the server's payload.
         set((s) => ({
           messages: s.messages.map((m) => {
             if (m.id !== messageId || !m.isPoll) return m;
-            const options = m.isPoll.options.map((opt, i) => {
+            const options = m.isPoll.options.map((opt) => {
               const hasVote = opt.votes.includes(userId);
-              if (i === optionIndex) {
+              if (opt.id === optionId) {
                 return hasVote
                   ? { ...opt, votes: opt.votes.filter((u) => u !== userId) }
                   : { ...opt, votes: [...opt.votes, userId] };
@@ -707,26 +770,37 @@ export const useChatStore = create<ChatState>()(
             return { ...m, isPoll: { ...m.isPoll, options } };
           }),
         }));
+        if (sock && sock.connected) sock.emit("poll:vote", { messageId, optionId });
       },
+
+      toggleMute: (conversationId) =>
+        set((s) => ({
+          mutedConversationIds: s.mutedConversationIds.includes(conversationId)
+            ? s.mutedConversationIds.filter((id) => id !== conversationId)
+            : [...s.mutedConversationIds, conversationId],
+        })),
     }),
     {
       name: "reanzly-chat",
       version: 3,
-      // Only persist drafts + the last active conversation id. Conversations
-      // and messages are NOT persisted - they're always hydrated from the DB.
+      // Only persist drafts + the last active conversation id + muted
+      // conversations (personal client-side preferences). Conversations and
+      // messages are NOT persisted - they're always hydrated from the DB.
       partialize: (s) => ({
         drafts: s.drafts,
         activeConversationId: s.activeConversationId,
+        mutedConversationIds: s.mutedConversationIds,
       }),
       // v2 -> v3: discard old persisted mock messages/conversations.
       migrate: (_persisted, version) => {
         const persisted = (_persisted ?? {}) as Partial<ChatState>;
         if (version < 3) {
-          return { drafts: {}, activeConversationId: "" };
+          return { drafts: {}, activeConversationId: "", mutedConversationIds: [] };
         }
         return {
           drafts: persisted.drafts ?? {},
           activeConversationId: persisted.activeConversationId ?? "",
+          mutedConversationIds: persisted.mutedConversationIds ?? [],
         };
       },
       onRehydrateStorage: () => (state) => {
@@ -737,7 +811,7 @@ export const useChatStore = create<ChatState>()(
 );
 
 // ===== EXPORTED CONSTANTS =====
-export const CHAT_QUICK_EMOJIS = ["ack", "lol", "ty", "done", "seen", "pls", "ack", "flag", "urg", "idea", "no", "wip"];
+export const CHAT_QUICK_EMOJIS = ["👍", "❤️", "😂", "🎉", "👀", "✅", "🚀", "🙏", "😮", "👏"];
 export const SLASH_COMMANDS = [
   { cmd: "/summary", desc: "Ask Rean to summarize this conversation", args: "" },
   { cmd: "/assign", desc: "Create a task and assign it", args: "<task>" },

@@ -21,8 +21,41 @@ import {
   X,
   FileText,
   Loader2,
+  Bold,
+  Italic,
+  Code,
+  Smile,
 } from "lucide-react";
 import { toast } from "sonner";
+
+// ===== Emoji picker data =====
+// Hardcoded, no external dependency. Grouped into a few simple categories.
+// This is for composing emoji inline in message text - separate from the
+// message reaction picker (chat-message.tsx / CHAT_QUICK_EMOJIS).
+const EMOJI_CATEGORIES: { label: string; emojis: string[] }[] = [
+  {
+    label: "Faces",
+    emojis: [
+      "😀", "😃", "😄", "😁", "😆", "😅", "🙂", "😉",
+      "😊", "😍", "😘", "😎", "🤔", "😐", "🙄", "😴",
+      "😢", "😭", "😡", "🥳", "😇", "🤯",
+    ],
+  },
+  {
+    label: "Gestures",
+    emojis: [
+      "👍", "👎", "👏", "🙌", "🙏", "👋", "🤝", "💪",
+      "✌️", "🤞", "👌", "🤟", "👊", "✋",
+    ],
+  },
+  {
+    label: "Objects & symbols",
+    emojis: [
+      "🔥", "💡", "✅", "❌", "⚠️", "🎉", "🚀", "⭐",
+      "❤️", "💯", "📌", "📎", "🕐", "📅", "💬", "🔔",
+    ],
+  },
+];
 
 interface ChatComposerProps {
   conversation: Conversation;
@@ -74,8 +107,10 @@ export function ChatComposer({
   const [uploadProgress, setUploadProgress] = React.useState<number | null>(null);
   const [sending, setSending] = React.useState(false);
   const [picker, setPicker] = React.useState<PickerState | null>(null);
+  const [emojiOpen, setEmojiOpen] = React.useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
+  const isUploading = uploadProgress !== null;
 
   // Hydrate from draft when conversation switches.
   // IMPORTANT: read the draft imperatively via getState() and depend ONLY on
@@ -187,6 +222,47 @@ export function ChatComposer({
     });
   };
 
+  // ===== Formatting toolbar: wrap selection with markdown-lite marker =====
+  // Bold -> **text**, Italic -> *text*, Code -> `text`. If nothing is selected,
+  // the marker pair is inserted with the caret placed between the markers.
+  const wrapSelectionWithMarker = (marker: string) => {
+    const el = textareaRef.current;
+    if (!el) return;
+    const start = el.selectionStart ?? text.length;
+    const end = el.selectionEnd ?? text.length;
+    const selected = text.slice(start, end);
+    const before = text.slice(0, start);
+    const after = text.slice(end);
+    const next = `${before}${marker}${selected}${marker}${after}`;
+    setText(next);
+    requestAnimationFrame(() => {
+      el.focus();
+      if (selected) {
+        // Keep the wrapped text selected so repeated clicks can be undone visually.
+        el.setSelectionRange(start + marker.length, start + marker.length + selected.length);
+      } else {
+        const caret = start + marker.length;
+        el.setSelectionRange(caret, caret);
+      }
+    });
+  };
+
+  // ===== Emoji picker: insert at cursor position =====
+  const insertEmoji = (emoji: string) => {
+    const el = textareaRef.current;
+    const start = el?.selectionStart ?? text.length;
+    const end = el?.selectionEnd ?? text.length;
+    const next = text.slice(0, start) + emoji + text.slice(end);
+    setText(next);
+    setEmojiOpen(false);
+    requestAnimationFrame(() => {
+      if (!el) return;
+      el.focus();
+      const caret = start + emoji.length;
+      el.setSelectionRange(caret, caret);
+    });
+  };
+
   // ===== Filtered lists for the picker =====
   const mentionList: ChatEntity[] = React.useMemo(() => {
     const all = chatEntities.filter((e) => e.id !== currentUserId);
@@ -214,6 +290,20 @@ export function ChatComposer({
 
   // ===== Keyboard navigation in picker =====
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Formatting shortcuts work regardless of picker state.
+    if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey) {
+      if (e.key === "b" || e.key === "B") {
+        e.preventDefault();
+        wrapSelectionWithMarker("**");
+        return;
+      }
+      if (e.key === "i" || e.key === "I") {
+        e.preventDefault();
+        wrapSelectionWithMarker("*");
+        return;
+      }
+    }
+
     if (picker) {
       if (e.key === "ArrowDown") {
         e.preventDefault();
@@ -273,48 +363,74 @@ export function ChatComposer({
   };
 
   // ===== File upload =====
+  // Real upload via multipart/form-data to POST /api/chat/upload. Progress is
+  // tracked with XMLHttpRequest (fetch does not expose upload progress). On a
+  // non-2xx response we surface whatever error message the API returned and
+  // do not populate an attachment.
+  const uploadFile = (file: File) => {
+    setUploadProgress(0);
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", "/api/chat/upload");
+
+    xhr.upload.onprogress = (ev) => {
+      if (ev.lengthComputable) {
+        setUploadProgress(Math.round((ev.loaded / ev.total) * 100));
+      }
+    };
+
+    xhr.onload = () => {
+      setUploadProgress(null);
+      let body: { url?: string; contentType?: string; size?: number; name?: string; error?: string; message?: string } | null = null;
+      try {
+        body = xhr.responseText ? JSON.parse(xhr.responseText) : null;
+      } catch {
+        body = null;
+      }
+
+      if (xhr.status >= 200 && xhr.status < 300 && body?.url) {
+        const contentType = body.contentType || file.type;
+        setAttachment({
+          id: `att-${Date.now()}`,
+          type: contentType.startsWith("image/") ? "image" : "file",
+          name: body.name || file.name,
+          size: body.size ?? file.size,
+          mime: contentType,
+          url: body.url,
+        });
+        return;
+      }
+
+      const message =
+        body?.error ||
+        body?.message ||
+        (xhr.status === 413
+          ? "File is too large to upload."
+          : `Upload failed (${xhr.status || "network error"}).`);
+      toast.error(message);
+    };
+
+    xhr.onerror = () => {
+      setUploadProgress(null);
+      toast.error("Upload failed. Check your connection and try again.");
+    };
+
+    xhr.send(formData);
+  };
+
   const handleFilePick = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = ""; // reset so same file can be re-picked
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("File exceeds 5 MB limit.");
-      return;
-    }
-    // Simulated upload progress
-    setUploadProgress(0);
-    let progress = 0;
-    const interval = window.setInterval(() => {
-      progress += Math.random() * 20 + 10;
-      if (progress >= 100) {
-        progress = 100;
-        window.clearInterval(interval);
-        setUploadProgress(null);
-      } else {
-        setUploadProgress(Math.min(100, progress));
-      }
-    }, 120);
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      const data = reader.result as string;
-      const isImage = file.type.startsWith("image/");
-      setAttachment({
-        id: `att-${Date.now()}`,
-        type: isImage ? "image" : "file",
-        name: file.name,
-        size: file.size,
-        mime: file.type,
-        data,
-      });
-    };
-    reader.readAsDataURL(file);
+    uploadFile(file);
   };
 
   // ===== Send =====
   const handleSend = async () => {
     const trimmed = text.trim();
-    if ((!trimmed && !attachment) || sending) return;
+    if ((!trimmed && !attachment) || sending || isUploading) return;
     setSending(true);
 
     // Handle slash commands
@@ -374,18 +490,21 @@ export function ChatComposer({
       }
       case "/assign": {
         if (!argStr) {
-          toast.error("Usage: /assign <task>");
+          toast.error("Usage: /assign <task> — mention someone with @ to flag it for them");
           return;
         }
+        // This posts a formatted action-item message in this conversation only.
+        // It is NOT wired to Operations Hub or any task-tracking system - the
+        // copy must not claim otherwise.
         sendMessage({
           conversationId: conversation.id,
-          text: `Task created: ${argStr}\nAssigned by ${currentName}. Track in Operations Hub.`,
+          text: `📌 **Action item:** ${argStr}\n\nPosted by ${currentName} in this conversation.`,
           senderId: currentUserId,
           senderName: currentName,
           senderRole: currentRole,
           isCommandResult: true,
         });
-        toast.success("Task created. See Operations Hub.");
+        toast.success("Action item posted to this conversation.");
         break;
       }
       case "/poll": {
@@ -403,7 +522,11 @@ export function ChatComposer({
           senderRole: currentRole,
           isPoll: {
             question,
-            options: opts.map((text) => ({ text, votes: [] })),
+            options: opts.map((text, i) => ({
+              id: `opt-${Date.now()}-${i}`,
+              text,
+              votes: [],
+            })),
           },
         });
         break;
@@ -477,7 +600,7 @@ export function ChatComposer({
       {attachment && (
         <div className="mb-1 flex items-center gap-2 rounded-[5px] border border-border bg-muted/40 px-2 py-1">
           {attachment.type === "image" ? (
-            <img src={attachment.data} alt={attachment.name} className="h-8 w-8 rounded-[3px] object-cover" />
+            <img src={attachment.url ?? attachment.data} alt={attachment.name} className="h-8 w-8 rounded-[3px] object-cover" />
           ) : (
             <span className="flex h-8 w-8 items-center justify-center rounded-[3px] border border-border bg-background">
               <FileText className="h-3.5 w-3.5" />
@@ -632,9 +755,63 @@ export function ChatComposer({
               <ComposerBtn
                 onClick={() => fileInputRef.current?.click()}
                 title="Attach file"
+                disabled={isUploading}
               >
                 <Paperclip className="h-3.5 w-3.5" />
               </ComposerBtn>
+
+              <span className="mx-0.5 h-4 w-px bg-border" />
+
+              <ComposerBtn onClick={() => wrapSelectionWithMarker("**")} title="Bold (Ctrl/Cmd+B)">
+                <Bold className="h-3.5 w-3.5" />
+              </ComposerBtn>
+              <ComposerBtn onClick={() => wrapSelectionWithMarker("*")} title="Italic (Ctrl/Cmd+I)">
+                <Italic className="h-3.5 w-3.5" />
+              </ComposerBtn>
+              <ComposerBtn onClick={() => wrapSelectionWithMarker("`")} title="Code">
+                <Code className="h-3.5 w-3.5" />
+              </ComposerBtn>
+
+              <Popover open={emojiOpen} onOpenChange={setEmojiOpen}>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    title="Insert emoji"
+                    className={cn(
+                      "flex h-6 w-6 items-center justify-center rounded-[3px] text-muted-foreground hover:bg-accent hover:text-foreground",
+                      emojiOpen && "bg-accent text-foreground"
+                    )}
+                  >
+                    <Smile className="h-3.5 w-3.5" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-64 p-1">
+                  <div className="max-h-64 overflow-y-auto scrollbar-thin">
+                    {EMOJI_CATEGORIES.map((cat) => (
+                      <div key={cat.label} className="mb-1 last:mb-0">
+                        <div className="px-1.5 py-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                          {cat.label}
+                        </div>
+                        <div className="grid grid-cols-8 gap-0.5 px-1">
+                          {cat.emojis.map((emoji) => (
+                            <button
+                              key={emoji}
+                              type="button"
+                              onClick={() => insertEmoji(emoji)}
+                              className="flex h-6 w-6 items-center justify-center rounded-[3px] text-[14px] hover:bg-accent"
+                            >
+                              {emoji}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
+
+              <span className="mx-0.5 h-4 w-px bg-border" />
+
               <ComposerBtn
                 onClick={() => {
                   setText(text + "@");
@@ -701,7 +878,7 @@ export function ChatComposer({
               </button>
               <button
                 onClick={handleSend}
-                disabled={(!text.trim() && !attachment) || sending}
+                disabled={(!text.trim() && !attachment) || sending || isUploading}
                 className="flex h-6 w-6 items-center justify-center rounded-[3px] bg-foreground text-background transition-colors hover:bg-foreground/90 disabled:opacity-40"
                 aria-label="Send"
               >
@@ -719,17 +896,20 @@ function ComposerBtn({
   children,
   onClick,
   title,
+  disabled,
 }: {
   children: React.ReactNode;
   onClick?: () => void;
   title?: string;
+  disabled?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
       title={title}
-      className="flex h-6 w-6 items-center justify-center rounded-[3px] text-muted-foreground hover:bg-accent hover:text-foreground"
+      disabled={disabled}
+      className="flex h-6 w-6 items-center justify-center rounded-[3px] text-muted-foreground hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
     >
       {children}
     </button>

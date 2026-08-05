@@ -10,6 +10,7 @@ import { ChatThreadPanel } from "./chat-thread-panel";
 import { ChatChannelBrowser } from "./chat-channel-browser";
 import { ChatForwardDialog } from "./chat-forward-dialog";
 import { ChatNewDmDialog } from "./chat-new-dm-dialog";
+import { ChatGlobalSearch } from "./chat-global-search";
 import {
   MessageSquare,
   PanelRightOpen,
@@ -104,6 +105,7 @@ export function ChatModule() {
         </span>
 
         <div className="ml-auto flex items-center gap-1">
+          <ChatGlobalSearch currentUserId={currentRole.id} />
           <button
             onClick={() => setThreadOpen(threadOpen ? null : "last")}
             className={cn(

@@ -12,6 +12,8 @@ import {
   Search,
   Compass,
   Plus,
+  Bell,
+  BellOff,
 } from "lucide-react";
 
 interface ChatSidebarProps {
@@ -35,6 +37,8 @@ export function ChatSidebar({
   const messages = useChatStore((s) => s.messages);
   const activeId = useChatStore((s) => s.activeConversationId);
   const setActive = useChatStore((s) => s.setActiveConversation);
+  const mutedConversationIds = useChatStore((s) => s.mutedConversationIds);
+  const toggleMute = useChatStore((s) => s.toggleMute);
   const [tab, setTab] = React.useState<Tab>("channels");
   const [search, setSearch] = React.useState("");
 
@@ -105,6 +109,8 @@ export function ChatSidebar({
                 currentUserId={currentUserId}
                 messages={messages}
                 compact={compact}
+                muted={mutedConversationIds.includes(c.id)}
+                onToggleMute={() => toggleMute(c.id)}
               />
             ))}
           </>
@@ -132,6 +138,8 @@ export function ChatSidebar({
                 currentUserId={currentUserId}
                 messages={messages}
                 compact={compact}
+                muted={mutedConversationIds.includes(c.id)}
+                onToggleMute={() => toggleMute(c.id)}
               />
             ))}
           </>
@@ -171,6 +179,8 @@ function ConversationRow({
   currentUserId,
   messages,
   compact,
+  muted,
+  onToggleMute,
 }: {
   conv: Conversation;
   active: boolean;
@@ -179,6 +189,8 @@ function ConversationRow({
   currentUserId: string;
   messages: ChatMessage[];
   compact?: boolean;
+  muted: boolean;
+  onToggleMute: () => void;
 }) {
   // BUG 6: last-message preview must be the latest message by timestamp.
   // selectConvMessages already filters by conversationId + sorts ascending by
@@ -197,47 +209,71 @@ function ConversationRow({
   const presence: PresenceState | undefined = otherEntity?.presence;
 
   return (
-    <button
-      onClick={onClick}
+    <div
       className={cn(
-        "flex w-full items-center gap-2 border-l-2 px-2 py-1.5 text-left transition-colors",
+        "group relative flex w-full items-center border-l-2 transition-colors",
         active
           ? "border-foreground bg-accent/60"
           : "border-transparent hover:bg-accent/30"
       )}
     >
-      {isChannel ? (
-        <Hash className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-      ) : isRean ? (
-        <ChatAvatar initials="RE" size="xs" isRean />
-      ) : (
-        <ChatAvatar
-          initials={otherEntity?.initials || displayName.slice(0, 2).toUpperCase()}
-          size="xs"
-          presence={presence}
-        />
-      )}
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-1.5">
-          <span className="min-w-0 flex-1 truncate text-[12px] font-medium">
-            {isChannel ? conv.name.replace(/^#/, "") : displayName}
-          </span>
-          {conv.unread > 0 && (
-            <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-foreground px-1 font-mono text-[9px] font-semibold tabular-nums text-background">
-              {conv.unread}
+      <button
+        onClick={onClick}
+        className="flex min-w-0 flex-1 items-center gap-2 px-2 py-1.5 text-left"
+      >
+        {isChannel ? (
+          <Hash className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+        ) : isRean ? (
+          <ChatAvatar initials="RE" size="xs" isRean />
+        ) : (
+          <ChatAvatar
+            initials={otherEntity?.initials || displayName.slice(0, 2).toUpperCase()}
+            size="xs"
+            presence={presence}
+          />
+        )}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5">
+            <span className="min-w-0 flex-1 truncate text-[12px] font-medium">
+              {isChannel ? conv.name.replace(/^#/, "") : displayName}
             </span>
+            {muted && (
+              <BellOff
+                className="h-3 w-3 shrink-0 text-muted-foreground"
+                aria-label="Muted"
+              />
+            )}
+            {conv.unread > 0 && (
+              <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-foreground px-1 font-mono text-[9px] font-semibold tabular-nums text-background">
+                {conv.unread}
+              </span>
+            )}
+          </div>
+          {!compact && last && (
+            <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+              <span className="min-w-0 flex-1 truncate">
+                {last.isRean ? "" : `${(last.sender || "").split(" ")[0]}: `}
+                {plainTextOf(last.text).slice(0, 40)}
+              </span>
+              <span className="font-mono tabular-nums">{formatRelativeShort(last.timestamp)}</span>
+            </div>
           )}
         </div>
-        {!compact && last && (
-          <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-            <span className="min-w-0 flex-1 truncate">
-              {last.isRean ? "" : `${(last.sender || "").split(" ")[0]}: `}
-              {plainTextOf(last.text).slice(0, 40)}
-            </span>
-            <span className="font-mono tabular-nums">{formatRelativeShort(last.timestamp)}</span>
-          </div>
-        )}
-      </div>
-    </button>
+      </button>
+
+      {/* Mute toggle - visible on hover (desktop) and always on touch, matching
+          the row-actions pattern used elsewhere in the app (e.g. notification-panel). */}
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          onToggleMute();
+        }}
+        className="mr-1.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-[3px] text-muted-foreground opacity-100 transition-opacity hover:bg-accent hover:text-foreground sm:opacity-0 sm:group-hover:opacity-100"
+        aria-label={muted ? "Unmute conversation" : "Mute conversation"}
+        title={muted ? "Unmute" : "Mute"}
+      >
+        {muted ? <BellOff className="h-3.5 w-3.5" /> : <Bell className="h-3.5 w-3.5" />}
+      </button>
+    </div>
   );
 }

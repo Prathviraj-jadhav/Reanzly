@@ -14,6 +14,7 @@ import { CompanySwitcher } from "./company-switcher";
 import { ErrorBoundary } from "@/components/shared/error-boundary";
 import { ModuleRouter } from "@/components/modules/router";
 import { DriverFieldApp } from "@/components/modules/driver-field";
+import { WarehouseFieldApp } from "@/components/modules/warehouse-field";
 import { LoginScreen } from "@/components/auth/login-screen";
 import { SignupScreen } from "@/components/auth/signup-screen";
 import { LandingSite } from "@/components/marketing/landing-site";
@@ -85,11 +86,14 @@ export function AppShell() {
 
   // Driver portal → mobile-first field app (no desktop sidebar/header).
   // We keep the currentRole.id === "driver" fallback so existing persisted
-  // sessions (pre-portal) still route correctly.
-  if (portal === "driver" || currentRole.id === "driver") {
+  // sessions (pre-portal) still route correctly. The same portal now also
+  // serves warehouse floor crews - a second role sharing the "driver"
+  // subdomain/portal but rendering a task-centric app instead of a
+  // trip-centric one.
+  if (portal === "driver" || currentRole.id === "driver" || currentRole.id === "warehouse-crew") {
     return (
       <div className="flex h-screen w-full overflow-hidden bg-background text-foreground">
-        <DriverFieldApp />
+        {currentRole.id === "warehouse-crew" ? <WarehouseFieldApp /> : <DriverFieldApp />}
         {/* Overlays still available */}
         <NotificationPanel />
         <CommandPalette />

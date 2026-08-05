@@ -4,23 +4,28 @@
 //
 // Events (client -> server):
 //   message:send    { conversationId, text, parentId?, attachment?, forwardedFrom?, isPoll? }
+//   message:edit    { messageId, text }
 //   typing:start    { conversationId }
 //   typing:stop     { conversationId }
 //   reaction:toggle { messageId, emoji }
 //   message:read    { conversationId }
 //   message:pin     { messageId, pinned }
-//   message:delete  { messageId }
+//   message:delete  { messageId }          (soft-delete: tombstones, doesn't remove the row)
+//   poll:vote       { messageId, optionId }
 //
 // Events (server -> client):
 //   message:new        ChatMessagePayload
-//   message:updated    { id, pinned? }
-//   message:deleted    { id }
+//   message:updated    { id, pinned? } | { id, text, edited, editedAt } | { id, deleted: true }
 //   typing:update      { conversationId, userId, name, typing }
 //   reaction:update    { messageId, emoji, users }
 //   read:update        { conversationId, userId, lastReadAt }
 //   presence:update    { userId, presence }
 //   conversation:new   ConversationPayload (when a DM is created)
+//   poll:updated        { messageId, options: { id, text, votes: string[] }[] }
 //   connected          { userId, conversations: string[] }
+//
+// NOTE: there is no "message:deleted" event - deletion is soft (tombstone) and is
+// broadcast as "message:updated" with { id, deleted: true } instead.
 
 import { createServer } from "http";
 import { Server, Socket } from "socket.io";
@@ -451,6 +456,9 @@ io.on("connection", (socket: Socket) => {
   });
 
   // ===== message:delete =====
+  // Soft-delete: the row stays (so replies/threads/reactions referencing it don't
+  // dangle) but is tombstoned - text cleared and `deleted` flagged. Broadcast as
+  // "message:updated" so clients patch the existing message in place.
   socket.on("message:delete", (payload: any) => {
     const messageId = payload?.messageId;
     if (!messageId) return;
@@ -460,8 +468,89 @@ io.on("connection", (socket: Socket) => {
     if (!msgRow) return;
     // Only the sender can delete their own message.
     if (msgRow.senderId !== userId) return;
-    db.query("DELETE FROM ChatMessage WHERE id = ?").run(messageId);
-    io.to(`conv:${msgRow.conversationId}`).emit("message:deleted", { id: messageId });
+    db.query("UPDATE ChatMessage SET deleted = 1, text = '' WHERE id = ?").run(messageId);
+    io.to(`conv:${msgRow.conversationId}`).emit("message:updated", { id: messageId, deleted: true });
+  });
+
+  // ===== message:edit =====
+  socket.on("message:edit", (payload: any) => {
+    const messageId = payload?.messageId;
+    if (!messageId) return;
+    const text = String(payload?.text ?? "").slice(0, 5000);
+    if (!text) return;
+    const msgRow = db
+      .query("SELECT conversationId, senderId, deleted FROM ChatMessage WHERE id = ?")
+      .get(messageId) as { conversationId: string; senderId: string; deleted: number } | null;
+    if (!msgRow) return;
+    // Only the sender can edit their own message, and a tombstoned message can't
+    // be edited back to life.
+    if (msgRow.senderId !== userId || msgRow.deleted) return;
+    const editedAt = new Date().toISOString();
+    db.query("UPDATE ChatMessage SET text = ?, edited = 1, editedAt = ? WHERE id = ?").run(
+      text,
+      editedAt,
+      messageId
+    );
+    io.to(`conv:${msgRow.conversationId}`).emit("message:updated", {
+      id: messageId,
+      text,
+      edited: true,
+      editedAt,
+    });
+  });
+
+  // ===== poll:vote =====
+  socket.on("poll:vote", (payload: any) => {
+    const messageId = payload?.messageId;
+    const optionId = payload?.optionId ? String(payload.optionId) : null;
+    if (!messageId || !optionId) return;
+    const msgRow = db
+      .query("SELECT conversationId, isPoll FROM ChatMessage WHERE id = ?")
+      .get(messageId) as { conversationId: string; isPoll: string | null } | null;
+    if (!msgRow || !msgRow.isPoll) return;
+    if (!isParticipant(msgRow.conversationId, userId)) return;
+
+    let poll: { question: string; options: { id: string; text: string; votes: string[] }[] };
+    try {
+      poll = JSON.parse(msgRow.isPoll);
+    } catch {
+      return;
+    }
+    // Ignore votes for an option that doesn't exist on this poll.
+    if (!poll.options?.some((o) => o.id === optionId)) return;
+
+    db.query(
+      `INSERT INTO ChatPollVote (id, messageId, userId, optionId, createdAt)
+       VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT(messageId, userId) DO UPDATE SET optionId = excluded.optionId`
+    ).run(
+      `pv_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`,
+      messageId,
+      userId,
+      optionId,
+      new Date().toISOString()
+    );
+
+    // Recompute the full tally from ChatPollVote (source of truth) and rebuild
+    // each option's votes array, then persist the merged shape back onto the
+    // message row so future reads see the up-to-date poll.
+    const allVotes = db
+      .query("SELECT userId, optionId FROM ChatPollVote WHERE messageId = ?")
+      .all(messageId) as { userId: string; optionId: string }[];
+    const votesByOption = new Map<string, string[]>();
+    for (const v of allVotes) {
+      if (!votesByOption.has(v.optionId)) votesByOption.set(v.optionId, []);
+      votesByOption.get(v.optionId)!.push(v.userId);
+    }
+    const options = poll.options.map((opt) => ({
+      id: opt.id,
+      text: opt.text,
+      votes: votesByOption.get(opt.id) ?? [],
+    }));
+    poll.options = options;
+
+    db.query("UPDATE ChatMessage SET isPoll = ? WHERE id = ?").run(JSON.stringify(poll), messageId);
+    io.to(`conv:${msgRow.conversationId}`).emit("poll:updated", { messageId, options });
   });
 
   socket.on("disconnect", () => {

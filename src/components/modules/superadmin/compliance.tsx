@@ -74,9 +74,7 @@ export function ComplianceView() {
   }, []);
 
   const overdueDsars = PRIVACY_REQUESTS.filter((p) => p.status === "Overdue").length;
-  const openDsars = PRIVACY_REQUESTS.filter(
-    (p) => p.status !== "Completed" && p.status !== "Cancelled",
-  ).length;
+  const openDsars = PRIVACY_REQUESTS.filter((p) => p.status !== "Completed").length;
   const gstOverdue = GST_RETURNS.filter((g) => g.status === "Overdue").length;
   const gstDueSoon = GST_RETURNS.filter((g) => g.status === "Due").length;
   const activeRetention = RETENTION_RULES.filter((r) => r.status === "Active").length;
