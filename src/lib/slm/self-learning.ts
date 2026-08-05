@@ -98,19 +98,19 @@ export async function superpositionReason(
   const fullContext = `${context}\n${memoryContext}`;
 
   // Generate N parallel/independent interpretation thoughts (simulating superposition)
-  const interpretations: string[] = [];
-  for (let i = 0; i < n; i++) {
-    const prompt = `System: You are an internal cognitive filter analyzing the user request.
+  const interpretations = await Promise.all(
+    Array.from({ length: n }).map(async (_, i) => {
+      const prompt = `System: You are an internal cognitive filter analyzing the user request.
 Context of the organization:
 ${fullContext}
 
 Generate candidate interpretation #${i + 1} of what the user is asking, including potential hidden goals.
 User Query: "${query}"
 Candidate Interpretation:`;
-
-    const response = await inferSLM(prompt, { tier: "fast" });
-    interpretations.push(response.trim());
-  }
+      const response = await inferSLM(prompt, { tier: "fast" });
+      return response.trim();
+    })
+  );
 
   // Calculate embedding of the context
   const [contextVec] = await embedText([fullContext]);

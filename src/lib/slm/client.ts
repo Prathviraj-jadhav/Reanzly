@@ -8,18 +8,6 @@ export interface InferOptions {
 }
 
 /**
- * Checks if the local Rust slm-engine is active and healthy.
- */
-export async function isSlmEngineOnline(): Promise<boolean> {
-  try {
-    const res = await fetch(`${SLM_ENGINE_URL}/health`, { signal: AbortSignal.timeout(800) });
-    return res.ok;
-  } catch {
-    return false;
-  }
-}
-
-/**
  * Query the Rust SLM engine for text generation.
  * Falls back to the local rules engine if the service is offline or fails.
  */
