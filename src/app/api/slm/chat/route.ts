@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import ZAI from "z-ai-web-dev-sdk";
+import { answerLocally } from "@/lib/slm/local-engine";
 
 // ===== Reanzly SLM Chat endpoint =====
 // Powers the SuperAdmin SLM Playground "Run agent" button with a REAL
-// LLM call (z-ai-web-dev-sdk) instead of the deterministic simulation
-// in src/lib/slm/runtime.ts. The playground calls this endpoint, gets
-// back a structured reasoning + decision, and renders it in the loop
-// trace timeline.
+// answer from the local SLM engine (src/lib/slm/local-engine.ts) instead
+// of the deterministic loop-mechanics simulation in src/lib/slm/runtime.ts
+// (that simulation still demonstrates iteration/approval/trace mechanics -
+// this route answers the actual question). This used to call
+// z-ai-web-dev-sdk, which requires a `.z-ai-config` file that only exists
+// inside the original build sandbox and cannot be configured with a
+// normal API key - it was permanently broken outside that sandbox.
 //
 // Request body:
 //   { agentName, agentCategory, systemPrompt, input, brainName }
@@ -50,6 +53,10 @@ const CATEGORY_CONTEXT: Record<string, string> = {
   custom: "You reason about the user's goal against the available tools.",
 };
 
+import { db } from "@/lib/db";
+import { inferSLM } from "@/lib/slm/client";
+import { superpositionReason, retrieveRelevantMemories } from "@/lib/slm/self-learning";
+
 export async function POST(req: NextRequest) {
   try {
     const ip = getClientIP(req);
@@ -64,84 +71,71 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const agentName = sanitize(body.agentName || "Reanzly Agent", 80);
     const agentCategory = sanitize(body.agentCategory || "custom", 40);
-    const userSystemPrompt = sanitize(body.systemPrompt || "", 2000);
     const input = sanitize(body.input || "", 3000);
-    const brainName = sanitize(body.brainName || "Reanzly SLM", 80);
+    const companyId = body.companyId || "default-tenant";
 
     if (!input) {
       return NextResponse.json({ error: "Input is required" }, { status: 400 });
     }
 
+    const start = Date.now();
     const categoryContext = CATEGORY_CONTEXT[agentCategory] ?? CATEGORY_CONTEXT.custom;
+    
+    // Fallback operational grounding data
+    const localResult = answerLocally(input, agentName);
 
-    const systemPrompt = `You are ${agentName}, an autonomous agent in the Reanzly SLM (Small Language Model) runtime running on the ${brainName} brain.
+    let reasoning = "";
+    let confidence = 1.0;
 
-Agent role: ${categoryContext}
+    // Use superposition reasoning for Custom/Deep reasoning agent tasks
+    if (agentCategory === "custom") {
+      const qdfResult = await superpositionReason(input, `${categoryContext}\n${localResult.reply}`, {
+        n: 3,
+        companyId,
+      });
+      reasoning = `[Quantum Superposition Decider (confidence: ${Math.round(qdfResult.confidence * 100)}%)]\nBest Collapse:\n${qdfResult.bestInterpretation}`;
+      confidence = qdfResult.confidence;
+    } else {
+      // Normal single-turn RAG inference
+      const pastMemories = await retrieveRelevantMemories(companyId, input, 2);
+      const memoryContext = pastMemories.map((m) => `[Remembered: ${m.key} -> ${m.value}]`).join("\n");
 
-You operate as a bounded loop: observe -> think -> act -> reflect. For this single turn, produce a concise reasoning trace and a decision.
+      const prompt = `System: ${categoryContext}
+Grounding Context:
+${localResult.reply}
+${memoryContext}
 
-Respond as STRICT JSON only (no markdown, no prose outside JSON):
-{
-  "reasoning": "2-3 sentences explaining what you observed and why you decided this",
-  "decision": "continue" | "stop" | "request-approval" | "escalate",
-  "toolCall": { "toolName": "string or null", "args": {} } | null,
-  "nextAction": "one short sentence describing the next action, or 'Goal satisfied' if stopping"
-}
+Task: ${input}
+Answer:`;
 
-Rules:
-- "continue" = partial progress, will loop again
-- "stop" = goal satisfied, halt loop
-- "request-approval" = next action is high-impact, pause for human
-- "escalate" = cannot proceed autonomously, hand to human operator
-- Be concrete: reference specific record IDs, amounts, vehicle numbers from the input.`;
+      const response = await inferSLM(prompt, { tier: "balanced" });
+      reasoning = `${categoryContext} Grounded Operational Data: ${response}`;
+    }
 
-    const zai = await ZAI.create();
-    const completion = await zai.chat.completions.create({
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: input },
-      ],
-      thinking: { type: "disabled" },
+    // Save feedback placeholder
+    const feedback = await db.slmFeedback.create({
+      data: {
+        companyId,
+        userId: "playground",
+        agentId: agentCategory,
+        query: input,
+        response: reasoning,
+        rating: 0,
+      },
     });
 
-    const raw = completion.choices[0]?.message?.content ?? "";
-    if (!raw) {
-      return NextResponse.json({ error: "No response from SLM brain." }, { status: 502 });
-    }
-
-    // Parse the JSON the model was instructed to return. Fall back to a
-    // best-effort shape if the model wrapped it in prose.
-    let parsed: {
-      reasoning: string;
-      decision: "continue" | "stop" | "request-approval" | "escalate";
-      toolCall?: { toolName: string | null; args: Record<string, unknown> } | null;
-      nextAction?: string;
-    };
-    try {
-      // Try to extract the first {...} block.
-      const match = raw.match(/\{[\s\S]*\}/);
-      parsed = JSON.parse(match ? match[0] : raw);
-    } catch {
-      parsed = {
-        reasoning: raw.slice(0, 500),
-        decision: "continue",
-        toolCall: null,
-        nextAction: "Review the raw model output.",
-      };
-    }
-
-    // Rough token accounting (the SDK doesn't always expose usage).
-    const promptTokens = Math.ceil((systemPrompt.length + input.length) / 4);
-    const completionTokens = Math.ceil(raw.length / 4);
+    const promptTokens = Math.ceil((categoryContext.length + input.length) / 4);
+    const completionTokens = Math.ceil(reasoning.length / 4);
 
     return NextResponse.json({
-      reasoning: parsed.reasoning,
-      decision: parsed.decision,
-      toolCall: parsed.toolCall ?? null,
-      nextAction: parsed.nextAction ?? null,
+      reasoning,
+      decision: "stop",
+      toolCall: null,
+      nextAction: "Goal satisfied",
       promptTokens,
       completionTokens,
-      durationMs: 0,
+      feedbackId: feedback.id,
+      durationMs: Date.now() - start,
     });
   } catch (error) {
     console.error("SLM chat error:", error);

@@ -20,7 +20,7 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { Btn } from "@/components/shared/btn";
 import {
   Bot, Activity, CheckCircle2, ShieldAlert, Coins, Cpu,
-  Play, ChevronRight, Clock, Zap, Hash, Loader2,
+  Play, ChevronRight, Clock, Zap, Hash, Loader2, Sparkles,
 } from "lucide-react";
 import {
   KpiTile, SectionHeader, IterationSpark, EmptyPanel,
@@ -43,8 +43,33 @@ export function SLMOverviewTab({
   const brains = useSuperadminStore((s) => s.brains);
   const agentRuns = useSuperadminStore((s) => s.agentRuns);
   const pendingApprovals = useSuperadminStore((s) => s.pendingApprovals);
-  const decideApproval = useSuperadminStore((s) => s.decideApproval);
   const [runningAgentId, setRunningAgentId] = useState<string | null>(null);
+  const [isOptimizing, setIsOptimizing] = useState(false);
+
+  async function handleOptimize() {
+    setIsOptimizing(true);
+    try {
+      const res = await fetch("/api/slm/feedback", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ companyId: "default-tenant" }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const { processedCount, promptsOptimized, cacheSeeded } = data.stats;
+        toast.success("Self-improvement cycle completed!", {
+          description: `Processed ${processedCount} feedback entries. Optimized ${promptsOptimized} agents. Seeded ${cacheSeeded} QA cache values.`,
+        });
+      } else {
+        toast.error("Failed to run optimization.");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Optimization error.");
+    } finally {
+      setIsOptimizing(false);
+    }
+  }
 
   const succeededRuns = useMemo(
     () => agentRuns.filter((r) => r.status === "succeeded").length,
@@ -353,6 +378,34 @@ export function SLMOverviewTab({
           </div>
         </section>
       </div>
+
+      {/* Self-Learning Improvisation Engine */}
+      <section className="rounded-[6px] border border-border bg-card p-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex items-start gap-3">
+            <div className="rounded-[4px] border border-border bg-muted/20 p-2">
+              <Cpu className="h-4 w-4 text-foreground" />
+            </div>
+            <div>
+              <h3 className="text-[13px] font-medium text-foreground">Self-Learning Improvisation Engine</h3>
+              <p className="mt-0.5 text-[11.5px] leading-relaxed text-muted-foreground">
+                Consolidates user feedback (likes/dislikes) from recent queries. Automatically adjusts prompt weights,
+                creates agent correction patterns, and populates the local QA memory cache for offline speedups.
+              </p>
+            </div>
+          </div>
+          <Btn
+            variant="outline"
+            size="sm"
+            onClick={handleOptimize}
+            loading={isOptimizing}
+            disabled={readOnly || isOptimizing}
+            icon={<Sparkles className="h-3.5 w-3.5" />}
+          >
+            {isOptimizing ? "Optimizing..." : "Run Optimization"}
+          </Btn>
+        </div>
+      </section>
 
       {/* Recent runs */}
       <section className="rounded-[6px] border border-border bg-card">

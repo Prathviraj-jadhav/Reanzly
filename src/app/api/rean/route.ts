@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import ZAI from "z-ai-web-dev-sdk";
+import { answerLocally } from "@/lib/slm/local-engine";
 
 // ===== Rate limiting (in-memory, per-IP) =====
 const requestCounts = new Map<string, { count: number; resetTime: number }>();
@@ -28,28 +28,9 @@ function sanitize(input: string): string {
   return input.slice(0, 2000).replace(/[<>]/g, "");
 }
 
-const REAN_SYSTEM_PROMPT = `You are Rean, the embedded intelligence layer of Reanzly - a logistics operating system and marketplace for the Indian road-logistics economy.
-
-Your role:
-- You observe operational data across trips, fleet, finance, compliance, and HR.
-- You detect anomalies (fuel overfill, route deviation, POD variance, overdue invoices, document expiry).
-- You generate actionable recommendations with specific impact estimates.
-- You answer operational questions in a concise, structured way.
-
-Your voice:
-- Sharp, direct, confident. Never use filler words like "seamless" or "elevate".
-- You speak in concrete numbers and specific entities, not generalities.
-- You are calm and clear on problems; never teasing about money lost or safety.
-
-Context about the current operation:
-- Fleet: ~28 vehicles (Tata, Ashok Leyland, Eicher, BharatBenz, Mahindra, Volvo)
-- Routes: primarily Mumbai-Delhi, Pune-Bengaluru, Ahmedabad-Surat corridors
-- Active trips this period: ~12
-- Outstanding invoices: ~8 totalling ₹8.4L
-- Known anomaly: fuel overfill on Eicher Pro 3015 (22% above tank capacity)
-- Rean recommendations pending: chase overdue invoice RZ-INV-02147 (₹84,200, 18 days), service Tata LPT 1613 before long-haul, consolidate Pune-Bengaluru return loads
-
-When asked about specific data, use the context above. When asked for analysis, structure your answer with a clear conclusion first, then supporting detail. Keep responses under 150 words unless asked for detail.`;
+import { db } from "@/lib/db";
+import { inferSLM } from "@/lib/slm/client";
+import { retrieveRelevantMemories, saveMemory } from "@/lib/slm/self-learning";
 
 export async function POST(req: NextRequest) {
   try {
@@ -65,31 +46,68 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const message = sanitize(body.message || "");
     const role = sanitize(body.role || "User");
+    const companyId = body.companyId || "default-tenant";
 
     if (!message) {
       return NextResponse.json({ error: "Message is required" }, { status: 400 });
     }
 
-    const zai = await ZAI.create();
-    const completion = await zai.chat.completions.create({
-      messages: [
-        // BUG 7: system prompt must use role: "system" (OpenAI standard).
-        // Previously this was role: "assistant", which the z-ai SDK would
-        // either reject or treat as a normal conversation turn, leaking the
-        // system prompt into the visible transcript and degrading quality.
-        { role: "system", content: REAN_SYSTEM_PROMPT },
-        { role: "user", content: `[${role}] ${message}` },
-      ],
-      thinking: { type: "disabled" },
+    const cacheKey = `qa_cache:query:${message.toLowerCase().trim()}`;
+    
+    // 1. Check self-learned QA Cache first
+    const cachedMemory = await db.slmMemory.findFirst({
+      where: { companyId, key: cacheKey },
     });
 
-    const reply = completion.choices[0]?.message?.content;
-    if (!reply) {
-      return NextResponse.json({ error: "No response generated" }, { status: 500 });
+    let reply = "";
+    let wasCached = false;
+
+    if (cachedMemory) {
+      reply = cachedMemory.value;
+      wasCached = true;
+    } else {
+      // 2. Retrieve relevant past memories for semantic grounding
+      const pastMemories = await retrieveRelevantMemories(companyId, message, 2);
+      const memoryContext = pastMemories.map((m) => `[Remembered: ${m.key} -> ${m.value}]`).join("\n");
+
+      // 3. Fallback to local engine heuristics first to structure the prompt
+      const localResult = answerLocally(message, role);
+      
+      const systemPrompt = `You are Rean, the logistics intelligence voice.
+Grounding context from recent operations:
+${localResult.reply}
+${memoryContext ? `\nSemantically related past history:\n${memoryContext}` : ""}
+
+Answer the query professionally. Under 100 words.`;
+
+      // 4. Infer using Rust SLM / Local fallback
+      reply = await inferSLM(systemPrompt, { tier: "balanced" });
+    }
+
+    // 5. Create a feedback placeholder in database for self-learning
+    const feedback = await db.slmFeedback.create({
+      data: {
+        companyId,
+        userId: role,
+        agentId: "rean-ai",
+        query: message,
+        response: reply,
+        rating: 0, // Pending user feedback
+      },
+    });
+
+    // 6. Record interaction in memory to seed context for next time
+    if (!wasCached) {
+      await saveMemory(companyId, `history:${message.slice(0, 30)}`, reply);
     }
 
     return NextResponse.json(
-      { reply, timestamp: new Date().toISOString() },
+      { 
+        reply, 
+        feedbackId: feedback.id, 
+        cached: wasCached, 
+        timestamp: new Date().toISOString() 
+      },
       { headers: { "X-RateLimit-Remaining": String(rl.remaining) } }
     );
   } catch (error) {

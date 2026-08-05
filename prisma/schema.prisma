@@ -1072,14 +1072,38 @@ model ChatMessage {
   isPoll          String?
   isCommandResult Boolean  @default(false)
   pinned          Boolean  @default(false)
+  // Soft-delete: deleted messages stay in place with a tombstone instead of
+  // being hard-removed, so "This message was deleted" renders like
+  // Teams/WhatsApp rather than the message just vanishing from history.
+  deleted         Boolean  @default(false)
+  edited          Boolean  @default(false)
+  editedAt        DateTime?
   createdAt       DateTime @default(now())
 
   conversation     ChatConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   reactions        ChatReaction[]
   readReceipts     ChatReadReceipt[]
+  pollVotes        ChatPollVote[]
 
   @@index([conversationId, createdAt])
   @@index([parentId])
+}
+
+// One row per (message, user) - a user can change their poll vote, which
+// upserts this row rather than creating a second one. Votes broadcast live
+// via "poll:updated" so every participant sees results update in real time,
+// instead of the previous local-only vote count that never left the browser
+// that cast it.
+model ChatPollVote {
+  id          String   @id @default(cuid())
+  messageId   String
+  userId      String
+  optionId    String
+  createdAt   DateTime @default(now())
+  message     ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId])
+  @@index([messageId])
 }
 
 model ChatReaction {
@@ -1332,3 +1356,35 @@ model IntegrationSyncLog {
   @@index([companyId, startedAt])
   @@index([status])
 }
+
+// ===== SLM SYSTEM =====
+
+model SlmFeedback {
+  id              String   @id @default(cuid())
+  companyId       String   // tenant isolation
+  userId          String?
+  agentId         String
+  query           String
+  response        String
+  rating          Int      // 1 to 5, or 1/-1 (thumbs up/down)
+  comment         String?
+  processed       Boolean  @default(false)
+  createdAt       DateTime @default(now())
+
+  @@index([companyId, agentId])
+  @@index([processed])
+}
+
+model SlmMemory {
+  id              String   @id @default(cuid())
+  companyId       String   // tenant isolation
+  userId          String?
+  key             String
+  value           String
+  embedding       String?  // JSON string representing Float32Array
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([companyId, key])
+}
+

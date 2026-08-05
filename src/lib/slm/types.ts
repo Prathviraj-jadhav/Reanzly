@@ -196,6 +196,8 @@ export interface AgentRun {
    *  endpoint; "simulation" = the deterministic in-store mock. Defaults
    *  to "simulation" for backward compatibility with seeded runs. */
   source?: "real-llm" | "simulation";
+  /** Feedback ID to link to the SlmFeedback record for self-learning reinforcement. */
+  feedbackId?: string;
 }
 
 export type LoopPhase = "observe" | "think" | "act" | "reflect";

@@ -20,7 +20,7 @@ import { Label } from "@/components/ui/label";
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
 import {
-  Play, FlaskConical, RotateCcw, Cpu, ChevronDown, Sparkles,
+  Play, FlaskConical, RotateCcw, Cpu, ChevronDown, Sparkles, ThumbsUp, ThumbsDown,
 } from "lucide-react";
 import {
   Collapsible, CollapsibleTrigger, CollapsibleContent,
@@ -145,6 +145,24 @@ export function SLMPlayground({
   function handleReset() {
     setInput("");
     setLastRunId(null);
+  }
+
+  async function handleFeedback(feedbackId: string, rating: number) {
+    try {
+      const res = await fetch("/api/slm/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ feedbackId, rating }),
+      });
+      if (res.ok) {
+        toast.success("Feedback recorded for self-learning reinforcement.");
+      } else {
+        toast.error("Failed to submit feedback.");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Feedback error.");
+    }
   }
 
   if (readOnly) {
@@ -364,6 +382,28 @@ export function SLMPlayground({
                 <div className="rounded-[5px] border border-foreground bg-foreground/5 px-2.5 py-2">
                   <span className="text-[10px] font-semibold uppercase tracking-[0.06em] text-foreground">Error</span>
                   <p className="mt-0.5 text-[12px] leading-relaxed text-foreground">{lastRun.error}</p>
+                </div>
+              )}
+
+              {lastRun.feedbackId && (
+                <div className="flex items-center justify-between rounded-[5px] border border-border bg-muted/20 px-3 py-2 text-[12px]">
+                  <span className="text-muted-foreground">Was this response helpful?</span>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => handleFeedback(lastRun.feedbackId!, 1)}
+                      className="rounded-[4px] border border-border bg-background p-1.5 text-muted-foreground hover:border-foreground/30 hover:text-foreground tap"
+                      title="Thumbs Up"
+                    >
+                      <ThumbsUp className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      onClick={() => handleFeedback(lastRun.feedbackId!, -1)}
+                      className="rounded-[4px] border border-border bg-background p-1.5 text-muted-foreground hover:border-foreground/30 hover:text-foreground tap"
+                      title="Thumbs Down"
+                    >
+                      <ThumbsDown className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
                 </div>
               )}
 

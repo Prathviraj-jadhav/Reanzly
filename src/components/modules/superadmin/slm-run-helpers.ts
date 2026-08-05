@@ -35,6 +35,7 @@ interface SlmChatResponse {
   promptTokens: number;
   completionTokens: number;
   durationMs?: number;
+  feedbackId?: string;
 }
 
 // ── Status mapping ─────────────────────────────────────────
@@ -182,6 +183,7 @@ function buildRealLLMRun(params: {
     approvals: [],
     scope: agent.scopes[0] ?? { kind: "platform" },
     source: "real-llm",
+    feedbackId: resp.feedbackId,
   };
 }
 
