@@ -1,0 +1,1334 @@
+// Garage Plus — Logistics Operating System
+// Multi-tenant schema with RLS-style tenant isolation via companyId.
+// All tables carry tenant key + audit fields. Append-only audit log.
+//
+// Architecture note (per the user's system-design brief):
+// - One logical database, tenant isolation via companyId on every row.
+// - Monolith-first: the Next.js app + Prisma + SQLite (swap to Postgres in
+//   prod) handle 95% of the load. The only candidate for extraction to a
+//   microservice is the GPS ingestion path (DriverLocationPing), which is
+//   write-heavy + high-frequency — it can be split to a dedicated service
+//   with its own queue + time-series store without touching the monolith.
+// - Vertical scaling first (bigger box), horizontal when a single module
+//   becomes the bottleneck (read-replicas for reports, sharding for trips).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ===== TENANCY =====
+
+model Company {
+  id          String   @id @default(cuid())
+  legalName   String
+  tradeName   String?
+  gstin       String   @unique
+  pan         String?
+  address     String?
+  city        String?
+  state       String?
+  pin         String?
+  country     String   @default("India")
+  phone       String?
+  email       String?
+  website     String?
+  status      String   @default("Active") // Active | Inactive
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  branches    Branch[]
+  users       User[]
+  vehicles    Vehicle[]
+  drivers     Driver[]
+  customers   Customer[]
+  vendors     Vendor[]
+  trips       Trip[]
+  invoices    Invoice[]
+  auditLogs   AuditLog[]
+}
+
+model Branch {
+  id        String   @id @default(cuid())
+  companyId String
+  name      String
+  city      String?
+  state     String?
+  managerId String?
+  status    String   @default("Active")
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ===== IDENTITY & ACCESS =====
+
+model User {
+  id           String   @id @default(cuid())
+  companyId    String
+  email        String   @unique
+  name         String
+  role         String   @default("Staff") // Super Admin | Operations Manager | Fleet Manager | Finance Manager | Dispatcher | Driver | Analyst
+  department   String?
+  jobTitle     String?
+  branchId     String?
+  status       String   @default("Active") // Active | Inactive | On Leave
+  phone        String?
+  passwordHash String?
+  salt         String?
+  twoFactorEnabled Boolean @default(false)
+  lastActive   DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  company      Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  auditLogs    AuditLog[] @relation("AuditActor")
+}
+
+model Role {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  permissions String   // JSON string of permission matrix
+  isTemplate  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ===== FLEET =====
+
+model Vehicle {
+  id              String   @id @default(cuid())
+  companyId       String
+  name            String
+  licensePlate    String   @unique
+  vin             String?
+  make            String?
+  model           String?
+  year            Int?
+  type            String?
+  group           String?
+  status          String   @default("Idle") // Active | Idle | In Maintenance | Offline
+  ownership       String   @default("Owned") // Owned | Leased | Attached
+  fuelType        String   @default("Diesel")
+  currentMeter    Int      @default(0)
+  location        String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  trips           Trip[]
+  fuelEntries     FuelEntry[]
+  inspections     Inspection[]
+  workOrders      WorkOrder[]
+  documents       Document[]
+  // Back-relations from the operational models (RateCard/LR/POD/Expense/Issue/Service/Reminder).
+  expenses        Expense[]         @relation("VehicleExpenses")
+  issues          Issue[]           @relation("VehicleIssues")
+  servicePrograms ServiceProgram[]  @relation("VehicleServicePrograms")
+  reminders       Reminder[]        @relation("VehicleReminders")
+}
+
+// ===== PEOPLE =====
+
+model Driver {
+  id              String   @id @default(cuid())
+  companyId       String
+  name            String
+  email           String?
+  phone           String?
+  role            String   @default("Driver") // Driver | Staff
+  department      String?
+  status          String   @default("Active")
+  licenseNumber   String?
+  licenseExpiry   DateTime?
+  rating          Float    @default(0)
+  tripsCompleted  Int      @default(0)
+  onTimeRate      Float    @default(0)
+  city            String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  trips           Trip[]
+  documents       Document[]
+  // Back-relations: PODs captured by this driver, expenses & issues filed by them,
+  // and the Employee record(s) when the driver is also on the HR payroll (a
+  // driver may have multiple employment records over time, so one-to-many).
+  pods            Pod[]     @relation("DriverPODs")
+  expenses        Expense[] @relation("DriverExpenses")
+  issues          Issue[]   @relation("DriverIssues")
+  employees       Employee[]
+}
+
+model Customer {
+  id              String   @id @default(cuid())
+  companyId       String
+  companyName     String
+  contactPerson   String?
+  phone           String?
+  email           String?
+  gstin           String?
+  city            String?
+  status          String   @default("Active")
+  paymentTerms    String?
+  creditLimit     Int      @default(0)
+  outstandingBalance Int   @default(0)
+  accountManager  String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  trips           Trip[]
+  invoices        Invoice[]
+  // CRM + Lorry-receipt back-relations — closes the customer → deal / LR loop.
+  deals           Deal[]
+  crmContacts     CrmContact[]
+  crmActivities   CrmActivity[]
+  rateCards       RateCard[]
+  lorryReceipts   LorryReceipt[] @relation("CustomerLRs")
+}
+
+model Vendor {
+  id              String   @id @default(cuid())
+  companyId       String
+  companyName     String
+  contactPerson   String?
+  phone           String?
+  email           String?
+  gstin           String?
+  city            String?
+  type            String?
+  status          String   @default("Active")
+  paymentTerms    String?
+  rating          Float    @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+}
+
+// ===== OPERATIONS =====
+
+model Trip {
+  id              String   @id @default(cuid())
+  companyId       String
+  tripId          String   @unique
+  lrNumber        String   @unique
+  customerId      String?
+  vehicleId       String?
+  driverId        String?
+  consignor       String
+  consignee       String
+  origin          String
+  destination     String
+  status          String   @default("Planned") // Planned | Active | In Transit | Delivered | Cancelled | Breakdown
+  orderMode       String   @default("FTL") // FTL | LTL | Part Load
+  freightAmount   Int      @default(0)
+  paymentStatus   String   @default("Unpaid") // Unpaid | Partially Paid | Paid | Overdue
+  distanceKm      Int      @default(0)
+  eWayBill        String?
+  createdDate     DateTime @default(now())
+  expectedDelivery DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customer        Customer? @relation(fields: [customerId], references: [id])
+  vehicle         Vehicle? @relation(fields: [vehicleId], references: [id])
+  driver          Driver?  @relation(fields: [driverId], references: [id])
+  invoices        Invoice[]
+  // Operational back-relations: the rate card applied, LRs raised, POD captured,
+  // expenses incurred, and issues filed against this trip.
+  rateCards       RateCard[]     @relation("TripRateCard")
+  lorryReceipts   LorryReceipt[] @relation("TripLRs")
+  pods            Pod[]          @relation("TripPOD")
+  expenses        Expense[]      @relation("TripExpenses")
+  issues          Issue[]        @relation("TripIssues")
+}
+
+// ===== FINANCE =====
+
+model Invoice {
+  id              String   @id @default(cuid())
+  companyId       String
+  invoiceNumber   String   @unique
+  customerId      String?
+  tripId          String?
+  customer        String
+  amount          Int      @default(0)
+  taxAmount       Int      @default(0)
+  totalAmount     Int      @default(0)
+  status          String   @default("Draft") // Draft | Sent | Partially Paid | Paid | Overdue | Cancelled | Credit Note
+  paymentStatus   String   @default("Unpaid")
+  invoiceDate     DateTime @default(now())
+  dueDate         DateTime?
+  igst            Int?
+  cgst            Int?
+  sgst            Int?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customer_rel    Customer? @relation(fields: [customerId], references: [id])
+  trip            Trip?    @relation(fields: [tripId], references: [id])
+}
+
+model FuelEntry {
+  id              String   @id @default(cuid())
+  companyId       String   @default("")
+  vehicleId       String?
+  date            DateTime @default(now())
+  quantity        Float
+  unitPrice       Float
+  totalCost       Int
+  odometer        Int
+  efficiency      Float?
+  station         String?
+  anomaly         Boolean  @default(false)
+  anomalyNote     String?
+  vehicle         Vehicle? @relation(fields: [vehicleId], references: [id])
+  createdAt       DateTime @default(now())
+}
+
+model Inspection {
+  id              String   @id @default(cuid())
+  vehicleId       String?
+  type            String
+  inspector       String
+  date            DateTime @default(now())
+  result          String   // Pass | Fail | Conditional
+  odometer        Int      @default(0)
+  vehicle         Vehicle? @relation(fields: [vehicleId], references: [id])
+  createdAt       DateTime @default(now())
+}
+
+model WorkOrder {
+  id              String   @id @default(cuid())
+  vehicleId       String?
+  title           String
+  type            String   // Scheduled | Unscheduled | Recall | Warranty
+  priority        String   // Urgent | High | Medium | Low
+  status          String   @default("Open") // Open | In Progress | Completed | Cancelled
+  vendor          String?
+  technician      String?
+  estimatedCost   Int      @default(0)
+  actualCost      Int?
+  createdDate     DateTime @default(now())
+  estimatedCompletion DateTime?
+  vehicle         Vehicle? @relation(fields: [vehicleId], references: [id])
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// ===== COMPLIANCE =====
+
+model Document {
+  id              String   @id @default(cuid())
+  name            String
+  type            String
+  entityType      String   // Vehicle | Driver | Customer | Vendor | Company
+  entityId        String?
+  vehicleId       String?
+  driverId        String?
+  issueDate       DateTime?
+  expiryDate      DateTime?
+  status          String   @default("Valid") // Valid | Expiring Soon | Expired
+  uploadedBy      String?
+  uploadDate      DateTime @default(now())
+  vehicle         Vehicle? @relation(fields: [vehicleId], references: [id])
+  driver          Driver?  @relation(fields: [driverId], references: [id])
+  createdAt       DateTime @default(now())
+}
+
+// ===== AUDIT (append-only, immutable) =====
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  companyId String?
+  actorId   String?
+  actor     User?    @relation("AuditActor", fields: [actorId], references: [id])
+  action    String   // CREATE | UPDATE | DELETE | LOGIN | LOGOUT | EXPORT
+  entity    String
+  entityId  String?
+  oldValue  String?  // JSON
+  newValue  String?  // JSON
+  ipAddress String?
+  userAgent String?
+  timestamp DateTime @default(now())
+
+  company   Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+}
+
+// ===== AUTOMATION =====
+
+model Automation {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  trigger     String
+  triggerCategory String
+  conditions  String   // JSON
+  actions     String   // JSON
+  status      String   @default("Active") // Active | Paused
+  lastRun     DateTime?
+  runCount    Int      @default(0)
+  createdBy   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ===== DRIVER FIELD APP =====
+// Append-only activity log (POD, fuel, expense, issue, inspection, status, notes, duty)
+model DriverActivity {
+  id            String   @id @default(cuid())
+  driverId      String
+  driverName    String?
+  tripId        String?
+  vehicleId     String?
+  type          String   // STATUS_UPDATE | FUEL_LOG | EXPENSE | ISSUE | INSPECTION | POD | CHECK_IN | CHECK_OUT | NOTE
+  payload       String   // JSON blob (type-specific fields)
+  photoDataUrl  String?  // downsampled base64 JPEG (capped ~2MB)
+  lat           Float?
+  lng           Float?
+  accuracy      Float?
+  address       String?
+  note          String?
+  synced        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+
+  @@index([driverId, createdAt])
+  @@index([type, createdAt])
+}
+
+// High-frequency GPS pings from driver app (watchPosition)
+model DriverLocationPing {
+  id          String   @id @default(cuid())
+  driverId    String
+  driverName  String?
+  tripId      String?
+  lat         Float
+  lng         Float
+  accuracy    Float?
+  speed       Float?
+  heading     Float?
+  altitude    Float?
+  address     String?
+  ignition    Boolean?
+  battery     Int?
+  createdAt   DateTime @default(now())
+
+  @@index([driverId, createdAt])
+}
+
+// ===== JOB QUEUE =====
+// Durable, retryable async jobs (photo processing, location batching,
+// notification dispatch, report generation, audit logging, cache invalidation).
+// Survives server restarts. Polled by in-process workers; swap to Redis/SQS in prod.
+model Job {
+  id           String    @id
+  type         String    // photo.process | location.batch | notification.dispatch | report.generate | audit.log | cache.invalidate
+  payload      String    // JSON
+  status       String    @default("pending") // pending | running | completed | failed | dead
+  attempts     Int       @default(0)
+  maxAttempts  Int       @default(5)
+  priority     Int       @default(0)
+  runAfter     DateTime  @default(now())
+  lockedBy     String?
+  error        String?
+  result       String?
+  createdAt    DateTime  @default(now())
+  startedAt    DateTime?
+  completedAt  DateTime?
+
+  @@index([status, runAfter, priority])
+  @@index([type, status])
+}
+
+// ════════════════════════════════════════════════════════════════
+// PLATFORM LAYER (Superadmin / multi-tenant control plane)
+// admin.garageplus.com — Garage Plus internal team. These models live
+// OUTSIDE the tenant boundary: they govern the tenants themselves.
+// ════════════════════════════════════════════════════════════════
+
+model Plan {
+  id           String   @id @default(cuid())
+  code         String   @unique // starter | growth | enterprise
+  name         String
+  priceMonthly Int      // paise
+  priceAnnual  Int      // paise
+  vehicleCap   Int
+  userCap      Int
+  storageMb    Int
+  features     String   // JSON array of module ids
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  subscriptions Subscription[]
+}
+
+model Subscription {
+  id           String   @id @default(cuid())
+  companyId    String   @unique
+  planId       String
+  status       String   @default("Active") // Active | Trial | Suspended | Cancelled
+  billingCycle String   @default("monthly") // monthly | annual
+  startedAt    DateTime @default(now())
+  renewsAt     DateTime?
+  mrr          Int      // monthly recurring revenue in paise
+  plan         Plan     @relation(fields: [planId], references: [id])
+  invoices     PlatformInvoice[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model PlatformInvoice {
+  id             String   @id @default(cuid())
+  subscriptionId String
+  amount         Int      // paise
+  periodStart    DateTime
+  periodEnd      DateTime
+  status         String   @default("Pending") // Paid | Pending | Failed
+  paidAt         DateTime?
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id])
+  createdAt      DateTime @default(now())
+
+  @@index([subscriptionId])
+  @@index([status])
+}
+
+model PlatformUser {
+  // Garage Plus internal staff (not tenant users — those are in User).
+  id         String   @id @default(cuid())
+  email      String   @unique
+  name       String
+  role       String   @default("staff") // staff | billing | support | superadmin
+  status     String   @default("Active")
+  twoFactor  Boolean  @default(false)
+  lastActive DateTime?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  auditEvents PlatformAuditLog[]
+}
+
+model PlatformAuditLog {
+  id        String   @id @default(cuid())
+  actorId   String?
+  actor     PlatformUser? @relation(fields: [actorId], references: [id])
+  action    String   // tenant.onboard | tenant.suspend | user.invite | backup.run …
+  target    String?  // companyId / userId / backupId
+  meta      String?  // JSON
+  ip        String?
+  createdAt DateTime @default(now())
+
+  @@index([actorId])
+  @@index([action, createdAt])
+}
+
+// ════════════════════════════════════════════════════════════════
+// OFFLINE-FIRST SYNC + BACKUPS
+// Every mutation a user makes offline is queued here and flushed when
+// connectivity returns. The superadmin "Offline Sync Health" view monitors
+// this table across tenants.
+// ════════════════════════════════════════════════════════════════
+
+model SyncQueueItem {
+  id         String   @id @default(cuid())
+  companyId  String
+  userId     String?
+  device     String?  // device fingerprint / label
+  type       String   // pod.create | fuel.create | trip.update | expense.create …
+  module     String
+  payload    String   // JSON — the mutation body
+  status     String   @default("pending") // pending | syncing | failed | applied
+  attempts   Int      @default(0)
+  lastError  String?
+  createdAt  DateTime @default(now())
+  appliedAt  DateTime?
+
+  @@index([companyId, status])
+  @@index([status, createdAt])
+}
+
+model ConflictRecord {
+  // Same record edited on two devices while offline — needs manual resolution.
+  id          String   @id @default(cuid())
+  companyId   String
+  module      String
+  recordId    String
+  deviceA     String
+  deviceB     String
+  payloadA    String   // JSON
+  payloadB    String   // JSON
+  resolvedAt  DateTime?
+  resolution  String?  // JSON of the merged record
+  createdAt   DateTime @default(now())
+
+  @@index([companyId, resolvedAt])
+}
+
+model BackupSnapshot {
+  id         String   @id @default(cuid())
+  companyId  String
+  label      String
+  type       String   @default("Full") // Full | Incremental
+  sizeBytes  Int
+  storeKeys  String   // JSON array of localStorage/store keys snapshotted
+  status     String   @default("Completed") // Running | Completed | Failed
+  durationMs Int?
+  createdAt  DateTime @default(now())
+
+  @@index([companyId, createdAt])
+}
+
+// ════════════════════════════════════════════════════════════════
+// CRM — Customer Relationship Management
+// Connects to Customer (Account = enriched customer view) + Trip + Invoice.
+// ════════════════════════════════════════════════════════════════
+
+model Lead {
+  id          String   @id @default(cuid())
+  companyId   String
+  name        String
+  company     String?  // lead's organisation (free text until converted)
+  email       String?
+  phone       String?
+  source      String   // Inbound | Referral | ColdCall | Exhibition | Website
+  laneInterest String?
+  status      String   @default("New") // New | Contacted | Qualified | Converted | Lost
+  score       Int      @default(0) // 0-100
+  ownerId     String?  // assigned sales rep (User)
+  nextFollowUp DateTime?
+  // The deal this lead was converted into (back-relation only — the FK lives
+  // on Deal.leadId so a lead can exist before conversion without a dangling id).
+  deal        Deal?    @relation("LeadToDeal")
+  activities  CrmActivity[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([companyId, status])
+  @@index([ownerId])
+}
+
+model Deal {
+  id           String   @id @default(cuid())
+  companyId    String
+  name         String
+  customerId   String?  // FK to Customer once the deal is tied to an account
+  customer     Customer? @relation(fields: [customerId], references: [id])
+  leadId       String?  @unique
+  lead         Lead?    @relation("LeadToDeal", fields: [leadId], references: [id])
+  value        Int      // paise
+  stage        String   @default("NewLead") // NewLead | Qualified | QuotationSent | Negotiation | Won | Lost
+  probability  Int      @default(10) // %
+  expectedClose DateTime?
+  ownerId      String?
+  wonAt        DateTime?
+  lostReason   String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  activities   CrmActivity[]
+
+  @@index([companyId, stage])
+  @@index([customerId])
+}
+
+model CrmContact {
+  id          String   @id @default(cuid())
+  companyId   String
+  customerId  String?
+  customer    Customer? @relation(fields: [customerId], references: [id])
+  name        String
+  title       String?
+  email       String?
+  phone       String?
+  city        String?
+  decisionMaker Boolean @default(false)
+  lastContactedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  activities  CrmActivity[]
+
+  @@index([companyId, customerId])
+}
+
+model CrmActivity {
+  id          String   @id @default(cuid())
+  companyId   String
+  type        String   // Call | Email | Meeting | SiteVisit | FollowUp | Quotation | Note
+  title       String
+  description String?
+  ownerId     String?
+  leadId      String?
+  lead        Lead?    @relation(fields: [leadId], references: [id])
+  dealId      String?
+  deal        Deal?    @relation(fields: [dealId], references: [id])
+  contactId   String?
+  contact     CrmContact? @relation(fields: [contactId], references: [id])
+  customerId  String?
+  customer    Customer? @relation(fields: [customerId], references: [id])
+  outcome     String?
+  nextStep    String?
+  scheduledAt DateTime?
+  completedAt DateTime?
+  createdAt   DateTime @default(now())
+
+  @@index([companyId, type, createdAt])
+  @@index([leadId])
+  @@index([dealId])
+}
+
+// ════════════════════════════════════════════════════════════════
+// HR — Human Resources
+// Driver exists separately (fleet-specific); Employee covers ALL staff
+// (drivers, helpers, mechanics, dispatchers, office). An Employee can
+// link to a Driver record when the person is a driver.
+// ════════════════════════════════════════════════════════════════
+
+model Employee {
+  id            String   @id @default(cuid())
+  companyId     String
+  code          String   // employee code
+  name          String
+  designation   String   // Driver | Helper | Mechanic | Dispatcher | Accountant | BranchManager | HRExec | …
+  department    String?
+  branchId      String?
+  employmentType String  @default("Permanent") // Permanent | Contract | Daily
+  doj           DateTime
+  status        String   @default("Active") // Active | OnLeave | Notice | Exited
+  exitDate      DateTime?
+  ctcAnnual     Int      // paise
+  esiEnrolled   Boolean  @default(false)
+  pfEnrolled    Boolean  @default(false)
+  uan           String?  // PF UAN
+  esiNumber     String?
+  pan           String?
+  aadhaar       String?
+  bankAccount   String?
+  bankIfsc      String?
+  driverId      String?  // link to Driver when the employee is a driver
+  driver        Driver?  @relation(fields: [driverId], references: [id])
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  attendance    AttendanceRecord[]
+  leaveRequests LeaveRequest[]
+  payslips      Payslip[]
+
+  @@unique([companyId, code])
+  @@index([companyId, status])
+  @@index([designation])
+}
+
+model AttendanceRecord {
+  id          String   @id @default(cuid())
+  companyId   String
+  employeeId  String
+  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  date        DateTime
+  mark        String   // P | A | H | L | W | T (Present/Absent/Half/Leave/Weekoff/Trip)
+  inTime      DateTime?
+  outTime     DateTime?
+  overtimeHrs Int      @default(0)
+  lateIn      Boolean  @default(false)
+  earlyOut    Boolean  @default(false)
+  tripId      String?  // trip-linked attendance for drivers
+  createdAt   DateTime @default(now())
+
+  @@unique([employeeId, date])
+  @@index([companyId, date])
+}
+
+model LeaveRequest {
+  id         String   @id @default(cuid())
+  companyId  String
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  type       String   // CL | SL | PL | ML
+  fromDate   DateTime
+  toDate     DateTime
+  days       Int
+  reason     String?
+  status     String   @default("Pending") // Pending | Approved | Rejected
+  approverId String?
+  approvedAt DateTime?
+  createdAt  DateTime @default(now())
+
+  @@index([companyId, status])
+  @@index([employeeId])
+}
+
+model PayrollRun {
+  id         String   @id @default(cuid())
+  companyId  String
+  month      String   // YYYY-MM
+  status     String   @default("Draft") // Draft | Approved | Paid
+  grossTotal Int      // paise
+  deductTotal Int
+  netTotal   Int
+  approvedBy String?
+  approvedAt DateTime?
+  paidAt     DateTime?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  payslips   Payslip[]
+
+  @@unique([companyId, month])
+}
+
+model Payslip {
+  id          String   @id @default(cuid())
+  companyId   String
+  payrollRunId String?
+  payrollRun  PayrollRun? @relation(fields: [payrollRunId], references: [id])
+  employeeId  String
+  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  month       String   // YYYY-MM
+  basic       Int
+  hra         Int
+  conveyance  Int
+  allowances  Int
+  overtime    Int
+  incentives  Int
+  pfDeduct    Int
+  esiDeduct   Int
+  ptDeduct    Int
+  tdsDeduct   Int
+  advanceDeduct Int
+  netPay      Int
+  status      String   @default("Draft") // Draft | Approved | Paid
+  createdAt   DateTime @default(now())
+
+  @@index([companyId, month])
+  @@index([employeeId])
+}
+
+model HrPosition {
+  id         String   @id @default(cuid())
+  companyId  String
+  title      String
+  branchId   String?
+  openings   Int      @default(1)
+  budgetMin  Int
+  budgetMax  Int
+  hiringManagerId String?
+  status     String   @default("Open") // Open | OnHold | Closed
+  postedAt   DateTime @default(now())
+  closedAt   DateTime?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  candidates Candidate[]
+
+  @@index([companyId, status])
+}
+
+model Candidate {
+  id          String   @id @default(cuid())
+  companyId   String
+  positionId  String
+  position    HrPosition @relation(fields: [positionId], references: [id], onDelete: Cascade)
+  name        String
+  email       String?
+  phone       String?
+  experience  Int?
+  currentCtc  Int?
+  expectedCtc Int?
+  source      String?
+  stage       String   @default("Applied") // Applied | Screening | Interview | Offer | Joined | Rejected
+  rating      Int?
+  notes       String?
+  appliedAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([positionId, stage])
+}
+
+// ════════════════════════════════════════════════════════════════
+// OPERATIONAL MODELS — connect the existing fleet/finance entities.
+// These close the loop: RateCard → Customer + Trip; LorryReceipt →
+// Trip + Customer; POD → Trip + Driver; Expense → Trip + Vehicle;
+// Issue → Vehicle + Driver; ServiceProgram → Vehicle.
+// ════════════════════════════════════════════════════════════════
+
+model RateCard {
+  id          String   @id @default(cuid())
+  companyId   String
+  customerId  String
+  customer    Customer @relation(fields: [customerId], references: [id])
+  name        String
+  laneFrom    String
+  laneTo      String
+  vehicleType String
+  ratePerKm   Int      // paise
+  minCharge   Int
+  loadingChg  Int      @default(0)
+  unloadingChg Int     @default(0)
+  validFrom   DateTime
+  validTo     DateTime?
+  status      String   @default("Active")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  trips       Trip[]   @relation("TripRateCard")
+
+  @@index([companyId, customerId])
+  @@index([laneFrom, laneTo])
+}
+
+model LorryReceipt {
+  id          String   @id @default(cuid())
+  companyId   String
+  lrNumber    String
+  tripId      String?
+  trip        Trip?    @relation("TripLRs", fields: [tripId], references: [id])
+  customerId  String
+  customer    Customer @relation("CustomerLRs", fields: [customerId], references: [id])
+  fromCity    String
+  toCity      String
+  consignor   String
+  consignee   String
+  goodsDesc   String
+  weightKg    Int?
+  packages    Int?
+  freight     Int      // paise
+  eWayBillNo  String?
+  status      String   @default("Issued") // Issued | InTransit | Delivered | Cancelled
+  issuedAt    DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  pod         Pod?     @relation("LRPOD")
+
+  @@unique([companyId, lrNumber])
+  @@index([companyId, status])
+  @@index([tripId])
+}
+
+model Pod {
+  id          String   @id @default(cuid())
+  companyId   String
+  lrId        String   @unique
+  lr          LorryReceipt @relation("LRPOD", fields: [lrId], references: [id])
+  tripId      String?
+  trip        Trip?    @relation("TripPOD", fields: [tripId], references: [id])
+  driverId    String?
+  driver      Driver?  @relation("DriverPODs", fields: [driverId], references: [id])
+  receivedBy  String   // receiver name at destination
+  receivedAt  DateTime
+  signatureUrl String?
+  photoUrl    String?
+  gpsLat      Float?
+  gpsLng      Float?
+  conditionOk Boolean  @default(true)
+  remarks     String?
+  status      String   @default("Captured") // Captured | Verified | Rejected
+  createdAt   DateTime @default(now())
+
+  @@index([companyId, status])
+}
+
+model Expense {
+  id          String   @id @default(cuid())
+  companyId   String
+  tripId      String?
+  trip        Trip?    @relation("TripExpenses", fields: [tripId], references: [id])
+  vehicleId   String?
+  vehicle     Vehicle? @relation("VehicleExpenses", fields: [vehicleId], references: [id])
+  driverId    String?
+  driver      Driver?  @relation("DriverExpenses", fields: [driverId], references: [id])
+  category    String   // Fuel | Toll | Repair | Loading | Unloading | DriverBhatta | Misc
+  amount      Int      // paise
+  payMode     String   @default("Cash") // Cash | UPI | Card | Credit
+  vendorName  String?
+  invoiceNo   String?
+  incurredAt  DateTime
+  status      String   @default("Pending") // Pending | Approved | Reimbursed | Rejected
+  approvedBy  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([companyId, status, incurredAt])
+  @@index([tripId])
+}
+
+model Issue {
+  id          String   @id @default(cuid())
+  companyId   String
+  vehicleId   String?
+  vehicle     Vehicle? @relation("VehicleIssues", fields: [vehicleId], references: [id])
+  driverId    String?
+  driver      Driver?  @relation("DriverIssues", fields: [driverId], references: [id])
+  tripId      String?
+  trip        Trip?    @relation("TripIssues", fields: [tripId], references: [id])
+  category    String   // Breakdown | Accident | Tyre | Electrical | Document | Compliance
+  severity    String   @default("Medium") // Low | Medium | High | Critical
+  title       String
+  description String?
+  status      String   @default("Open") // Open | InProgress | Resolved | Closed
+  reportedBy  String?
+  resolvedAt  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([companyId, status, severity])
+  @@index([vehicleId])
+}
+
+model ServiceProgram {
+  id           String   @id @default(cuid())
+  companyId    String
+  vehicleId    String
+  vehicle      Vehicle  @relation("VehicleServicePrograms", fields: [vehicleId], references: [id])
+  name         String
+  type         String   // Preventive | Corrective | Predictive
+  intervalKm   Int?
+  intervalDays Int?
+  lastDoneKm   Int?
+  lastDoneAt   DateTime?
+  nextDueKm    Int?
+  nextDueAt    DateTime?
+  status       String   @default("Active")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([vehicleId, status])
+}
+
+model Reminder {
+  id          String   @id @default(cuid())
+  companyId   String
+  vehicleId   String?
+  vehicle     Vehicle? @relation("VehicleReminders", fields: [vehicleId], references: [id])
+  driverId    String?
+  title       String
+  category    String   // Service | Fitness | Insurance | Permit | PUC | Licence | Tax | Custom
+  dueDate     DateTime
+  notifyDays  Int      @default(7)
+  status      String   @default("Pending") // Pending | Done | Snoozed
+  createdAt   DateTime @default(now())
+
+  @@index([companyId, status, dueDate])
+}
+
+// ===== REAL-TIME CHAT =====
+// Reanzly team chat - channels, DMs, threads, reactions, read receipts.
+// Multi-tenant via companyId on conversations. The socket.io mini-service
+// (mini-services/chat-service) reads/writes these tables directly via bun:sqlite
+// for real-time event handling; the Next.js app uses Prisma for REST hydration.
+
+model ChatConversation {
+  id          String   @id @default(cuid())
+  companyId   String   @default("reanzly")
+  name        String
+  type        String   // direct | group | channel
+  description String?
+  topic       String?
+  private     Boolean  @default(false)
+  createdBy   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  participants ChatParticipant[]
+  messages     ChatMessage[]
+
+  @@index([companyId, type])
+}
+
+model ChatParticipant {
+  id              String   @id @default(cuid())
+  conversationId  String
+  userId          String
+  userName        String
+  userRole        String
+  userInitials    String   @default("")
+  joinedAt        DateTime @default(now())
+  lastReadAt      DateTime?
+  conversation    ChatConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId])
+  @@index([userId])
+}
+
+model ChatMessage {
+  id              String   @id @default(cuid())
+  conversationId  String
+  senderId        String
+  senderName      String
+  senderRole      String
+  text            String
+  parentId        String?
+  attachment      String?
+  forwardedFrom   String?
+  isRean          Boolean  @default(false)
+  isPoll          String?
+  isCommandResult Boolean  @default(false)
+  pinned          Boolean  @default(false)
+  createdAt       DateTime @default(now())
+
+  conversation     ChatConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  reactions        ChatReaction[]
+  readReceipts     ChatReadReceipt[]
+
+  @@index([conversationId, createdAt])
+  @@index([parentId])
+}
+
+model ChatReaction {
+  id          String   @id @default(cuid())
+  messageId   String
+  userId      String
+  emoji       String
+  createdAt   DateTime @default(now())
+  message     ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId, emoji])
+}
+
+model ChatReadReceipt {
+  id          String   @id @default(cuid())
+  messageId   String
+  userId      String
+  createdAt   DateTime @default(now())
+  message     ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId])
+}
+
+// ===== BROKER NETWORK =====
+// Brokers resell Reanzly capacity. They have their own profile, manage
+// sub-brokers, handle inbound load enquiries, send quotes on marketplace
+// loads, and run settlement cycles with NACH payouts.
+
+model BrokerProfile {
+  id                String   @id @default(cuid())
+  brokerCode        String   @unique // RZB-XXXXXX
+  companyName       String
+  contactName       String
+  email             String   @unique
+  phone             String
+  gstin             String?
+  markupPct         Float    @default(8.0)
+  settlementCycle   String   @default("Fortnightly") // Weekly | Fortnightly | Monthly
+  gstTreatment      String   @default("Forward Charge") // Forward Charge | Reverse Charge
+  coverageLanes     String   @default("") // JSON array of lane strings
+  status            String   @default("Active") // Active | Pending | Suspended
+  parentBrokerId    String?  // if this broker was onboarded by another broker
+  bankName          String?
+  bankBranch        String?
+  bankAccountName   String?
+  bankAccountNumber String?
+  bankIfsc          String?
+  nachUmr           String?  // NACH mandate registration number
+  nextPayoutDate    DateTime?
+  nextPayoutAmount  Float    @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  subBrokers        SubBroker[]
+  enquiries         BrokerEnquiry[]
+  quotes            BrokerQuote[]
+  settlements       SettlementCycle[]
+  ledgerEntries     BrokerLedgerEntry[]
+}
+
+model SubBroker {
+  id                  String   @id @default(cuid())
+  brokerProfileId     String
+  name                String
+  brokerCode          String   @unique // RZSB-XXX
+  contactName         String
+  email               String
+  phone               String
+  markupPct           Float    @default(5.0)
+  coverageLanes       String   @default("") // JSON array
+  settlementCycle     String   @default("Weekly")
+  gstTreatment        String   @default("Forward Charge")
+  gstin               String?
+  status              String   @default("Pending") // Active | Pending | Suspended
+  settlementsDueINR   Float    @default(0)
+  onboardedAt         DateTime @default(now())
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  brokerProfile       BrokerProfile @relation(fields: [brokerProfileId], references: [id], onDelete: Cascade)
+}
+
+model BrokerEnquiry {
+  id                String   @id @default(cuid())
+  brokerProfileId   String
+  enquiryId         String   @unique // enq-XXXX
+  lane              String
+  vehicleType       String
+  weightTon         Float
+  expectedRatePerKm Float
+  customer          String
+  pickupDate        DateTime
+  status            String   @default("New") // New | Quoted | Won | Lost
+  quotedRate        Float?
+  receivedAt        DateTime @default(now())
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  brokerProfile     BrokerProfile @relation(fields: [brokerProfileId], references: [id], onDelete: Cascade)
+}
+
+model BrokerQuote {
+  id                String   @id @default(cuid())
+  brokerProfileId   String
+  quoteId           String   @unique // qte-XXXXX
+  loadId            String   // mkt-XXXXX (reference to marketplace load)
+  lane              String
+  vehicleType       String
+  customer          String
+  quotedRatePerKm   Float
+  baseRatePerKm     Float
+  markupPct         Float
+  status            String   @default("Pending") // Pending | Accepted | Rejected | Expired
+  quotedAt          DateTime @default(now())
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  brokerProfile     BrokerProfile @relation(fields: [brokerProfileId], references: [id], onDelete: Cascade)
+}
+
+model SettlementCycle {
+  id                  String   @id @default(cuid())
+  brokerProfileId     String
+  cycleId             String   @unique // CYC-2025-XX
+  periodStart         DateTime
+  periodEnd           DateTime
+  grossTrips          Int
+  grossValueINR       Float
+  commissionPct       Float    @default(8.0)
+  commissionEarnedINR Float
+  tdsPct              Float    @default(1.0)
+  tdsDeductedINR      Float
+  gstTreatment        String   @default("Forward Charge")
+  netPayableINR       Float
+  status              String   @default("Draft") // Draft | Approved | Paid
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  brokerProfile       BrokerProfile @relation(fields: [brokerProfileId], references: [id], onDelete: Cascade)
+}
+
+model BrokerLedgerEntry {
+  id                String   @id @default(cuid())
+  brokerProfileId   String
+  entryId           String   @unique // led-XXX
+  date              DateTime
+  type              String   // Credit | Debit
+  description       String
+  refId             String
+  amountINR         Float
+  runningBalanceINR Float
+  createdAt         DateTime @default(now())
+
+  brokerProfile     BrokerProfile @relation(fields: [brokerProfileId], references: [id], onDelete: Cascade)
+}
+
+// Reanzly's published rate card - the base rates brokers resell on.
+model LaneRate {
+  id            String   @id @default(cuid())
+  laneId        String   @unique // ln-XXX
+  lane          String
+  origin        String
+  destination   String
+  distanceKm    Int
+  baseRatePerKm Float
+  vehicleTypes  String   @default("") // JSON array
+  transitHours  Int
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// ===== INTEGRATIONS MARKETPLACE =====
+// Persisted connections for every external service (payment gateways, SMS,
+// WhatsApp, 3PL, telematics, gov, fuel, banking, email, CRM, etc.).
+// Secrets are stored encrypted in production (encrypt at app layer).
+// `fieldValues` is a JSON blob of the provider's config fields.
+// `companyId` enables tenant isolation. Reanzly internal team connections
+// (PlatformUser scope) use a synthetic companyId of "PLATFORM".
+
+model IntegrationConnection {
+  id              String   @id @default(cuid())
+  companyId       String   // tenant key, "PLATFORM" for Reanzly internal
+  providerId      String   // e.g. "razorpay", "msg91", "google-maps"
+  category        String   // payment | sms | whatsapp | extension | plugin | telemetry | identity | logistics | ecommerce | warehouse | maps | gov | fuel | banking
+  label           String?  // user-supplied instance label (multi-instance)
+  status          String   @default("connected") // connected | sandbox | needs-config | error
+  mode            String   @default("live") // live | test
+  priority        Int      @default(1) // 1 = highest, used for routing
+  isPrimary       Boolean  @default(false)
+  fieldValues     String   @default("{}") // JSON of field id → value (secrets masked)
+  lastSyncAt      DateTime?
+  lastSyncStatus  String?  // ok | error | pending
+  lastSyncMessage String?
+  connectedAt     DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  webhooks        IntegrationWebhookLog[]
+  syncLogs        IntegrationSyncLog[]
+
+  @@index([companyId, category])
+  @@index([companyId, status])
+  @@index([providerId])
+}
+
+model IntegrationWebhookLog {
+  id              String   @id @default(cuid())
+  connectionId    String
+  providerId      String
+  eventType       String   // payment.captured, message.sent, etc.
+  signature       String?
+  payload         String   // raw JSON payload
+  processed       Boolean  @default(false)
+  processingError String?
+  receivedAt      DateTime @default(now())
+
+  connection      IntegrationConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  @@index([connectionId, receivedAt])
+  @@index([providerId, receivedAt])
+  @@index([processed])
+}
+
+// ============================================================
+// IntegrationSyncLog — every DB sync run for a connection.
+// Drives the "Sync history" drawer in the Integrations module.
+// Triggered by the scheduler (real-time / hourly / daily / on-demand)
+// or by a manual "Sync Now" click. Status transitions:
+//   pending -> running -> ok | error | partial
+// ============================================================
+model IntegrationSyncLog {
+  id              String   @id @default(cuid())
+  connectionId    String
+  providerId      String
+  companyId       String   // tenant key
+  syncType        String   // scheduled | manual | webhook-triggered
+  status          String   @default("pending") // pending | running | ok | error | partial
+  recordsPulled   Int      @default(0)
+  recordsPushed   Int      @default(0)
+  durationMs      Int      @default(0)
+  errorMessage    String?
+  errorDetails    String?  // JSON: stack / validation errors
+  startedAt       DateTime @default(now())
+  completedAt     DateTime?
+
+  connection      IntegrationConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  @@index([connectionId, startedAt])
+  @@index([providerId, startedAt])
+  @@index([companyId, startedAt])
+  @@index([status])
+}

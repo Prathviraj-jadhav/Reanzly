@@ -1,0 +1,33 @@
+# Reanzly — Caddy gateway config for the Docker runtime.
+# Serves the app on :80, forwarding to Next.js (:3000) by default and to the
+# chat service (:3003) when ?XTransformPort=3003 is present.
+#
+# In production put this behind an AWS ALB with TLS, OR let Caddy auto-TLS by
+# replacing :80 with your domain and uncommenting the tls line.
+
+:80 {
+	@transform_port_query {
+		query XTransformPort=*
+	}
+
+	handle @transform_port_query {
+		reverse_proxy localhost:{query.XTransformPort} {
+			header_up Host {host}
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+			header_up X-Real-IP {remote_host}
+		}
+	}
+
+	handle {
+		reverse_proxy localhost:3000 {
+			header_up Host {host}
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+			header_up X-Real-IP {remote_host}
+		}
+	}
+
+	# Uncomment for auto-TLS in prod (replace :80 with your domain):
+	# tls you@your-domain.com
+}

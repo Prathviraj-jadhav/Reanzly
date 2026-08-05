@@ -1,0 +1,70 @@
+# Reanzly — Docker build ignore list
+# Keeps the build context lean so `docker build` is fast and reproducible.
+
+# Dependencies (rebuilt inside the image)
+node_modules
+mini-services/chat-service/node_modules
+
+# Build output (rebuilt inside the image)
+.next
+.next/cache
+.next/standalone
+out
+dist
+
+# Database files (runtime-managed)
+db/*.db
+db/*.db-journal
+db/*.db-wal
+db/*.db-shm
+
+# Logs
+*.log
+dev.log
+server.log
+keep-*.out
+keep-*.pid
+
+# Screenshots & generated images (dev artefacts)
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+*.mp4
+
+# Test artefacts
+tests/
+tool-results/
+
+# CI / sandbox helpers
+.zscripts/
+.ztmp/
+agent-ctx/
+download/
+upload/
+skills/
+examples/
+
+# VCS
+.git
+.gitignore
+
+# Docs we don't need in the image (keep Reanzly.md + aws-deploy.md though)
+REMAINING-TASKS.md
+worklog.md
+
+# Scripts not needed at runtime
+verify-*.sh
+keep-*.sh
+start-dev.sh
+wd.sh
+build-zip.sh
+
+# IDE
+.vscode/
+.idea/
+
+# Misc
+tsconfig.tsbuildinfo
+.DS_Store

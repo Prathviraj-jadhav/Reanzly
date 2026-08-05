@@ -1,0 +1,36 @@
+# Dependencies
+node_modules
+/.pnp
+.pnp.js
+
+# Next.js build output
+/.next/
+/out/
+dev.log
+server.log
+
+# Production build standalone artifacts
+.next/standalone/.next/
+.next/standalone/public/
+
+# Environment files
+.env
+.env*.local
+!.env.example
+
+# Database & SQLite files
+/db/*.db
+/db/backups/
+!/db/.gitkeep
+
+# Storage / Uploads
+/storage/*
+!/storage/.gitkeep
+
+# Operating System files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/

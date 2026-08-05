@@ -1,0 +1,42 @@
+# =============================================================================
+# Reanzly — local Docker validation
+#   docker compose up -d --build
+# Then visit http://localhost (Caddy on :80 → Next.js on :3000; chat on :3003)
+# =============================================================================
+version: "3.9"
+
+services:
+  reanzly:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: reanzly:latest
+    container_name: reanzly
+    restart: unless-stopped
+    ports:
+      - "80:80"      # Caddy gateway (HTTP) — front with an ALB / TLS in prod
+      - "3000:3000"  # Next.js standalone (direct, for debugging)
+      - "3003:3003"  # Socket.IO chat service (direct, for debugging)
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      CHAT_SERVICE_PORT: "3003"
+      DATABASE_URL: ${DATABASE_URL:-file:/app/db/custom.db}
+      DATABASE_REPLICA_URL: ${DATABASE_REPLICA_URL:-}
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-dev-only-change-me}
+    volumes:
+      # Persist the SQLite DB (dev). In prod use RDS Postgres instead.
+      - reanzly-db:/app/db
+      # Persist uploaded photos / object storage
+      - reanzly-storage:/app/storage
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:80/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+volumes:
+  reanzly-db:
+  reanzly-storage:

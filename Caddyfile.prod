@@ -1,0 +1,119 @@
+# =============================================================================
+# Reanzly v2 — Enterprise WAF & Cyber Attack Defense Gateway Configuration
+# Features: SQLi Protection, XSS Defense, RCE Defense, Bot Blocking,
+#           Rate Limiting, DDoS Mitigation, SIEM JSON Audit Logging
+# =============================================================================
+
+{
+	# Email for Let's Encrypt automated TLS certificate issuance
+	email admin@reanzly.com
+	admin off
+
+	# Global HTTP Security & Buffer Limits (DDoS / Buffer Overflow Defense)
+	servers {
+		max_header_size 16kb
+		timeouts {
+			read_body 10s
+			read_header 5s
+			write 10s
+			idle 120s
+		}
+	}
+}
+
+# Live domain / production HTTP & HTTPS gateway
+{$DOMAIN:reanzly.com}, {$ALT_DOMAIN:www.reanzly.com}, http://82.25.104.204, http://localhost {
+
+	# Structured SIEM JSON Audit Logging for security monitoring
+	log {
+		output file /var/log/caddy/security_audit.log {
+			roll_size 100mb
+			roll_keep 10
+			roll_keep_for 30d
+		}
+		format json
+	}
+
+	# -------------------------------------------------------------------------
+	# 1. Enterprise Security Headers Injection (OWASP Recommendations)
+	# -------------------------------------------------------------------------
+	header {
+		# Enforce HTTPS (HSTS)
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		# Prevent Clickjacking & UI Redirection
+		X-Frame-Options "SAMEORIGIN"
+		# Prevent MIME Sniffing attacks
+		X-Content-Type-Options "nosniff"
+		# XSS Protection Filter
+		X-XSS-Protection "1; mode=block"
+		# Referrer policy privacy enforcement
+		Referrer-Policy "strict-origin-when-cross-origin"
+		# Content Security Policy (CSP) Baseline Defense
+		Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' wss: ws: https:; frame-ancestors 'self';"
+		# Restrict Hardware API Access
+		Permissions-Policy "camera=(), microphone=(), geolocation=(self), payment=()"
+		# Strip server identity signatures
+		-Server
+		-X-Powered-By
+	}
+
+	# -------------------------------------------------------------------------
+	# 2. Web Application Firewall (WAF) Attack Vector Filtering
+	# -------------------------------------------------------------------------
+
+	# SQL Injection (SQLi) attack signatures
+	@sqli_attack {
+		query "(?i)(select|insert|update|delete|drop|union|create|alter|truncate|exec|execute|concat|information_schema|pg_sleep|benchmark|waitfor|delay|xp_cmdshell|char|hex|unhex)"
+		path_regexp "(?i)(\%27|\%22|\%3B|\-\-|\%23|/\*|\*/)"
+	}
+	respond @sqli_attack "Forbidden: Security Violation (SQLi Detected)" 403
+
+	# Cross-Site Scripting (XSS) attack signatures
+	@xss_attack {
+		query "(?i)(<script|javascript:|onerror=|onload=|eval\(|document\.cookie|document\.location|window\.location)"
+	}
+	respond @xss_attack "Forbidden: Security Violation (XSS Detected)" 403
+
+	# Remote Code Execution (RCE) & Path Traversal attack signatures
+	@rce_traversal {
+		path_regexp "(?i)(\.\./|\.\.\\|/etc/passwd|/etc/shadow|/proc/self|/bin/sh|/bin/bash|\.env)"
+	}
+	respond @rce_traversal "Forbidden: Security Violation (Traversal/RCE Detected)" 403
+
+	# Malicious Scrapers, Scanners & Bad Bot blocking
+	@bad_bots {
+		header_regexp User-Agent "(?i)(sqlmap|nikto|nmap|masscan|dirbuster|acunetix|nessus|openvas|w3af|zgrab|go-http-client|python-requests/2|curl/7\.[0-5]|zgrab/0x)"
+	}
+	respond @bad_bots "Forbidden: Automated Security Scanner Blocked" 403
+
+	# Request Payload Size Caps (Prevent Buffer Overflow & Memory Exhaustion)
+	request_body {
+		max_size 10MB
+	}
+
+	# -------------------------------------------------------------------------
+	# 3. Microservices & Application Routing
+	# -------------------------------------------------------------------------
+
+	# Real-time WebSocket Chat Service
+	handle /socket.io/* {
+		reverse_proxy reanzly-app:3003 {
+			header_up Host {host}
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+			header_up X-Real-IP {remote_host}
+			header_up Connection "Upgrade"
+			header_up Upgrade "websocket"
+		}
+	}
+
+	# Primary Next.js Application Proxy
+	handle {
+		reverse_proxy reanzly-app:3000 {
+			header_up Host {host}
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+			header_up X-Real-IP {remote_host}
+		}
+	}
+}

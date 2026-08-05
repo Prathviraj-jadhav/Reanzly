@@ -1,0 +1,809 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: 2px;
+  --radius-md: 3px;
+  --radius-lg: 3px;
+  --radius-xl: 4px;
+}
+
+/* === REANZLY DESIGN SYSTEM — Notion-Inspired Industrial Minimalist ===
+   Hex-based --rz-* tokens, sharp 2-3px radii, Geist Sans + Geist Mono.
+   Monochrome greyscale ramp, hairline borders, flat surfaces, no shadows. */
+
+:root {
+  /* Reanzly Design System — Notion-Inspired Industrial Minimalist */
+  --radius: 3px;
+  --radius-sm: 2px;
+
+  /* Core surface tokens */
+  --rz-bg: #ffffff;
+  --rz-surface: #f7f7f7;
+  --rz-surface-elevated: #ffffff;
+  --rz-sidebar: #f5f5f5;
+  --rz-header: #ffffff;
+
+  /* Border tokens */
+  --rz-border: #e5e5e5;
+  --rz-border-subtle: #ebebeb;
+  --rz-border-hover: #d4d4d4;
+
+  /* Text tokens */
+  --rz-text: #171717;
+  --rz-text-secondary: #525252;
+  --rz-text-muted: #737373;
+  --rz-text-dim: #a3a3a3;
+  --rz-text-placeholder: #b4b4b4;
+
+  /* Interactive state tokens */
+  --rz-hover: rgba(0,0,0,0.03);
+  --rz-hover-strong: rgba(0,0,0,0.06);
+  --rz-input-bg: #ffffff;
+  --rz-badge-bg: rgba(0,0,0,0.06);
+  --rz-selected-bg: rgba(0,0,0,0.04);
+  --rz-overlay: rgba(0,0,0,0.3);
+
+  /* Scrollbar */
+  --rz-scrollbar-thumb: #c4c4c4;
+  --rz-scrollbar-thumb-hover: #a3a3a3;
+
+  /* === Map to shadcn/ui token names (so existing components keep working) === */
+  --background: var(--rz-bg);
+  --foreground: var(--rz-text);
+  --card: var(--rz-surface);
+  --card-foreground: var(--rz-text);
+  --popover: var(--rz-surface-elevated);
+  --popover-foreground: var(--rz-text);
+  --primary: var(--rz-text);
+  --primary-foreground: var(--rz-bg);
+  --secondary: var(--rz-surface);
+  --secondary-foreground: var(--rz-text-secondary);
+  --muted: var(--rz-surface);
+  --muted-foreground: var(--rz-text-muted);
+  --accent: var(--rz-hover);
+  --accent-foreground: var(--rz-text);
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
+  --border: var(--rz-border);
+  --input: var(--rz-border);
+  --ring: var(--rz-text);
+  --chart-1: #171717;
+  --chart-2: #525252;
+  --chart-3: #737373;
+  --chart-4: #a3a3a3;
+  --chart-5: #d4d4d4;
+  --sidebar: var(--rz-sidebar);
+  --sidebar-foreground: var(--rz-text);
+  --sidebar-primary: var(--rz-text);
+  --sidebar-primary-foreground: var(--rz-bg);
+  --sidebar-accent: var(--rz-hover);
+  --sidebar-accent-foreground: var(--rz-text);
+  --sidebar-border: var(--rz-border);
+  --sidebar-ring: var(--rz-text);
+}
+
+.dark {
+  --rz-bg: #171717;
+  --rz-surface: #1c1c1c;
+  --rz-surface-elevated: #202020;
+  --rz-sidebar: #1a1a1a;
+  --rz-header: #171717;
+
+  --rz-border: #2e2e2e;
+  --rz-border-subtle: #242424;
+  --rz-border-hover: #363636;
+
+  --rz-text: #fafafa;
+  --rz-text-secondary: #b4b4b4;
+  --rz-text-muted: #898989;
+  --rz-text-dim: #4d4d4d;
+  --rz-text-placeholder: #4d4d4d;
+
+  --rz-hover: rgba(255,255,255,0.03);
+  --rz-hover-strong: rgba(255,255,255,0.05);
+  --rz-input-bg: #171717;
+  --rz-badge-bg: rgba(255,255,255,0.1);
+  --rz-selected-bg: rgba(255,255,255,0.04);
+  --rz-overlay: rgba(0,0,0,0.5);
+
+  --rz-scrollbar-thumb: #363636;
+  --rz-scrollbar-thumb-hover: #4d4d4d;
+
+  /* shadcn mappings inherit from rz tokens above automatically */
+  --destructive: #ef4444;
+  --destructive-foreground: #fafafa;
+  --chart-1: #fafafa;
+  --chart-2: #b4b4b4;
+  --chart-3: #898989;
+  --chart-4: #4d4d4d;
+  --chart-5: #2e2e2e;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "ss01", "cv01", "cv03";
+  }
+  /* Tighten heading tracking for Swiss feel */
+  h1, h2, h3, h4 {
+    letter-spacing: -0.02em;
+  }
+  /* Mono numerals for data density */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+    font-family: var(--font-geist-mono), monospace;
+  }
+}
+
+/* === Reanzly Brand Typography & Animations === */
+
+/* Geist Mono technical label — for table headers, filter labels, metric captions */
+.font-mono-technical {
+  font-family: var(--font-geist-mono);
+  font-size: 11px;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+}
+
+/* Notion-style micro-scrollbars */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--rz-scrollbar-thumb);
+  border-radius: 2px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--rz-scrollbar-thumb-hover);
+}
+
+/* Firefox scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--rz-scrollbar-thumb) transparent;
+}
+
+/* Active status dot pulse — for live tracking, active trips, online indicators.
+   Reuses the existing pulse-dot keyframe (defined below) so the legacy
+   .pulse-dot utility continues to work unchanged across the app. */
+.status-dot-active {
+  animation: pulse-dot 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Brand mark glow — for the logo in the top-left nav */
+@keyframes rean-glow {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+.rean-mark {
+  animation: rean-glow 2.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Smooth theme transition */
+.theme-transition,
+.theme-transition * {
+  transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease;
+}
+
+/* ===== CUSTOM SCROLLBARS — thin, monochrome ===== */
+@layer utilities {
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: var(--border);
+    border-radius: 3px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background-color: var(--muted-foreground);
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  /* Hairline grid background for Swiss feel */
+  .bg-grid {
+    background-image:
+      linear-gradient(to right, var(--border) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--border) 1px, transparent 1px);
+    background-size: 32px 32px;
+  }
+  .bg-dots {
+    background-image: radial-gradient(var(--border) 1px, transparent 1px);
+    background-size: 16px 16px;
+  }
+  /* Focus ring — sharp, no glow */
+  .focus-ring:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 1px;
+  }
+}
+
+/* ===== ANIMATIONS =====
+   UX law: Doherty Threshold — keep response < 400ms.
+   Micro-interactions feel instant (120–220ms) while content
+   settles with a soft stagger so the eye can chunk (Law of Proximity). */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes slide-in-right {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.98); }
+  to { opacity: 1; transform: scale(1); }
+}
+/* Staggered list reveal — Serial Position Effect: first/last land cleanest */
+@keyframes stagger-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.stagger > * {
+  animation: stagger-in 280ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.stagger > *:nth-child(1) { animation-delay: 0ms; }
+.stagger > *:nth-child(2) { animation-delay: 40ms; }
+.stagger > *:nth-child(3) { animation-delay: 80ms; }
+.stagger > *:nth-child(4) { animation-delay: 120ms; }
+.stagger > *:nth-child(5) { animation-delay: 160ms; }
+.stagger > *:nth-child(6) { animation-delay: 200ms; }
+.stagger > *:nth-child(7) { animation-delay: 240ms; }
+.stagger > *:nth-child(8) { animation-delay: 280ms; }
+.stagger > *:nth-child(n+9) { animation-delay: 320ms; }
+
+.animate-fade-in { animation: fade-in 150ms ease-out; }
+.animate-slide-up { animation: slide-up 200ms cubic-bezier(0.22, 1, 0.36, 1); }
+.animate-slide-in-right { animation: slide-in-right 220ms cubic-bezier(0.22, 1, 0.36, 1); }
+.animate-scale-in { animation: scale-in 180ms cubic-bezier(0.22, 1, 0.36, 1); }
+
+/* ===== SKELETON SHIMMER — perceived performance (Doherty) ===== */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--muted) 0%,
+    var(--accent) 50%,
+    var(--muted) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.6s ease-in-out infinite;
+}
+
+/* ===== TAP FEEDBACK — Aesthetic-Usability + Fitts ===== */
+.tap {
+  transition: transform 120ms ease-out, background-color 120ms ease-out, border-color 120ms ease-out;
+}
+.tap:active {
+  transform: scale(0.97);
+}
+
+/* ===== INTERSECTION GROW-IN — used by dashboard widgets ===== */
+@keyframes grow-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.99); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.grow-in { animation: grow-in 320ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+/* ===== NUMBER TICK — Peak-End: satisfying count-up affordance ===== */
+@keyframes tick-up {
+  0% { transform: translateY(6px); opacity: 0; }
+  60% { transform: translateY(-1px); opacity: 1; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+.tick-up { animation: tick-up 360ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+/* ===== REDUCED MOTION — accessibility ===== */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .stagger > * { animation: none !important; }
+}
+
+/* ===== PULSE for live indicators ===== */
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+.pulse-dot { animation: pulse-dot 1.6s ease-in-out infinite; }
+
+/* ===== FLEET MAP — expanding pulse ring for active vehicle markers ===== */
+@keyframes fleet-pulse-ring {
+  0% { transform: scale(1); opacity: 0.6; }
+  100% { transform: scale(2.6); opacity: 0; }
+}
+.fleet-pulse-ring {
+  transform-origin: center;
+  transform-box: fill-box;
+  animation: fleet-pulse-ring 1.8s ease-out infinite;
+}
+
+/* ===== OPENSTREETMAP (react-leaflet) — monochrome fleet map =====
+   Tiles are filtered to greyscale; in dark mode the tiles are also inverted
+   so the map reads as a dark canvas with light grey roads. The filter is
+   applied to the tile pane ONLY so vehicle markers, route lines and labels
+   keep their original (CSS-variable-driven) colors. */
+.osm-mono .leaflet-tile-pane {
+  filter: grayscale(1) contrast(0.95) brightness(1.02);
+}
+:where(.dark) .osm-mono .leaflet-tile-pane {
+  filter: grayscale(1) invert(1) contrast(0.92) brightness(0.95);
+}
+
+/* Force the map's internal stacking context to stay below app chrome
+   (NotificationPanel z-50, CommandPalette z-50, Sheet z-50+). Leaflet's
+   default pane z-indices are 400–700 which would overlay app modals. */
+.leaflet-container {
+  isolation: isolate;
+  background: var(--background);
+  font-family: var(--font-geist-sans), sans-serif;
+}
+.leaflet-pane,
+.leaflet-top,
+.leaflet-bottom {
+  z-index: 0 !important;
+}
+.leaflet-control {
+  z-index: 0 !important;
+}
+
+/* Attribution — monochrome, muted, small */
+.leaflet-control-attribution {
+  background: var(--background) !important;
+  color: var(--muted-foreground) !important;
+  font-size: 9px !important;
+  font-family: var(--font-geist-mono), monospace !important;
+  letter-spacing: 0.02em;
+  padding: 1px 5px !important;
+  border-top-left-radius: 4px;
+}
+.leaflet-control-attribution a {
+  color: var(--muted-foreground) !important;
+}
+
+/* Zoom control — monochrome, hairline borders, 6px radius */
+.leaflet-bar {
+  border: 1px solid var(--border) !important;
+  border-radius: 6px !important;
+  overflow: hidden;
+  box-shadow: none !important;
+}
+.leaflet-bar a {
+  background: var(--card) !important;
+  color: var(--foreground) !important;
+  border-bottom: 1px solid var(--border) !important;
+  width: 28px !important;
+  height: 28px !important;
+  line-height: 28px !important;
+  font-size: 16px !important;
+  font-weight: 400 !important;
+}
+.leaflet-bar a:hover {
+  background: var(--accent) !important;
+}
+.leaflet-bar a:last-child {
+  border-bottom: none !important;
+}
+
+/* Popups & tooltips — monochrome, hairline, flat */
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip {
+  background: var(--popover) !important;
+  color: var(--popover-foreground) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 6px !important;
+  box-shadow: none !important;
+}
+.leaflet-popup-content {
+  margin: 8px 10px !important;
+  font-size: 12px !important;
+}
+.leaflet-popup-close-button {
+  color: var(--muted-foreground) !important;
+  top: 6px !important;
+  right: 6px !important;
+}
+.leaflet-tooltip {
+  background: var(--popover) !important;
+  color: var(--popover-foreground) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 6px !important;
+  box-shadow: none !important;
+  padding: 4px 8px !important;
+  font-size: 11px !important;
+  font-family: var(--font-geist-sans), sans-serif !important;
+}
+.leaflet-tooltip-top:before,
+.leaflet-tooltip-bottom:before,
+.leaflet-tooltip-left:before,
+.leaflet-tooltip-right:before {
+  border-top-color: var(--border) !important;
+  border-bottom-color: var(--border) !important;
+  border-left-color: var(--border) !important;
+  border-right-color: var(--border) !important;
+}
+
+/* ===== Route & geofence vector styles =====
+   CSS wins over Leaflet's presentation attributes, so we can drive color
+   via CSS variables (theme-aware). */
+.garageplus-route { stroke: var(--foreground); fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.garageplus-route-actual { stroke-opacity: 0.9; }
+.garageplus-route-planned { stroke-opacity: 0.5; stroke-dasharray: 5 4; }
+.garageplus-playback-traveled { stroke-opacity: 1; }
+.garageplus-playback-upcoming { stroke-opacity: 0.4; stroke-dasharray: 4 4; }
+.garageplus-geofence { stroke: var(--foreground); fill: var(--foreground); stroke-linejoin: round; }
+.garageplus-geofence-active { stroke-opacity: 0.8; fill-opacity: 0.08; }
+.garageplus-geofence-paused { stroke-opacity: 0.4; fill-opacity: 0.04; stroke-dasharray: 4 3; }
+.garageplus-geofence-draft { stroke-opacity: 0.25; fill-opacity: 0.02; }
+
+/* ===== Vehicle marker (divIcon) — HTML/CSS so we can animate ===== */
+.garageplus-vehicle-marker { background: transparent !important; border: none !important; }
+.rvm-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+.rvm-dot {
+  display: block;
+  border-radius: 9999px;
+  box-shadow: 0 0 0 1px var(--background);
+}
+.rvm-pulse {
+  position: absolute;
+  display: block;
+  border-radius: 9999px;
+  border: 1px solid var(--foreground);
+  opacity: 0.6;
+  animation: rvm-pulse 1.8s ease-out infinite;
+  pointer-events: none;
+}
+@keyframes rvm-pulse {
+  0% { transform: scale(0.8); opacity: 0.6; }
+  100% { transform: scale(2.6); opacity: 0; }
+}
+.rvm-label {
+  position: absolute;
+  left: 12px;
+  top: -8px;
+  display: inline-block;
+  padding: 1px 5px;
+  background: var(--background);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 9px;
+  line-height: 1.4;
+  color: var(--foreground);
+  white-space: nowrap;
+  letter-spacing: 0.02em;
+}
+.rvm-selected .rvm-dot {
+  box-shadow: 0 0 0 3px var(--foreground), 0 0 0 4px var(--background);
+}
+
+/* ===== City label (divIcon) — tiny monospace caption ===== */
+.garageplus-city-label {
+  background: transparent !important;
+  border: none !important;
+  pointer-events: none;
+}
+.rcl-text {
+  display: inline-block;
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 10px;
+  color: var(--muted-foreground);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  text-shadow: 0 0 2px var(--background), 0 0 2px var(--background);
+}
+
+/* ===== Playback moving marker (divIcon) ===== */
+.garageplus-playback-marker { background: transparent !important; border: none !important; }
+.rpm-wrap {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+.rpm-dot {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  margin: -6px 0 0 -6px;
+  border-radius: 9999px;
+  background: var(--foreground);
+  border: 2px solid var(--background);
+}
+.rpm-pulse {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 18px;
+  height: 18px;
+  margin: -9px 0 0 -9px;
+  border-radius: 9999px;
+  border: 1px solid var(--foreground);
+  opacity: 0.5;
+  animation: rvm-pulse 1.6s ease-out infinite;
+}
+.rpm-arrow {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  margin: -16px 0 0 -4px;
+  font-size: 8px;
+  line-height: 1;
+  color: var(--foreground);
+}
+.rpm-label {
+  position: absolute;
+  left: 14px;
+  top: -6px;
+  padding: 1px 5px;
+  background: var(--background);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 9px;
+  line-height: 1.4;
+  color: var(--foreground);
+  white-space: nowrap;
+  letter-spacing: 0.02em;
+}
+
+/* ============================================================
+   PRINT CSS — Document Studio A4 page rendering.
+   Activated by adding the `printing` class to <html> via
+   document.documentElement.classList.add('printing') before
+   calling window.print(), and removed afterwards.
+   Everything outside .print-root is hidden; .print-root is
+   forced to black-on-white A4 with hairline rules.
+   ============================================================ */
+@media print {
+  @page {
+    size: A4;
+    margin: 14mm 14mm 16mm 14mm;
+  }
+  html, body {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+  /* Hide everything by default during print */
+  body * {
+    visibility: hidden;
+  }
+  /* Show only the print root and its descendants */
+  .print-root, .print-root * {
+    visibility: visible;
+  }
+  .print-root {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+  /* App chrome — never print */
+  .no-print, .no-print * {
+    display: none !important;
+  }
+  /* A4 page surface inside the studio preview */
+  .a4-page {
+    box-shadow: none !important;
+    border: none !important;
+    margin: 0 !important;
+    width: 100% !important;
+    min-height: auto !important;
+    padding: 0 !important;
+  }
+  /* Force ink-black text & hairline borders on the printable */
+  .a4-page, .a4-page * {
+    color: #000000 !important;
+    border-color: #000000 !important;
+    background: #ffffff !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+  /* Allow subtle grey tones via the .print-muted helper */
+  .a4-page .print-muted,
+  .a4-page .print-muted * {
+    color: #555555 !important;
+  }
+  /* Page-break helpers */
+  .print-break-before { page-break-before: always; }
+  .print-break-after  { page-break-after: always; }
+  .print-avoid-break  { page-break-inside: avoid; }
+  /* Reanzly watermark prints as a faint grey footer line */
+  .a4-page .reanzly-watermark {
+    color: #777777 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
+
+/* On-screen A4 page surface — used by the studio preview pane.
+   210mm × 297mm ratio with realistic paper margins. */
+.a4-page {
+  background: var(--background);
+  color: var(--foreground);
+  width: 100%;
+  max-width: 210mm;
+  min-height: 297mm;
+  margin: 0 auto;
+  padding: 18mm 16mm 16mm 16mm;
+  border: 1px solid var(--border);
+  box-shadow: 0 1px 2px oklch(0 0 0 / 0.04);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  font-size: 11pt;
+  line-height: 1.55;
+}
+.a4-page .a4-eyebrow {
+  font-size: 9pt;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+  font-weight: 500;
+}
+.a4-page .a4-h1 {
+  font-size: 20pt;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+  color: var(--foreground);
+}
+.a4-page .a4-h2 {
+  font-size: 13pt;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  color: var(--foreground);
+}
+.a4-page .a4-meta {
+  font-size: 9.5pt;
+  color: var(--muted-foreground);
+}
+.a4-page .a4-section-title {
+  font-size: 8.5pt;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 4px;
+  margin-bottom: 8px;
+}
+.a4-page table.a4-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 10pt;
+}
+.a4-page table.a4-table th,
+.a4-page table.a4-table td {
+  border: 1px solid var(--border);
+  padding: 6px 9px;
+  text-align: left;
+  vertical-align: top;
+}
+.a4-page table.a4-table th {
+  background: var(--muted);
+  font-weight: 600;
+  font-size: 9pt;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.a4-page table.a4-table td.num,
+.a4-page table.a4-table th.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+.a4-page .a4-rule {
+  border: 0;
+  border-top: 1px solid var(--border);
+  margin: 14px 0;
+}
+.a4-page .a4-signature-block {
+  display: flex;
+  justify-content: space-between;
+  gap: 32px;
+  margin-top: 36px;
+}
+.a4-page .a4-sign-line {
+  border-top: 1px solid var(--foreground);
+  padding-top: 6px;
+  font-size: 9.5pt;
+}
+.a4-page .reanzly-watermark {
+  position: absolute;
+  bottom: 6mm;
+  right: 14mm;
+  font-size: 8pt;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+.a4-page .reanzly-watermark::before {
+  content: "";
+  display: inline-block;
+  width: 12px;
+  height: 1px;
+  background: var(--muted-foreground);
+  vertical-align: middle;
+  margin-right: 6px;
+}

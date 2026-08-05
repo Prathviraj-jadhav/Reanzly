@@ -1,0 +1,21 @@
+# Fail2ban Jail Configuration for Reanzly Enterprise Gateway
+[DEFAULT]
+bantime  = 24h
+findtime = 10m
+maxretry = 3
+banaction = iptables-multiport
+
+[caddy-attack]
+enabled  = true
+filter   = caddy-attack
+logpath  = /var/log/caddy/security_audit.log
+port     = http,https
+maxretry = 3
+bantime  = 86400
+
+[sshd]
+enabled  = true
+port     = ssh
+logpath  = %(sshd_log)s
+maxretry = 3
+bantime  = 86400

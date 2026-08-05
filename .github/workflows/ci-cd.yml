@@ -1,0 +1,110 @@
+name: Reanzly v2 Secure CI-CD Pipeline & DevSecOps
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  devsecops-ci-audit:
+    name: DevSecOps CI & Security Audit
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Secret Leak Detection (Gitleaks)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+
+      - name: Install Dependencies
+        run: |
+          bun install --frozen-lockfile || bun install
+          cd mini-services/chat-service && bun install
+
+      - name: Generate Prisma Client
+        run: bun run db:generate
+
+      - name: Supply Chain Dependency Audit
+        run: bun pm audit || true
+
+      - name: Production Build Test
+        run: bun run build
+        env:
+          NODE_ENV: production
+          NEXT_TELEMETRY_DISABLED: 1
+          DATABASE_URL: "file:./db/test.db"
+          NEXTAUTH_SECRET: "ci-cd-test-secret-value-32-characters-minimum"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker Image for Security Scan
+        run: |
+          docker build -t reanzly:security-scan .
+
+      - name: Container Vulnerability Scan (Trivy)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'reanzly:security-scan'
+          format: 'table'
+          exit-code: '0'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
+
+  cd-deploy-enterprise-live:
+    name: Continuous Deployment (CD)
+    needs: devsecops-ci-audit
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Execute Live Secure SSH Deployment
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          script: |
+            set -e
+            APP_DIR="/opt/reanzly"
+            mkdir -p $APP_DIR
+            cd $APP_DIR
+
+            if [ -d ".git" ]; then
+              git fetch origin main && git reset --hard origin/main
+            else
+              echo "Deploying via SSH payload..."
+            fi
+
+            # Environment configuration
+            cat << 'EOF' > .env
+            NODE_ENV=production
+            PORT=3000
+            CHAT_SERVICE_PORT=3003
+            DATABASE_URL=${{ secrets.DATABASE_URL || 'file:/app/db/custom.db' }}
+            NEXTAUTH_URL=${{ secrets.NEXTAUTH_URL || 'https://reanzly.com' }}
+            NEXTAUTH_SECRET=${{ secrets.NEXTAUTH_SECRET }}
+            STORAGE_DRIVER=local
+            STORAGE_LOCAL_PATH=/app/storage
+            EOF
+
+            # Automated encrypted backup & enterprise deployment
+            chmod +x scripts/deploy-prod.sh scripts/backup-encrypt.sh scripts/security-audit.sh
+            ./scripts/deploy-prod.sh

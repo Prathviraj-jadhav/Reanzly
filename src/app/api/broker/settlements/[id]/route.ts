@@ -1,0 +1,93 @@
+import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/lib/db";
+import { cacheInvalidate } from "@/lib/cache";
+
+// ===== Settlement Cycle Detail API =====
+// PATCH - advance a settlement cycle through its lifecycle
+//        (Draft -> Approved -> Paid). Other fields can also be updated before
+//        approval (commissionPct, tdsPct, etc.) - the API recomputes derived
+//        totals so they always stay consistent.
+
+const ALLOWED_STATUSES = new Set(["Draft", "Approved", "Paid"]);
+const ALLOWED_GST_TREATMENTS = new Set(["Forward Charge", "Reverse Charge"]);
+
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+
+    let body: Record<string, unknown>;
+    try {
+      body = await req.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
+
+    // First read the existing row so we can recompute derived totals when the
+    // commission/tds/gross inputs change.
+    const existing = await db.settlementCycle.findUnique({ where: { id } });
+    if (!existing) {
+      return NextResponse.json({ error: "Settlement cycle not found." }, { status: 404 });
+    }
+
+    const data: Record<string, unknown> = {};
+
+    if (typeof body.status === "string") {
+      if (!ALLOWED_STATUSES.has(body.status)) {
+        return NextResponse.json(
+          { error: `status must be one of ${[...ALLOWED_STATUSES].join(", ")}` },
+          { status: 400 }
+        );
+      }
+      data.status = body.status;
+    }
+
+    const grossValueINR =
+      typeof body.grossValueINR === "number" ? body.grossValueINR : existing.grossValueINR;
+    const grossTrips =
+      typeof body.grossTrips === "number" ? Math.max(0, Math.floor(body.grossTrips)) : existing.grossTrips;
+    const commissionPct =
+      typeof body.commissionPct === "number" ? body.commissionPct : existing.commissionPct;
+    const tdsPct = typeof body.tdsPct === "number" ? body.tdsPct : existing.tdsPct;
+    const gstTreatment =
+      typeof body.gstTreatment === "string" && ALLOWED_GST_TREATMENTS.has(body.gstTreatment)
+        ? body.gstTreatment
+        : existing.gstTreatment;
+
+    const commissionEarnedINR = Math.round((grossValueINR * commissionPct) / 100);
+    const tdsDeductedINR = Math.round((commissionEarnedINR * tdsPct) / 100);
+    const netPayableINR = commissionEarnedINR - tdsDeductedINR;
+
+    data.grossValueINR = grossValueINR;
+    data.grossTrips = grossTrips;
+    data.commissionPct = commissionPct;
+    data.tdsPct = tdsPct;
+    data.gstTreatment = gstTreatment;
+    data.commissionEarnedINR = commissionEarnedINR;
+    data.tdsDeductedINR = tdsDeductedINR;
+    data.netPayableINR = netPayableINR;
+
+    if (typeof body.periodStart === "string") {
+      const d = new Date(body.periodStart);
+      if (!isNaN(d.getTime())) data.periodStart = d;
+    }
+    if (typeof body.periodEnd === "string") {
+      const d = new Date(body.periodEnd);
+      if (!isNaN(d.getTime())) data.periodEnd = d;
+    }
+
+    const updated = await db.settlementCycle.update({
+      where: { id },
+      data,
+    });
+
+    cacheInvalidate("broker:settlements", "broker:dashboard", "broker:ledger");
+
+    return NextResponse.json(updated);
+  } catch (error) {
+    console.error("[broker/settlements/[id] PATCH]", error);
+    return NextResponse.json({ error: "Unable to update settlement cycle." }, { status: 500 });
+  }
+}
