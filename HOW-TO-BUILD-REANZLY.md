@@ -139,25 +139,35 @@ mini-services/embedding-service/
 └── package.json
 ```
 
-**Model selection** (in order of preference, smallest first):
-1. `all-MiniLM-L6-v2` — 22MB ONNX, ~80ms/embedding on CPU, 384-dim vectors.
-2. `paraphrase-multilingual-MiniLM-L12-v2` — 44MB, multilingual (Hindi, English).
-3. `BAAI/bge-small-en-v1.5` — 24MB, best retrieval accuracy for English.
+**Model selection** (smallest first — all run in Rust, no Python, no GPU):
 
-Run via `onnxruntime-node` — no Python, no GPU required:
+| Model file | Size | Dims | Notes |
+|:--- |:--- |:--- |:--- |
+| `all-MiniLM-L6-v2.onnx` | **22 MB** | 384 | Default. Best quality/size. |
+| `paraphrase-albert-small-v2.onnx` | **16 MB** | 768 | Smallest option, EN only. |
+| `bge-small-en-v1.5.onnx` | **24 MB** | 384 | Best EN retrieval accuracy. |
+| `multilingual-e5-small.onnx` | **45 MB** | 384 | Hindi + English support. |
 
-```typescript
-import * as ort from 'onnxruntime-node'
+The embedding service is a **Rust binary** (`slm-engine`) using [`fastembed-rs`](https://github.com/Anush008/fastembed-rs) — pure Rust, no C++ toolchain, downloads model once on first start and caches locally:
 
-const session = await ort.InferenceSession.create('./model/embedding.onnx')
-export async function embed(text: string): Promise<Float32Array> {
-  const input = tokenize(text)
-  const result = await session.run({ input_ids: input.ids, attention_mask: input.mask })
-  return meanPooling(result['last_hidden_state'], input.mask)
+```rust
+// mini-services/slm-engine/src/embed.rs
+use fastembed::{EmbeddingModel, InitOptions, TextEmbedding};
+
+pub fn build_embedder() -> TextEmbedding {
+    TextEmbedding::try_new(InitOptions {
+        model_name: EmbeddingModel::AllMiniLML6V2,  // 22 MB auto-downloaded
+        show_download_progress: true,
+        ..Default::default()
+    }).expect("Failed to load embedding model")
+}
+
+pub fn embed_batch(embedder: &TextEmbedding, texts: Vec<String>) -> Vec<Vec<f32>> {
+    embedder.embed(texts, None).expect("Embedding failed")
 }
 ```
 
-Store vectors in SQLite using a `BLOB` column (for SQLite dev) or `pgvector` extension (for Postgres prod). Cosine similarity search runs in `src/lib/slm/retrieval.ts`.
+Store vectors in SQLite using a `BLOB` column (dev) or `pgvector` (prod). Cosine similarity search runs in `src/lib/slm/retrieval.ts`, calling the Rust binary's `/embed` HTTP endpoint.
 
 ### 4.2 Anomaly Detection (Neural Outlier Network)
 
@@ -218,73 +228,98 @@ Predict optimal freight rates for any origin-destination pair:
 
 ## 5. The SLM — Advanced Open-Source Language Model Layer
 
-> The SLM (Small Language Model) layer runs **fully offline using open-source models** served locally via Ollama. Falls back to an online provider only if explicitly configured by the operator. The application never sends customer data to any third party by default.
+> The SLM layer runs **fully offline via a self-contained Rust binary** (`slm-engine`). No Ollama, no Python, no runtime to install. Models are tiny GGUF files (90–400 MB) that ship alongside the binary. Falls back to an online provider only if the operator explicitly opts in. Customer data never leaves the machine by default.
 
-### 5.1 Model Selection & Offline-First Strategy
+### 5.1 The Rust SLM Engine (`slm-engine`)
 
 ```
-src/lib/slm/
-├── providers.ts      # Model routing: offline → online fallback
-├── runtime.ts        # Inference request handler
-├── retrieval.ts      # RAG: vector search + context assembly
-├── agents.ts         # Agent definitions (Rean, Inspector, Rate Advisor)
-├── tools.ts          # Tool registry (DB queries, calculations, file ops)
-├── memory.ts         # Conversation memory + entity memory store
-├── approvals.ts      # Human-in-the-loop approval queue
-├── traces.ts         # Run tracing + observability
-├── types.ts          # All SLM types
-└── seed.ts           # Pre-seeded demo agents and tools
+mini-services/slm-engine/          # Rust workspace
+├── Cargo.toml
+└── src/
+    ├── main.rs        # Axum HTTP server — /infer /embed /health
+    ├── infer.rs       # llama-cpp-rs inference (GGUF models)
+    ├── embed.rs       # fastembed-rs embeddings (ONNX, 22MB)
+    ├── cache.rs       # LRU response + embedding cache
+    └── models.rs      # Model registry + auto-download
 ```
 
-**Recommended offline models** (all run via Ollama on CPU, no GPU required):
+Builds to a single ~8 MB static binary. No installation step. Run it:
 
-| Model | Size | VRAM / RAM | Best For |
+```bash
+cargo build --release
+./target/release/slm-engine   # HTTP on :3004
+```
+
+**Recommended GGUF models** (all run on CPU, RAM shown for inference only):
+
+| Model file | Size | RAM | Best For |
 |:--- |:--- |:--- |:--- |
-| `phi4-mini:3.8b` | 2.5GB | 4GB RAM | Fast Q&A, classification, small reasoning |
-| `gemma3:4b` | 2.9GB | 5GB RAM | Instruction following, logistics Q&A |
-| `qwen2.5:7b` | 4.7GB | 8GB RAM | Complex reasoning, multi-step tasks |
-| `llama3.2:3b` | 2.0GB | 4GB RAM | General purpose, fast responses |
-| `mistral:7b` | 4.1GB | 8GB RAM | Best instruction following overall |
-| `deepseek-r1:7b` | 4.7GB | 8GB RAM | Deep reasoning, financial analysis |
+| `smollm2-135m.Q4_K_M.gguf` | **90 MB** | 256 MB | Fastest — classification, yes/no, extraction |
+| `smollm2-360m.Q4_K_M.gguf` | **240 MB** | 512 MB | Default — short Q&A, summaries, field fills |
+| `qwen2.5-0.5b.Q4_K_M.gguf` | **380 MB** | 700 MB | Better reasoning, logistics Q&A |
+| `tinyllama-1.1b.Q2_K.gguf` | **360 MB** | 800 MB | Richer context, instruction following |
+| `phi3.5-mini-instruct.Q3_K_S.gguf` | **1.4 GB** | 2 GB | Power mode — complex multi-step tasks |
 
-**Default recommendation**: `phi4-mini:3.8b` for standard deployments, `qwen2.5:7b` for operator consoles.
+**Default**: `smollm2-360m` starts in <200ms cold, responds in <500ms on any modern laptop CPU.
 
-### 5.2 Provider Routing (Offline → Online Fallback)
+> **Power mode** (optional): If the machine has ≥8GB RAM and the operator wants larger models, install Ollama and set `SLM_POWER_MODEL=qwen2.5:7b`. The engine auto-falls-back to Ollama only for that agent tier.
+
+### 5.2 Provider Routing (Rust binary → Ollama power mode → Online fallback)
+
+The Rust `slm-engine` binary is the primary provider. The TypeScript layer just fetches it:
 
 ```typescript
 // src/lib/slm/providers.ts
 
-export type ProviderMode = 'offline' | 'online' | 'auto'
-
-const OFFLINE_ENDPOINT = 'http://localhost:11434/api/generate'  // Ollama
+const SLM_ENGINE = process.env.SLM_ENGINE_URL ?? 'http://localhost:3004'
 
 export async function inferSLM(
   prompt: string,
-  options: { model?: string; mode?: ProviderMode; stream?: boolean } = {}
+  options: { tier?: 'fast' | 'balanced' | 'power'; stream?: boolean } = {}
 ): Promise<string> {
-  const mode = options.mode ?? (process.env.SLM_MODE as ProviderMode) ?? 'auto'
+  // Tier selects the model inside the Rust engine — no model names in app code
+  const tier = options.tier ?? 'balanced'
 
-  if (mode === 'offline' || (mode === 'auto' && await isOllamaAvailable())) {
-    return inferOffline(prompt, options.model ?? 'phi4-mini:3.8b', options.stream)
-  }
+  const res = await fetch(`${SLM_ENGINE}/infer`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt, tier, stream: options.stream ?? false }),
+  })
 
-  // Online fallback: only if ONLINE_LLM_URL is explicitly set in .env
-  // No hardcoded cloud provider — operator chooses their own endpoint
-  if (process.env.ONLINE_LLM_URL) {
-    return inferOnline(prompt, process.env.ONLINE_LLM_ENDPOINT_MODEL)
-  }
-
-  throw new Error('No inference provider available. Start Ollama or set ONLINE_LLM_URL.')
+  if (!res.ok) throw new Error(`SLM engine error: ${res.status}`)
+  return res.text()
 }
 
-async function isOllamaAvailable(): Promise<boolean> {
-  try {
-    await fetch('http://localhost:11434/api/tags', { signal: AbortSignal.timeout(500) })
-    return true
-  } catch {
-    return false
-  }
+export async function embedText(texts: string[]): Promise<number[][]> {
+  const res = await fetch(`${SLM_ENGINE}/embed`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ texts }),
+  })
+  return res.json()
 }
+```
+
+Inside the Rust engine, tier mapping:
+
+```rust
+// mini-services/slm-engine/src/models.rs
+pub fn model_for_tier(tier: &str) -> &'static str {
+    match tier {
+        "fast"     => "smollm2-135m.Q4_K_M.gguf",   //  90 MB
+        "balanced" => "smollm2-360m.Q4_K_M.gguf",   // 240 MB  ← default
+        "power"    => "qwen2.5-0.5b.Q4_K_M.gguf",   // 380 MB
+        _          => "smollm2-360m.Q4_K_M.gguf",
+    }
+}
+```
+
+Online fallback (optional — operator opt-in only):
+```bash
+# .env — leave commented out to stay fully offline
+# ONLINE_LLM_URL=https://your-openai-compatible-endpoint/v1/chat/completions
+# ONLINE_LLM_ENDPOINT_MODEL=your-model-name
+# ONLINE_LLM_API_KEY=your-key
 ```
 
 ### 5.3 RAG Pipeline (Retrieval-Augmented Generation)
@@ -302,7 +337,7 @@ Context Assembly (format retrieved entities into structured prompt context)
     ↓
 System Prompt + Context + User Query
     ↓
-SLM Inference (Ollama offline or configured online endpoint)
+SLM Inference (slm-engine Rust binary, tier=balanced, 240MB model)
     ↓
 Response + Citations (which entity records informed the answer)
     ↓
@@ -351,7 +386,7 @@ export async function superpositionReason(
   // Generate N interpretations via parallel SLM calls
   const interpretations = await Promise.all(
     Array.from({ length: n }, (_, i) =>
-      inferSLM(buildInterpretationPrompt(query, context, i), { model: 'phi4-mini:3.8b' })
+      inferSLM(buildInterpretationPrompt(query, context, i), { tier: 'balanced' })
     )
   )
 
@@ -382,12 +417,12 @@ The SLM runtime monitors response latency and user engagement signals. If a resp
 // src/lib/slm/runtime.ts
 
 export class AdaptiveRuntime {
-  private currentModel = 'phi4-mini:3.8b'
+  private tier: 'fast' | 'balanced' | 'power' = 'balanced'
   private latencyHistory: number[] = []
 
   async infer(prompt: string): Promise<string> {
     const start = Date.now()
-    const result = await inferSLM(prompt, { model: this.currentModel })
+    const result = await inferSLM(prompt, { tier: this.tier })
     const latency = Date.now() - start
     this.latencyHistory.push(latency)
     this.adapt()
@@ -396,11 +431,10 @@ export class AdaptiveRuntime {
 
   private adapt() {
     const avg = this.latencyHistory.slice(-5).reduce((a, b) => a + b, 0) / 5
-    if (avg > 3000 && this.currentModel !== 'phi4-mini:3.8b') {
-      this.currentModel = 'phi4-mini:3.8b'   // downgrade for speed
-    } else if (avg < 800 && this.currentModel !== 'qwen2.5:7b') {
-      this.currentModel = 'qwen2.5:7b'        // upgrade for quality
-    }
+    // Downgrade tier when slow (>2s), upgrade when fast (<300ms)
+    if (avg > 2000 && this.tier !== 'fast')     this.tier = 'fast'      //  90 MB model
+    else if (avg < 300 && this.tier !== 'power') this.tier = 'power'    // 380 MB model
+    else                                          this.tier = 'balanced' // 240 MB model
   }
 }
 ```
@@ -426,13 +460,14 @@ export async function getEntangledMemory(
 
 Pre-defined agents in `src/lib/slm/agents.ts`:
 
-| Agent | Model | Purpose |
-|:--- |:--- |:--- |
-| **Rean** | `phi4-mini:3.8b` | NL Q&A over company data, RAG-powered |
-| **Inspector** | `qwen2.5:7b` | Anomaly explanation, root-cause analysis |
-| **Rate Advisor** | `gemma3:4b` | Lane rate recommendations, market benchmarking |
-| **Document Drafter** | `mistral:7b` | Draft LOIs, quotations, HR letters |
-| **Compliance Guard** | `deepseek-r1:7b` | GST, e-way bill, labour law checks |
+| Agent | Tier | Model (GGUF) | Size | Purpose |
+|:--- |:--- |:--- |:--- |:--- |
+| **Rean** | balanced | `smollm2-360m.Q4_K_M` | 240 MB | NL Q&A over company data, RAG-powered |
+| **Inspector** | power | `qwen2.5-0.5b.Q4_K_M` | 380 MB | Anomaly explanation, root-cause analysis |
+| **Rate Advisor** | balanced | `smollm2-360m.Q4_K_M` | 240 MB | Lane rate recommendations |
+| **Document Drafter** | power | `tinyllama-1.1b.Q2_K` | 360 MB | Draft LOIs, quotations, HR letters |
+| **Compliance Guard** | power | `qwen2.5-0.5b.Q4_K_M` | 380 MB | GST, e-way bill, labour law checks |
+| **Classifier** | fast | `smollm2-135m.Q4_K_M` | 90 MB | Intent detection, field extraction, tagging |
 
 Each agent has: `systemPrompt`, `tools[]`, `approvalPolicy`, `maxTokens`, `model`.
 
@@ -470,52 +505,78 @@ export async function runImprovementCycle(companyId: string) {
 
 ## 6. Setup: Running the Full Intelligence Stack
 
-### 6.1 Install Ollama (Offline LLM Runtime)
+### 6.1 Build the Rust SLM Engine (one-time)
 
 ```bash
-# macOS / Linux
-curl -fsSL https://ollama.ai/install.sh | sh
+# Prerequisites: Rust toolchain only (rustup.rs)
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 
-# Windows — download installer from https://ollama.ai
+# Build the engine (downloads GGUF + ONNX models on first run, cached after)
+cd mini-services/slm-engine
+cargo build --release
 
-# Pull the default model
-ollama pull phi4-mini:3.8b
+# Binary size: ~8 MB
+# First-run model download: smollm2-360m.Q4_K_M.gguf = 240 MB (one-time)
+# Subsequent starts: <200ms cold start
+```
 
-# Optional: pull larger models for the operator console
-ollama pull qwen2.5:7b
-ollama pull mistral:7b
+On Windows:
+```powershell
+# Install Rust from https://rustup.rs then:
+cd mini-services\slm-engine
+cargo build --release
+.\target\release\slm-engine.exe
+```
+
+**Manual model download** (if offline from day 1 — no internet needed after this):
+```bash
+# Download GGUF models from HuggingFace to mini-services/slm-engine/models/
+curl -L -o models/smollm2-135m.Q4_K_M.gguf \
+  https://huggingface.co/HuggingFaceTB/SmolLM2-135M-Instruct-GGUF/resolve/main/smollm2-135m-instruct-q4_k_m.gguf
+
+curl -L -o models/smollm2-360m.Q4_K_M.gguf \
+  https://huggingface.co/HuggingFaceTB/SmolLM2-360M-Instruct-GGUF/resolve/main/smollm2-360m-instruct-q4_k_m.gguf
+
+curl -L -o models/qwen2.5-0.5b.Q4_K_M.gguf \
+  https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_k_m.gguf
 ```
 
 ### 6.2 Configure Environment
 
 Add to `.env`:
 ```bash
-# SLM
-SLM_MODE=auto                        # auto | offline | online
-OLLAMA_URL=http://localhost:11434     # change for remote Ollama server
+# SLM engine (Rust binary)
+SLM_ENGINE_URL=http://localhost:3004
 
-# Online fallback (optional — only set if you want cloud LLM as fallback)
-# ONLINE_LLM_URL=https://your-openai-compatible-endpoint/v1/chat/completions
-# ONLINE_LLM_ENDPOINT_MODEL=your-model-name
-# ONLINE_LLM_API_KEY=your-key         # only if required by your endpoint
-
-# Embedding
-EMBEDDING_SERVICE_URL=http://localhost:3004
+# Model tiers (maps to filenames inside mini-services/slm-engine/models/)
+SLM_TIER_FAST=smollm2-135m.Q4_K_M.gguf      #  90 MB
+SLM_TIER_BALANCED=smollm2-360m.Q4_K_M.gguf  # 240 MB  ← default
+SLM_TIER_POWER=qwen2.5-0.5b.Q4_K_M.gguf     # 380 MB
 
 # Neural network
 ANOMALY_THRESHOLD=0.72
 ENABLE_IMPROVISATION=true
+
+# Online fallback (optional — leave commented for full offline)
+# ONLINE_LLM_URL=https://your-openai-compatible-endpoint/v1/chat/completions
+# ONLINE_LLM_ENDPOINT_MODEL=your-model-name
+# ONLINE_LLM_API_KEY=your-key
 ```
 
-### 6.3 Start the Intelligence Mini-Services
+### 6.3 Start the Intelligence Stack
 
 ```bash
-# Embedding service (port 3004)
-cd mini-services/embedding-service && bun --hot index.ts &
+# Terminal 1 — Rust SLM engine (embeddings + inference, port 3004)
+./mini-services/slm-engine/target/release/slm-engine
 
-# Run the main app
+# Terminal 2 — Next.js app
 bun dev
+
+# Terminal 3 — Socket.IO chat service
+cd mini-services/chat-service && bun --hot index.ts
 ```
+
+Total cold-start footprint: **~250 MB RAM** (smollm2-360m loaded) + ~50 MB for Next.js = **under 300 MB total**.
 
 ---
 
