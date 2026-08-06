@@ -228,7 +228,7 @@ const INTENTS: Intent[] = [
   { id: "anomalies", keywords: ["anomal", "unusual", "flagged", "suspicious"], handle: handleAnomalies },
   { id: "revenue", keywords: ["revenue", "how are we doing", "how much did we make", "how much revenue", "financial summary", "kpi", "overview", "summary"], handle: handleRevenue },
   { id: "fuel", keywords: ["fuel", "mileage", "kmpl", "efficiency"], handle: handleFuel },
-  { id: "compliance", keywords: ["expir", "permit", "insurance", "compliance", "renewal", "document"], handle: handleCompliance },
+  { id: "compliance", keywords: ["expir", "permit", "insurance", "compliance", "renewal", "document", "fatigue", "duty hour", "duty limit", "fmvdr"], handle: handleCompliance },
   { id: "drivers", keywords: ["driver", "license", "staff"], handle: handleDrivers },
   { id: "issues", keywords: ["issue", "breakdown", "problem", "defect"], handle: handleIssues },
   { id: "fleet", keywords: ["fleet", "vehicle", "truck", "idle", "maintenance"], handle: handleFleet },

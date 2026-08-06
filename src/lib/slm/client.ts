@@ -1,10 +1,24 @@
 import { answerLocally } from "./local-engine";
 
-const SLM_ENGINE_URL = process.env.SLM_ENGINE_URL || "http://localhost:3004";
+// Literal 127.0.0.1, not "localhost" - the Rust engine binds IPv4-only, and
+// Node's fetch resolving "localhost" can race to the IPv6 (::1) candidate
+// first and fail the connection before falling back, causing intermittent
+// silent fallbacks to the local heuristic engine even while slm-engine is
+// healthy and reachable on IPv4.
+const SLM_ENGINE_URL = process.env.SLM_ENGINE_URL || "http://127.0.0.1:3004";
 
 export interface InferOptions {
   tier?: "fast" | "balanced" | "power";
   stream?: boolean;
+  // The user's own short query, as opposed to `prompt` (which is usually a
+  // much longer wrapper: system framing + grounding context + the query).
+  // Used only if the Rust engine is unreachable and we fall back to the
+  // local keyword-matching engine - that engine expects a short natural
+  // query, not a multi-paragraph LLM prompt, and will produce a nonsense
+  // answer (matching on incidental words from the grounding context) if
+  // given the full wrapped prompt instead. Defaults to `prompt` for callers
+  // that genuinely have no shorter form.
+  fallbackQuery?: string;
 }
 
 /**
@@ -18,7 +32,12 @@ export async function inferSLM(prompt: string, options: InferOptions = {}): Prom
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ prompt, tier, stream: options.stream || false }),
-      signal: AbortSignal.timeout(5000),
+      // CPU-only GGUF generation genuinely takes several seconds (measured
+      // ~3.5s for a 160-token "fast" reply, ~7.6s for a 320-token "balanced"
+      // reply) - a short timeout here doesn't detect an unhealthy engine, it
+      // just discards real answers before they finish and silently falls
+      // back to the local heuristic engine on every request.
+      signal: AbortSignal.timeout(30000),
     });
 
     if (res.ok) {
@@ -28,8 +47,10 @@ export async function inferSLM(prompt: string, options: InferOptions = {}): Prom
     console.warn("Rust slm-engine unreachable, falling back to local rules engine. Error:", err);
   }
 
-  // Fallback to local-engine heuristic classification
-  const { reply } = answerLocally(prompt, "Agent");
+  // Fallback to local-engine heuristic classification. Use the caller's
+  // original short query if they gave one - the local engine's keyword
+  // matching produces nonsense when fed a multi-paragraph LLM prompt.
+  const { reply } = answerLocally(options.fallbackQuery ?? prompt, "Agent");
   return reply;
 }
 

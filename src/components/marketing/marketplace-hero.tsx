@@ -5,22 +5,14 @@
  *
  * Premium Swiss/Scandinavian feel: eyebrow badge, oversized headline
  * ("Rent Trucks, Trailers & Tempo Travellers Pan-India"), subhead, and a
- * 4-field search bar (origin, destination, vehicle type, availability date).
+ * 4-field search bar with interactive custom suggestion flyers (popovers)
+ * for Origin, Destination, and Vehicle Type.
  *
- * The search bar is the primary entry to the marketplace — typing into any
- * field updates the lifted state in <MarketplaceSite /> which re-runs the
- * grid filter.
- *
- * Below the fold: a stats strip (60+ vehicles, 30+ verified owners, 17 cities,
- * 4.2K+ bookings, 12 open loads) + a "Featured vehicles" rail of 4 hand-picked
- * listings with photo placeholder, route, owner rating, price/day, and a
- * "View details" / "Request booking" CTA pair.
- *
- * SEO: keyword-rich H1 ("Rent Trucks, Trailers, Tempo Travellers Pan-India")
- *      + H2 ("Featured vehicle listings") + semantic <main>/<section>/<article>.
+ * Typing into any field or selecting from the popover suggestion flyer updates 
+ * the lifted state in <MarketplaceSite /> which re-runs the grid filter.
  */
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import {
   Search, MapPin, Truck, Calendar, Star, ShieldCheck, ArrowRight, Users, Package, Route as RouteIcon,
 } from "lucide-react";
@@ -28,6 +20,7 @@ import {
   VEHICLE_TYPE_META, VEHICLE_TYPE_ORDER, MARKETPLACE_STATS,
   type VehicleListing, type VehicleType,
 } from "./marketplace-data";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface MarketplaceHeroProps {
   search: string;
@@ -45,6 +38,16 @@ interface MarketplaceHeroProps {
   onClearAndFocusCatalogue: () => void;
 }
 
+const POPULAR_HUBS = [
+  { city: "Mumbai", region: "West Hub", volume: "140+ available" },
+  { city: "Delhi", region: "North Terminal", volume: "190+ available" },
+  { city: "Bangalore", region: "South Hub", volume: "110+ available" },
+  { city: "Chennai", region: "South Terminal", volume: "85+ available" },
+  { city: "Pune", region: "West Terminal", volume: "70+ available" },
+  { city: "Kolkata", region: "East Hub", volume: "65+ available" },
+  { city: "Hyderabad", region: "Central Hub", volume: "90+ available" },
+];
+
 export function MarketplaceHero({
   search,
   onSearch,
@@ -61,6 +64,68 @@ export function MarketplaceHero({
   onClearAndFocusCatalogue,
 }: MarketplaceHeroProps) {
   const searchRef = useRef<HTMLInputElement>(null);
+
+  // Flyer open/close focus states
+  const [originFocused, setOriginFocused] = useState(false);
+  const [destFocused, setDestFocused] = useState(false);
+  const [typeOpen, setTypeOpen] = useState(false);
+
+  // References for click-outside detection
+  const originContainerRef = useRef<HTMLDivElement>(null);
+  const destContainerRef = useRef<HTMLDivElement>(null);
+  const typeContainerRef = useRef<HTMLDivElement>(null);
+
+  // Filter Origin/Destination suggestions dynamically
+  const originSuggestions = useMemo(() => {
+    const q = originFilter.trim().toLowerCase();
+    if (!q) return POPULAR_HUBS;
+    const cities = ["Mumbai", "Delhi", "Bangalore", "Chennai", "Kolkata", "Hyderabad", "Pune", "Ahmedabad", "Surat", "Jaipur", "Lucknow", "Kanpur", "Nagpur", "Indore", "Bhopal"];
+    const matched = cities.filter((c) => c.toLowerCase().includes(q));
+    return matched.map((city) => {
+      const existing = POPULAR_HUBS.find((h) => h.city === city);
+      return {
+        city,
+        region: existing?.region || "Logistics Node",
+        volume: existing?.volume || "40+ available",
+      };
+    });
+  }, [originFilter]);
+
+  const destSuggestions = useMemo(() => {
+    const q = destinationFilter.trim().toLowerCase();
+    if (!q) return POPULAR_HUBS;
+    const cities = ["Mumbai", "Delhi", "Bangalore", "Chennai", "Kolkata", "Hyderabad", "Pune", "Ahmedabad", "Surat", "Jaipur", "Lucknow", "Kanpur", "Nagpur", "Indore", "Bhopal"];
+    const matched = cities.filter((c) => c.toLowerCase().includes(q));
+    return matched.map((city) => {
+      const existing = POPULAR_HUBS.find((h) => h.city === city);
+      return {
+        city,
+        region: existing?.region || "Logistics Node",
+        volume: existing?.volume || "40+ available",
+      };
+    });
+  }, [destinationFilter]);
+
+  // Click outside effect
+  useEffect(() => {
+    function handleOutsideClick(event: MouseEvent) {
+      if (originContainerRef.current && !originContainerRef.current.contains(event.target as Node)) {
+        setOriginFocused(false);
+      }
+      if (destContainerRef.current && !destContainerRef.current.contains(event.target as Node)) {
+        setDestFocused(false);
+      }
+      if (typeContainerRef.current && !typeContainerRef.current.contains(event.target as Node)) {
+        setTypeOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+    };
+  }, []);
+
+  // Autofocus search on load on desktop
   useEffect(() => {
     if (typeof window === "undefined") return;
     const mq = window.matchMedia("(min-width: 1024px)");
@@ -111,7 +176,7 @@ export function MarketplaceHero({
           next consignment in minutes.
         </p>
 
-        {/* Search bar (4 fields) */}
+        {/* Search bar (4 fields + full-text search) */}
         <form
           className="mx-auto mt-9 w-full max-w-3xl"
           role="search"
@@ -120,45 +185,106 @@ export function MarketplaceHero({
             onClearAndFocusCatalogue();
           }}
         >
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_auto]">
-            {/* Origin */}
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1.2fr_auto]">
+            {/* Origin with custom suggestions popover */}
             <FieldInput
               icon={<MapPin className="h-3.5 w-3.5" />}
               label="Origin"
               placeholder="Mumbai"
               value={originFilter}
               onChange={onOriginFilter}
-              list="marketplace-cities"
+              focused={originFocused}
+              setFocused={setOriginFocused}
+              suggestions={originSuggestions}
+              containerRef={originContainerRef}
             />
-            {/* Destination */}
+
+            {/* Destination with custom suggestions popover */}
             <FieldInput
               icon={<MapPin className="h-3.5 w-3.5" />}
               label="Destination"
               placeholder="Pune"
               value={destinationFilter}
               onChange={onDestinationFilter}
-              list="marketplace-cities"
+              focused={destFocused}
+              setFocused={setDestFocused}
+              suggestions={destSuggestions}
+              containerRef={destContainerRef}
             />
-            {/* Vehicle type */}
-            <div className="flex flex-col gap-1">
+
+            {/* Vehicle Type custom dropdown */}
+            <div ref={typeContainerRef} className="flex flex-col gap-1 relative">
               <label className="block text-[10px] font-medium uppercase tracking-wider text-muted-foreground text-left sm:sr-only">
                 Vehicle type
               </label>
               <div className="relative">
                 <Truck className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" aria-hidden />
-                <select
-                  value={vehicleTypeFilter}
-                  onChange={(e) => onVehicleTypeFilter(e.target.value as VehicleType | "")}
-                  aria-label="Vehicle type"
-                  className="focus-ring h-11 w-full appearance-none rounded-[6px] border border-border bg-background pl-8 pr-7 text-[13px] text-foreground"
+                <button
+                  type="button"
+                  onClick={() => setTypeOpen(!typeOpen)}
+                  className="focus-ring flex h-11 w-full items-center justify-between rounded-[6px] border border-border bg-background pl-8 pr-3 text-[13px] text-foreground text-left transition-colors focus:border-foreground"
                 >
-                  <option value="">Any vehicle</option>
-                  {VEHICLE_TYPE_ORDER.map((vt) => (
-                    <option key={vt} value={vt}>{VEHICLE_TYPE_META[vt].label}</option>
-                  ))}
-                </select>
+                  <span className="truncate">
+                    {vehicleTypeFilter ? VEHICLE_TYPE_META[vehicleTypeFilter].label : "Any vehicle"}
+                  </span>
+                  <span className="border-l border-border pl-2 text-[8px] text-muted-foreground select-none">
+                    ▼
+                  </span>
+                </button>
               </div>
+
+              {/* vehicle type flyer */}
+              <AnimatePresence>
+                {typeOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 5 }}
+                    transition={{ duration: 0.15 }}
+                    className="absolute left-0 right-0 top-full z-50 mt-1 max-h-64 overflow-y-auto rounded-[6px] border border-border bg-card p-1 shadow-lg scrollbar-none md:w-80 md:right-auto"
+                  >
+                    <div className="px-2 py-1.5 text-[9px] font-semibold uppercase tracking-wider text-muted-foreground border-b border-border/50 mb-1">
+                      Select Vehicle Class
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onVehicleTypeFilter("");
+                        setTypeOpen(false);
+                      }}
+                      className="flex w-full items-center justify-between rounded-[4px] px-2 py-1.5 text-left text-xs font-semibold text-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-900 transition-colors"
+                    >
+                      <span>Any vehicle</span>
+                    </button>
+                    {VEHICLE_TYPE_ORDER.map((vt) => {
+                      const meta = VEHICLE_TYPE_META[vt];
+                      return (
+                        <button
+                          key={vt}
+                          type="button"
+                          onClick={() => {
+                            onVehicleTypeFilter(vt);
+                            setTypeOpen(false);
+                          }}
+                          className="flex w-full items-center justify-between rounded-[4px] px-2 py-2 text-left text-xs text-foreground hover:bg-neutral-100 dark:hover:bg-neutral-900 transition-colors"
+                        >
+                          <div className="flex flex-col">
+                            <span className="font-semibold text-neutral-800 dark:text-neutral-200">{meta.label}</span>
+                            <span className="text-[10px] text-muted-foreground font-mono mt-0.5">
+                              Capacity: {meta.capacityTonnes}T · {meta.bodyType}
+                            </span>
+                          </div>
+                          <span className="text-[11px] font-medium font-mono text-neutral-600 dark:text-neutral-300">
+                            ₹{meta.basePerDay.toLocaleString("en-IN")}/d
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
+
             {/* Date */}
             <div className="flex flex-col gap-1">
               <label className="block text-[10px] font-medium uppercase tracking-wider text-muted-foreground text-left sm:sr-only">
@@ -210,25 +336,6 @@ export function MarketplaceHero({
           <StatCell icon={<RouteIcon className="h-3 w-3" />} label="Vehicle types" value={`${MARKETPLACE_STATS.vehicleTypes}`} />
           <StatCell icon={<Package className="h-3 w-3" />} label="Open loads" value={`${MARKETPLACE_STATS.openLoads}`} />
         </dl>
-
-        {/* Datalist of all cities */}
-        <datalist id="marketplace-cities">
-          <option value="Mumbai" />
-          <option value="Delhi" />
-          <option value="Bangalore" />
-          <option value="Chennai" />
-          <option value="Kolkata" />
-          <option value="Hyderabad" />
-          <option value="Pune" />
-          <option value="Ahmedabad" />
-          <option value="Surat" />
-          <option value="Jaipur" />
-          <option value="Lucknow" />
-          <option value="Kanpur" />
-          <option value="Nagpur" />
-          <option value="Indore" />
-          <option value="Bhopal" />
-        </datalist>
       </div>
 
       {/* Featured vehicles row */}
@@ -271,20 +378,23 @@ export function MarketplaceHero({
 }
 
 /* ============================================================
-   FieldInput — labelled input with leading icon (origin/destination)
+   FieldInput — custom styled popover suggestion input
    ============================================================ */
 function FieldInput({
-  icon, label, placeholder, value, onChange, list,
+  icon, label, placeholder, value, onChange, focused, setFocused, suggestions, containerRef
 }: {
   icon: React.ReactNode;
   label: string;
   placeholder: string;
   value: string;
   onChange: (v: string) => void;
-  list?: string;
+  focused: boolean;
+  setFocused: (v: boolean) => void;
+  suggestions: typeof POPULAR_HUBS;
+  containerRef: React.RefObject<HTMLDivElement | null>;
 }) {
   return (
-    <div className="flex flex-col gap-1">
+    <div ref={containerRef} className="flex flex-col gap-1 relative">
       <label className="block text-[10px] font-medium uppercase tracking-wider text-muted-foreground text-left sm:sr-only">
         {label}
       </label>
@@ -294,14 +404,57 @@ function FieldInput({
         </span>
         <input
           type="text"
-          list={list}
           value={value}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={(e) => {
+            onChange(e.target.value);
+            setFocused(true);
+          }}
+          onFocus={() => setFocused(true)}
           placeholder={placeholder}
           aria-label={label}
           className="focus-ring h-11 w-full rounded-[6px] border border-border bg-background pl-8 pr-2 text-[13px] text-foreground placeholder:text-muted-foreground"
         />
       </div>
+
+      {/* Suggestion popover flyer */}
+      <AnimatePresence>
+        {focused && suggestions.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 5 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 5 }}
+            transition={{ duration: 0.12 }}
+            className="absolute left-0 right-0 top-full z-50 mt-1 max-h-60 overflow-y-auto rounded-[6px] border border-border bg-card p-1 shadow-lg scrollbar-none"
+          >
+            <div className="px-2 py-1 text-[9px] font-semibold uppercase tracking-wider text-muted-foreground border-b border-border/50 mb-1">
+              Popular Transport Hubs
+            </div>
+            {suggestions.map((s) => (
+              <button
+                key={s.city}
+                type="button"
+                onMouseDown={(e) => {
+                  e.preventDefault(); // prevents input blur before click registers
+                  onChange(s.city);
+                  setFocused(false);
+                }}
+                className="flex w-full items-center justify-between rounded-[4px] px-2 py-1.5 text-left text-xs text-foreground hover:bg-neutral-100 dark:hover:bg-neutral-900 transition-colors"
+              >
+                <span className="flex items-center gap-1.5 font-medium">
+                  <MapPin className="h-3 w-3 text-muted-foreground" />
+                  {s.city}
+                </span>
+                <span className="text-[10px] text-muted-foreground flex items-center gap-2">
+                  <span>{s.region}</span>
+                  <span className="rounded bg-neutral-150 dark:bg-neutral-800 px-1 py-0.2 text-[9px]">
+                    {s.volume}
+                  </span>
+                </span>
+              </button>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -335,7 +488,7 @@ function FeaturedTile({
   const meta = VEHICLE_TYPE_META[listing.vehicle.type];
   return (
     <article className="group flex flex-col gap-3 rounded-[6px] border border-border bg-background p-4 transition-colors hover:border-foreground/30">
-      {/* Photo placeholder — colored tile with the vehicle type abbreviation */}
+      {/* Photo placeholder */}
       <div className="relative flex h-28 items-center justify-center overflow-hidden rounded-[5px] border border-border bg-muted/40">
         <Truck className="h-10 w-10 text-foreground/30" aria-hidden />
         <span className="absolute bottom-1.5 left-1.5 rounded-[3px] border border-border bg-background/80 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wider text-muted-foreground backdrop-blur-sm">

@@ -8,7 +8,20 @@ axum = "0.7.5"
 tokio = { version = "1.38", features = ["full"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-fastembed = "3.1"
+# default-features off drops fastembed's own bundled hf-hub 0.3.2 download
+# path entirely (the "online" feature) - we supply model files ourselves via
+# our own newer hf-hub 0.5.0 in embed.rs instead, since the old bundled one
+# panics on Hugging Face's current Xet-storage CDN redirects. Keep
+# ort-download-binaries: that's the ONNX Runtime shared library fetch, a
+# separate and unrelated concern that isn't broken.
+fastembed = { version = "3.1", default-features = false, features = ["ort-download-binaries"] }
+# fastembed -> ort 2.0.0-rc.4 declares "ort-sys = 2.0.0-rc.4" (no exact pin), which
+# Cargo's resolver floats up to the newest matching pre-release, ort-sys 2.0.0-rc.13.
+# That's a genuinely incompatible API break (e.g. ort_sys::size_t no longer exists,
+# and download-binaries additionally requires an explicit TLS backend that ort
+# 2.0.0-rc.4's source never requests). Pinning ort-sys to the exact version ort
+# 2.0.0-rc.4 was actually written against avoids both problems.
+ort-sys = "=2.0.0-rc.4"
 tower-http = { version = "0.5", features = ["cors"] }
 tracing = "0.1"
 tracing-subscriber = "0.3"

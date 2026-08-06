@@ -52,6 +52,42 @@ interface AuthPayload {
   userInitials?: string;
 }
 
+// ===== Session validation =====
+// Reads the same Session/User tables Next.js's /api/auth/* routes write to
+// (via Prisma there, raw bun:sqlite here - same DB file). This is what makes
+// chat identity real: nothing about "who is connecting" is ever trusted from
+// client-supplied data - it's always looked up against a real, server-issued
+// session token.
+interface VerifiedUser {
+  userId: string;
+  userName: string;
+  userRole: string;
+}
+
+function parseCookie(header: string | undefined, name: string): string | null {
+  if (!header) return null;
+  for (const part of header.split(";")) {
+    const eq = part.indexOf("=");
+    if (eq === -1) continue;
+    if (part.slice(0, eq).trim() === name) return decodeURIComponent(part.slice(eq + 1).trim());
+  }
+  return null;
+}
+
+function validateSessionToken(token: string | null): VerifiedUser | null {
+  if (!token) return null;
+  const row = db
+    .query(
+      `SELECT u.id as userId, u.name as userName, u.role as userRole, s.expiresAt as expiresAt
+       FROM Session s JOIN User u ON u.id = s.userId
+       WHERE s.token = ?`
+    )
+    .get(token) as (VerifiedUser & { expiresAt: string }) | null;
+  if (!row) return null;
+  if (parseDbTimestamp(row.expiresAt).getTime() < Date.now()) return null;
+  return { userId: row.userId, userName: row.userName, userRole: row.userRole };
+}
+
 interface ChatMessagePayload {
   id: string;
   conversationId: string;
@@ -72,6 +108,25 @@ interface ChatMessagePayload {
 }
 
 // ===== Helpers =====
+// Prisma's SQLite provider stores `DateTime @default(now())` columns as
+// SQLite's CURRENT_TIMESTAMP - always UTC, but formatted as a naive
+// 'YYYY-MM-DD HH:MM:SS' string with no timezone marker. `new Date(...)` on a
+// string like that is NOT parsed as UTC per the ECMAScript spec - it's
+// parsed using the runtime's *local* timezone (on Windows, Bun resolves that
+// via the OS setting - e.g. IST - regardless of what a wrapping shell's own
+// `date` command reports). That silently shifts every timestamp by the
+// local UTC offset, and `.toISOString()` bakes the wrong moment into an
+// otherwise-well-formed string, so the corruption isn't visible until a
+// client converts it back to local time and lands on the wrong clock digits.
+// Numbers (epoch ms, from Prisma-write paths elsewhere) and already-tagged
+// ISO strings (with 'T'/'Z'/an offset) parse correctly as-is; only the
+// naive-string case needs explicit UTC tagging before parsing.
+function parseDbTimestamp(value: string | number): Date {
+  if (typeof value === "number") return new Date(value);
+  if (/[TZ]|[+-]\d\d:\d\d$/.test(value)) return new Date(value);
+  return new Date(value.replace(" ", "T") + "Z");
+}
+
 function rowToMessage(row: any): ChatMessagePayload {
   const reactions = db
     .query("SELECT emoji, userId FROM ChatReaction WHERE messageId = ?")
@@ -102,7 +157,7 @@ function rowToMessage(row: any): ChatMessagePayload {
     isCommandResult: !!row.isCommandResult,
     pinned: !!row.pinned,
     // Client ChatMessage type uses `timestamp` (ISO string), not `createdAt`.
-    timestamp: new Date(row.createdAt).toISOString(),
+    timestamp: parseDbTimestamp(row.createdAt).toISOString(),
     reactions: Array.from(reactionMap.entries()).map(([emoji, users]) => ({ emoji, users })),
     readBy,
   };
@@ -250,9 +305,14 @@ function setOffline(userId: string, socketId: string) {
 
 // ===== HTTP server + Socket.io =====
 const httpServer = createServer();
+// CORS_ORIGIN must be an explicit origin (not "*") because the session
+// cookie needs `credentials: true` to cross from the app's origin to this
+// service's own port, and browsers reject wildcard-origin CORS responses
+// on credentialed requests.
+const CORS_ORIGIN = process.env.CORS_ORIGIN || "http://localhost:3000";
 const io = new Server(httpServer, {
   path: "/",
-  cors: { origin: "*", methods: ["GET", "POST"] },
+  cors: { origin: CORS_ORIGIN, methods: ["GET", "POST"], credentials: true },
   pingTimeout: 60000,
   pingInterval: 25000,
 });
@@ -296,16 +356,23 @@ httpServer.on("request", (req, res) => {
 });
 
 io.use((socket: Socket, next) => {
-  const auth = socket.handshake.auth as AuthPayload;
-  if (!auth || !auth.userId) {
-    return next(new Error("no auth"));
+  // The session cookie (HttpOnly, set by /api/auth/login) rides along
+  // automatically on the handshake HTTP request when the client connects
+  // with `withCredentials: true` - it is never readable by client JS, so a
+  // malicious client cannot forge or read another user's token. Client-sent
+  // `auth.userId` (if present at all) is display-only convenience for logs,
+  // never trusted for identity.
+  const token = parseCookie(socket.handshake.headers.cookie, "reanzly_session");
+  const verified = validateSessionToken(token);
+  if (!verified) {
+    return next(new Error("unauthorized - please sign in"));
   }
-  (socket as any).user = auth;
+  (socket as any).user = verified;
   next();
 });
 
 io.on("connection", (socket: Socket) => {
-  const user = (socket as any).user as AuthPayload;
+  const user = (socket as any).user as VerifiedUser;
   const { userId, userName, userRole } = user;
 
   // Join all conversation rooms the user is a participant in.

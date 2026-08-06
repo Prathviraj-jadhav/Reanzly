@@ -36,3 +36,16 @@ Thumbs.db
 .idea/
 
 .vercel
+
+# Rust target directories
+**/target/
+**/mini-services/**/target/
+
+# Fastembed Cache
+**/.fastembed_cache/
+
+# Local Claude settings
+.claude/
+
+
+

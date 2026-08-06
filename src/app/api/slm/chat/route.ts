@@ -108,7 +108,7 @@ ${memoryContext}
 Task: ${input}
 Answer:`;
 
-      const response = await inferSLM(prompt, { tier: "balanced" });
+      const response = await inferSLM(prompt, { tier: "balanced", fallbackQuery: input });
       reasoning = `${categoryContext} Grounded Operational Data: ${response}`;
     }
 

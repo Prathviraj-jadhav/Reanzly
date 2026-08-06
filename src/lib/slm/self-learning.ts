@@ -107,7 +107,7 @@ ${fullContext}
 Generate candidate interpretation #${i + 1} of what the user is asking, including potential hidden goals.
 User Query: "${query}"
 Candidate Interpretation:`;
-      const response = await inferSLM(prompt, { tier: "fast" });
+      const response = await inferSLM(prompt, { tier: "fast", fallbackQuery: query });
       return response.trim();
     })
   );

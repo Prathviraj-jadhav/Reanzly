@@ -958,4 +958,84 @@ Ten phases:
 
 ---
 
+## 22. SLM, Chat & Calling Upgrade — Status
+
+Agreed sequencing: **Stage 1 (offline SLM) → Stage 2 (Teams-style chat) → Stage 3
+(real WebRTC calling)**, with a review between each stage. Full detail and dated
+entries are in `worklog.md` / `task.md` at the repo root — this section is the
+durable summary.
+
+**Stage 1 — Offline, data-grounded SLM engine.** ✅ Done, verified.
+The old "Ask Rean" path called `z-ai-web-dev-sdk`, which needs a `.z-ai-config` file
+that only exists in the original build sandbox — permanently broken outside it.
+Replaced with `src/lib/slm/local-engine.ts`: a zero-external-API intent classifier +
+real data query engine (12 intents over `INVOICES`, `TRIPS`, `VEHICLES`, `DRIVERS`,
+etc.), fully offline. Wired into `/api/rean` and `/api/slm/chat`. Also fixed the
+underlying "chat is not working" bug — the socket client was addressing a
+production-only Caddy gateway path in local dev.
+
+**Stage 2 — Teams-style chat upgrades.** 🟡 Built, not yet independently verified.
+Message edit/soft-delete, poll voting, rich text/code blocks, attachment upload,
+mute, global search — code and Prisma migration (`ChatMessage.deleted/edited`,
+`ChatPollVote`) are in place. Has not yet had an end-to-end browser verification pass.
+
+A separate dev-server "unexpected Turbopack error" (reported by the user, unrelated
+to Stage 2's own code) turned out to be stale `next dev` processes racing on port
+3000, not a code defect — fixed by restarting through a properly tracked process;
+verified in-browser with a clean, error-free page load.
+
+**Self-learning / memory layer + real local model inference + RAG.** 🟢 Genuinely
+working end-to-end, including retrieval. Latency is the main remaining gap.
+A second, concurrent session added a self-learning layer (`self-learning.ts`,
+`client.ts`, `SlmFeedback`/`SlmMemory` models) and a Rust `slm-engine` mini-service
+unrequested mid-session; this was investigated transparently (see `worklog.md` Task 4)
+and the user then explicitly directed completing it for real. The engine's original
+"GGUF inference" was a hollow stub (`format!("[Offline GGUF Model]...")`, no model
+ever loaded) — this has been replaced with real Qwen2.5-0.5B-Instruct-GGUF inference
+via `candle` (pure-Rust, no C++/CMake dependency), and it now actually compiles, runs,
+and serves genuine model-generated replies. Getting there required fixing several real
+bugs beyond the initial build (see `worklog.md` Tasks 5, 8, 9 for full detail): an
+`ort`/`ort-sys` pre-release version mismatch, a client-side timeout shorter than the
+model's real generation latency, an IPv4/IPv6 localhost resolution race causing
+intermittent silent fallback, and a fallback path that fed the wrong (long,
+LLM-wrapped) text into the local keyword matcher instead of the user's actual
+question. The embedding bug (`fastembed`'s bundled `hf-hub 0.3.2` panicking on
+Hugging Face's Xet-storage CDN) is now properly fixed, not just papered over — the
+engine downloads model files itself via a newer `hf-hub` and hands them to
+fastembed's own inference code, bypassing only the broken downloader.
+
+With real embeddings working, Rean now has an actual RAG "brain": a `KnowledgeChunk`
+table seeded with 54 real, embedded facts (compliance rules, module reference,
+glossary) sourced from this document's own §7 and §21 plus the compliance thresholds
+already enforced in `src/lib/insights/engine.ts` — nothing invented. `/api/rean`
+retrieves via real cosine similarity and, for confident matches on genuinely
+definitional/policy questions, answers directly from the retrieved fact rather than
+generating — both more reliable (a 0.5B model given two competing context blocks
+reliably favours the wrong one) and 15-20s faster for that class of question. Live
+data questions still correctly route through real generation with live grounding.
+
+Root-caused "not getting answers back in chat" to three distinct, real, now-fixed
+bugs (not one) — see `worklog.md` Task 9. Verified with SQLite ground truth (not
+just UI observation): a real chat message was sent, and Rean's genuine
+model-generated reply was confirmed in the database at the expected inference
+latency, not the instant fallback path.
+
+Open: round-trip latency for anything needing live data is still 16-30s (CPU-only
+0.5B inference) — needs tuning before this feels like live chat. The knowledge-vs-
+live-data routing heuristic in `/api/rean` was iterated against real failures until
+every tested case worked, but remains a heuristic, not a learned classifier.
+
+**Stage 3 — Real WebRTC calling.** ⬜ Not started.
+
+**Open item — documentation accuracy.** `DEPLOYMENT.md` and `HOW-TO-BUILD-REANZLY.md`
+were authored by the other/concurrent session and describe more than currently exists.
+Several AI features `HOW-TO-BUILD-REANZLY.md` describes (anomaly detection network,
+rate predictor, a separate embedding-service, a RAG pipeline, a 6-agent system) do not
+exist in the repo — confirmed by directory listing. `DEPLOYMENT.md`'s referenced
+security/CI/CD files do exist on disk, but their contents have not yet been verified
+to do what's claimed. Do not treat either document as ground truth without
+cross-checking against `task.md`.
+
+---
+
 *End of document. This file is the single source of truth. To replicate Reanzly from a fresh repository, follow §5 (structure) → §6 (design system) → §7 (modules) → §10 (chat service) → §11 (schema) → §17 (run) → §18 (deploy).*

@@ -11,7 +11,10 @@ mod embed;
 mod infer;
 
 struct AppState {
-    embedder: fastembed::TextEmbedding,
+    // None when the embedding model failed to load at startup (e.g. no
+    // network on first run, or a Hub download error) - /embed degrades
+    // gracefully in that case rather than the process failing to start.
+    embedder: Option<fastembed::TextEmbedding>,
     // None when the GGUF model failed to load at startup (e.g. no network
     // on first run to fetch it from the Hugging Face Hub) - /infer degrades
     // gracefully in that case rather than the process failing to start.
@@ -25,9 +28,23 @@ async fn main() {
 
     println!("Initializing Reanzly Offline SLM Engine...");
 
-    // Initialize fastembed (22MB all-MiniLM-L6-v2 ONNX)
-    let embedder = embed::build_embedder();
-    println!("Embedding model (all-MiniLM-L6-v2) loaded successfully.");
+    // Initialize fastembed (22MB all-MiniLM-L6-v2 ONNX). Runs on a blocking
+    // thread since it does blocking network + file I/O on first run.
+    let embedder = match tokio::task::spawn_blocking(embed::build_embedder).await {
+        Ok(Ok(model)) => {
+            println!("Embedding model (all-MiniLM-L6-v2) loaded successfully.");
+            Some(model)
+        }
+        Ok(Err(e)) => {
+            eprintln!("[slm-engine] WARNING: failed to load embedding model: {e:#}");
+            eprintln!("[slm-engine] /embed will report unavailable; callers fall back to zero-vectors.");
+            None
+        }
+        Err(e) => {
+            eprintln!("[slm-engine] WARNING: embedder-load task panicked: {e:#}");
+            None
+        }
+    };
 
     // Initialize the real GGUF text-generation model. This does blocking
     // network + file I/O (first run only - cached afterwards), so it runs
@@ -74,9 +91,12 @@ struct EmbedRequest {
 async fn embed_handler(
     axum::extract::State(state): axum::extract::State<Arc<AppState>>,
     Json(payload): Json<EmbedRequest>,
-) -> Json<Vec<Vec<f32>>> {
-    let embeddings = embed::embed_batch(&state.embedder, payload.texts);
-    Json(embeddings)
+) -> Result<Json<Vec<Vec<f32>>>, axum::http::StatusCode> {
+    let Some(embedder) = state.embedder.as_ref() else {
+        return Err(axum::http::StatusCode::SERVICE_UNAVAILABLE);
+    };
+    let embeddings = embed::embed_batch(embedder, payload.texts);
+    Ok(Json(embeddings))
 }
 
 #[derive(Deserialize)]

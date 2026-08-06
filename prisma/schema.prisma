@@ -87,6 +87,22 @@ model User {
 
   company      Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   auditLogs    AuditLog[] @relation("AuditActor")
+  sessions     Session[]
+}
+
+// Real, server-verified, revocable login sessions - an opaque random token
+// stored server-side (not a signed JWT), so logout actually invalidates
+// access immediately rather than just discarding a client-side value.
+model Session {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model Role {
@@ -1386,5 +1402,22 @@ model SlmMemory {
   updatedAt       DateTime @updatedAt
 
   @@index([companyId, key])
+}
+
+// Rean's knowledge base for retrieval-augmented generation: compliance rules,
+// platform/module reference, and operating definitions - grounding facts
+// distinct from SlmMemory (which holds per-conversation history/QA cache).
+// Most content is shared across tenants (companyId = "global"); a specific
+// company's own added knowledge can scope to their own companyId later.
+model KnowledgeChunk {
+  id          String   @id @default(cuid())
+  companyId   String   @default("global")
+  source      String   // e.g. "compliance", "platform-docs", "glossary"
+  title       String
+  content     String
+  embedding   String?  // JSON string representing Float32Array
+  createdAt   DateTime @default(now())
+
+  @@index([companyId, source])
 }
 
