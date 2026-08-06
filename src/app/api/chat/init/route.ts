@@ -7,9 +7,12 @@ import type {
   PresenceState,
 } from "@/lib/types";
 import { ROLE_ARCHETYPES, REAN_ENTITY } from "@/lib/mock-data";
+import { getSessionUser } from "@/lib/auth";
 
-// GET /api/chat/init?userId=<id>
-// Returns the full initial chat state for a user:
+// GET /api/chat/init
+// Returns the full initial chat state for the *real, session-verified*
+// current user - not a client-supplied userId, which would let any caller
+// request any other user's private conversation history:
 //   - conversations they participate in (with unread counts + last message)
 //   - recent messages (last 60 per conversation, top-level + thread replies)
 //   - all chat entities (roles + Rean) for mention/DM UI
@@ -18,10 +21,11 @@ import { ROLE_ARCHETYPES, REAN_ENTITY } from "@/lib/mock-data";
 // This is the REST hydration path. Once loaded, the socket.io service pushes
 // real-time deltas (message:new, typing:update, reaction:update, ...).
 export async function GET(req: NextRequest) {
-  const userId = req.nextUrl.searchParams.get("userId");
-  if (!userId) {
-    return NextResponse.json({ error: "userId required" }, { status: 400 });
+  const sessionUser = await getSessionUser();
+  if (!sessionUser) {
+    return NextResponse.json({ error: "Not signed in." }, { status: 401 });
   }
+  const userId = sessionUser.id;
 
   // Conversations the user is a participant in.
   const participations = await db.chatParticipant.findMany({

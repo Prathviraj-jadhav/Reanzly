@@ -127,7 +127,7 @@ const ROLE_TAG: Record<string, string> = {
 };
 
 export function LoginScreen() {
-  const login = useAppStore((s) => s.login);
+  const loginWithPassword = useAppStore((s) => s.loginWithPassword);
   const setAuthMode = useAppStore((s) => s.setAuthMode);
   const setMarketingView = useAppStore((s) => s.setMarketingView);
   const [portal, setPortal] = useState<PortalType>("app");
@@ -157,7 +157,7 @@ export function LoginScreen() {
     return () => clearInterval(t);
   }, []);
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (submitting) return;
     setError(null);
@@ -179,17 +179,30 @@ export function LoginScreen() {
       return;
     }
     setSubmitting(true);
-    // Doherty threshold - keep feedback under 400ms. 600ms spinner feels real.
-    setTimeout(() => {
-      login(email.trim(), effectiveRole, portal, "Reanzly Logistics Pvt Ltd");
-    }, 600);
+    const result = await loginWithPassword(email.trim(), password, portal, "Reanzly Logistics Pvt Ltd");
+    if (!result.ok) {
+      setSubmitting(false);
+      setError(result.error || "Sign in failed. Check your email and password.");
+    }
+    // On success, isAuthenticated flips and AppShell swaps the screen away -
+    // no need to reset `submitting` here.
   }
 
-  function quickLogin(roleId: string) {
+  // "Quick sign in" tiles still go through real, server-verified
+  // authentication (the seed script's shared demo password for every
+  // account) - not a bypass, just a convenience shortcut to that account's
+  // real credentials for this seeded demo environment.
+  async function quickLogin(roleId: string) {
     setSelectedRole(roleId);
     setSubmitting(true);
     setError(null);
-    setTimeout(() => login("", roleId, portal, "Reanzly Logistics Pvt Ltd"), 450);
+    const role = ROLE_ARCHETYPES.find((r) => r.id === roleId);
+    const quickEmail = `${(role?.name || roleId).toLowerCase().replace(/\s+/g, ".")}@reanzly.in`;
+    const result = await loginWithPassword(quickEmail, "Reanzly@Demo2026", portal, "Reanzly Logistics Pvt Ltd");
+    if (!result.ok) {
+      setSubmitting(false);
+      setError(result.error || "Sign in failed.");
+    }
   }
 
   const selectedRoleObj = ROLE_ARCHETYPES.find((r) => r.id === effectiveRole);

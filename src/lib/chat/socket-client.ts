@@ -64,6 +64,11 @@ export function connectChatSocket(auth: ChatSocketAuth): Promise<Socket> {
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
       timeout: 10000,
+      // Sends the HttpOnly reanzly_session cookie along with the handshake -
+      // this is what the server actually authenticates against now (see
+      // chat-service's io.use() middleware). `auth` below is display-only
+      // convenience, never trusted for identity.
+      withCredentials: true,
       auth,
     });
     s.on("connect", () => resolve(s));

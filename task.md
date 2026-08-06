@@ -185,7 +185,76 @@ marked explicitly.
       production runbook until this is done. Not yet scheduled — needs explicit user
       go-ahead on priority vs. finishing the SLM/calling work.
 
+## Real user accounts (replacing dummy/mock identity) — new, in progress
+
+User explicitly asked for three things in parallel: real user accounts, a
+scoped/permissioned database tool for Rean, and WebRTC calling. Real accounts
+is done to a genuinely working state (see `worklog.md` Task 11 for full detail).
+The other two are next.
+
+- [x] **Real, password-verified user accounts.** The `User` Prisma model already
+      existed (email, passwordHash, salt, role, etc.) but was completely unused -
+      every table row referencing "who did this" was actually backed by a static
+      TypeScript array (`ROLE_ARCHETYPES`) with no server-side verification
+      anywhere. Seeded 17 real `User` rows (`src/scripts/seed-users.ts`, dummy
+      `@reanzly.in` emails as requested, one shared demo password hashed with
+      `scrypt`), added a `Session` model (opaque DB-backed token, not a JWT - real
+      logout revocation), and built `/api/auth/login`, `/api/auth/logout`,
+      `/api/auth/me`, plus `src/lib/auth.ts` (`hashPassword`/`verifyPassword`/
+      `getSessionUser`). `User.id` deliberately reuses the old archetype id
+      strings (`"owner"`, `"hr-manager"`, ...) so every existing row that already
+      references them as a foreign key - chat participants, chat messages -
+      needed zero data migration. Verified end-to-end through the actual browser
+      UI (not just curl): wrong password → real "Invalid email or password."
+      error rendered on screen; correct password → real dashboard, session
+      survives a full page reload. `login-screen.tsx`'s "quick sign in" tiles
+      now go through this same real check too (using the shared seed password),
+      not a bypass.
+- [x] **Closed a real identity-spoofing vulnerability in chat**, found while
+      building the above (this is exactly the "limited access... can't hack"
+      concern in the request). Before this: chat-service's socket.io handshake
+      accepted *any* client-supplied `userId` string with zero verification -
+      `/api/chat/init`, `/api/chat/messages`, and `/api/chat/conversations` all
+      trusted a client-supplied `userId`/`senderId` directly from the request.
+      Any caller could read another user's conversations or post/create
+      conversations as anyone. Fixed by making every one of those routes derive
+      identity from `getSessionUser()` (the real session) instead, and by having
+      chat-service validate the session cookie itself against the `Session`/`User`
+      tables via its own `bun:sqlite` connection (`parseCookie`/
+      `validateSessionToken` in `mini-services/chat-service/index.ts`) rather than
+      trusting the handshake payload. Verified directly: a socket.io connection
+      with no valid session cookie now gets `connect_error: "unauthorized -
+      please sign in"`; a REST call to `/api/chat/messages` with a forged
+      `senderId` but no session now gets a `401`, not a successful post.
+
+## In progress (background workflow) — the other two of the three parallel workstreams
+
+- [ ] **Rean's scoped database-query tool** ("talk with every type of database
+      table... limited access... can't hack... read + write with confirmation").
+      Schema foundation laid (new `RagAction` model: every write Rean proposes
+      is logged pending → confirmed/rejected → executed/failed, never executed
+      immediately). Build delegated to a background workflow agent with a
+      detailed brief (curated model allowlist excluding sensitive
+      fields/tables, tenant-scoped reads, confirm-before-write flow, markdown
+      table formatting for multi-row results). Not yet reviewed/merged into
+      this status list as done - awaiting the workflow's completion + its own
+      independent verification pass.
+- [ ] **Real WebRTC calling** (audio/video, screen share, scheduling). Found
+      that `chat-panel.tsx` already has a fully-built call UI shell (buttons,
+      calling/connected states, mute/camera/screen-share controls, duration
+      timer) that is **entirely fake** - `startCall()` just flips local React
+      state with zero real media/signaling/peer connection - exactly the
+      "hardcoded, not real" pattern the user flagged. Schema foundation laid
+      (new `Call` model tracking status/participants/schedule). Build
+      delegated to a background workflow agent (real `getUserMedia`/
+      `RTCPeerConnection`/`getDisplayMedia`, signaling added to
+      `chat-service`'s existing socket.io server using the now-real session
+      identity, incoming-call UI, scheduling). Same status - awaiting
+      completion + verification.
+
 ## Sequencing reminder
 
 Agreed order with the user: **Stage 1 (SLM) → Stage 2 (Chat) → Stage 3 (Calling)**,
-review between each. Currently inside Stage 2/SLM-completion; Stage 3 has not started.
+review between each. Currently inside Stage 2/SLM-completion. The user has since
+also asked for real user accounts + a Rean database tool + calling, "all three
+in parallel" - real accounts is done; DB tool and calling are being picked up next.

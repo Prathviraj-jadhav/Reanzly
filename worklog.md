@@ -434,3 +434,98 @@ Stage Summary:
   parsing on a non-UTC host) rather than patched around a symptom. Fixed at the
   single point it needed fixing, verified with a real round-trip through the
   actual affected code path.
+
+---
+
+Task ID: 11
+Agent: Claude (session)
+Task: User asked for three things bundled together: real user accounts
+(replacing "dummy" mock users, dummy emails okay but profiles must actually
+function), a scoped/permissioned database-query tool for Rean, and real WebRTC
+calling. Asked to sequence them; user chose "all three in parallel" and
+"read + write with confirmation" for Rean's DB access. This entry covers the
+real-accounts piece.
+
+Work Log:
+- Before touching anything, sent a research agent to map the entire current
+  identity system rather than guessing at scope. Findings that shaped the whole
+  approach:
+  - A `User` Prisma model **already existed** - email, name, role, passwordHash,
+    salt, twoFactorEnabled - clearly designed for real auth, but genuinely
+    unused anywhere in the app (zero `db.user.*` calls anywhere in `src/`).
+  - `next-auth` is a listed dependency with **zero actual wiring** - no route,
+    no config, no `getServerSession` call anywhere, not even `bcrypt`/`jsonwebtoken`
+    installed despite the schema having password fields ready for them.
+  - "Login" was 100% client-side Zustand + localStorage: pick a role from the
+    `ROLE_ARCHETYPES` array, no password check, no server call at all.
+  - Chat's identity handling had a **real, exploitable gap**: chat-service's
+    socket.io handshake accepted any client-supplied `userId` with no
+    verification, and three Next.js chat routes (`/api/chat/init`,
+    `/api/chat/messages`, `/api/chat/conversations`) all trusted a
+    client-supplied `userId`/`senderId` directly. Any caller could read another
+    user's private conversations, or post/create conversations as anyone else.
+- Reused the existing `User` model rather than inventing a new one - it already
+  had the right shape. Added one new model, `Session` (opaque random token,
+  DB-backed, not a signed JWT) specifically so logout means real, immediate
+  revocation rather than a client just discarding a value.
+- Chose `User.id` to deliberately reuse the old `ROLE_ARCHETYPES` id strings
+  (`"owner"`, `"hr-manager"`, etc.) instead of letting Prisma generate fresh
+  cuids. This was the key decision that kept the change bounded: every existing
+  row that already references these ids as a foreign key (`ChatParticipant`,
+  `ChatMessage.senderId`, dashboard `sharedWith` lists, task assignees) needed
+  zero data migration - they just started pointing at real rows instead of
+  nothing.
+- Built real auth: `src/lib/auth.ts` (`hashPassword`/`verifyPassword` via
+  Node's built-in `scrypt` - no new native dependency, avoiding any repeat of
+  this session's earlier Rust build pain; `createSession`/`destroySession`/
+  `getSessionUser`, an HttpOnly cookie), and three routes
+  (`/api/auth/login`, `/api/auth/logout`, `/api/auth/me`). Wrong-password and
+  right-password paths both verified via curl before touching any UI.
+- `src/scripts/seed-users.ts`: seeds a demo `Company` row (id `"default-tenant"`,
+  matching the magic string already scattered through the SLM/RAG code from
+  earlier this session - this retroactively gives those references a real row
+  to point at) and 17 real `User` rows, one per role archetype, with dummy
+  `@reanzly.in` emails (as the user explicitly asked to keep) and one shared,
+  properly hashed demo password. Idempotent (upsert by id).
+- Closed the chat identity-spoofing gap: `/api/chat/init`, `/api/chat/messages`,
+  and `/api/chat/conversations` now derive the acting user from
+  `getSessionUser()`, never from the request. `chat-service`'s socket.io
+  `io.use()` middleware now parses the session cookie off the handshake
+  headers and validates it directly against the `Session`/`User` tables via
+  its own `bun:sqlite` connection (`validateSessionToken`), replacing the old
+  "does `auth.userId` exist" check entirely. Required switching chat-service's
+  CORS from wildcard `origin: "*"` to an explicit origin, since browsers reject
+  credentialed (cookie-carrying) requests against a wildcard CORS response.
+- Wired the frontend: `app-store.ts` gained `loginWithPassword()` (calls
+  `/api/auth/login`, resolves the real returned role) and `restoreSession()`
+  (calls `/api/auth/me` on every boot, so a stale `isAuthenticated: true` sitting
+  in localStorage from a previous session can no longer grant access without an
+  actual live server session - verified this specifically: a tab that was
+  "logged in" before this change lost that state on reload until a real login
+  happened). `login-screen.tsx`'s real form now calls `loginWithPassword` and
+  renders the actual server error on failure; the "quick sign in" tiles were
+  changed to go through the same real check (using the shared seed password)
+  rather than remaining a bypass.
+- Verified the whole thing end-to-end through the actual browser UI, not just
+  curl: typed the wrong password → real "Invalid email or password." rendered
+  on screen; typed the right password → real dashboard rendered, session
+  survived a full page reload. Separately verified the security fix directly:
+  a socket.io connection with no session cookie now gets rejected
+  (`"unauthorized - please sign in"`) instead of connecting; a REST call to
+  `/api/chat/messages` with a forged `senderId` in the body but no session
+  cookie gets a `401`, not a successful post.
+
+Stage Summary:
+- User accounts are now real: password-verified, DB-backed, session-persisted,
+  verified via actual UI interaction. Not fake, not hardcoded.
+- Found and closed a genuine security gap along the way (unverified client-
+  asserted chat identity) that directly matches what the user was worried
+  about ("limited access... can't hack and do wrong stuff").
+- Scope was kept bounded by reusing the existing unused `User` model and by
+  preserving archetype ids as real primary keys - avoided what could have been
+  a much larger migration touching all 17 files that reference
+  `ROLE_ARCHETYPES` (see the research agent's blast-radius list); those files
+  still use the archetype array for role *metadata* (branch names, permission
+  labels), which is legitimate reference data, not fake identity.
+- Rean's database-query tool and real WebRTC calling - the other two pieces of
+  this same request - have not been started yet; see `task.md`.

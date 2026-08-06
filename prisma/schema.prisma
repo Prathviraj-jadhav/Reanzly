@@ -1421,3 +1421,48 @@ model KnowledgeChunk {
   @@index([companyId, source])
 }
 
+// Rean's database tool: real writes (create/update/delete via Rean) never
+// execute immediately - they're proposed here, shown to the user for
+// explicit confirmation in chat, and only executed once approved. This is
+// the real, auditable version of "limited access... can't just go do
+// stuff" - every write Rean ever makes has a row here proving what was
+// proposed, by whom, when, and whether/when it was actually approved and run.
+model RagAction {
+  id            String   @id @default(cuid())
+  companyId     String
+  userId        String   // who Rean was acting on behalf of
+  operation     String   // "create" | "update" | "delete"
+  model         String   // Prisma model name the action targets, e.g. "Invoice"
+  recordId      String?  // target row id, null for "create"
+  argsJson      String   // JSON of the proposed Prisma args (where/data)
+  summary       String   // human-readable one-line description shown in chat
+  status        String   @default("pending") // pending | confirmed | executed | rejected | failed
+  errorMessage  String?
+  createdAt     DateTime @default(now())
+  decidedAt     DateTime?
+  executedAt    DateTime?
+
+  @@index([companyId, userId, status])
+}
+
+// Real audio/video calls, including scheduled ones. Signaling itself
+// (SDP offer/answer, ICE candidates) is transient and flows over
+// chat-service's socket.io - only call *records* (who, when, status) persist
+// here, the same split as ChatMessage (content) vs. presence (transient).
+model Call {
+  id             String    @id @default(cuid())
+  companyId      String
+  conversationId String?   // the chat conversation this call is attached to, if any
+  initiatorId    String
+  type           String    // "audio" | "video"
+  status         String    @default("scheduled") // scheduled | ringing | active | ended | missed | cancelled
+  participantIds String    // JSON string array of userIds invited/joined
+  scheduledFor   DateTime?
+  startedAt      DateTime?
+  endedAt        DateTime?
+  createdAt      DateTime  @default(now())
+
+  @@index([companyId, conversationId])
+  @@index([initiatorId, status])
+}
+

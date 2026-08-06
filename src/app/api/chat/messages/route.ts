@@ -1,19 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import type { ChatMessage } from "@/lib/types";
+import { getSessionUser } from "@/lib/auth";
 
 // POST /api/chat/messages
 // REST fallback for sending a message when the socket isn't connected. The
 // socket path is preferred (it persists + fans out atomically); this route
 // just persists so the next init() picks it up. Returns the saved message.
+//
+// sender identity comes from the verified session, never from the request
+// body - a client-supplied senderId would let any caller post messages as
+// any other user.
 export async function POST(req: NextRequest) {
+  const sessionUser = await getSessionUser();
+  if (!sessionUser) {
+    return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  }
+
   const body = await req.json();
   const conversationId = body?.conversationId;
-  const senderId = body?.senderId;
-  const senderName = body?.senderName;
-  const senderRole = body?.senderRole;
+  const senderId = sessionUser.id;
+  const senderName = sessionUser.name;
+  const senderRole = sessionUser.role;
   const text = String(body?.text || "").slice(0, 5000);
-  if (!conversationId || !senderId || (!text && !body?.attachment && !body?.isPoll)) {
+  if (!conversationId || (!text && !body?.attachment && !body?.isPoll)) {
     return NextResponse.json({ error: "missing fields" }, { status: 400 });
   }
   // Verify sender is a participant.

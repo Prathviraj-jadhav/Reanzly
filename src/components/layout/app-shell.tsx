@@ -1,6 +1,6 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import { useAppStore } from "@/lib/store/app-store";
 import { Sidebar } from "./sidebar";
 import { Header, MobileQuickAddFab } from "./header";
@@ -37,10 +37,17 @@ import { MessageSquare, Loader2 } from "lucide-react";
  *   - authenticated + any other role → full desktop shell
  */
 export function AppShell() {
-  const { isAuthenticated, authMode, portal, currentRole, chatOpen, setChatOpen, activeView, marketingView } = useAppStore();
+  const { isAuthenticated, authMode, portal, currentRole, chatOpen, setChatOpen, activeView, marketingView, restoreSession } = useAppStore();
   // Offline-first: keep the sync store's online flag wired to the browser and
   // auto-flush the pending mutation queue when connectivity returns.
   useOnlineStatus();
+  // Re-validate against the real session cookie on every boot - a stale
+  // "isAuthenticated: true" left in persisted localStorage from a previous
+  // session must not grant access without an actual live server session.
+  useEffect(() => {
+    restoreSession();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   // useSyncExternalStore gives us a client-only mounted flag without
   // triggering the set-state-in-effect lint rule. Server snapshot returns
   // false (boot splash), client snapshot returns true (real auth state).

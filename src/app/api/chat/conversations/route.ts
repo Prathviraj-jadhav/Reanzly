@@ -2,16 +2,27 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { ROLE_ARCHETYPES } from "@/lib/mock-data";
 import type { Conversation } from "@/lib/types";
+import { getSessionUser } from "@/lib/auth";
 
 // POST /api/chat/conversations
 // Body:
-//   { kind: "dm", userId, otherUserId }              -> find or create a DM
-//   { kind: "join_channel", userId, channelId }       -> join an open channel
-//   { kind: "create_group", userId, name, memberIds } -> create a group
+//   { kind: "dm", otherUserId }              -> find or create a DM
+//   { kind: "join_channel", channelId }      -> join an open channel
+//   { kind: "create_group", name, memberIds } -> create a group
+//
+// The acting user (`userId` below) always comes from the verified session,
+// never the request body - otherwise any caller could create DMs, join
+// channels, or create groups as any other user.
 //
 // After creation, the route pings the chat service's /internal/broadcast so the
 // other participant(s) get a `conversation:new` event on their open socket.
 export async function POST(req: NextRequest) {
+  const sessionUser = await getSessionUser();
+  if (!sessionUser) {
+    return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  }
+  const userId = sessionUser.id;
+
   const body = await req.json();
   const kind = body?.kind;
 
@@ -25,10 +36,9 @@ export async function POST(req: NextRequest) {
   }
 
   if (kind === "dm") {
-    const userId = String(body.userId || "");
     const otherUserId = String(body.otherUserId || "");
-    if (!userId || !otherUserId) {
-      return NextResponse.json({ error: "userId + otherUserId required" }, { status: 400 });
+    if (!otherUserId) {
+      return NextResponse.json({ error: "otherUserId required" }, { status: 400 });
     }
     // Find an existing DM between these two (type=direct, both participants).
     const existing = await db.chatConversation.findFirst({
@@ -67,10 +77,9 @@ export async function POST(req: NextRequest) {
   }
 
   if (kind === "join_channel") {
-    const userId = String(body.userId || "");
     const channelId = String(body.channelId || "");
-    if (!userId || !channelId) {
-      return NextResponse.json({ error: "userId + channelId required" }, { status: 400 });
+    if (!channelId) {
+      return NextResponse.json({ error: "channelId required" }, { status: 400 });
     }
     const me = roleFor(userId);
     const existing = await db.chatParticipant.findUnique({
@@ -87,11 +96,10 @@ export async function POST(req: NextRequest) {
   }
 
   if (kind === "create_group") {
-    const userId = String(body.userId || "");
     const name = String(body.name || "").trim();
     const memberIds: string[] = Array.isArray(body.memberIds) ? body.memberIds : [];
-    if (!userId || !name || memberIds.length === 0) {
-      return NextResponse.json({ error: "userId, name, memberIds required" }, { status: 400 });
+    if (!name || memberIds.length === 0) {
+      return NextResponse.json({ error: "name and memberIds required" }, { status: 400 });
     }
     const allIds = Array.from(new Set([userId, ...memberIds]));
     const conv = await db.chatConversation.create({

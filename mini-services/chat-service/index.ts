@@ -13,6 +13,17 @@
 //   message:delete  { messageId }          (soft-delete: tombstones, doesn't remove the row)
 //   poll:vote       { messageId, optionId }
 //
+//   -- WebRTC call signaling (relayed peer-to-peer, server never touches media) --
+//   call:invite       { conversationId?, calleeIds: string[], type: "audio"|"video", scheduledCallId? }
+//                      ACK callback: { ok: true, callId } | { ok: false, error }
+//   call:accept       { callId }
+//   call:reject       { callId }
+//   call:cancel       { callId }           (caller gives up before anyone answers)
+//   call:end          { callId }           (hang up a ringing/active call)
+//   call:offer        { callId, sdp }      (relayed as-is to the other party)
+//   call:answer       { callId, sdp }      (relayed as-is to the other party)
+//   call:ice-candidate{ callId, candidate }(relayed as-is to the other party)
+//
 // Events (server -> client):
 //   message:new        ChatMessagePayload
 //   message:updated    { id, pinned? } | { id, text, edited, editedAt } | { id, deleted: true }
@@ -23,6 +34,15 @@
 //   conversation:new   ConversationPayload (when a DM is created)
 //   poll:updated        { messageId, options: { id, text, votes: string[] }[] }
 //   connected          { userId, conversations: string[] }
+//
+//   -- WebRTC call signaling (server -> client) --
+//   call:incoming      { callId, conversationId, type, caller: {id,name,role}, participantIds }
+//                       (delivered to each callee's personal "user:<id>" room)
+//   call:accepted       { callId, by: {id,name} }   (delivered to the whole "call:<id>" room)
+//   call:rejected       { callId, by: {id,name} }
+//   call:cancelled      { callId }
+//   call:ended          { callId, by?: {id,name}, reason?: "disconnect" }
+//   call:offer/answer/ice-candidate - same shape as inbound, plus `from: userId`
 //
 // NOTE: there is no "message:deleted" event - deletion is soft (tombstone) and is
 // broadcast as "message:updated" with { id, deleted: true } instead.
@@ -62,6 +82,7 @@ interface VerifiedUser {
   userId: string;
   userName: string;
   userRole: string;
+  companyId: string;
 }
 
 function parseCookie(header: string | undefined, name: string): string | null {
@@ -78,14 +99,14 @@ function validateSessionToken(token: string | null): VerifiedUser | null {
   if (!token) return null;
   const row = db
     .query(
-      `SELECT u.id as userId, u.name as userName, u.role as userRole, s.expiresAt as expiresAt
+      `SELECT u.id as userId, u.name as userName, u.role as userRole, u.companyId as companyId, s.expiresAt as expiresAt
        FROM Session s JOIN User u ON u.id = s.userId
        WHERE s.token = ?`
     )
     .get(token) as (VerifiedUser & { expiresAt: string }) | null;
   if (!row) return null;
   if (parseDbTimestamp(row.expiresAt).getTime() < Date.now()) return null;
-  return { userId: row.userId, userName: row.userName, userRole: row.userRole };
+  return { userId: row.userId, userName: row.userName, userRole: row.userRole, companyId: row.companyId };
 }
 
 interface ChatMessagePayload {
@@ -175,6 +196,40 @@ function isParticipant(conversationId: string, userId: string): boolean {
     .query("SELECT id FROM ChatParticipant WHERE conversationId = ? AND userId = ?")
     .get(conversationId, userId);
   return !!row;
+}
+
+// ===== Call helpers =====
+// Reads/writes the same `Call` table Prisma owns (see prisma/schema.prisma)
+// via raw bun:sqlite, same pattern as every other table in this file. Status
+// lifecycle: scheduled -> ringing -> active -> ended
+//                              \-> missed (callee explicitly rejected, or
+//                                  never answered before a disconnect)
+//                      ringing -> cancelled (caller gave up before answer)
+interface CallRow {
+  id: string;
+  companyId: string;
+  conversationId: string | null;
+  initiatorId: string;
+  type: string;
+  status: string;
+  participantIds: string; // JSON string array
+  scheduledFor: string | null;
+  startedAt: string | null;
+  endedAt: string | null;
+  createdAt: string;
+}
+
+function getCall(callId: string): CallRow | null {
+  return (db.query("SELECT * FROM Call WHERE id = ?").get(callId) as CallRow | null) ?? null;
+}
+
+function callParticipantIds(call: CallRow): string[] {
+  try {
+    const ids = JSON.parse(call.participantIds);
+    return Array.isArray(ids) ? ids : [];
+  } catch {
+    return [];
+  }
 }
 
 function insertMessage(params: {
@@ -620,8 +675,164 @@ io.on("connection", (socket: Socket) => {
     io.to(`conv:${msgRow.conversationId}`).emit("poll:updated", { messageId, options });
   });
 
+  // ===== call:invite =====
+  // Caller starts an immediate (or "start now" on a scheduled) call. Creates
+  // a `Call` row (status "ringing"), joins the caller's own socket to the
+  // call's private room, and delivers an incoming-call notification to each
+  // callee's personal "user:<id>" room (the same room message-DM-creation
+  // already uses). Identity for `initiatorId`/`caller` always comes from the
+  // verified session (`userId`/`userName`/`userRole` above) - never from the
+  // client payload. Acks the callId back to the caller via the socket.io
+  // callback so it doesn't need a second round-trip event.
+  socket.on("call:invite", (payload: any, ack?: (res: any) => void) => {
+    const reply = typeof ack === "function" ? ack : () => {};
+    const conversationId: string | null = payload?.conversationId ? String(payload.conversationId) : null;
+    const type = payload?.type === "video" ? "video" : "audio";
+    const calleeIds: string[] = Array.isArray(payload?.calleeIds)
+      ? Array.from(new Set(payload.calleeIds.filter((id: any) => typeof id === "string" && id && id !== userId)))
+      : [];
+    if (calleeIds.length === 0) return reply({ ok: false, error: "no callee specified" });
+    if (conversationId) {
+      if (!isParticipant(conversationId, userId)) return reply({ ok: false, error: "not a participant" });
+      for (const cid of calleeIds) {
+        if (!isParticipant(conversationId, cid)) return reply({ ok: false, error: "callee not in conversation" });
+      }
+    }
+    const participantIds = Array.from(new Set([userId, ...calleeIds]));
+
+    // Starting a previously-scheduled call: reuse its row instead of
+    // creating a duplicate, as long as it's still "scheduled" and this user
+    // was the one who scheduled it.
+    const scheduledCallId: string | null = payload?.scheduledCallId ? String(payload.scheduledCallId) : null;
+    let callId: string;
+    if (scheduledCallId) {
+      const existing = getCall(scheduledCallId);
+      if (!existing || existing.status !== "scheduled" || existing.initiatorId !== userId) {
+        return reply({ ok: false, error: "scheduled call not found" });
+      }
+      db.query("UPDATE Call SET status = 'ringing' WHERE id = ?").run(scheduledCallId);
+      callId = scheduledCallId;
+    } else {
+      callId = `call_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+      try {
+        db.query(
+          `INSERT INTO Call (id, companyId, conversationId, initiatorId, type, status, participantIds)
+           VALUES (?, ?, ?, ?, ?, 'ringing', ?)`
+        ).run(callId, user.companyId, conversationId, userId, type, JSON.stringify(participantIds));
+      } catch (e) {
+        console.error("[chat] call:invite insert error:", e);
+        return reply({ ok: false, error: "failed to create call" });
+      }
+    }
+
+    socket.join(`call:${callId}`);
+    const invitePayload = {
+      callId,
+      conversationId,
+      type,
+      caller: { id: userId, name: userName, role: userRole },
+      participantIds,
+    };
+    for (const cid of calleeIds) io.to(`user:${cid}`).emit("call:incoming", invitePayload);
+    console.log(`[chat] call:invite ${callId} ${userName} -> ${calleeIds.join(",")} (${type})`);
+    reply({ ok: true, callId });
+  });
+
+  // ===== call:accept =====
+  socket.on("call:accept", (payload: any) => {
+    const callId = payload?.callId ? String(payload.callId) : null;
+    if (!callId) return;
+    const call = getCall(callId);
+    if (!call || call.status !== "ringing") return;
+    if (!callParticipantIds(call).includes(userId)) return;
+    db.query("UPDATE Call SET status = 'active', startedAt = ? WHERE id = ?").run(new Date().toISOString(), callId);
+    socket.join(`call:${callId}`);
+    io.to(`call:${callId}`).emit("call:accepted", { callId, by: { id: userId, name: userName } });
+  });
+
+  // ===== call:reject =====
+  // Callee explicitly declines a ringing call -> "missed" (never connected).
+  socket.on("call:reject", (payload: any) => {
+    const callId = payload?.callId ? String(payload.callId) : null;
+    if (!callId) return;
+    const call = getCall(callId);
+    if (!call || call.status !== "ringing") return;
+    if (!callParticipantIds(call).includes(userId)) return;
+    db.query("UPDATE Call SET status = 'missed', endedAt = ? WHERE id = ?").run(new Date().toISOString(), callId);
+    io.to(`call:${callId}`).emit("call:rejected", { callId, by: { id: userId, name: userName } });
+  });
+
+  // ===== call:cancel =====
+  // Caller gives up before anyone answered.
+  socket.on("call:cancel", (payload: any) => {
+    const callId = payload?.callId ? String(payload.callId) : null;
+    if (!callId) return;
+    const call = getCall(callId);
+    if (!call || call.status !== "ringing" || call.initiatorId !== userId) return;
+    db.query("UPDATE Call SET status = 'cancelled', endedAt = ? WHERE id = ?").run(new Date().toISOString(), callId);
+    io.to(`call:${callId}`).emit("call:cancelled", { callId });
+  });
+
+  // ===== call:end =====
+  // Hang up a ringing or active call, from either party.
+  socket.on("call:end", (payload: any) => {
+    const callId = payload?.callId ? String(payload.callId) : null;
+    if (!callId) return;
+    const call = getCall(callId);
+    if (!call) return;
+    if (!callParticipantIds(call).includes(userId)) return;
+    if (call.status === "ended" || call.status === "cancelled" || call.status === "missed") return;
+    db.query("UPDATE Call SET status = 'ended', endedAt = ? WHERE id = ?").run(new Date().toISOString(), callId);
+    io.to(`call:${callId}`).emit("call:ended", { callId, by: { id: userId, name: userName } });
+  });
+
+  // ===== call:offer / call:answer / call:ice-candidate =====
+  // Pure SDP/ICE relay to whoever else is in the call's room - the server
+  // never inspects or modifies the payload, it's opaque WebRTC signaling
+  // between exactly the two peers in `call:<callId>`.
+  socket.on("call:offer", (payload: any) => {
+    const callId = payload?.callId ? String(payload.callId) : null;
+    if (!callId || !payload?.sdp) return;
+    socket.to(`call:${callId}`).emit("call:offer", { callId, sdp: payload.sdp, from: userId });
+  });
+
+  socket.on("call:answer", (payload: any) => {
+    const callId = payload?.callId ? String(payload.callId) : null;
+    if (!callId || !payload?.sdp) return;
+    socket.to(`call:${callId}`).emit("call:answer", { callId, sdp: payload.sdp, from: userId });
+  });
+
+  socket.on("call:ice-candidate", (payload: any) => {
+    const callId = payload?.callId ? String(payload.callId) : null;
+    if (!callId || !payload?.candidate) return;
+    socket.to(`call:${callId}`).emit("call:ice-candidate", { callId, candidate: payload.candidate, from: userId });
+  });
+
   socket.on("disconnect", () => {
     setOffline(userId, socket.id);
+    // If that was this user's last open socket, any call they were ringing
+    // or actively on is now unreachable from their side - resolve it rather
+    // than leaving a "ringing"/"active" row (and the other party's UI)
+    // stuck forever.
+    if (!onlineSockets.has(userId)) {
+      try {
+        const liveCalls = db
+          .query(`SELECT id, status FROM Call WHERE status IN ('ringing','active') AND participantIds LIKE ?`)
+          .all(`%"${userId}"%`) as { id: string; status: string }[];
+        for (const c of liveCalls) {
+          const nowIso = new Date().toISOString();
+          if (c.status === "ringing") {
+            db.query("UPDATE Call SET status = 'missed', endedAt = ? WHERE id = ?").run(nowIso, c.id);
+            io.to(`call:${c.id}`).emit("call:cancelled", { callId: c.id, reason: "disconnect" });
+          } else {
+            db.query("UPDATE Call SET status = 'ended', endedAt = ? WHERE id = ?").run(nowIso, c.id);
+            io.to(`call:${c.id}`).emit("call:ended", { callId: c.id, reason: "disconnect" });
+          }
+        }
+      } catch (e) {
+        console.error("[chat] disconnect call cleanup error:", e);
+      }
+    }
     console.log(`[chat] ${userName} (${userId}) disconnected`);
   });
 
@@ -631,6 +842,9 @@ io.on("connection", (socket: Socket) => {
 const PORT = 3003;
 httpServer.listen(PORT, () => {
   console.log(`[chat] Reanzly chat service running on port ${PORT}`);
+  console.log(
+    "[chat] call signaling events registered: call:invite, call:accept, call:reject, call:cancel, call:end, call:offer, call:answer, call:ice-candidate"
+  );
 });
 
 process.on("SIGTERM", () => {

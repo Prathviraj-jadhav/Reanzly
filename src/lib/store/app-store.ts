@@ -305,6 +305,16 @@ interface AppState {
   authUser: AuthUser | null;
   portal: PortalType;
   login: (email: string, roleId: string, portal?: PortalType, orgName?: string) => void;
+  // Real, server-verified sign-in: POSTs to /api/auth/login, which checks the
+  // password against the User table's hashed credential and issues a real
+  // session cookie. Resolves the matching role archetype from the verified
+  // response (never from client input) before calling the internal login()
+  // state-setter. Returns an error string on failure instead of throwing.
+  loginWithPassword: (email: string, password: string, portal?: PortalType, orgName?: string) => Promise<{ ok: boolean; error?: string }>;
+  // Re-validates against the real session cookie on app boot, so a stale
+  // "isAuthenticated: true" left in persisted localStorage from a previous
+  // session can't grant access without an actual live server session.
+  restoreSession: () => Promise<void>;
   logout: () => void;
   setPortal: (p: PortalType) => void;
 
@@ -481,7 +491,52 @@ export const useAppStore = create<AppState>()(
           history: [],
         });
       },
+      loginWithPassword: async (email, password, portal = "app", orgName) => {
+        try {
+          const res = await fetch("/api/auth/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, password }),
+          });
+          const data = await res.json();
+          if (!res.ok) {
+            return { ok: false, error: data?.error || "Sign in failed." };
+          }
+          // data.user.role holds the ROLE_ARCHETYPES id (see seed-users.ts) -
+          // resolve it here rather than trusting anything from the client.
+          get().login(data.user.email, data.user.role, portal, orgName);
+          return { ok: true };
+        } catch {
+          return { ok: false, error: "Could not reach the server. Try again." };
+        }
+      },
+      restoreSession: async () => {
+        try {
+          const res = await fetch("/api/auth/me");
+          if (!res.ok) {
+            if (get().isAuthenticated) set({ isAuthenticated: false, authUser: null });
+            return;
+          }
+          const { user } = await res.json();
+          const role = ROLE_ARCHETYPES.find((r) => r.id === user.role) || ROLE_ARCHETYPES[0];
+          set({
+            isAuthenticated: true,
+            authUser: {
+              email: user.email,
+              name: user.name,
+              roleId: role.id,
+              loggedInAt: new Date().toISOString(),
+              portal: get().portal,
+            },
+            currentRole: role,
+          });
+        } catch {
+          // Network hiccup on boot - leave whatever state was persisted;
+          // the next authenticated API call will 401 and surface it properly.
+        }
+      },
       logout: () => {
+        fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
         set({
           isAuthenticated: false,
           authUser: null,
