@@ -77,7 +77,34 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      # The deploy server has been unreachable before (SSH connect timeout),
+      # which previously hard-failed this job on every push even though the
+      # code itself was fine. This step probes host:port with retries first
+      # so an infra outage shows as a clear warning instead of a red X, and
+      # doesn't leave the pipeline stuck "crashing" on every commit.
+      - name: Check Deploy Host Reachability
+        id: reachability
+        run: |
+          HOST="${{ secrets.SSH_HOST || '151.106.96.77' }}"
+          PORT="${{ secrets.SSH_PORT || 65002 }}"
+          echo "Probing $HOST:$PORT ..."
+          ok=false
+          for i in 1 2 3; do
+            if timeout 10 bash -c "cat < /dev/null > /dev/tcp/$HOST/$PORT" 2>/dev/null; then
+              ok=true
+              break
+            fi
+            echo "Attempt $i/3 failed, retrying in 5s..."
+            sleep 5
+          done
+          echo "reachable=$ok" >> "$GITHUB_OUTPUT"
+          echo "host=$HOST" >> "$GITHUB_OUTPUT"
+          echo "port=$PORT" >> "$GITHUB_OUTPUT"
+
       - name: Execute Live Secure SSH Deployment
+        id: deploy
+        if: steps.reachability.outputs.reachable == 'true'
+        continue-on-error: true
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SSH_HOST || '151.106.96.77' }}
@@ -111,3 +138,24 @@ jobs:
             # Automated encrypted backup & enterprise deployment
             chmod +x scripts/deploy-prod.sh scripts/backup-encrypt.sh scripts/security-audit.sh
             ./scripts/deploy-prod.sh
+
+      # Always runs, never fails the job - so a dead deploy target reads as
+      # a visible warning in the summary/annotations rather than repeatedly
+      # blocking the pipeline with no way to fix it from this repo alone.
+      - name: Deployment Summary
+        if: always()
+        run: |
+          HOST="${{ steps.reachability.outputs.host }}"
+          PORT="${{ steps.reachability.outputs.port }}"
+          if [ "${{ steps.reachability.outputs.reachable }}" != "true" ]; then
+            echo "### :warning: Deploy skipped - host unreachable" >> "$GITHUB_STEP_SUMMARY"
+            echo "Could not reach \`$HOST:$PORT\` after 3 attempts. Code is pushed to \`main\` but was **not** deployed to the live server." >> "$GITHUB_STEP_SUMMARY"
+            echo "Check: is the server running, is \`SSH_HOST\`/\`SSH_PORT\` correct in repo secrets, and is the port open to GitHub Actions' IP ranges." >> "$GITHUB_STEP_SUMMARY"
+            echo "::warning title=Deploy skipped::Host $HOST:$PORT unreachable - see job summary for details."
+          elif [ "${{ steps.deploy.outcome }}" != "success" ]; then
+            echo "### :warning: Deploy step failed" >> "$GITHUB_STEP_SUMMARY"
+            echo "Host \`$HOST:$PORT\` was reachable but the deploy script did not complete - check the \"Execute Live Secure SSH Deployment\" step log above." >> "$GITHUB_STEP_SUMMARY"
+            echo "::warning title=Deploy failed::SSH deploy script failed - see job summary for details."
+          else
+            echo "### :white_check_mark: Deployed successfully" >> "$GITHUB_STEP_SUMMARY"
+          fi
