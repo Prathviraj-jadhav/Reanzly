@@ -58,7 +58,7 @@ jobs:
           docker build -t reanzly:security-scan .
 
       - name: Container Vulnerability Scan (Trivy)
-        uses: aquasecurity/trivy-action@v0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: 'reanzly:security-scan'
           format: 'table'
