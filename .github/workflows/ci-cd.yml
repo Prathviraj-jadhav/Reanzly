@@ -80,10 +80,10 @@ jobs:
       - name: Execute Live Secure SSH Deployment
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.SSH_HOST }}
+          host: ${{ secrets.SSH_HOST || '151.106.96.77' }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: ${{ secrets.SSH_PORT || 22 }}
+          port: ${{ secrets.SSH_PORT || 65002 }}
           script: |
             set -e
             APP_DIR="/opt/reanzly"
