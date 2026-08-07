@@ -1,5 +1,5 @@
 "use client";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Btn } from "@/components/shared/btn";
 import { toast } from "sonner";
 import {
@@ -35,8 +35,7 @@ import {
   SheetTitle,
   SheetDescription,
 } from "@/components/ui/sheet";
-import { VEHICLES, DRIVERS } from "@/lib/mock-data";
-import type { Inspection } from "@/lib/types";
+import type { Inspection, Vehicle, Driver } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import {
   INSPECTION_TYPES,
@@ -55,8 +54,8 @@ interface AddInspectionDrawerProps {
   open: boolean;
   onClose: () => void;
   record?: Inspection;
-  onAdd?: (inspection: Inspection) => void;
-  onUpdate?: (id: string, data: Partial<Inspection>) => void;
+  onAdd?: (inspection: Inspection) => Promise<boolean>;
+  onUpdate?: (id: string, data: Partial<Inspection>) => Promise<boolean>;
 }
 
 function checklistForResult(
@@ -125,6 +124,19 @@ export function AddInspectionDrawer({
       ? recordToForm(record)
       : EMPTY_INSPECTION_FORM(),
   );
+  const [submitting, setSubmitting] = useState(false);
+
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [drivers, setDrivers] = useState<Driver[]>([]);
+  useEffect(() => {
+    Promise.all([
+      fetch("/api/vehicles").then((r) => (r.ok ? r.json() : { vehicles: [] })),
+      fetch("/api/drivers").then((r) => (r.ok ? r.json() : { drivers: [] })),
+    ]).then(([v, d]) => {
+      setVehicles(v.vehicles ?? []);
+      setDrivers(d.drivers ?? []);
+    }).catch(() => toast.error("Couldn't load fleet/roster data"));
+  }, []);
 
   const update = <K extends keyof InspectionForm>(k: K, v: InspectionForm[K]) =>
     setForm((s) => ({ ...s, [k]: v }));
@@ -188,14 +200,18 @@ export function AddInspectionDrawer({
     if (step > 1) setStep(step - 1);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const result = computeResult(form.checklist);
     const payload = formToData(form);
+    setSubmitting(true);
+    let ok = true;
     if (record && onUpdate) {
-      onUpdate(record.id, payload);
-      toast.success(`Inspection ${record.inspectionId} updated`, {
-        description: `Result: ${result} · ${form.checklist.length} items · ${form.vehicle}`,
-      });
+      ok = await onUpdate(record.id, payload);
+      if (ok) {
+        toast.success(`Inspection ${record.inspectionId} updated`, {
+          description: `Result: ${result} · ${form.checklist.length} items · ${form.vehicle}`,
+        });
+      }
     } else if (onAdd) {
       const newId = `RZ-INS-${String(Math.floor(Math.random() * 9000) + 1000).padStart(4, "0")}`;
       const newInspection: Inspection = {
@@ -210,16 +226,15 @@ export function AddInspectionDrawer({
         odometer: payload.odometer ?? 0,
         linkedIssues: 0,
       };
-      onAdd(newInspection);
-      toast.success(`Inspection ${newId} created`, {
-        description: `Result: ${result} · ${form.checklist.length} items · ${form.vehicle}`,
-      });
-    } else {
-      const newId = `RZ-INS-${String(Math.floor(Math.random() * 9000) + 1000).padStart(4, "0")}`;
-      toast.success(`Inspection ${newId} created`, {
-        description: `Result: ${result} · ${form.checklist.length} items · ${form.vehicle}`,
-      });
+      ok = await onAdd(newInspection);
+      if (ok) {
+        toast.success(`Inspection ${newId} created`, {
+          description: `Result: ${result} · ${form.checklist.length} items · ${form.vehicle}`,
+        });
+      }
     }
+    setSubmitting(false);
+    if (!ok) return; // onAdd/onUpdate already surfaced their own error toast
     setStep(1);
     setForm(EMPTY_INSPECTION_FORM());
     onClose();
@@ -307,7 +322,7 @@ export function AddInspectionDrawer({
                       </SelectTrigger>
                       <SelectContent className="max-h-72 overflow-y-auto scrollbar-thin">
                         <SelectItem value="none">- Select vehicle -</SelectItem>
-                        {VEHICLES.map((v) => (
+                        {vehicles.map((v) => (
                           <SelectItem key={v.id} value={v.name}>
                             {v.name} · {v.licensePlate}
                           </SelectItem>
@@ -348,7 +363,7 @@ export function AddInspectionDrawer({
                       </SelectTrigger>
                       <SelectContent className="max-h-72 overflow-y-auto scrollbar-thin">
                         <SelectItem value="none">- Not assigned -</SelectItem>
-                        {DRIVERS.filter((d) => d.role === "Driver").map((d) => (
+                        {drivers.filter((d) => d.role === "Driver").map((d) => (
                           <SelectItem key={d.id} value={d.name}>
                             {d.name} · {d.licenseNumber || "-"}
                           </SelectItem>
@@ -560,7 +575,7 @@ export function AddInspectionDrawer({
             Step {step} of 3
           </div>
           {isLastStep ? (
-            <Btn variant="primary" icon={<Check className="h-3.5 w-3.5" />} onClick={handleSubmit}>
+            <Btn variant="primary" icon={<Check className="h-3.5 w-3.5" />} onClick={handleSubmit} disabled={submitting}>
               {record ? "Save Changes" : "Create Inspection"}
             </Btn>
           ) : (

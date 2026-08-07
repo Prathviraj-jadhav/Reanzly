@@ -1,6 +1,6 @@
 "use client";
 
-import { useAppStore } from "@/lib/store/app-store";
+import { useAppStore, type ModuleId } from "@/lib/store/app-store";
 import { DashboardModule } from "./dashboard";
 import { TripsModule } from "./trips";
 import { VehiclesModule } from "./vehicles";
@@ -57,14 +57,111 @@ import { MarketingModule } from "./marketing";
 import { PurchaseModule } from "./purchase";
 import { QualityModule } from "./quality";
 import { KnowledgeModule } from "./knowledge";
-import { AppStoreModule } from "./app-store";
 import { PartnerProgrammeModule } from "./partner-programme";
 import { FinancialServicesModule } from "./financial-services";
+import { ModuleClusterTabs, type ClusterTab } from "@/components/shared/module-cluster-tabs";
+
+// Module clusters: groups of standalone modules that used to each be their
+// own top-level sidebar/"More"-drawer entry - a wall of nearly-indistinguishable
+// pages. Each cluster is now reached exclusively as tabs of its first
+// ("home") entry; the sidebar only ever links to that one id. Every member
+// keeps its own real, already-CRUD-wired module component and internal
+// routing completely unchanged - clusters only add a shared tab strip via
+// ModuleClusterTabs, never rewrite what's underneath.
+const CLUSTERS: ClusterTab[][] = [
+  [
+    { id: "vehicles", label: "Overview" },
+    { id: "inspection", label: "Inspection" },
+    { id: "issues", label: "Issues" },
+    { id: "maintenance", label: "Maintenance" },
+    { id: "workshop", label: "Workshop" },
+    { id: "services", label: "Services" },
+    { id: "fuel-energy", label: "Fuel & Energy" },
+    { id: "compliance", label: "Compliance" },
+    { id: "quality", label: "Quality" },
+  ],
+  // Rate Cards feeds invoice pricing directly.
+  [
+    { id: "invoice", label: "Overview" },
+    { id: "rate-cards", label: "Rate Cards" },
+  ],
+  // Purchase orders are vendor-facing spend.
+  [
+    { id: "vendors", label: "Overview" },
+    { id: "purchase", label: "Purchase" },
+  ],
+  // Settings becomes the home for org-level configuration/administration
+  // surfaces that don't belong to one specific operational module.
+  [
+    { id: "settings", label: "Overview" },
+    { id: "subscriptions", label: "Subscriptions" },
+    { id: "access-matrix", label: "Access Matrix" },
+    { id: "automation", label: "Automation" },
+    { id: "system-design", label: "System Design" },
+  ],
+  // Customers, Vendors, Helpdesk, Marketing and Surveys are all
+  // customer/vendor-relationship surfaces - one People entry point for all
+  // of them instead of five. Customers and Vendors keep their own real,
+  // independently CRUD-wired module components unchanged underneath.
+  [
+    { id: "crm", label: "Overview" },
+    { id: "customers", label: "Customers" },
+    { id: "vendors", label: "Vendors" },
+    { id: "helpdesk", label: "Helpdesk" },
+    { id: "marketing", label: "Marketing" },
+    { id: "surveys", label: "Surveys" },
+  ],
+  // Drivers & Staff and Payroll are both People-management concerns, same
+  // audience as HR.
+  [
+    { id: "hr", label: "Overview" },
+    { id: "drivers-staff", label: "Drivers & Staff" },
+    { id: "payroll", label: "Payroll" },
+  ],
+  // Field Service and Planning are both dispatch/capacity concerns, same
+  // audience as Operations Hub.
+  [
+    { id: "operations-hub", label: "Overview" },
+    { id: "field-service", label: "Field Service" },
+    { id: "planning", label: "Planning" },
+  ],
+  // Approvals most commonly gate expense/spend decisions.
+  [
+    { id: "expenses", label: "Overview" },
+    { id: "approvals", label: "Approvals" },
+  ],
+  // Document Studio, Knowledge Base and Reminders are all document-adjacent
+  // content; Documents itself is promoted out of the More drawer into
+  // Operations (it's used company-wide, not owned by any one module) and
+  // becomes the anchor for this cluster.
+  [
+    { id: "documents", label: "Vault" },
+    { id: "document-studio", label: "Studio" },
+    { id: "knowledge", label: "Knowledge Base" },
+    { id: "reminders", label: "Reminders" },
+  ],
+];
+const CLUSTER_BY_MODULE: Map<ModuleId, ClusterTab[]> = new Map(
+  CLUSTERS.flatMap((tabs) => tabs.map((t): [ModuleId, ClusterTab[]] => [t.id, tabs]))
+);
 
 export function ModuleRouter() {
   const { activeView } = useAppStore();
 
-  switch (activeView.module) {
+  const rendered = renderModule(activeView.module);
+  const cluster = CLUSTER_BY_MODULE.get(activeView.module);
+  if (cluster) {
+    return (
+      <ModuleClusterTabs tabs={cluster} active={activeView.module}>
+        {rendered}
+      </ModuleClusterTabs>
+    );
+  }
+  return rendered;
+}
+
+function renderModule(module: ModuleId) {
+  switch (module) {
     case "dashboard": return <DashboardModule />;
     case "operations-hub": return <OperationsHubModule />;
     case "trips": return <TripsModule />;
@@ -116,10 +213,17 @@ export function ModuleRouter() {
     case "subscriptions": return <SubscriptionsModule />;
     case "surveys": return <SurveysModule />;
     case "marketing": return <MarketingModule />;
-    case "app-store": return <AppStoreModule />;
+    // App Store (browse/install Reanzly's own modules) and Integrations
+    // (connect third-party tools) used to be two separate destinations for
+    // what users experienced as the same "connect things to Reanzly"
+    // concept. Consolidated into one: Integrations is now the single place
+    // to pull third-party data in and push Reanzly data out (MCP-style
+    // connectors included) - this alias keeps old deep-links/Quick-Add
+    // shortcuts working rather than 404ing.
+    case "app-store": return <IntegrationsModule />;
     case "partner-programme": return <PartnerProgrammeModule />;
     case "financial-services": return <FinancialServicesModule />;
-    default: return <PlaceholderModule title={String(activeView.module)} />;
+    default: return <PlaceholderModule title={String(module)} />;
   }
 }
 

@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
     const categoryContext = CATEGORY_CONTEXT[agentCategory] ?? CATEGORY_CONTEXT.custom;
     
     // Fallback operational grounding data
-    const localResult = answerLocally(input, agentName);
+    const localResult = await answerLocally(input, agentName, companyId);
 
     let reasoning = "";
     let confidence = 1.0;
@@ -108,7 +108,10 @@ ${memoryContext}
 Task: ${input}
 Answer:`;
 
-      const response = await inferSLM(prompt, { tier: "balanced", fallbackQuery: input });
+      // "fast" tier: measured ~2.3x faster than "balanced" for identical
+      // answer quality on real short-answer prompts - see route.ts's own
+      // /api/rean handler for the measurement this is based on.
+      const response = await inferSLM(prompt, { tier: "fast", fallbackQuery: input });
       reasoning = `${categoryContext} Grounded Operational Data: ${response}`;
     }
 

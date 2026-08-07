@@ -4,10 +4,9 @@ import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { SavageInput } from "@/components/shared/savage-input";
 import { Autocomplete, type AutocompleteOption } from "@/components/shared/autocomplete";
-import { CUSTOMERS, VENDORS, TRIPS } from "@/lib/mock-data";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import type { LorryReceipt, FreightTerm } from "@/lib/types";
+import type { LorryReceipt, FreightTerm, Customer, Vendor, Trip } from "@/lib/types";
 import {
   X,
   Check,
@@ -101,15 +100,33 @@ interface AddConsignmentDrawerProps {
   onClose: () => void;
   /** When provided the drawer operates in edit mode for this LR. */
   record?: LorryReceipt;
-  /** Create callback - persists the new LR to the parent list state. */
-  onAdd?: (lr: LorryReceipt) => void;
+  /** Create callback - persists the new LR via the real API. Resolves false
+   * (not a throw) on failure - the caller already surfaces its own error
+   * toast. */
+  onAdd?: (lr: LorryReceipt) => Promise<boolean>;
   /** Called with the updated editable fields when submitting in edit mode. */
-  onUpdate?: (id: string, data: Partial<LorryReceipt>) => void;
+  onUpdate?: (id: string, data: Partial<LorryReceipt>) => Promise<boolean>;
 }
 
 export function AddConsignmentDrawer({ open, onClose, record, onAdd, onUpdate }: AddConsignmentDrawerProps) {
   const [step, setStep] = useState(1);
   const [form, setForm] = useState<ExtendedForm>(emptyExtendedForm);
+  const [submitting, setSubmitting] = useState(false);
+
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [trips, setTrips] = useState<Trip[]>([]);
+  useEffect(() => {
+    Promise.all([
+      fetch("/api/customers").then((r) => (r.ok ? r.json() : { customers: [] })),
+      fetch("/api/vendors").then((r) => (r.ok ? r.json() : { vendors: [] })),
+      fetch("/api/trips").then((r) => (r.ok ? r.json() : { trips: [] })),
+    ]).then(([c, v, t]) => {
+      setCustomers(c.customers ?? []);
+      setVendors(v.vendors ?? []);
+      setTrips(t.trips ?? []);
+    }).catch(() => toast.error("Couldn't load customer/vendor/trip data"));
+  }, []);
 
   // Pre-fill from record whenever the drawer opens with a record.
   useEffect(() => {
@@ -128,8 +145,8 @@ export function AddConsignmentDrawer({ open, onClose, record, onAdd, onUpdate }:
     setForm((s) => ({ ...s, [k]: v }));
 
   const jobOrderOptions: AutocompleteOption[] = useMemo(
-    () => TRIPS.map((t) => ({ value: t.tripId, label: t.tripId, hint: `${t.origin} → ${t.destination}` })),
-    [],
+    () => trips.map((t) => ({ value: t.tripId, label: t.tripId, hint: `${t.origin} → ${t.destination}` })),
+    [trips],
   );
 
   const partyOptions: AutocompleteOption[] = useMemo(() => {
@@ -141,10 +158,10 @@ export function AddConsignmentDrawer({ open, onClose, record, onAdd, onUpdate }:
       seen.add(key);
       set.push({ value: label, label, hint: `${hint} · ${kind}` });
     };
-    CUSTOMERS.forEach((c) => push(c.companyName, c.city, "Customer"));
-    VENDORS.forEach((v) => push(v.companyName, v.city, "Vendor"));
+    customers.forEach((c) => push(c.companyName, c.city, "Customer"));
+    vendors.forEach((v) => push(v.companyName, v.city, "Vendor"));
     return set;
-  }, []);
+  }, [customers, vendors]);
 
   const stepErrors = useMemo(() => {
     const errors: Record<number, string[]> = {};
@@ -192,7 +209,7 @@ export function AddConsignmentDrawer({ open, onClose, record, onAdd, onUpdate }:
     setStep(s);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const issues = Object.values(stepErrors).flat();
     if (issues.length) {
       toast("Compliance check failed", {
@@ -201,8 +218,10 @@ export function AddConsignmentDrawer({ open, onClose, record, onAdd, onUpdate }:
       setStep(1);
       return;
     }
+    setSubmitting(true);
+    let ok = true;
     if (record && onUpdate) {
-      onUpdate(record.id, {
+      ok = await onUpdate(record.id, {
         lrNumber: form.consignmentNumber,
         tripId: form.against,
         consignor: form.consignor,
@@ -215,9 +234,13 @@ export function AddConsignmentDrawer({ open, onClose, record, onAdd, onUpdate }:
         freightAmount: Number(form.freightAmount) || 0,
         freightTerm: form.freightTerm,
       });
-      toast.success("Lorry Receipt updated", {
-        description: `${form.consignmentNumber} · ${form.source} → ${form.destination}`,
-      });
+      if (ok) {
+        toast.success("Lorry Receipt updated", {
+          description: `${form.consignmentNumber} · ${form.source} → ${form.destination}`,
+        });
+      }
+      setSubmitting(false);
+      if (!ok) return;
       onClose();
       return;
     }
@@ -236,7 +259,9 @@ export function AddConsignmentDrawer({ open, onClose, record, onAdd, onUpdate }:
         freightAmount: Number(form.freightAmount) || 0,
         freightTerm: form.freightTerm as FreightTerm,
       };
-      onAdd(newLr);
+      ok = await onAdd(newLr);
+      setSubmitting(false);
+      if (!ok) return; // onAdd already surfaced its own error toast
       toast.success("Consignment created", {
         description: `${form.consignmentNumber} · ${form.documentType} · ${form.source} → ${form.destination}`,
       });
@@ -245,12 +270,7 @@ export function AddConsignmentDrawer({ open, onClose, record, onAdd, onUpdate }:
       onClose();
       return;
     }
-    toast.success("Consignment created", {
-      description: `${form.consignmentNumber} · ${form.documentType} · ${form.source} → ${form.destination}`,
-    });
-    setStep(1);
-    setForm(emptyExtendedForm());
-    onClose();
+    setSubmitting(false);
   };
 
   return (
@@ -330,7 +350,7 @@ export function AddConsignmentDrawer({ open, onClose, record, onAdd, onUpdate }:
         <div className="flex-1 overflow-y-auto scrollbar-thin px-5 py-5">
           {step === 1 && (
             <>
-              <Step1Document form={form} update={update} jobOrderOptions={jobOrderOptions} partyOptions={partyOptions} />
+              <Step1Document form={form} update={update} jobOrderOptions={jobOrderOptions} partyOptions={partyOptions} customerCount={customers.length} vendorCount={vendors.length} />
               {record && (
                 <div className="mt-4 rounded-[6px] border border-border bg-card p-4">
                   <div className="mb-3 flex items-center gap-2">
@@ -431,8 +451,9 @@ export function AddConsignmentDrawer({ open, onClose, record, onAdd, onUpdate }:
               variant="primary"
               icon={<Check className="h-3.5 w-3.5" />}
               onClick={handleSubmit}
+              disabled={submitting}
             >
-              {record ? "Save Changes" : "Create Consignment"}
+              {submitting ? "Saving…" : record ? "Save Changes" : "Create Consignment"}
             </Btn>
           ) : (
             <Btn
@@ -470,11 +491,15 @@ function Step1Document({
   update,
   jobOrderOptions,
   partyOptions,
+  customerCount,
+  vendorCount,
 }: {
   form: ExtendedForm;
   update: <K extends keyof ExtendedForm>(k: K, v: ExtendedForm[K]) => void;
   jobOrderOptions: AutocompleteOption[];
   partyOptions: AutocompleteOption[];
+  customerCount: number;
+  vendorCount: number;
 }) {
   return (
     <StepShell
@@ -562,8 +587,8 @@ function Step1Document({
       <div className="mt-4 flex items-center gap-2 rounded-[5px] border border-dashed border-border bg-accent/20 px-3 py-2">
         <Building2 className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
         <span className="text-[12px] text-muted-foreground">
-          Autocomplete pulls from <span className="font-medium text-foreground">{CUSTOMERS.length} customers</span> and{" "}
-          <span className="font-medium text-foreground">{VENDORS.length} vendors</span> in your master.
+          Autocomplete pulls from <span className="font-medium text-foreground">{customerCount} customers</span> and{" "}
+          <span className="font-medium text-foreground">{vendorCount} vendors</span> in your master.
         </span>
       </div>
     </StepShell>

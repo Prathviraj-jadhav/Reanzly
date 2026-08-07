@@ -12,6 +12,7 @@ import type { ChatEntity, ChatMessage } from "@/lib/types";
 import { ChatMessageRow } from "./chat-message";
 import { ChatComposer } from "./chat-composer";
 import { MessageText, formatDayDivider, formatTime, plainTextOf } from "./chat-utils";
+import { useChatCall, ChatCallHeaderButtons, ChatScheduledCallsBar, ChatCallOverlay } from "./chat-call";
 import {
   Hash,
   Sparkles,
@@ -89,6 +90,12 @@ export function ChatConversation({
 
   const typingUser = typing[activeId];
   const typingActive = !!typingUser && Date.now() < typingUser.until;
+
+  // Real WebRTC call state (voice/video/screen-share/scheduling), shared
+  // with the compact chat drawer via useChatCall. conv may still be
+  // undefined here (checked below) - the hook itself tolerates a null conv
+  // so hook order stays stable across renders.
+  const call = useChatCall(conv ?? null, currentUserId, entities);
 
   // BUG 4: typing indicator can stick. The dots gate on
   // `Date.now() < typingUser.until` evaluated at render time, but nothing
@@ -213,6 +220,8 @@ export function ChatConversation({
               </div>
             )}
 
+            <ChatCallHeaderButtons call={call} conv={conv} size="md" />
+
             {/* Search */}
             {searchOpen ? (
               <div className="flex items-center gap-1 rounded-[5px] border border-border bg-background px-1.5 py-0.5">
@@ -329,7 +338,12 @@ export function ChatConversation({
         )}
       </div>
 
-      {/* Messages */}
+      <ChatScheduledCallsBar call={call} currentUserId={currentUserId} />
+      <ChatCallOverlay call={call} displayName={displayName} />
+
+      {/* Messages + composer (replaced by the call overlay above while a call is active) */}
+      {call.callMode ? null : (
+      <>
       <div
         ref={scrollRef}
         className="scrollbar-thin flex-1 overflow-y-auto py-2"
@@ -430,6 +444,8 @@ export function ChatConversation({
         onChannelClick={onChannelClick}
         compact={compact}
       />
+      </>
+      )}
 
       {/* Image zoom dialog */}
       <Dialog

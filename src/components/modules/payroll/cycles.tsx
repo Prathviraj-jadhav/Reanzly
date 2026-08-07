@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { DataTable, type Column } from "@/components/shared/data-table";
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -41,8 +41,6 @@ import {
 } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
 import {
-  PAY_CYCLES,
-  EMPLOYEES,
   CYCLE_STATUSES,
   type PayCycle,
   type CycleStatus,
@@ -65,12 +63,21 @@ import {
 } from "./_helpers";
 
 export function PayCyclesTab() {
-  const [rows, setRows] = useState<PayCycle[]>(PAY_CYCLES);
+  const [rows, setRows] = useState<PayCycle[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<Set<string>>(new Set());
   const [addOpen, setAddOpen] = useState(false);
   const [view, setView] = useState<PayCycle | null>(null);
   const [viewMode, setViewMode] = useState<"timeline" | "table">("timeline");
+
+  useEffect(() => {
+    fetch("/api/payroll/cycles")
+      .then((r) => (r.ok ? r.json() : Promise.reject(r)))
+      .then(({ cycles }) => setRows(cycles))
+      .catch(() => toast.error("Couldn't load pay cycles", { description: "Try reloading the page." }))
+      .finally(() => setLoaded(true));
+  }, []);
 
   const filtered = useMemo(() => {
     let r = rows;
@@ -100,89 +107,44 @@ export function PayCyclesTab() {
   const approved = rows.filter((r) => r.status === "Approved").length;
   const totalNet = rows.reduce((s, r) => s + r.netTotal, 0);
 
-  const advanceStatus = (cycle: PayCycle, target?: CycleStatus) => {
-    const order: CycleStatus[] = ["Draft", "Processing", "Approved", "Disbursed"];
-    const idx = order.indexOf(cycle.status);
-    const next = target ?? order[Math.min(order.length - 1, idx + 1)];
-    setRows((prev) =>
-      prev.map((r) =>
-        r.id === cycle.id
-          ? {
-              ...r,
-              status: next,
-              approvedDate: next === "Approved" || next === "Disbursed" ? new Date().toISOString() : r.approvedDate,
-              approvedBy: next === "Approved" || next === "Disbursed" ? "Vikram Kapoor" : r.approvedBy,
-              payDate: next === "Disbursed" ? new Date().toISOString() : r.payDate,
-              locked: next === "Disbursed" || next === "Approved",
-              audit: [
-                ...r.audit,
-                {
-                  id: `cyc-${cycle.id}-${r.audit.length + 1}`,
-                  at: new Date().toISOString(),
-                  by: "Reena Mehta",
-                  action: next === "Processing" ? "Marked as processing" : next === "Approved" ? "Cycle approved" : next === "Disbursed" ? "Disbursed" : "Status updated",
-                },
-              ],
-            }
-          : r,
-      ),
-    );
-    toast.success(`Cycle advanced to ${next}`, { description: cycle.cycleNo });
+  const patchCycle = async (id: string, body: unknown) => {
+    const res = await fetch(`/api/payroll/cycles/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) return { ok: false as const, error: data.error || "Try again." };
+    setRows((prev) => prev.map((r) => (r.id === id ? data.cycle : r)));
+    if (view?.id === id) setView(data.cycle);
+    return { ok: true as const, cycle: data.cycle as PayCycle };
   };
 
-  const runPayroll = (cycle: PayCycle) => {
+  const advanceStatus = async (cycle: PayCycle, target?: CycleStatus) => {
+    const result = await patchCycle(cycle.id, { action: "advance", status: target });
+    if (result.ok) toast.success(`Cycle advanced to ${result.cycle.status}`, { description: cycle.cycleNo });
+    else toast.error("Couldn't advance cycle", { description: result.error });
+  };
+
+  const runPayroll = async (cycle: PayCycle) => {
     if (cycle.locked) {
       toast("Cycle is locked", { description: "Unlock the cycle before re-running payroll." });
       return;
     }
-    setRows((prev) =>
-      prev.map((r) =>
-        r.id === cycle.id
-          ? {
-              ...r,
-              status: "Processing",
-              headcount: EMPLOYEES.length,
-              runBy: "Reena Mehta",
-              audit: [
-                ...r.audit,
-                {
-                  id: `cyc-${cycle.id}-run-${r.audit.length + 1}`,
-                  at: new Date().toISOString(),
-                  by: "Reena Mehta",
-                  action: "Payroll run executed",
-                  note: `Generated payslips for ${EMPLOYEES.length} active employees`,
-                },
-              ],
-            }
-          : r,
-      ),
-    );
-    toast.success("Payroll run completed", {
-      description: `${EMPLOYEES.length} payslips generated for ${formatMonthYear(cycle.month)}`,
-    });
+    const result = await patchCycle(cycle.id, { action: "run" });
+    if (result.ok) {
+      toast.success("Payroll run completed", {
+        description: `${result.cycle.headcount} payslips generated for ${formatMonthYear(cycle.month)}`,
+      });
+    } else {
+      toast.error("Couldn't run payroll", { description: result.error });
+    }
   };
 
-  const toggleLock = (cycle: PayCycle) => {
-    setRows((prev) =>
-      prev.map((r) =>
-        r.id === cycle.id
-          ? {
-              ...r,
-              locked: !r.locked,
-              audit: [
-                ...r.audit,
-                {
-                  id: `cyc-${cycle.id}-lock-${r.audit.length + 1}`,
-                  at: new Date().toISOString(),
-                  by: "Reena Mehta",
-                  action: r.locked ? "Cycle unlocked" : "Cycle locked",
-                },
-              ],
-            }
-          : r,
-      ),
-    );
-    toast(cycle.locked ? "Cycle unlocked" : "Cycle locked", { description: cycle.cycleNo });
+  const toggleLock = async (cycle: PayCycle) => {
+    const result = await patchCycle(cycle.id, { action: "toggle-lock" });
+    if (result.ok) toast(result.cycle.locked ? "Cycle locked" : "Cycle unlocked", { description: cycle.cycleNo });
+    else toast.error("Couldn't update lock state", { description: result.error });
   };
 
   const columns: Column<PayCycle>[] = [
@@ -303,6 +265,10 @@ export function PayCyclesTab() {
 
   const statusLabel = statusFilter.size === 0 ? "All" : statusFilter.size === 1 ? Array.from(statusFilter)[0] : `${statusFilter.size} selected`;
 
+  if (!loaded) {
+    return <div className="p-6 text-[13px] text-muted-foreground">Loading pay cycles…</div>;
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -393,28 +359,19 @@ export function PayCyclesTab() {
         </div>
       )}
 
-      <CycleDrawer open={addOpen} onClose={() => setAddOpen(false)} onSave={(d) => {
-        const newRec: PayCycle = {
-          id: `cyc-${String(rows.length + 1).padStart(3, "0")}`,
-          month: d.month ?? "",
-          cycleNo: `RZ-PAY-${(d.month ?? "").replace("-", "")}`,
-          status: "Draft",
-          locked: false,
-          headcount: 0,
-          grossTotal: 0,
-          deductionsTotal: 0,
-          netTotal: 0,
-          employerContribTotal: 0,
-          audit: [{
-            id: `cyc-${rows.length + 1}-a1`,
-            at: new Date().toISOString(),
-            by: "Reena Mehta",
-            action: "Cycle created",
-            note: "Opened from new cycle form",
-          }],
-        };
-        setRows((prev) => [newRec, ...prev]);
-        toast.success(`Cycle created`, { description: newRec.cycleNo });
+      <CycleDrawer open={addOpen} onClose={() => setAddOpen(false)} onSave={async (d) => {
+        const res = await fetch("/api/payroll/cycles", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ month: d.month }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          toast.error("Couldn't create cycle", { description: data.error || "Try again." });
+          return;
+        }
+        setRows((prev) => [data.cycle, ...prev]);
+        toast.success("Cycle created", { description: data.cycle.cycleNo });
         setAddOpen(false);
       }} />
 
@@ -422,9 +379,9 @@ export function PayCyclesTab() {
         open={!!view}
         record={view}
         onClose={() => setView(null)}
-        onAdvance={(c, t) => { advanceStatus(c, t); setView((prev) => prev ? { ...prev, status: t ?? "Draft" } : prev); }}
-        onToggleLock={(c) => { toggleLock(c); setView((prev) => prev ? { ...prev, locked: !prev.locked } : prev); }}
-        onRun={(c) => { runPayroll(c); setView((prev) => prev ? { ...prev, status: "Processing", headcount: EMPLOYEES.length } : prev); }}
+        onAdvance={(c, t) => advanceStatus(c, t)}
+        onToggleLock={(c) => toggleLock(c)}
+        onRun={(c) => runPayroll(c)}
       />
     </div>
   );

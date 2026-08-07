@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { SectionCard } from "@/components/shared/section-card";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Btn } from "@/components/shared/btn";
@@ -22,15 +22,11 @@ import {
   Clock,
 } from "lucide-react";
 import {
-  PAY_CYCLES,
-  PAYSLIPS,
   STATUTORY_RETURNS,
-  SALARY_STRUCTURES,
   BANK_ADVICES,
   REIMBURSEMENTS,
   BONUSES,
   LOANS,
-  EMPLOYEES,
   formatINR,
   formatINRCompact,
   formatMonthYear,
@@ -42,37 +38,55 @@ import {
   daysUntil,
   dueTone,
   type PayrollTab,
+  type PayCycle,
 } from "./_helpers";
 
+const EMPTY_CYCLE: PayCycle = {
+  id: "", cycleNo: "—", month: "", status: "Draft", locked: false,
+  headcount: 0, grossTotal: 0, deductionsTotal: 0, netTotal: 0, employerContribTotal: 0, audit: [],
+};
+
 export function OverviewTab({ onNavigate }: { onNavigate: (t: PayrollTab) => void }) {
-  const stats = useMemo(() => {
-    const currentCycle = PAY_CYCLES[PAY_CYCLES.length - 1];
-    const lastDisbursed = [...PAY_CYCLES].reverse().find((c) => c.status === "Disbursed") ?? PAY_CYCLES[3];
-    const monthlyCost = PAYSLIPS.filter((p) => p.month === currentCycle.month).reduce((s, p) => s + p.gross + p.employerPF + p.employerESI, 0);
-    const headcount = new Set(PAYSLIPS.map((p) => p.empCode)).size;
-    const avgCtc = SALARY_STRUCTURES.reduce((s, r) => s + r.ctcAnnual * r.activeHeadcount, 0) / SALARY_STRUCTURES.reduce((s, r) => s + r.activeHeadcount, 0);
-    const pendingApprovals = PAYSLIPS.filter((p) => p.status === "Draft" || p.status === "Hold").length;
-    const pendingReimb = REIMBURSEMENTS.filter((r) => r.status === "Pending").length;
-    const pendingBonus = BONUSES.filter((b) => b.status === "Pending").length;
-    const activeLoans = LOANS.filter((l) => l.status === "Active").length;
-    const totalLoanOutstanding = LOANS.reduce((s, l) => s + l.outstanding, 0);
-    const totalReimbAmount = REIMBURSEMENTS.filter((r) => r.status !== "Rejected").reduce((s, r) => s + r.amount, 0);
-    const totalBonusAmount = BONUSES.filter((b) => b.status !== "Cancelled").reduce((s, b) => s + b.amount, 0);
-    return {
-      currentCycle,
-      lastDisbursed,
-      monthlyCost,
-      headcount,
-      avgCtc,
-      pendingApprovals,
-      pendingReimb,
-      pendingBonus,
-      activeLoans,
-      totalLoanOutstanding,
-      totalReimbAmount,
-      totalBonusAmount,
-    };
+  const [cycles, setCycles] = useState<PayCycle[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  const [monthlyCost, setMonthlyCost] = useState(0);
+  const [payslipCount, setPayslipCount] = useState(0);
+  const [headcount, setHeadcount] = useState(0);
+  const [avgCtc, setAvgCtc] = useState(0);
+  const [pendingApprovals, setPendingApprovals] = useState(0);
+
+  useEffect(() => {
+    Promise.all([
+      fetch("/api/payroll/cycles").then((r) => (r.ok ? r.json() : { cycles: [] })),
+      fetch("/api/payroll/payslips").then((r) => (r.ok ? r.json() : { payslips: [] })),
+      fetch("/api/payroll/structures").then((r) => (r.ok ? r.json() : { structures: [] })),
+    ]).then(([cyclesRes, payslipsRes, structuresRes]) => {
+      const cyclesData: PayCycle[] = cyclesRes.cycles ?? [];
+      const payslips = payslipsRes.payslips ?? [];
+      const structures = structuresRes.structures ?? [];
+      setCycles(cyclesData);
+      setPayslipCount(payslips.length);
+      const current = cyclesData[0];
+      setMonthlyCost(current ? payslips.filter((p: any) => p.month === current.month).reduce((s: number, p: any) => s + p.gross + p.employerPF + p.employerESI, 0) : 0);
+      setHeadcount(new Set(payslips.map((p: any) => p.empCode)).size);
+      const totalHc = structures.reduce((s: number, r: any) => s + r.activeHeadcount, 0);
+      setAvgCtc(totalHc > 0 ? structures.reduce((s: number, r: any) => s + r.ctcAnnual * r.activeHeadcount, 0) / totalHc : 0);
+      setPendingApprovals(payslips.filter((p: any) => p.status === "Draft" || p.status === "Hold").length);
+    }).finally(() => setLoaded(true));
   }, []);
+
+  const stats = {
+    currentCycle: cycles[0] ?? EMPTY_CYCLE,
+    monthlyCost, headcount, avgCtc, pendingApprovals,
+    // Reimbursements/Bonuses/Loans aren't converted yet - still the
+    // original mock arrays (see task.md for the flagged Tier-2 gap).
+    pendingReimb: REIMBURSEMENTS.filter((r) => r.status === "Pending").length,
+    pendingBonus: BONUSES.filter((b) => b.status === "Pending").length,
+    activeLoans: LOANS.filter((l) => l.status === "Active").length,
+    totalLoanOutstanding: LOANS.reduce((s, l) => s + l.outstanding, 0),
+    totalReimbAmount: REIMBURSEMENTS.filter((r) => r.status !== "Rejected").reduce((s, r) => s + r.amount, 0),
+    totalBonusAmount: BONUSES.filter((b) => b.status !== "Cancelled").reduce((s, b) => s + b.amount, 0),
+  };
 
   const upcomingDue = useMemo(
     () =>
@@ -83,18 +97,18 @@ export function OverviewTab({ onNavigate }: { onNavigate: (t: PayrollTab) => voi
     [],
   );
 
-  // Monthly cost trend (last 6 cycles)
-  const trend = useMemo(
-    () =>
-      PAY_CYCLES.map((c) => ({
-        month: c.month,
-        gross: c.grossTotal,
-        net: c.netTotal,
-        employer: c.employerContribTotal,
-      })),
-    [],
-  );
-  const maxTrend = Math.max(...trend.map((t) => t.gross));
+  // Monthly cost trend (last 6 real cycles)
+  const trend = cycles.slice(0, 6).reverse().map((c) => ({
+    month: c.month,
+    gross: c.grossTotal,
+    net: c.netTotal,
+    employer: c.employerContribTotal,
+  }));
+  const maxTrend = trend.length > 0 ? Math.max(...trend.map((t) => t.gross), 1) : 1;
+
+  if (!loaded) {
+    return <div className="p-6 text-[13px] text-muted-foreground">Loading payroll overview…</div>;
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -136,7 +150,7 @@ export function OverviewTab({ onNavigate }: { onNavigate: (t: PayrollTab) => voi
           flush
         >
           <div className="divide-y divide-border">
-            {PAY_CYCLES.slice().reverse().slice(0, 6).map((c) => {
+            {cycles.slice(0, 6).map((c) => {
               const m = cycleStatusBadge(c.status);
               return (
                 <button
@@ -263,7 +277,7 @@ export function OverviewTab({ onNavigate }: { onNavigate: (t: PayrollTab) => voi
 
       {/* Quick actions grid */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <QuickAction icon={<FileText className="h-4 w-4" />} title="Payslips" subtitle={`${PAYSLIPS.length} records`} hint={`${stats.pendingApprovals} pending approval`} onClick={() => onNavigate("payslips")} />
+        <QuickAction icon={<FileText className="h-4 w-4" />} title="Payslips" subtitle={`${payslipCount} records`} hint={`${stats.pendingApprovals} pending approval`} onClick={() => onNavigate("payslips")} />
         <QuickAction icon={<Receipt className="h-4 w-4" />} title="Reimbursements" subtitle={`${REIMBURSEMENTS.length} records`} hint={`${stats.pendingReimb} pending · ${formatINRCompact(stats.totalReimbAmount)}`} onClick={() => onNavigate("reimbursements")} />
         <QuickAction icon={<Gift className="h-4 w-4" />} title="Bonus & Incentives" subtitle={`${BONUSES.length} records`} hint={`${stats.pendingBonus} pending · ${formatINRCompact(stats.totalBonusAmount)}`} onClick={() => onNavigate("reimbursements")} />
         <QuickAction icon={<Landmark className="h-4 w-4" />} title="Loans & Advances" subtitle={`${LOANS.length} records`} hint={`${stats.activeLoans} active · ${formatINRCompact(stats.totalLoanOutstanding)}`} onClick={() => onNavigate("loans")} />

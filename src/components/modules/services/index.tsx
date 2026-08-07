@@ -1,18 +1,28 @@
 "use client";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useAppStore } from "@/lib/store/app-store";
 import { ServicesList, ServiceDueList } from "./services-list";
 import { AddServiceProgramDrawer } from "./add-service-program-drawer";
 import { EditServiceProgramDrawer } from "./edit-service-program-drawer";
-import { SERVICE_PROGRAMS, type ServiceProgram } from "./_helpers";
+import { type ServiceProgram } from "./_helpers";
 
 export function ServicesModule() {
   const { activeView, navigate } = useAppStore();
   const [showDue, setShowDue] = useState(false);
 
-  // Lifted state - lets the Edit drawer mutate programs in-memory.
-  const [programs, setPrograms] = useState<ServiceProgram[]>(SERVICE_PROGRAMS);
+  const [programs, setPrograms] = useState<ServiceProgram[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const [editRecord, setEditRecord] = useState<ServiceProgram | null>(null);
+
+  useEffect(() => {
+    fetch("/api/service-templates")
+      .then((r) => (r.ok ? r.json() : { templates: [] }))
+      .then(({ templates }) => {
+        setPrograms(templates ?? []);
+        setLoaded(true);
+      })
+      .catch(() => setLoaded(true));
+  }, []);
 
   const drawerOpen =
     activeView.module === "services" && activeView.view === "create";
@@ -22,8 +32,8 @@ export function ServicesModule() {
     }
   };
 
-  const handleUpdate = useCallback((id: string, patch: Partial<ServiceProgram>) => {
-    setPrograms((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)));
+  const handleUpdate = useCallback((id: string, updated: ServiceProgram) => {
+    setPrograms((prev) => prev.map((p) => (p.id === id ? updated : p)));
     setEditRecord(null);
   }, []);
 
@@ -41,6 +51,7 @@ export function ServicesModule() {
       ) : (
         <ServicesList
           programs={programs}
+          loaded={loaded}
           onCreate={() => navigate("services", "create")}
           onOpenDue={() => setShowDue(true)}
           onEdit={openEdit}
@@ -60,4 +71,3 @@ export function ServicesModule() {
     </>
   );
 }
-

@@ -3,15 +3,9 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import {
-  EMPLOYEES,
   ATTENDANCE_SUMMARIES,
-  DAILY_ATTENDANCE,
-  LEAVE_REQUESTS,
   HOLIDAYS,
-  PAYROLL_RUNS,
-  PAYSLIPS,
   COMPLIANCE_ITEMS,
-  POSITIONS,
   PERFORMANCE_REVIEWS,
   PIPS,
   ONBOARDING_PLANS,
@@ -93,25 +87,42 @@ interface HrState {
   issuances: Issuance[];
   auditLog: AuditEntry[];
 
+  // Real, database-backed (employees/attendanceDaily/leaveRequests/
+  // positions/payslips/payrollRuns) - GET /api/hr/{employees,attendance,
+  // leave,positions,payslips,payroll-runs} on hydrate(). Everything else in
+  // this state is still the original Zustand+localStorage mock slice
+  // (attendanceSummaries/attendanceRegs/compOffRequests/holidays/
+  // compliance/interviews/offers/performanceReviews/pips/onboardingPlans/
+  // exitRequests/docRequests/issuances/auditLog) - real schema doesn't
+  // exist for these yet, flagged as the next real-data pass rather than
+  // silently left inconsistent.
+  loaded: boolean;
+  hydrate: () => Promise<void>;
+
   // Employee mutations
-  addEmployee: (e: Employee) => void;
-  updateEmployee: (id: string, patch: Partial<Employee>) => void;
+  addEmployee: (e: Partial<Employee>) => Promise<Employee | null>;
+  updateEmployee: (id: string, patch: Partial<Employee>) => Promise<boolean>;
+
+  // Attendance mutations
+  markAttendance: (r: Partial<AttendanceRecord> & { empId: string }) => Promise<AttendanceRecord | null>;
 
   // Leave mutations
-  addLeaveRequest: (r: LeaveRequest) => void;
-  setLeaveStatus: (id: string, status: LeaveStatus) => void;
+  addLeaveRequest: (r: Partial<LeaveRequest> & { empId: string }) => Promise<LeaveRequest | null>;
+  setLeaveStatus: (id: string, status: LeaveStatus) => Promise<boolean>;
 
   // Comp-off mutations
   setCompOffStatus: (id: string, status: CompOffRequest["status"]) => void;
 
   // Payroll mutations
-  setPayslipStatus: (id: string, status: PayrollStatus) => void;
-  approvePayrollRun: (id: string) => void;
-  disbursePayrollRun: (id: string) => void;
+  runPayroll: (month: string) => Promise<PayrollRun | null>;
+  setPayslipStatus: (id: string, status: PayrollStatus) => Promise<boolean>;
+  approvePayrollRun: (id: string) => Promise<boolean>;
+  disbursePayrollRun: (id: string) => Promise<boolean>;
 
-  // Position mutations
-  addPosition: (p: Position) => void;
-  setCandidateStage: (positionId: string, candidateId: string, stage: CandidateStage) => void;
+  // Position/candidate mutations
+  addPosition: (p: Partial<Position>) => Promise<Position | null>;
+  addCandidate: (positionId: string, c: Partial<Candidate>) => Promise<boolean>;
+  setCandidateStage: (positionId: string, candidateId: string, stage: CandidateStage) => Promise<boolean>;
 
   // Performance mutations
   setReviewStatus: (id: string, status: ReviewStatus, rating?: Rating, comments?: string) => void;
@@ -147,18 +158,15 @@ interface HrState {
   reset: () => void;
 }
 
+// Employees/attendanceDaily/leaveRequests/payslips/payrollRuns/positions
+// are real now - start empty and are populated by hydrate(), not seeded
+// from mock-data. Everything else here is still the original mock seed.
 const SEED = {
-  employees: EMPLOYEES,
-  attendanceDaily: DAILY_ATTENDANCE,
   attendanceSummaries: ATTENDANCE_SUMMARIES,
   attendanceRegs: ATTENDANCE_REGS,
-  leaveRequests: LEAVE_REQUESTS,
   compOffRequests: COMPOFF_REQUESTS,
   holidays: HOLIDAYS,
-  payslips: PAYSLIPS,
-  payrollRuns: PAYROLL_RUNS,
   compliance: COMPLIANCE_ITEMS,
-  positions: POSITIONS,
   interviews: INTERVIEWS,
   offers: OFFER_LETTERS,
   performanceReviews: PERFORMANCE_REVIEWS,
@@ -183,65 +191,140 @@ function pushAudit(state: HrState, entry: Omit<AuditEntry, "id" | "timestamp">):
   return [next, ...state.auditLog].slice(0, 200);
 }
 
+async function postJSON<T>(url: string, body: unknown): Promise<T | null> {
+  try {
+    const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    if (!res.ok) return null;
+    return (await res.json()) as T;
+  } catch {
+    return null;
+  }
+}
+async function patchJSON(url: string, body: unknown): Promise<boolean> {
+  try {
+    const res = await fetch(url, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+// Like patchJSON but returns the parsed response body - used where the
+// caller needs the server's real computed result (e.g. payroll approve/
+// disburse return the updated run), not just a success boolean.
+async function patchAction<T>(url: string, body: unknown): Promise<T | null> {
+  try {
+    const res = await fetch(url, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    if (!res.ok) return null;
+    return (await res.json()) as T;
+  } catch {
+    return null;
+  }
+}
+
 export const useHrStore = create<HrState>()(
   persist(
     (set, get) => ({
       ...SEED,
+      employees: [],
+      attendanceDaily: [],
+      leaveRequests: [],
+      payslips: [],
+      payrollRuns: [],
+      positions: [],
+      loaded: false,
 
-      addEmployee: (e) =>
+      hydrate: async () => {
+        try {
+          const [emp, att, leave, pos, slips, runs] = await Promise.all([
+            fetch("/api/hr/employees").then((r) => (r.ok ? r.json() : { employees: [] })),
+            fetch("/api/hr/attendance").then((r) => (r.ok ? r.json() : { attendance: [] })),
+            fetch("/api/hr/leave").then((r) => (r.ok ? r.json() : { leaveRequests: [] })),
+            fetch("/api/hr/positions").then((r) => (r.ok ? r.json() : { positions: [] })),
+            fetch("/api/hr/payslips").then((r) => (r.ok ? r.json() : { payslips: [] })),
+            fetch("/api/hr/payroll-runs").then((r) => (r.ok ? r.json() : { payrollRuns: [] })),
+          ]);
+          set({
+            employees: emp.employees ?? [],
+            attendanceDaily: att.attendance ?? [],
+            leaveRequests: leave.leaveRequests ?? [],
+            positions: pos.positions ?? [],
+            payslips: slips.payslips ?? [],
+            payrollRuns: runs.payrollRuns ?? [],
+            loaded: true,
+          });
+        } catch {
+          set({ loaded: true });
+        }
+      },
+
+      addEmployee: async (e) => {
+        const res = await postJSON<{ employee: Employee }>("/api/hr/employees", e);
+        if (!res) return null;
         set((s) => ({
-          employees: [e, ...s.employees],
+          employees: [res.employee, ...s.employees],
           auditLog: pushAudit(s, {
-            action: "create",
-            entity: "Employee",
-            entityId: e.empCode,
-            description: `Added new employee ${e.name} (${e.designation})`,
+            action: "create", entity: "Employee", entityId: res.employee.empCode,
+            description: `Added new employee ${res.employee.name} (${res.employee.designation})`,
             user: "hr@reanzly.in",
           }),
-        })),
-      updateEmployee: (id, patch) =>
-        set((s) => ({
-          employees: s.employees.map((e) => (e.id === id ? { ...e, ...patch } : e)),
-          auditLog: pushAudit(s, {
-            action: "update",
-            entity: "Employee",
-            entityId: id,
-            description: `Updated employee profile fields: ${Object.keys(patch).join(", ")}`,
-            user: "hr@reanzly.in",
-          }),
-        })),
+        }));
+        return res.employee;
+      },
+      updateEmployee: async (id, patch) => {
+        const ok = await patchJSON(`/api/hr/employees/${id}`, patch);
+        if (ok) {
+          set((s) => ({
+            employees: s.employees.map((e) => (e.id === id ? { ...e, ...patch } : e)),
+            auditLog: pushAudit(s, {
+              action: "update", entity: "Employee", entityId: id,
+              description: `Updated employee profile fields: ${Object.keys(patch).join(", ")}`,
+              user: "hr@reanzly.in",
+            }),
+          }));
+        }
+        return ok;
+      },
 
-      addLeaveRequest: (r) =>
+      markAttendance: async (r) => {
+        const res = await postJSON<{ record: AttendanceRecord }>("/api/hr/attendance", r);
+        if (!res) return null;
         set((s) => ({
-          leaveRequests: [r, ...s.leaveRequests],
+          attendanceDaily: [res.record, ...s.attendanceDaily.filter((x) => !(x.empId === res.record.empId && x.date === res.record.date))],
+        }));
+        return res.record;
+      },
+
+      addLeaveRequest: async (r) => {
+        const res = await postJSON<{ leaveRequest: LeaveRequest }>("/api/hr/leave", r);
+        if (!res) return null;
+        set((s) => ({
+          leaveRequests: [res.leaveRequest, ...s.leaveRequests],
           auditLog: pushAudit(s, {
-            action: "create",
-            entity: "LeaveRequest",
-            entityId: r.id,
-            description: `Leave request submitted by ${r.empName} (${r.leaveType}, ${r.days}d)`,
-            user: `${r.empCode}@reanzly.in`,
+            action: "create", entity: "LeaveRequest", entityId: res.leaveRequest.id,
+            description: `Leave request submitted by ${res.leaveRequest.empName} (${res.leaveRequest.leaveType}, ${res.leaveRequest.days}d)`,
+            user: `${res.leaveRequest.empCode}@reanzly.in`,
           }),
-        })),
-      setLeaveStatus: (id, status) =>
-        set((s) => {
-          const req = s.leaveRequests.find((r) => r.id === id);
-          return {
-            leaveRequests: s.leaveRequests.map((r) =>
-              r.id === id
-                ? { ...r, status, reviewedOn: nowIso() }
-                : r,
-            ),
+        }));
+        return res.leaveRequest;
+      },
+      setLeaveStatus: async (id, status) => {
+        const req = get().leaveRequests.find((r) => r.id === id);
+        const ok = await patchJSON(`/api/hr/leave/${id}`, { status });
+        if (ok) {
+          set((s) => ({
+            leaveRequests: s.leaveRequests.map((r) => (r.id === id ? { ...r, status, reviewedOn: nowIso() } : r)),
             auditLog: req
               ? pushAudit(s, {
                   action: status === "Approved" ? "approve" : status === "Rejected" ? "reject" : "status_change",
-                  entity: "LeaveRequest",
-                  entityId: id,
+                  entity: "LeaveRequest", entityId: id,
                   description: `Leave ${status.toLowerCase()} for ${req.empName} (${req.leaveType})`,
                   user: "hr@reanzly.in",
                 })
               : s.auditLog,
-          };
-        }),
+          }));
+        }
+        return ok;
+      },
 
       setCompOffStatus: (id, status) =>
         set((s) => ({
@@ -250,61 +333,70 @@ export const useHrStore = create<HrState>()(
           ),
         })),
 
-      setPayslipStatus: (id, status) =>
+      runPayroll: async (month) => {
+        const res = await postJSON<{ payrollRun: PayrollRun }>("/api/hr/payroll-runs", { month });
+        if (!res) return null;
+        set((s) => ({ payrollRuns: [res.payrollRun, ...s.payrollRuns] }));
+        // Refresh payslips so the new run's real slips show up immediately.
+        const slipsRes = await fetch(`/api/hr/payslips?month=${encodeURIComponent(month)}`).then((r) => (r.ok ? r.json() : null));
+        if (slipsRes) set((s) => ({ payslips: [...slipsRes.payslips, ...s.payslips.filter((p) => p.month !== month)] }));
+        return res.payrollRun;
+      },
+      setPayslipStatus: async (id, status) => {
+        const ok = await patchJSON(`/api/hr/payslips/${id}`, { status });
+        if (ok) set((s) => ({ payslips: s.payslips.map((p) => (p.id === id ? { ...p, status } : p)) }));
+        return ok;
+      },
+      approvePayrollRun: async (id) => {
+        const res = await patchAction<{ payrollRun: PayrollRun }>(`/api/hr/payroll-runs/${id}`, { action: "approve" });
+        if (!res) return false;
         set((s) => ({
-          payslips: s.payslips.map((p) => (p.id === id ? { ...p, status } : p)),
-        })),
-      approvePayrollRun: (id) =>
+          payrollRuns: s.payrollRuns.map((r) => (r.id === id ? res.payrollRun : r)),
+          payslips: s.payslips.map((p) => (p.month === res.payrollRun.month ? { ...p, status: "Approved" as PayrollStatus } : p)),
+          auditLog: pushAudit(s, { action: "approve", entity: "PayrollRun", entityId: id, description: "Payroll run approved", user: "hr@reanzly.in" }),
+        }));
+        return true;
+      },
+      disbursePayrollRun: async (id) => {
+        const res = await patchAction<{ payrollRun: PayrollRun }>(`/api/hr/payroll-runs/${id}`, { action: "disburse" });
+        if (!res) return false;
         set((s) => ({
-          payrollRuns: s.payrollRuns.map((r) =>
-            r.id === id ? { ...r, status: "Approved" as PayrollStatus, approvedOn: nowIso() } : r,
-          ),
-          payslips: s.payslips.map((p) =>
-            p.month === s.payrollRuns.find((r) => r.id === id)?.month
-              ? { ...p, status: "Approved" as PayrollStatus }
-              : p,
-          ),
-          auditLog: pushAudit(s, {
-            action: "approve",
-            entity: "PayrollRun",
-            entityId: id,
-            description: `Payroll run approved`,
-            user: "hr@reanzly.in",
-          }),
-        })),
-      disbursePayrollRun: (id) =>
-        set((s) => ({
-          payrollRuns: s.payrollRuns.map((r) =>
-            r.id === id ? { ...r, status: "Paid" as PayrollStatus, disbursedOn: nowIso() } : r,
-          ),
-          payslips: s.payslips.map((p) =>
-            p.month === s.payrollRuns.find((r) => r.id === id)?.month
-              ? { ...p, status: "Paid" as PayrollStatus }
-              : p,
-          ),
-          auditLog: pushAudit(s, {
-            action: "status_change",
-            entity: "PayrollRun",
-            entityId: id,
-            description: `Payroll disbursed`,
-            user: "hr@reanzly.in",
-          }),
-        })),
+          payrollRuns: s.payrollRuns.map((r) => (r.id === id ? res.payrollRun : r)),
+          payslips: s.payslips.map((p) => (p.month === res.payrollRun.month ? { ...p, status: "Paid" as PayrollStatus } : p)),
+          auditLog: pushAudit(s, { action: "status_change", entity: "PayrollRun", entityId: id, description: "Payroll disbursed", user: "hr@reanzly.in" }),
+        }));
+        return true;
+      },
 
-      addPosition: (p) => set((s) => ({ positions: [p, ...s.positions] })),
-      setCandidateStage: (positionId, candidateId, stage) =>
+      addPosition: async (p) => {
+        const res = await postJSON<{ position: Position }>("/api/hr/positions", p);
+        if (!res) return null;
+        set((s) => ({ positions: [res.position, ...s.positions] }));
+        return res.position;
+      },
+      addCandidate: async (positionId, c) => {
+        const res = await postJSON<{ candidate: Candidate }>("/api/hr/candidates", { ...c, positionId });
+        if (!res) return false;
         set((s) => ({
           positions: s.positions.map((p) =>
-            p.id === positionId
-              ? {
-                  ...p,
-                  candidates: p.candidates.map((c) =>
-                    c.id === candidateId ? { ...c, stage } : c,
-                  ),
-                }
-              : p,
+            p.id === positionId ? { ...p, candidates: [res.candidate, ...p.candidates] } : p,
           ),
-        })),
+        }));
+        return true;
+      },
+      setCandidateStage: async (positionId, candidateId, stage) => {
+        const ok = await patchJSON(`/api/hr/candidates/${candidateId}`, { stage });
+        if (ok) {
+          set((s) => ({
+            positions: s.positions.map((p) =>
+              p.id === positionId
+                ? { ...p, candidates: p.candidates.map((c) => (c.id === candidateId ? { ...c, stage } : c)) }
+                : p,
+            ),
+          }));
+        }
+        return ok;
+      },
 
       setReviewStatus: (id, status, rating, comments) =>
         set((s) => ({
@@ -505,7 +597,28 @@ export const useHrStore = create<HrState>()(
     }),
     {
       name: "reanzly-hr",
-      version: 4,
+      version: 5,
+      // Real, hydrated fields are never persisted to localStorage - they're
+      // always refetched from the database on mount, so a stale cached copy
+      // would just be dead weight (and could briefly show outdated data
+      // before hydrate() overwrites it). Only the still-mock Tier-2 slices
+      // keep the original persist-to-localStorage behaviour.
+      partialize: (s) => ({
+        attendanceSummaries: s.attendanceSummaries,
+        attendanceRegs: s.attendanceRegs,
+        compOffRequests: s.compOffRequests,
+        holidays: s.holidays,
+        compliance: s.compliance,
+        interviews: s.interviews,
+        offers: s.offers,
+        performanceReviews: s.performanceReviews,
+        pips: s.pips,
+        onboardingPlans: s.onboardingPlans,
+        exitRequests: s.exitRequests,
+        docRequests: s.docRequests,
+        issuances: s.issuances,
+        auditLog: s.auditLog,
+      }),
     },
   ),
 );

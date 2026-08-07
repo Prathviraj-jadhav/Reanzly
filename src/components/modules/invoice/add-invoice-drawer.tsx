@@ -64,9 +64,11 @@ import type { Invoice } from "@/lib/types";
 interface AddInvoiceDrawerProps {
   open: boolean;
   onClose: () => void;
-  /** Create callback - persists the new invoice to the parent list state.
-   *  The second arg carries the assigned customer-contact IDs (Task 15-d). */
-  onAdd?: (invoice: Invoice, assignedContactIds?: string[]) => void;
+  /** Create callback - persists the new invoice via the real API. Resolves
+   *  false (not a throw) on failure - the caller already surfaces its own
+   *  error toast. The second arg carries the assigned customer-contact IDs
+   *  (Task 15-d, still local-only meta). */
+  onAdd?: (invoice: Invoice, assignedContactIds?: string[]) => Promise<boolean>;
 }
 
 const SUPPLIER_STATE = "27"; // Maharashtra
@@ -151,7 +153,9 @@ export function AddInvoiceDrawer({ open, onClose, onAdd }: AddInvoiceDrawerProps
     [form.lineItems, form.customerState],
   );
 
-  const handleSubmit = () => {
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async () => {
     const issues = Object.values(stepErrors).flat();
     if (issues.length) {
       toast("Compliance check failed", {
@@ -179,7 +183,10 @@ export function AddInvoiceDrawer({ open, onClose, onAdd }: AddInvoiceDrawerProps
         cgst: patch.cgst,
         sgst: patch.sgst,
       };
-      onAdd(newInvoice, form.assignedContactIds);
+      setSubmitting(true);
+      const ok = await onAdd(newInvoice, form.assignedContactIds);
+      setSubmitting(false);
+      if (!ok) return; // onAdd already surfaced its own error toast
       toast.success("Invoice created", {
         description: `${invNum} · ${form.customerName} · ${formatINR(totals.total)}`,
       });
@@ -410,8 +417,9 @@ export function AddInvoiceDrawer({ open, onClose, onAdd }: AddInvoiceDrawerProps
               variant="primary"
               icon={<Check className="h-3.5 w-3.5" />}
               onClick={handleSubmit}
+              disabled={submitting}
             >
-              Create Invoice
+              {submitting ? "Creating…" : "Create Invoice"}
             </Btn>
           ) : (
             <Btn

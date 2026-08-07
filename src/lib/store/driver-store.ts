@@ -2,6 +2,7 @@
 
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
+import type { Trip } from "@/lib/types";
 
 // ===== Driver Field App Store =====
 // Persists driver identity, per-trip status overrides, activity log, GPS pings,
@@ -130,6 +131,14 @@ interface DriverState {
   syncing: boolean;
   lastSyncError: string | null;
   syncToBackend: () => Promise<void>;
+
+  // Real assigned trips (GET /api/driver/me), replacing the old
+  // mock-data.ts TRIPS array filtered by a hardcoded driverId. Not
+  // persisted - always refetched on field-app mount so a reassignment made
+  // elsewhere (dispatch, ops) shows up.
+  trips: Trip[];
+  tripsLoaded: boolean;
+  hydrate: () => Promise<void>;
 }
 
 const DEFAULT_IDENTITY = {
@@ -351,6 +360,29 @@ export const useDriverStore = create<DriverState>()(
             syncedIds.has(a.id) ? { ...a, synced: true } : a
           ),
         }));
+      },
+
+      trips: [],
+      tripsLoaded: false,
+      hydrate: async () => {
+        try {
+          const res = await fetch("/api/driver/me");
+          if (!res.ok) {
+            set({ tripsLoaded: true });
+            return;
+          }
+          const { driver, trips } = await res.json();
+          set({
+            driverId: driver.id,
+            driverName: driver.name,
+            phone: driver.phone || get().phone,
+            licenseNumber: driver.licenseNumber || get().licenseNumber,
+            trips,
+            tripsLoaded: true,
+          });
+        } catch {
+          set({ tripsLoaded: true });
+        }
       },
     }),
     {

@@ -188,17 +188,7 @@ export function MarketingFooter() {
               Terms
             </a>
           </div>
-          <div className="flex items-center gap-1.5">
-            <span>{COMPANY.creditLine.replace("Nexgen Elit", "").trim()}</span>
-            <a
-              href={COMPANY.creditUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-medium text-foreground underline underline-offset-4 transition-colors hover:text-foreground/80"
-            >
-              Nexgen Elit
-            </a>
-          </div>
+
         </div>
       </div>
     </footer>

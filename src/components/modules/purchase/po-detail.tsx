@@ -35,7 +35,6 @@ import {
   type POReceipt,
   type POBill,
 } from "./_helpers";
-import { PURCHASE_ORDERS } from "./_helpers";
 import { cn } from "@/lib/utils";
 
 const TABS = [
@@ -49,21 +48,27 @@ const TABS = [
 interface PODetailProps {
   poId: string;
   initialTab?: string;
-  onUpdate?: (id: string, data: Partial<PurchaseOrder>) => void;
+  orders: PurchaseOrder[];
+  onUpdate: (id: string, updated: PurchaseOrder) => void;
 }
 
-export function PODetail({ poId, initialTab, onUpdate }: PODetailProps) {
+export function PODetail({ poId, initialTab, orders, onUpdate }: PODetailProps) {
   const { navigate, navigateDetail } = useAppStore();
   const [activeTab, setActiveTab] = useState(initialTab || "overview");
-  const [record, setRecord] = useState<PurchaseOrder | undefined>(
-    () => PURCHASE_ORDERS.find((p) => p.id === poId),
-  );
+  const po = useMemo(() => orders.find((p) => p.id === poId), [orders, poId]);
 
-  const po = record;
-
-  const handleUpdate = (id: string, data: Partial<PurchaseOrder>) => {
-    setRecord((prev) => (prev ? { ...prev, ...data } : prev));
-    onUpdate?.(id, data);
+  const handleStatusChange = (id: string, status: string) => {
+    void fetch(`/api/purchase-orders/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+    })
+      .then((res) => (res.ok ? res.json() : Promise.reject()))
+      .then(({ purchaseOrder }) => {
+        onUpdate(id, purchaseOrder);
+        toastSuccess(`PO ${status === "Cancelled" ? "cancelled" : "reopened"}`, `${purchaseOrder.poNumber} · now ${status}`);
+      })
+      .catch(() => toastInfo("Could not update PO", "Please try again"));
   };
 
   const totals = useMemo(() => {
@@ -116,11 +121,7 @@ export function PODetail({ poId, initialTab, onUpdate }: PODetailProps) {
     { label: "Link Vendor Bill", onClick: () => toastInfo("Open bill entry", po.poNumber) },
     {
       label: isClosed ? "Reopen PO" : "Cancel PO",
-      onClick: () => {
-        const next = isClosed ? "Confirmed" : "Cancelled";
-        handleUpdate(po.id, { status: next });
-        toastSuccess(`PO ${isClosed ? "reopened" : "cancelled"}`, `${po.poNumber} · now ${next}`);
-      },
+      onClick: () => handleStatusChange(po.id, isClosed ? "Confirmed" : "Cancelled"),
     },
   ];
 

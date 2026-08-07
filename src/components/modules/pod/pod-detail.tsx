@@ -146,8 +146,10 @@ export function PODDetail({ podId }: PODDetailProps) {
     quickActions.push({
       label: "Mark Approved",
       onClick: () => {
-        setSubmissionStatus(pod.id, "Approved");
-        toast.success("POD approved", { description: pod.voucherNumber });
+        void setSubmissionStatus(pod.id, "Approved").then((ok) => {
+          if (ok) toast.success("POD approved", { description: pod.voucherNumber });
+          else toast.error("Could not approve POD");
+        });
       },
     });
   }
@@ -155,8 +157,10 @@ export function PODDetail({ podId }: PODDetailProps) {
     quickActions.push({
       label: "Submit for Approval",
       onClick: () => {
-        setSubmissionStatus(pod.id, "Submitted");
-        toast.success("POD submitted", { description: pod.voucherNumber });
+        void setSubmissionStatus(pod.id, "Submitted").then((ok) => {
+          if (ok) toast.success("POD submitted", { description: pod.voucherNumber });
+          else toast.error("Could not submit POD");
+        });
       },
     });
   }

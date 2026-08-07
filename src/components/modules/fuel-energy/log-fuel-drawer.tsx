@@ -1,5 +1,5 @@
 "use client";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Btn } from "@/components/shared/btn";
 import { toast } from "sonner";
 import {
@@ -33,8 +33,7 @@ import {
   SheetTitle,
   SheetDescription,
 } from "@/components/ui/sheet";
-import { VEHICLES, DRIVERS } from "@/lib/mock-data";
-import type { FuelEntry } from "@/lib/types";
+import type { FuelEntry, Vehicle, Driver } from "@/lib/types";
 import {
   FUEL_TYPES,
   STATIONS,
@@ -50,8 +49,8 @@ interface LogFuelDrawerProps {
   open: boolean;
   onClose: () => void;
   record?: FuelEntry;
-  onAdd?: (fuelEntry: FuelEntry) => void;
-  onUpdate?: (id: string, data: Partial<FuelEntry>) => void;
+  onAdd?: (fuelEntry: FuelEntry) => Promise<boolean>;
+  onUpdate?: (id: string, data: Partial<FuelEntry>) => Promise<boolean>;
 }
 
 function recordToForm(record: FuelEntry): FuelForm {
@@ -108,6 +107,19 @@ export function LogFuelDrawer({
   const [form, setForm] = useState<FuelForm>(() =>
     record ? recordToForm(record) : EMPTY_FUEL_FORM,
   );
+  const [submitting, setSubmitting] = useState(false);
+
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [drivers, setDrivers] = useState<Driver[]>([]);
+  useEffect(() => {
+    Promise.all([
+      fetch("/api/vehicles").then((r) => (r.ok ? r.json() : { vehicles: [] })),
+      fetch("/api/drivers").then((r) => (r.ok ? r.json() : { drivers: [] })),
+    ]).then(([v, d]) => {
+      setVehicles(v.vehicles ?? []);
+      setDrivers(d.drivers ?? []);
+    }).catch(() => toast.error("Couldn't load fleet/roster data"));
+  }, []);
 
   const update = <K extends keyof FuelForm>(k: K, v: FuelForm[K]) =>
     setForm((s) => ({ ...s, [k]: v }));
@@ -150,13 +162,17 @@ export function LogFuelDrawer({
     }
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const payload = formToData(form, record);
+    setSubmitting(true);
+    let ok = true;
     if (record && onUpdate) {
-      onUpdate(record.id, payload);
-      toast.success("Fuel entry updated", {
-        description: `${form.vehicle} · ${form.quantity} L · ${formatINR(computedTotal)}`,
-      });
+      ok = await onUpdate(record.id, payload);
+      if (ok) {
+        toast.success("Fuel entry updated", {
+          description: `${form.vehicle} · ${form.quantity} L · ${formatINR(computedTotal)}`,
+        });
+      }
     } else if (onAdd) {
       const newFuelEntry: FuelEntry = {
         id: `fuel-${Date.now()}`,
@@ -173,15 +189,15 @@ export function LogFuelDrawer({
         anomaly: payload.anomaly ?? false,
         anomalyNote: payload.anomalyNote,
       };
-      onAdd(newFuelEntry);
-      toast.success("Fuel entry logged", {
-        description: `${form.vehicle} · ${form.quantity} L · ${formatINR(computedTotal)}`,
-      });
-    } else {
-      toast.success("Fuel entry logged", {
-        description: `${form.vehicle} · ${form.quantity} L · ${formatINR(computedTotal)}`,
-      });
+      ok = await onAdd(newFuelEntry);
+      if (ok) {
+        toast.success("Fuel entry logged", {
+          description: `${form.vehicle} · ${form.quantity} L · ${formatINR(computedTotal)}`,
+        });
+      }
     }
+    setSubmitting(false);
+    if (!ok) return; // onAdd/onUpdate already surfaced their own error toast
     setStep(1);
     setForm(EMPTY_FUEL_FORM);
     onClose();
@@ -270,7 +286,7 @@ export function LogFuelDrawer({
                       </SelectTrigger>
                       <SelectContent className="max-h-72 overflow-y-auto scrollbar-thin">
                         <SelectItem value="none">- Select vehicle -</SelectItem>
-                        {VEHICLES.map((v) => (
+                        {vehicles.map((v) => (
                           <SelectItem key={v.id} value={v.name}>{v.name} · {v.licensePlate}</SelectItem>
                         ))}
                       </SelectContent>
@@ -284,7 +300,7 @@ export function LogFuelDrawer({
                       </SelectTrigger>
                       <SelectContent className="max-h-60 overflow-y-auto scrollbar-thin">
                         <SelectItem value="none">- Not assigned -</SelectItem>
-                        {DRIVERS.filter((d) => d.role === "Driver").map((d) => (
+                        {drivers.filter((d) => d.role === "Driver").map((d) => (
                           <SelectItem key={d.id} value={d.name}>{d.name}</SelectItem>
                         ))}
                       </SelectContent>
@@ -485,7 +501,7 @@ export function LogFuelDrawer({
           </Btn>
           <div className="text-[11px] text-muted-foreground tabular">Step {step} of 3</div>
           {isLastStep ? (
-            <Btn variant="primary" icon={<Check className="h-3.5 w-3.5" />} onClick={handleSubmit}>
+            <Btn variant="primary" icon={<Check className="h-3.5 w-3.5" />} onClick={handleSubmit} disabled={submitting}>
               {record ? "Save Changes" : "Log Entry"}
             </Btn>
           ) : (

@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Btn } from "@/components/shared/btn";
 import { toast } from "sonner";
 import {
@@ -31,8 +31,7 @@ import {
   SheetTitle,
   SheetDescription,
 } from "@/components/ui/sheet";
-import { VEHICLES, TRIPS } from "@/lib/mock-data";
-import type { Expense } from "@/lib/types";
+import type { Expense, Vehicle, Trip } from "@/lib/types";
 import {
   EXPENSE_CATEGORIES,
   PAYMENT_MODES,
@@ -46,8 +45,8 @@ interface AddExpenseDrawerProps {
   open: boolean;
   onClose: () => void;
   record?: Expense;
-  onAdd?: (expense: Expense) => void;
-  onUpdate?: (id: string, data: Partial<Expense>) => void;
+  onAdd?: (expense: Expense) => Promise<boolean>;
+  onUpdate?: (id: string, data: Partial<Expense>) => Promise<boolean>;
 }
 
 function recordToForm(record: Expense): ExpenseForm {
@@ -95,6 +94,19 @@ export function AddExpenseDrawer({
   const [form, setForm] = useState<ExpenseForm>(() =>
     record ? recordToForm(record) : EMPTY_EXPENSE_FORM,
   );
+  const [submitting, setSubmitting] = useState(false);
+
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [trips, setTrips] = useState<Trip[]>([]);
+  useEffect(() => {
+    Promise.all([
+      fetch("/api/vehicles").then((r) => (r.ok ? r.json() : { vehicles: [] })),
+      fetch("/api/trips").then((r) => (r.ok ? r.json() : { trips: [] })),
+    ]).then(([v, t]) => {
+      setVehicles(v.vehicles ?? []);
+      setTrips(t.trips ?? []);
+    }).catch(() => toast.error("Couldn't load fleet/trip data"));
+  }, []);
 
   const update = <K extends keyof ExpenseForm>(k: K, v: ExpenseForm[K]) =>
     setForm((s) => ({ ...s, [k]: v }));
@@ -127,13 +139,17 @@ export function AddExpenseDrawer({
     if (step > 1) setStep(step - 1);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const payload = formToData(form);
+    setSubmitting(true);
+    let ok = true;
     if (record && onUpdate) {
-      onUpdate(record.id, payload);
-      toast.success("Expense updated", {
-        description: `${form.category} · ${formatINR(Number(form.amount) || 0)}`,
-      });
+      ok = await onUpdate(record.id, payload);
+      if (ok) {
+        toast.success("Expense updated", {
+          description: `${form.category} · ${formatINR(Number(form.amount) || 0)}`,
+        });
+      }
     } else if (onAdd) {
       const newExpense: Expense = {
         id: `exp-${Date.now()}`,
@@ -147,15 +163,15 @@ export function AddExpenseDrawer({
         submittedBy: payload.submittedBy ?? "Unknown",
         receiptStatus: payload.receiptStatus ?? "Missing",
       };
-      onAdd(newExpense);
-      toast.success("Expense logged", {
-        description: `${form.category} · ${formatINR(Number(form.amount) || 0)}`,
-      });
-    } else {
-      toast.success("Expense logged", {
-        description: `${form.category} · ${formatINR(Number(form.amount) || 0)}`,
-      });
+      ok = await onAdd(newExpense);
+      if (ok) {
+        toast.success("Expense logged", {
+          description: `${form.category} · ${formatINR(Number(form.amount) || 0)}`,
+        });
+      }
     }
+    setSubmitting(false);
+    if (!ok) return; // onAdd/onUpdate already surfaced their own error toast
     setStep(1);
     setForm(EMPTY_EXPENSE_FORM);
     onClose();
@@ -375,7 +391,7 @@ export function AddExpenseDrawer({
                     </SelectTrigger>
                     <SelectContent className="max-h-72 overflow-y-auto scrollbar-thin">
                       <SelectItem value="none">- Not linked -</SelectItem>
-                      {VEHICLES.map((v) => (
+                      {vehicles.map((v) => (
                         <SelectItem key={v.id} value={v.name}>
                           {v.name} · {v.licensePlate}
                         </SelectItem>
@@ -404,7 +420,7 @@ export function AddExpenseDrawer({
                     </SelectTrigger>
                     <SelectContent className="max-h-72 overflow-y-auto scrollbar-thin">
                       <SelectItem value="none">- Not linked -</SelectItem>
-                      {TRIPS.slice(0, 20).map((t) => (
+                      {trips.slice(0, 20).map((t) => (
                         <SelectItem key={t.id} value={t.tripId}>
                           {t.tripId} · {t.origin} → {t.destination}
                         </SelectItem>
@@ -552,8 +568,9 @@ export function AddExpenseDrawer({
               variant="primary"
               icon={<Check className="h-3.5 w-3.5" />}
               onClick={handleSubmit}
+              disabled={submitting}
             >
-              {record ? "Save Changes" : "Log Expense"}
+              {submitting ? "Saving…" : record ? "Save Changes" : "Log Expense"}
             </Btn>
           ) : (
             <Btn variant="primary" onClick={goNext} disabled={!canAdvance}>

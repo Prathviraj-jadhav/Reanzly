@@ -1,5 +1,5 @@
 "use client";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable, type Column } from "@/components/shared/data-table";
 import { Btn } from "@/components/shared/btn";
@@ -28,7 +28,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import {
-  SERVICE_PROGRAMS,
   SERVICE_TYPES,
   VEHICLE_TYPES,
   type ServiceProgram,
@@ -38,18 +37,17 @@ import {
   formatNumber,
   relativeTime,
 } from "./_helpers";
-import { VEHICLES } from "@/lib/mock-data";
 
 interface ServicesListProps {
   onCreate: () => void;
   onOpenDue: () => void;
-  /** Lifted in-memory programs so edits mutate locally. */
-  programs?: ServiceProgram[];
+  /** Lifted, fetched-from-API programs so edits mutate locally. */
+  programs: ServiceProgram[];
+  loaded: boolean;
   onEdit?: (p: ServiceProgram) => void;
 }
 
-export function ServicesList({ onCreate, onOpenDue, programs: programsProp, onEdit }: ServicesListProps) {
-  const programs = programsProp ?? SERVICE_PROGRAMS;
+export function ServicesList({ onCreate, onOpenDue, programs, loaded, onEdit }: ServicesListProps) {
   const [search, setSearch] = useState("");
   const [vehicleTypeFilter, setVehicleTypeFilter] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState<string>("");
@@ -300,24 +298,31 @@ export function ServicesList({ onCreate, onOpenDue, programs: programsProp, onEd
           </div>
         </div>
 
-        <DataTable
-          data={filtered}
-          columns={columns}
-          rowActions={rowActions}
-          bulkActions={bulkActions}
-          emptyTitle="No service programs"
-          emptyDescription="Create a program to start auto-scheduling maintenance."
-          emptyAction={
-            <Btn variant="primary" icon={<Plus className="h-3.5 w-3.5" />} onClick={onCreate}>
-              New Program
-            </Btn>
-          }
-          initialSort={{ key: "name", dir: "asc" }}
-        />
+        {!loaded ? (
+          <div className="px-4 py-10 text-center text-[13px] text-muted-foreground">
+            Loading service programs…
+          </div>
+        ) : (
+          <DataTable
+            data={filtered}
+            columns={columns}
+            rowActions={rowActions}
+            bulkActions={bulkActions}
+            emptyTitle="No service programs"
+            emptyDescription="Create a program to start auto-scheduling maintenance."
+            emptyAction={
+              <Btn variant="primary" icon={<Plus className="h-3.5 w-3.5" />} onClick={onCreate}>
+                New Program
+              </Btn>
+            }
+            initialSort={{ key: "name", dir: "asc" }}
+          />
+        )}
       </div>
 
       <p className="text-[11px] text-muted-foreground">
-        {programs.length} programs covering {VEHICLE_TYPES.length} vehicle types · {SERVICE_TYPES.length} service types · last updated {relativeTime(programs[0]?.lastUpdated ?? new Date().toISOString())}
+        {programs.length} programs covering {VEHICLE_TYPES.length} vehicle types · {SERVICE_TYPES.length} service types
+        {programs[0] ? ` · last updated ${relativeTime(programs[0].lastUpdated)}` : ""}
       </p>
     </div>
   );
@@ -331,37 +336,22 @@ interface ServiceDueListProps {
 export function ServiceDueList({ onBack }: ServiceDueListProps) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("");
+  const [dueItems, setDueItems] = useState<ServiceDueItem[]>([]);
+  const [loaded, setLoaded] = useState(false);
 
-  // Derive service due list from vehicles
-  const dueItems: ServiceDueItem[] = useMemo(() => {
-    return VEHICLES.slice(0, 24).map((v, i) => {
-      const program = SERVICE_PROGRAMS[i % SERVICE_PROGRAMS.length];
-      const lastServiceKm = Math.max(0, v.currentMeter - (program.intervalValue * (0.7 + (i % 4) * 0.1)));
-      const kmRemaining = Math.round((lastServiceKm + program.intervalValue) - v.currentMeter);
-      const daysRemaining = Math.round((kmRemaining / 80));
-      const status: ServiceDueItem["status"] =
-        kmRemaining <= 0 || daysRemaining <= 0
-          ? "Due Now"
-          : kmRemaining <= program.intervalValue * 0.1 || daysRemaining <= 7
-            ? "Due Soon"
-            : "Upcoming";
-      return {
-        id: `sd-${v.id}`,
-        vehicleId: v.id,
-        vehicleName: v.name,
-        licensePlate: v.licensePlate,
-        programName: program.name,
-        serviceType: program.serviceType,
-        lastServiceDate: new Date(Date.now() - (60 - (i % 50)) * 86400000).toISOString(),
-        lastServiceOdometer: lastServiceKm,
-        currentOdometer: v.currentMeter,
-        intervalValue: program.intervalValue,
-        intervalUnit: program.intervalUnit,
-        kmRemaining,
-        daysRemaining,
-        status,
-      };
-    });
+  // Real per-vehicle ServiceProgram instances (db.serviceProgram, joined
+  // with the vehicle's real currentMeter). Empty until a program is linked
+  // to a vehicle - there's no such linking UI yet, so this is a real (if
+  // currently sparse) result rather than the old mock's fabricated
+  // per-vehicle cycling through SERVICE_PROGRAMS.
+  useEffect(() => {
+    fetch("/api/service-programs")
+      .then((r) => (r.ok ? r.json() : { dueItems: [] }))
+      .then(({ dueItems }) => {
+        setDueItems(dueItems ?? []);
+        setLoaded(true);
+      })
+      .catch(() => setLoaded(true));
   }, []);
 
   const filtered = useMemo(() => {
@@ -513,7 +503,7 @@ export function ServiceDueList({ onBack }: ServiceDueListProps) {
         <KpiTile icon={<Truck className="h-3.5 w-3.5" />} label="Tracked Vehicles" value={String(dueItems.length)} />
         <KpiTile icon={<Clock className="h-3.5 w-3.5" />} label="Due Now" value={String(dueNow)} hint="overdue or at interval" />
         <KpiTile icon={<CalendarClock className="h-3.5 w-3.5" />} label="Due Soon" value={String(dueSoon)} hint="within 7 days" />
-        <KpiTile icon={<ListChecks className="h-3.5 w-3.5" />} label="Programs Active" value={String(SERVICE_PROGRAMS.filter((p) => p.status === "Active").length)} />
+        <KpiTile icon={<ListChecks className="h-3.5 w-3.5" />} label="Programs Linked" value={String(new Set(dueItems.map((d) => d.programName)).size)} />
       </div>
 
       <div className="rounded-[6px] border border-border bg-card overflow-hidden">
@@ -552,14 +542,20 @@ export function ServiceDueList({ onBack }: ServiceDueListProps) {
           </div>
         </div>
 
-        <DataTable
-          data={filtered}
-          columns={dueColumns}
-          rowActions={rowActions}
-          emptyTitle="No vehicles due"
-          emptyDescription="All vehicles are within their service intervals."
-          initialSort={{ key: "daysRemaining", dir: "asc" }}
-        />
+        {!loaded ? (
+          <div className="px-4 py-10 text-center text-[13px] text-muted-foreground">
+            Loading service due list…
+          </div>
+        ) : (
+          <DataTable
+            data={filtered}
+            columns={dueColumns}
+            rowActions={rowActions}
+            emptyTitle="No vehicles due"
+            emptyDescription="No vehicles are linked to a service program yet - link one from a program's vehicle-type match to start tracking due dates."
+            initialSort={{ key: "daysRemaining", dir: "asc" }}
+          />
+        )}
       </div>
     </div>
   );

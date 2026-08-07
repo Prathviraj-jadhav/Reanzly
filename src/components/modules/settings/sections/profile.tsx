@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Btn } from "@/components/shared/btn";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -26,38 +26,71 @@ interface ProfileData {
   reportingManager: string;
   language: string;
   timezone: string;
-  initials: string;
 }
 
-const DEFAULT_PROFILE: ProfileData = {
-  name: "Vikram Deshmukh",
-  email: "vikram@reanzly.in",
-  altEmail: "vdeshmukh.personal@gmail.com",
-  phone: "+91 98200 11234",
-  altPhone: "+91 22 4001 2233",
-  dob: "1982-06-14",
-  gender: "Male",
-  address: "12 Carmichael Road, Malabar Hill, Mumbai 400026",
-  jobTitle: "Owner / Director",
-  department: "Management",
-  reportingManager: "-",
-  language: "English (India)",
-  timezone: "Asia/Kolkata (IST, UTC+05:30)",
-  initials: "VD",
+const EMPTY_PROFILE: ProfileData = {
+  name: "",
+  email: "",
+  altEmail: "",
+  phone: "",
+  altPhone: "",
+  dob: "",
+  gender: "",
+  address: "",
+  jobTitle: "",
+  department: "",
+  reportingManager: "",
+  language: "",
+  timezone: "",
 };
+
+function initialsOf(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "??";
+  return parts.map((p) => p[0]).join("").slice(0, 2).toUpperCase();
+}
 
 export function ProfileSection() {
   const [editing, setEditing] = useState(false);
-  const [data, setData] = useState<ProfileData>(DEFAULT_PROFILE);
-  const [draft, setDraft] = useState<ProfileData>(DEFAULT_PROFILE);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [data, setData] = useState<ProfileData>(EMPTY_PROFILE);
+  const [draft, setDraft] = useState<ProfileData>(EMPTY_PROFILE);
+
+  useEffect(() => {
+    fetch("/api/auth/profile")
+      .then((r) => (r.ok ? r.json() : Promise.reject(r)))
+      .then(({ profile }) => {
+        setData(profile);
+        setDraft(profile);
+      })
+      .catch(() => toast.error("Couldn't load your profile", { description: "Try reloading the page." }))
+      .finally(() => setLoading(false));
+  }, []);
 
   const update = <K extends keyof ProfileData>(k: K, v: ProfileData[K]) =>
     setDraft((s) => ({ ...s, [k]: v }));
 
-  const handleSave = () => {
-    setData(draft);
-    setEditing(false);
-    toast.success("Profile updated", { description: "Your changes have been saved." });
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const res = await fetch("/api/auth/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(draft),
+      });
+      const body = await res.json();
+      if (!res.ok) {
+        toast.error("Couldn't save your profile", { description: body.error || "Try again." });
+        return;
+      }
+      setData(body.profile);
+      setDraft(body.profile);
+      setEditing(false);
+      toast.success("Profile updated", { description: "Your changes have been saved." });
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleCancel = () => {
@@ -70,6 +103,10 @@ export function ProfileSection() {
     setEditing(true);
   };
 
+  if (loading) {
+    return <div className="text-[13px] text-muted-foreground">Loading your profile…</div>;
+  }
+
   return (
     <div className="flex flex-col gap-5">
       <SectionHeader
@@ -77,8 +114,10 @@ export function ProfileSection() {
         description="Your personal information, contact details, and employment metadata."
         action={editing ? (
           <div className="flex items-center gap-2">
-            <Btn variant="ghost" icon={<X className="h-3.5 w-3.5" />} onClick={handleCancel}>Cancel</Btn>
-            <Btn variant="primary" icon={<Save className="h-3.5 w-3.5" />} onClick={handleSave}>Save Changes</Btn>
+            <Btn variant="ghost" icon={<X className="h-3.5 w-3.5" />} onClick={handleCancel} disabled={saving}>Cancel</Btn>
+            <Btn variant="primary" icon={<Save className="h-3.5 w-3.5" />} onClick={handleSave} disabled={saving}>
+              {saving ? "Saving…" : "Save Changes"}
+            </Btn>
           </div>
         ) : (
           <Btn icon={<Edit3 className="h-3.5 w-3.5" />} onClick={handleEdit}>Edit</Btn>
@@ -89,7 +128,7 @@ export function ProfileSection() {
       <div className="rounded-[6px] border border-border bg-card p-4 flex items-center gap-4">
         <Avatar className="h-16 w-16 rounded-[6px] border border-border">
           <AvatarFallback className="rounded-[6px] bg-foreground text-background text-[18px] font-medium">
-            {data.initials}
+            {initialsOf(data.name)}
           </AvatarFallback>
         </Avatar>
         <div className="flex-1 min-w-0">
@@ -147,10 +186,8 @@ export function ProfileSection() {
           <h3 className="text-[12px] font-medium uppercase tracking-wider text-muted-foreground">Contact</h3>
         </div>
         <div className="p-4 grid grid-cols-1 gap-4 md:grid-cols-2">
-          <Field icon={<Mail className="h-3.5 w-3.5" />} label="Primary Email">
-            {editing ? (
-              <Input type="email" value={draft.email} onChange={(e) => update("email", e.target.value)} className="h-8 rounded-[5px] text-[13px]" />
-            ) : <ValueStr value={data.email} mono />}
+          <Field icon={<Mail className="h-3.5 w-3.5" />} label="Primary Email (sign-in email, not editable here)">
+            <ValueStr value={data.email} mono />
           </Field>
           <Field icon={<Mail className="h-3.5 w-3.5" />} label="Alternate Email">
             {editing ? (

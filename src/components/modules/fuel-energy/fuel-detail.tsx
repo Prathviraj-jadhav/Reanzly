@@ -1,11 +1,10 @@
 "use client";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { DetailLayout, InfoRow, InfoSection, StatCard } from "@/components/shared/detail-layout";
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { useAppStore } from "@/lib/store/app-store";
-import { FUEL_ENTRIES, VEHICLES, DRIVERS } from "@/lib/mock-data";
-import type { FuelEntry } from "@/lib/types";
+import type { FuelEntry, Vehicle, Driver } from "@/lib/types";
 import {
   Pencil,
   Trash2,
@@ -39,36 +38,46 @@ const TABS = [
 
 interface FuelDetailProps {
   fuelId: string;
+  fuelEntries: FuelEntry[];
+  onUpdate: (id: string, data: Partial<FuelEntry>) => Promise<boolean>;
 }
 
-export function FuelDetail({ fuelId }: FuelDetailProps) {
+export function FuelDetail({ fuelId, fuelEntries, onUpdate: onUpdateReal }: FuelDetailProps) {
   const { navigate, navigateDetail } = useAppStore();
   const [activeTab, setActiveTab] = useState("overview");
-  const [record, setRecord] = useState<FuelEntry | undefined>(
-    () => FUEL_ENTRIES.find((f) => f.id === fuelId),
-  );
+  const entry = fuelEntries.find((f) => f.id === fuelId);
   const [editing, setEditing] = useState(false);
 
-  const entry = record;
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [drivers, setDrivers] = useState<Driver[]>([]);
+  useEffect(() => {
+    Promise.all([
+      fetch("/api/vehicles").then((r) => (r.ok ? r.json() : { vehicles: [] })),
+      fetch("/api/drivers").then((r) => (r.ok ? r.json() : { drivers: [] })),
+    ]).then(([v, d]) => {
+      setVehicles(v.vehicles ?? []);
+      setDrivers(d.drivers ?? []);
+    });
+  }, []);
 
   const handleUpdate = (id: string, data: Partial<FuelEntry>) => {
-    setRecord((prev) => (prev ? { ...prev, ...data } : prev));
+    onUpdateReal(id, data);
   };
 
   // Vehicle history for comparison
   const vehicleHistory = useMemo(() => {
     if (!entry) return [];
-    return FUEL_ENTRIES.filter((f) => f.vehicle === entry.vehicle)
+    return fuelEntries.filter((f) => f.vehicle === entry.vehicle)
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
       .slice(0, 6);
-  }, [entry]);
+  }, [entry, fuelEntries]);
 
   const vehicleAvgEfficiency = useMemo(() => {
     if (!entry) return 0;
-    const vEntries = FUEL_ENTRIES.filter((f) => f.vehicle === entry.vehicle);
+    const vEntries = fuelEntries.filter((f) => f.vehicle === entry.vehicle);
     if (vEntries.length === 0) return entry.efficiency;
     return vEntries.reduce((s, f) => s + f.efficiency, 0) / vEntries.length;
-  }, [entry]);
+  }, [entry, fuelEntries]);
 
   if (!entry) {
     return (
@@ -81,9 +90,11 @@ export function FuelDetail({ fuelId }: FuelDetailProps) {
     );
   }
 
-  const vehicle = VEHICLES.find((v) => v.name === entry.vehicle);
-  const driver = DRIVERS.find((d) => d.name === entry.driver);
-  const fleetAvgEff = FUEL_ENTRIES.reduce((s, f) => s + f.efficiency, 0) / FUEL_ENTRIES.length;
+  const vehicle = vehicles.find((v) => v.name === entry.vehicle);
+  const driver = drivers.find((d) => d.name === entry.driver);
+  const fleetAvgEff = fuelEntries.length > 0
+    ? fuelEntries.reduce((s, f) => s + f.efficiency, 0) / fuelEntries.length
+    : 0;
   const effVar = entry.efficiency - vehicleAvgEfficiency;
   const effPctChange = vehicleAvgEfficiency > 0 ? (effVar / vehicleAvgEfficiency) * 100 : 0;
 

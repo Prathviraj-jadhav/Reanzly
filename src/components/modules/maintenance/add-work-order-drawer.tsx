@@ -1,5 +1,5 @@
 "use client";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Btn } from "@/components/shared/btn";
 import { toast } from "sonner";
 import {
@@ -33,8 +33,7 @@ import {
   SheetTitle,
   SheetDescription,
 } from "@/components/ui/sheet";
-import { VEHICLES, VENDORS, DRIVERS } from "@/lib/mock-data";
-import type { WorkOrder, Priority } from "@/lib/types";
+import type { WorkOrder, Priority, Vehicle, Vendor, Driver } from "@/lib/types";
 import {
   WORK_ORDER_TYPES,
   PRIORITIES,
@@ -53,8 +52,8 @@ interface AddWorkOrderDrawerProps {
   open: boolean;
   onClose: () => void;
   record?: WorkOrder;
-  onAdd?: (workOrder: WorkOrder) => void;
-  onUpdate?: (id: string, data: Partial<WorkOrder>) => void;
+  onAdd?: (workOrder: WorkOrder) => Promise<boolean>;
+  onUpdate?: (id: string, data: Partial<WorkOrder>) => Promise<boolean>;
 }
 
 function recordToForm(record: WorkOrder): WorkOrderForm {
@@ -109,6 +108,25 @@ export function AddWorkOrderDrawer({
   const [form, setForm] = useState<WorkOrderForm>(() =>
     record ? recordToForm(record) : EMPTY_WO_FORM(),
   );
+  const [submitting, setSubmitting] = useState(false);
+
+  // Real vehicles/vendors/drivers (src/app/api/*) - this drawer's pickers
+  // previously pulled from src/lib/mock-data.ts, disconnected from any
+  // real fleet/roster data.
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [drivers, setDrivers] = useState<Driver[]>([]);
+  useEffect(() => {
+    Promise.all([
+      fetch("/api/vehicles").then((r) => (r.ok ? r.json() : { vehicles: [] })),
+      fetch("/api/vendors").then((r) => (r.ok ? r.json() : { vendors: [] })),
+      fetch("/api/drivers").then((r) => (r.ok ? r.json() : { drivers: [] })),
+    ]).then(([v, ven, drv]) => {
+      setVehicles(v.vehicles ?? []);
+      setVendors(ven.vendors ?? []);
+      setDrivers(drv.drivers ?? []);
+    }).catch(() => toast.error("Couldn't load fleet/vendor/roster data"));
+  }, []);
 
   const update = <K extends keyof WorkOrderForm>(k: K, v: WorkOrderForm[K]) =>
     setForm((s) => ({ ...s, [k]: v }));
@@ -150,13 +168,17 @@ export function AddWorkOrderDrawer({
       parts: s.parts.map((p, i) => (i === idx ? { ...p, [field]: value } : p)),
     }));
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const payload = formToData(form, record);
+    setSubmitting(true);
+    let ok = true;
     if (record && onUpdate) {
-      onUpdate(record.id, payload);
-      toast.success(`Work order ${record.workOrderId} updated`, {
-        description: `${form.workType} · ${form.priority} · ${form.vehicle}`,
-      });
+      ok = await onUpdate(record.id, payload);
+      if (ok) {
+        toast.success(`Work order ${record.workOrderId} updated`, {
+          description: `${form.workType} · ${form.priority} · ${form.vehicle}`,
+        });
+      }
     } else if (onAdd) {
       const newId = `RZ-WO-${String(Math.floor(Math.random() * 9000) + 1000).padStart(4, "0")}`;
       const newWorkOrder: WorkOrder = {
@@ -173,16 +195,15 @@ export function AddWorkOrderDrawer({
         estimatedCompletion: payload.estimatedCompletion,
         estimatedCost: payload.estimatedCost ?? 0,
       };
-      onAdd(newWorkOrder);
-      toast.success(`Work order ${newId} created`, {
-        description: `${form.workType} · ${form.priority} · ${form.vehicle}`,
-      });
-    } else {
-      const newId = `RZ-WO-${String(Math.floor(Math.random() * 9000) + 1000).padStart(4, "0")}`;
-      toast.success(`Work order ${newId} created`, {
-        description: `${form.workType} · ${form.priority} · ${form.vehicle}`,
-      });
+      ok = await onAdd(newWorkOrder);
+      if (ok) {
+        toast.success(`Work order ${newId} created`, {
+          description: `${form.workType} · ${form.priority} · ${form.vehicle}`,
+        });
+      }
     }
+    setSubmitting(false);
+    if (!ok) return; // onAdd/onUpdate already surfaced their own error toast
     setStep(1);
     setForm(EMPTY_WO_FORM());
     onClose();
@@ -294,7 +315,7 @@ export function AddWorkOrderDrawer({
                       </SelectTrigger>
                       <SelectContent className="max-h-72 overflow-y-auto scrollbar-thin">
                         <SelectItem value="none">- Select vehicle -</SelectItem>
-                        {VEHICLES.map((v) => (
+                        {vehicles.map((v) => (
                           <SelectItem key={v.id} value={v.name}>{v.name} · {v.licensePlate}</SelectItem>
                         ))}
                       </SelectContent>
@@ -334,7 +355,7 @@ export function AddWorkOrderDrawer({
                       </SelectTrigger>
                       <SelectContent className="max-h-60 overflow-y-auto scrollbar-thin">
                         <SelectItem value="none">- Not assigned -</SelectItem>
-                        {VENDORS.filter((v) => v.type === "Maintenance Workshop" || v.type === "Spare Parts Supplier").map((v) => (
+                        {vendors.filter((v) => v.type === "Maintenance Workshop" || v.type === "Spare Parts Supplier").map((v) => (
                           <SelectItem key={v.id} value={v.companyName}>{v.companyName} · {v.city}</SelectItem>
                         ))}
                       </SelectContent>
@@ -348,7 +369,7 @@ export function AddWorkOrderDrawer({
                       </SelectTrigger>
                       <SelectContent className="max-h-60 overflow-y-auto scrollbar-thin">
                         <SelectItem value="none">- Not assigned -</SelectItem>
-                        {DRIVERS.filter((d) => d.department === "Maintenance" || d.role === "Staff").slice(0, 12).map((d) => (
+                        {drivers.filter((d) => d.department === "Maintenance" || d.role === "Staff").slice(0, 12).map((d) => (
                           <SelectItem key={d.id} value={d.name}>{d.name} · {d.department}</SelectItem>
                         ))}
                       </SelectContent>
@@ -564,8 +585,8 @@ export function AddWorkOrderDrawer({
           </Btn>
           <div className="text-[11px] text-muted-foreground tabular">Step {step} of 3</div>
           {isLastStep ? (
-            <Btn variant="primary" icon={<Check className="h-3.5 w-3.5" />} onClick={handleSubmit}>
-              {record ? "Save Changes" : "Create Work Order"}
+            <Btn variant="primary" icon={<Check className="h-3.5 w-3.5" />} onClick={handleSubmit} disabled={submitting}>
+              {submitting ? "Saving…" : record ? "Save Changes" : "Create Work Order"}
             </Btn>
           ) : (
             <Btn variant="primary" onClick={goNext} disabled={!canAdvance}>

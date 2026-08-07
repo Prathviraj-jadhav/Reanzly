@@ -306,10 +306,14 @@ export function Employees() {
       <AddEmployeeDialog
         open={createOpen}
         onClose={() => setCreateOpen(false)}
-        onAdd={(e) => {
-          addEmployee(e);
-          setCreateOpen(false);
-          toast.success("Employee added", { description: `${e.name} · ${e.empCode}` });
+        onAdd={async (e) => {
+          const created = await addEmployee(e);
+          if (created) {
+            setCreateOpen(false);
+            toast.success("Employee added", { description: `${created.name} · ${created.empCode}` });
+          } else {
+            toast.error("Couldn't add employee", { description: "Try again." });
+          }
         }}
         nextCode={employees.length + 1}
       />

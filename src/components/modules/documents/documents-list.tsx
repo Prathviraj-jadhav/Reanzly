@@ -1,12 +1,11 @@
 "use client";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable, type Column } from "@/components/shared/data-table";
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge, docStatusBadge } from "@/components/shared/status-badge";
 import { useAppStore } from "@/lib/store/app-store";
-import { DOCUMENTS, VEHICLES, DRIVERS, CUSTOMERS, VENDORS } from "@/lib/mock-data";
-import type { DocumentRecord } from "@/lib/types";
+import type { DocumentRecord, Vehicle, Driver, Customer, Vendor } from "@/lib/types";
 import {
   Plus,
   Download,
@@ -42,6 +41,8 @@ import { UploadDocumentDrawer } from "./upload-document-drawer";
 
 interface DocumentsListProps {
   onCreate: () => void;
+  documents: DocumentRecord[];
+  onUpdate: (id: string, data: Partial<DocumentRecord>) => Promise<boolean>;
 }
 
 const EXPIRY_FILTERS = [
@@ -51,9 +52,9 @@ const EXPIRY_FILTERS = [
   { id: "expired", label: "Expired" },
 ];
 
-export function DocumentsList({ onCreate }: DocumentsListProps) {
+export function DocumentsList({ onCreate, documents, onUpdate: onUpdateReal }: DocumentsListProps) {
   const { navigateDetail } = useAppStore();
-  const [rows, setRows] = useState<DocumentRecord[]>(DOCUMENTS);
+  const rows = documents;
   const [editing, setEditing] = useState<DocumentRecord | null>(null);
   const [search, setSearch] = useState("");
   const [docTypeFilter, setDocTypeFilter] = useState<Set<string>>(new Set());
@@ -61,8 +62,26 @@ export function DocumentsList({ onCreate }: DocumentsListProps) {
   const [statusFilter, setStatusFilter] = useState<Set<string>>(new Set());
   const [expiryFilter, setExpiryFilter] = useState<string>("all");
 
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [drivers, setDrivers] = useState<Driver[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [vendors, setVendors] = useState<Vendor[]>([]);
+  useEffect(() => {
+    Promise.all([
+      fetch("/api/vehicles").then((r) => (r.ok ? r.json() : { vehicles: [] })),
+      fetch("/api/drivers").then((r) => (r.ok ? r.json() : { drivers: [] })),
+      fetch("/api/customers").then((r) => (r.ok ? r.json() : { customers: [] })),
+      fetch("/api/vendors").then((r) => (r.ok ? r.json() : { vendors: [] })),
+    ]).then(([v, d, c, ven]) => {
+      setVehicles(v.vehicles ?? []);
+      setDrivers(d.drivers ?? []);
+      setCustomers(c.customers ?? []);
+      setVendors(ven.vendors ?? []);
+    });
+  }, []);
+
   const handleUpdate = (id: string, data: Partial<DocumentRecord>) => {
-    setRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...data } : r)));
+    onUpdateReal(id, data);
   };
 
   const filtered = useMemo(() => {
@@ -118,16 +137,16 @@ export function DocumentsList({ onCreate }: DocumentsListProps) {
 
   const handleEntityClick = (d: DocumentRecord) => {
     if (d.entityType === "Vehicle") {
-      const v = VEHICLES.find((x) => x.name === d.entityName);
+      const v = vehicles.find((x) => x.name === d.entityName);
       if (v) navigateDetail("vehicles", v.id);
     } else if (d.entityType === "Driver") {
-      const dr = DRIVERS.find((x) => x.name === d.entityName);
+      const dr = drivers.find((x) => x.name === d.entityName);
       if (dr) navigateDetail("drivers-staff", dr.id);
     } else if (d.entityType === "Customer") {
-      const c = CUSTOMERS.find((x) => x.companyName === d.entityName);
+      const c = customers.find((x) => x.companyName === d.entityName);
       if (c) navigateDetail("customers", c.id);
     } else if (d.entityType === "Vendor") {
-      const vd = VENDORS.find((x) => x.companyName === d.entityName);
+      const vd = vendors.find((x) => x.companyName === d.entityName);
       if (vd) navigateDetail("vendors", vd.id);
     }
   };

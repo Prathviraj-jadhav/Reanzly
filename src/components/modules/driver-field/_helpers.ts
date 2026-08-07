@@ -2,7 +2,6 @@
 
 import { useMemo } from "react";
 import { useDriverStore, type DriverActivityType, type TripFieldStatus } from "@/lib/store/driver-store";
-import { TRIPS } from "@/lib/mock-data";
 import type { Trip } from "@/lib/types";
 
 // ===== Driver Field App - shared helpers + constants =====
@@ -120,22 +119,23 @@ export function activityTypeLabel(t: DriverActivityType): string {
 }
 
 export function useDriverTrips(): Trip[] {
-  const driverId = useDriverStore((s) => s.driverId);
-  return useMemo(() => TRIPS.filter((t) => t.driverId === driverId), [driverId]);
+  // Real trips assigned to the logged-in driver (GET /api/driver/me via
+  // useDriverStore.hydrate()) - previously the mock-data.ts TRIPS array
+  // filtered by a hardcoded driverId, so every driver login saw the exact
+  // same fake trip regardless of who actually signed in.
+  return useDriverStore((s) => s.trips);
 }
 
 export function useActiveTrip(): Trip | null {
-  const { activeTripId, driverId } = useDriverStore();
+  const { activeTripId, trips } = useDriverStore();
   return useMemo(() => {
-    if (activeTripId) return TRIPS.find((t) => t.id === activeTripId) || null;
-    // Default to first non-delivered trip assigned to this driver
-    const mine = TRIPS.filter((t) => t.driverId === driverId);
+    if (activeTripId) return trips.find((t) => t.id === activeTripId) || null;
     return (
-      mine.find((t) => t.status === "Active" || t.status === "In Transit") ||
-      mine.find((t) => t.status !== "Delivered" && t.status !== "Cancelled") ||
+      trips.find((t) => t.status === "Active" || t.status === "In Transit") ||
+      trips.find((t) => t.status !== "Delivered" && t.status !== "Cancelled") ||
       null
     );
-  }, [activeTripId, driverId]);
+  }, [activeTripId, trips]);
 }
 
 export function formatINR(n: number): string {

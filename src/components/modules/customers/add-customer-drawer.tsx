@@ -55,10 +55,12 @@ interface AddCustomerDrawerProps {
   onClose: () => void;
   /** When provided, the drawer acts as an Edit form pre-filled from this record. */
   record?: Customer;
-  /** Create callback. */
-  onAdd?: (c: Customer) => void;
+  /** Create callback. Resolves false (not a throw) on failure - the caller
+   * already surfaces its own error toast, this just tells the form whether
+   * to close. */
+  onAdd?: (c: Customer) => Promise<boolean>;
   /** Edit callback - receives the record id and a patch of changed fields. */
-  onUpdate?: (id: string, data: Partial<Customer>) => void;
+  onUpdate?: (id: string, data: Partial<Customer>) => Promise<boolean>;
 }
 
 const TIER_DESCRIPTIONS: Record<number, { tagline: string; tier: string }> = {
@@ -134,7 +136,9 @@ export function AddCustomerDrawer({ open, onClose, record, onAdd, onUpdate }: Ad
     setStep(s);
   };
 
-  const handleSubmit = () => {
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async () => {
     const issues = Object.values(stepErrors).flat();
     if (issues.length) {
       toast("Compliance check failed", {
@@ -143,11 +147,10 @@ export function AddCustomerDrawer({ open, onClose, record, onAdd, onUpdate }: Ad
       setStep(1);
       return;
     }
+    setSubmitting(true);
+    let ok = true;
     if (isEdit && record && onUpdate) {
-      onUpdate(record.id, formToCustomerPatch(form));
-      toast.success("Customer updated", {
-        description: `${form.companyName} · ${form.gstin}`,
-      });
+      ok = await onUpdate(record.id, formToCustomerPatch(form));
     } else if (!isEdit && onAdd) {
       const patch = formToCustomerPatch(form);
       const newCustomer: Customer = {
@@ -157,6 +160,7 @@ export function AddCustomerDrawer({ open, onClose, record, onAdd, onUpdate }: Ad
         phone: patch.phone ?? "",
         gstin: patch.gstin ?? "",
         city: patch.city ?? "",
+        billingAddress: patch.billingAddress,
         email: patch.email ?? "",
         paymentTerms: patch.paymentTerms ?? "Net 30",
         creditLimit: patch.creditLimit ?? 0,
@@ -166,15 +170,13 @@ export function AddCustomerDrawer({ open, onClose, record, onAdd, onUpdate }: Ad
         totalRevenue: 0,
         status: "Active",
       };
-      onAdd(newCustomer);
-      toast.success("Customer created", {
-        description: `${form.companyName} · ${form.gstin}`,
-      });
-    } else {
-      toast.success(isEdit ? "Customer updated" : "Customer created", {
-        description: `${form.companyName} · ${form.gstin}`,
-      });
+      ok = await onAdd(newCustomer);
     }
+    setSubmitting(false);
+    if (!ok) return; // onAdd/onUpdate already surfaced their own error toast
+    toast.success(isEdit ? "Customer updated" : "Customer created", {
+      description: `${form.companyName} · ${form.gstin}`,
+    });
     setStep(1);
     setForm(EMPTY_CUSTOMER_FORM);
     onClose();
@@ -309,8 +311,9 @@ export function AddCustomerDrawer({ open, onClose, record, onAdd, onUpdate }: Ad
               variant="primary"
               icon={<Check className="h-3.5 w-3.5" />}
               onClick={handleSubmit}
+              disabled={submitting}
             >
-              {isEdit ? "Save Changes" : "Create Customer"}
+              {submitting ? "Saving…" : isEdit ? "Save Changes" : "Create Customer"}
             </Btn>
           ) : (
             <Btn

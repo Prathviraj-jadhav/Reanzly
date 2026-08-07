@@ -32,6 +32,7 @@ import {
 import {
   MARKETPLACE_STATS,
 } from "./marketplace-data";
+import { motion } from "framer-motion";
 
 export interface MarketplaceNavProps {
   tab: "vehicles" | "loads";
@@ -105,8 +106,14 @@ export function MarketplaceNav({
               label="Find Loads"
             />
           </div>
-          <span className="mt-1 text-[10px] uppercase tracking-wider text-muted-foreground">
-            {MARKETPLACE_STATS.totalListings}+ vehicles · {MARKETPLACE_STATS.openLoads} open loads · {MARKETPLACE_STATS.citiesCovered} cities
+          <span className="mt-1 flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+            <span className="relative flex h-1.5 w-1.5">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-foreground opacity-75"></span>
+              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-foreground"></span>
+            </span>
+            <span>
+              {MARKETPLACE_STATS.totalListings}+ vehicles · {MARKETPLACE_STATS.openLoads} open loads · {MARKETPLACE_STATS.citiesCovered} cities
+            </span>
           </span>
         </div>
 
@@ -248,14 +255,21 @@ function TabButton({
       onClick={onClick}
       aria-pressed={active}
       className={
-        "tap flex items-center gap-1.5 rounded-[5px] px-3 py-1.5 text-[12px] font-medium transition-colors " +
-        (active
-          ? "bg-foreground text-background"
-          : "text-muted-foreground hover:bg-accent hover:text-foreground")
+        "tap relative flex items-center gap-1.5 rounded-[4px] px-3 py-1.5 text-[12px] font-medium transition-colors outline-none " +
+        (active ? "text-background" : "text-muted-foreground hover:text-foreground")
       }
     >
-      {icon}
-      {label}
+      {active && (
+        <motion.span
+          layoutId="active-marketplace-nav-tab"
+          className="absolute inset-0 rounded-[4px] bg-foreground"
+          transition={{ type: "spring", stiffness: 380, damping: 30 }}
+        />
+      )}
+      <span className="relative z-10 flex items-center gap-1.5">
+        {icon}
+        {label}
+      </span>
     </button>
   );
 }

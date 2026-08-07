@@ -80,7 +80,11 @@ export const ROLE_FEATURES: Record<string, RoleFeature> = {
       { label: "Invoices", icon: Receipt, module: "invoice" },
       { label: "Access Matrix", icon: Network, module: "access-matrix" },
     ],
-    featuredModules: ["dashboard", "reports", "financial-ops", "invoice", "operations-hub", "ledger"],
+    // "financial-ops" has no standalone sidebar entry (navigate() reroutes
+    // it to "ledger", where its Treasury Ops content actually lives) - was
+    // silently dropping from "For Your Role" since NAV_ITEM_BY_ID can't
+    // resolve it.
+    featuredModules: ["dashboard", "reports", "invoice", "operations-hub", "ledger"],
   },
   "ops-manager": {
     description: "Runs trips, dispatch, fleet map and exceptions end-to-end.",
@@ -90,7 +94,9 @@ export const ROLE_FEATURES: Record<string, RoleFeature> = {
       { label: "Create Job Order", icon: ClipboardList, module: "operations-hub" },
       { label: "View Exceptions", icon: AlertCircle, module: "issues" },
     ],
-    featuredModules: ["dashboard", "operations-hub", "trips", "fleet-map", "issues", "pod"],
+    // "issues" is now a Vehicles-cluster tab, not its own sidebar entry -
+    // point the featured chip at Vehicles instead of silently dropping it.
+    featuredModules: ["dashboard", "operations-hub", "trips", "fleet-map", "vehicles", "pod"],
   },
   "fleet-manager": {
     description: "Owns vehicle lifecycle, maintenance, tyres and compliance.",
@@ -100,7 +106,9 @@ export const ROLE_FEATURES: Record<string, RoleFeature> = {
       { label: "Inspection Queue", icon: ClipboardCheck, module: "inspection" },
       { label: "Service Programs", icon: Settings2, module: "services" },
     ],
-    featuredModules: ["dashboard", "vehicles", "maintenance", "services", "inspection", "issues"],
+    // Maintenance/Services/Inspection/Issues are now Vehicles-cluster tabs,
+    // not separate sidebar entries - "vehicles" covers all of them.
+    featuredModules: ["dashboard", "vehicles", "reports", "documents"],
   },
   "finance-manager": {
     description: "Invoicing, payments, expenses, settlements and GST.",
@@ -111,7 +119,8 @@ export const ROLE_FEATURES: Record<string, RoleFeature> = {
       { label: "Rate Cards", icon: Calculator, module: "rate-cards" },
       { label: "Ledger", icon: BookText, module: "ledger" },
     ],
-    featuredModules: ["dashboard", "invoice", "payments", "expenses", "financial-ops", "rate-cards", "ledger"],
+    // "rate-cards" is now an Invoice-cluster tab, not a separate entry.
+    featuredModules: ["dashboard", "invoice", "payments", "expenses", "ledger"],
   },
   dispatcher: {
     description: "Assigns vehicles & drivers, tracks live trips, handles POD.",
@@ -140,7 +149,8 @@ export const ROLE_FEATURES: Record<string, RoleFeature> = {
       { label: "Reports", icon: BarChart3, module: "reports" },
       { label: "System Design", icon: Network, module: "system-design" },
     ],
-    featuredModules: ["dashboard", "reports", "system-design"],
+    // "system-design" is now a Settings-cluster tab, not a separate entry.
+    featuredModules: ["dashboard", "reports", "settings"],
   },
   "warehouse-manager": {
     description: "Godown in-charge: inbound/outbound, inventory, POD receive.",
@@ -169,7 +179,8 @@ export const ROLE_FEATURES: Record<string, RoleFeature> = {
       { label: "Find Loads", icon: Truck, module: "trips" },
       { label: "Rate Cards", icon: Calculator, module: "rate-cards" },
     ],
-    featuredModules: ["dashboard", "broker-console", "broker-marketplace", "broker-settlements", "rate-cards", "reports"],
+    // "rate-cards" is now an Invoice-cluster tab, not a separate entry.
+    featuredModules: ["dashboard", "broker-console", "broker-marketplace", "broker-settlements", "invoice", "reports"],
   },
   "safety-officer": {
     description: "Compliance, inspections, incidents, EHS, driver hours.",
@@ -179,7 +190,8 @@ export const ROLE_FEATURES: Record<string, RoleFeature> = {
       { label: "Documents", icon: FolderArchive, module: "documents" },
       { label: "Compliance", icon: ShieldCheck, module: "settings" },
     ],
-    featuredModules: ["dashboard", "inspection", "issues", "documents", "reports"],
+    // Inspection/Issues are now Vehicles-cluster tabs, not separate entries.
+    featuredModules: ["dashboard", "vehicles", "documents", "reports"],
   },
   mechanic: {
     description: "Workshop: work orders, parts, issues, fuel logs.",
@@ -189,7 +201,8 @@ export const ROLE_FEATURES: Record<string, RoleFeature> = {
       { label: "Inspection Queue", icon: ClipboardCheck, module: "inspection" },
       { label: "Issues", icon: AlertCircle, module: "issues" },
     ],
-    featuredModules: ["dashboard", "maintenance", "issues", "vehicles", "fuel-energy"],
+    // Maintenance/Issues/Fuel & Energy are now Vehicles-cluster tabs.
+    featuredModules: ["dashboard", "vehicles", "documents"],
   },
   "branch-manager": {
     description: "Single-branch P&L, branch trips, branch staff and fleet.",
@@ -199,7 +212,8 @@ export const ROLE_FEATURES: Record<string, RoleFeature> = {
       { label: "Staff", icon: UserCog, module: "drivers-staff" },
       { label: "Invoices", icon: Receipt, module: "invoice" },
     ],
-    featuredModules: ["dashboard", "trips", "vehicles", "drivers-staff", "invoice", "reports", "ledger"],
+    // "drivers-staff" is now an HR-cluster tab, not a separate entry.
+    featuredModules: ["dashboard", "trips", "vehicles", "hr", "invoice", "reports", "ledger"],
   },
   accountant: {
     description: "Vouchers, TDS, GST filing, reconciliation, journal entries.",
@@ -210,7 +224,8 @@ export const ROLE_FEATURES: Record<string, RoleFeature> = {
       { label: "Expenses", icon: Wallet, module: "expenses" },
       { label: "Ledger", icon: BookText, module: "ledger" },
     ],
-    featuredModules: ["dashboard", "financial-ops", "invoice", "expenses", "payments", "reports", "ledger"],
+    // "financial-ops" has no standalone sidebar entry - see owner role note above.
+    featuredModules: ["dashboard", "invoice", "expenses", "payments", "reports", "ledger"],
   },
   "hr-manager": {
     description: "Drivers & staff, payroll, attendance, leaves, onboarding.",
@@ -219,7 +234,9 @@ export const ROLE_FEATURES: Record<string, RoleFeature> = {
       { label: "Reminders", icon: Bell, module: "reminders" },
       { label: "Documents", icon: FolderArchive, module: "documents" },
     ],
-    featuredModules: ["dashboard", "drivers-staff", "reminders", "documents", "reports"],
+    // "reminders" is now a Documents-cluster tab; "drivers-staff" is now
+    // an HR-cluster tab - neither is a separate entry anymore.
+    featuredModules: ["dashboard", "hr", "documents", "reports"],
   },
 };
 

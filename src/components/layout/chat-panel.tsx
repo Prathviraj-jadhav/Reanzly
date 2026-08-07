@@ -6,6 +6,7 @@ import { useAppStore } from "@/lib/store/app-store";
 import { useChatStore, selectConvMessages } from "@/lib/store/chat-store";
 import type { ChatEntity, Conversation, PresenceState } from "@/lib/types";
 import { ChatComposer } from "@/components/modules/chat/chat-composer";
+import { useChatCall, ChatCallHeaderButtons, ChatScheduledCallsBar, ChatCallOverlay } from "@/components/modules/chat/chat-call";
 import { ChatMessageRow } from "@/components/modules/chat/chat-message";
 import {
   conversationDisplayName,
@@ -16,7 +17,6 @@ import {
 } from "@/components/modules/chat/chat-utils";
 import {
   X,
-  Send,
   Hash,
   Sparkles,
   Search,
@@ -24,17 +24,6 @@ import {
   Maximize2,
   Users,
   ArrowLeft,
-  Phone,
-  Video,
-  Mic,
-  MicOff,
-  VideoOff,
-  PhoneOff,
-  ScreenShare,
-  UserPlus,
-  Volume2,
-  Settings2,
-  MoreVertical,
 } from "lucide-react";
 import { ChatChannelBrowser } from "@/components/modules/chat/chat-channel-browser";
 import { ChatForwardDialog } from "@/components/modules/chat/chat-forward-dialog";
@@ -138,7 +127,7 @@ export function ChatPanel() {
   };
 
   return (
-    <div className="fixed right-0 top-0 z-40 flex h-full w-full max-w-md flex-col border-l border-border bg-background animate-slide-in-right">
+    <div className="fixed right-0 top-0 z-40 flex h-full w-full max-w-3xl flex-col border-l border-border bg-background animate-slide-in-right">
       {/* Header */}
       <div className="flex h-12 shrink-0 items-center justify-between border-b border-border px-3">
         <div className="flex items-center gap-2">
@@ -399,85 +388,11 @@ function CompactConversation({
     ? allMessages.find((m) => m.id === replyTargetId)
     : null;
 
-  // ===== Call state (video / voice) =====
-  // Tracks the active call mode, mute, camera-on, screen-share, call
-  // duration, and connection status. Lives inside the conversation so the
-  // call overlay is scoped to this chat. The overlay replaces the message
-  // list area while a call is in progress.
-  const [callMode, setCallMode] = React.useState<"voice" | "video" | null>(null);
-  const [muted, setMuted] = React.useState(false);
-  const [cameraOff, setCameraOff] = React.useState(false);
-  const [screenShare, setScreenShare] = React.useState(false);
-  const [callStatus, setCallStatus] = React.useState<"calling" | "connected" | "ended">("calling");
-  const [callSeconds, setCallSeconds] = React.useState(0);
-  const callStartRef = React.useRef<number | null>(null);
-
-  // Reset call state when conversation changes
-  React.useEffect(() => {
-    setCallMode(null);
-    setMuted(false);
-    setCameraOff(false);
-    setScreenShare(false);
-    setCallStatus("calling");
-    setCallSeconds(0);
-    callStartRef.current = null;
-  }, [conv.id]);
-
-  // Simulate the call connecting after 1.5s
-  React.useEffect(() => {
-    if (!callMode) return;
-    if (callStatus !== "calling") return;
-    const t = window.setTimeout(() => setCallStatus("connected"), 1500);
-    return () => window.clearTimeout(t);
-  }, [callMode, callStatus]);
-
-  // Tick call duration every second while connected.
-  // NOTE: callSeconds is intentionally NOT in the dependency array —
-  // including it caused the interval to be cleared and recreated every
-  // second, leading to timer stutter and unnecessary re-renders. We
-  // capture the start time once via the ref and read it inside the
-  // interval callback, so the effect only re-runs when callStatus changes.
-  React.useEffect(() => {
-    if (callStatus !== "connected") return;
-    callStartRef.current = Date.now();
-    const interval = window.setInterval(() => {
-      if (callStartRef.current) {
-        setCallSeconds(Math.floor((Date.now() - callStartRef.current) / 1000));
-      }
-    }, 1000);
-    return () => window.clearInterval(interval);
-  }, [callStatus]);
-
-  const startCall = (mode: "voice" | "video") => {
-    setCallMode(mode);
-    setCallStatus("calling");
-    setCallSeconds(0);
-    setMuted(false);
-    setCameraOff(mode === "voice");
-    setScreenShare(false);
-  };
-
-  const endCall = () => {
-    setCallStatus("ended");
-    // Brief "Call ended" flash then close overlay
-    window.setTimeout(() => {
-      setCallMode(null);
-      setCallStatus("calling");
-      setCallSeconds(0);
-    }, 800);
-  };
-
-  const formatCallDuration = (s: number) => {
-    const m = Math.floor(s / 60);
-    const sec = s % 60;
-    return `${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
-  };
-
-  const otherEntity = (() => {
-    if (conv.type === "channel") return null;
-    const otherId = conv.participants.find((p) => p !== currentUserId);
-    return otherId ? entities.find((e) => e.id === otherId) : null;
-  })();
+  // ===== Call state (video / voice / screen-share / scheduling) - shared
+  // with the full chat module via useChatCall so both surfaces stay in sync
+  // with the same real RTCPeerConnection/getUserMedia session. =====
+  const call = useChatCall(conv, currentUserId, entities);
+  const { callMode } = call;
 
   const scrollRef = React.useRef<HTMLDivElement>(null);
   React.useEffect(() => {
@@ -507,26 +422,7 @@ function CompactConversation({
         )}
         {conv.type !== "channel" && (
           <>
-            {/* Voice call button */}
-            <button
-              onClick={() => startCall("voice")}
-              className="tap flex h-7 w-7 items-center justify-center rounded-[3px] text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
-              aria-label="Start voice call"
-              title="Voice call"
-              disabled={!!callMode}
-            >
-              <Phone className="h-3.5 w-3.5" />
-            </button>
-            {/* Video call button */}
-            <button
-              onClick={() => startCall("video")}
-              className="tap flex h-7 w-7 items-center justify-center rounded-[3px] text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
-              aria-label="Start video call"
-              title="Video call"
-              disabled={!!callMode}
-            >
-              <Video className="h-3.5 w-3.5" />
-            </button>
+            <ChatCallHeaderButtons call={call} conv={conv} />
             <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
               <Users className="h-2.5 w-2.5" />
               <span className="font-mono tabular-nums">{conv.participants.length}</span>
@@ -535,135 +431,11 @@ function CompactConversation({
         )}
       </div>
 
-      {/* ===== Call overlay — replaces the messages area while a call is active =====
-           min-h-0 is required so the flex-1 child can shrink properly inside
-           the conversation pane's flex-col layout (without it the overlay
-           can overflow and push the control bar off-screen on short viewports). */}
-      {callMode && (
-        <div className="relative flex min-h-0 flex-1 flex-col bg-foreground text-background">
-          {/* Remote participant tile (full area) */}
-          <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden">
-            {/* Subtle grid backdrop for the "remote video" feel */}
-            <div
-              className="pointer-events-none absolute inset-0 opacity-[0.06]"
-              style={{
-                backgroundImage:
-                  "linear-gradient(to right, currentColor 1px, transparent 1px), linear-gradient(to bottom, currentColor 1px, transparent 1px)",
-                backgroundSize: "28px 28px",
-              }}
-            />
-            {/* Center avatar + status */}
-            <div className="relative flex flex-col items-center gap-3">
-              <div className="flex h-20 w-20 items-center justify-center rounded-full border border-background/30 bg-background/10 text-[28px] font-semibold tabular-nums">
-                {displayName
-                  .split(" ")
-                  .map((w) => w[0])
-                  .join("")
-                  .slice(0, 2)
-                  .toUpperCase()}
-              </div>
-              <div className="text-center">
-                <div className="text-[14px] font-medium">{displayName}</div>
-                <div className="mt-0.5 text-[11px] text-background/60">
-                  {callStatus === "calling" && (
-                    <span className="flex items-center justify-center gap-1.5">
-                      <span className="flex gap-0.5">
-                        <span className="h-1 w-1 animate-bounce rounded-full bg-background/60" />
-                        <span className="h-1 w-1 animate-bounce rounded-full bg-background/60" style={{ animationDelay: "150ms" }} />
-                        <span className="h-1 w-1 animate-bounce rounded-full bg-background/60" style={{ animationDelay: "300ms" }} />
-                      </span>
-                      {callMode === "video" ? "Video calling…" : "Calling…"}
-                    </span>
-                  )}
-                  {callStatus === "connected" && (
-                    <span className="font-mono tabular-nums">
-                      {callMode === "video" ? "Video · " : "Voice · "}
-                      {formatCallDuration(callSeconds)}
-                    </span>
-                  )}
-                  {callStatus === "ended" && <span>Call ended</span>}
-                </div>
-              </div>
-              {otherEntity?.presence && callStatus === "connected" && (
-                <div className="flex items-center gap-1 text-[10px] text-background/50">
-                  <span className="h-1.5 w-1.5 rounded-full bg-background/60" />
-                  <span>{otherEntity.presence === "online" ? "Active now" : otherEntity.presence}</span>
-                </div>
-              )}
-            </div>
+      <ChatScheduledCallsBar call={call} currentUserId={currentUserId} />
 
-            {/* Self-view PiP (bottom-right) */}
-            {callMode === "video" && callStatus === "connected" && !cameraOff && (
-              <div className="absolute bottom-3 right-3 h-24 w-32 overflow-hidden rounded-[6px] border border-background/30 bg-background/10">
-                <div className="flex h-full w-full flex-col items-center justify-center gap-1 text-background/50">
-                  <Video className="h-4 w-4" />
-                  <span className="text-[9px] font-medium uppercase tracking-wider">You</span>
-                </div>
-              </div>
-            )}
-
-            {/* Screen-share indicator */}
-            {screenShare && callStatus === "connected" && (
-              <div className="absolute left-3 top-3 flex items-center gap-1.5 rounded-[4px] border border-background/30 bg-background/10 px-2 py-1 text-[10px] font-medium">
-                <ScreenShare className="h-3 w-3" />
-                <span>Sharing screen</span>
-              </div>
-            )}
-          </div>
-
-          {/* Call control bar */}
-          <div className="flex shrink-0 items-center justify-center gap-2 border-t border-background/20 bg-background/5 px-4 py-3">
-            {/* Mic toggle */}
-            <button
-              onClick={() => setMuted((m) => !m)}
-              className="tap flex h-9 w-9 items-center justify-center rounded-full border border-background/30 bg-background/10 hover:bg-background/20 transition-colors"
-              aria-label={muted ? "Unmute" : "Mute"}
-              title={muted ? "Unmute" : "Mute"}
-            >
-              {muted ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-            </button>
-            {/* Camera toggle (video only) */}
-            {callMode === "video" && (
-              <button
-                onClick={() => setCameraOff((c) => !c)}
-                className="tap flex h-9 w-9 items-center justify-center rounded-full border border-background/30 bg-background/10 hover:bg-background/20 transition-colors"
-                aria-label={cameraOff ? "Turn camera on" : "Turn camera off"}
-                title={cameraOff ? "Turn camera on" : "Turn camera off"}
-              >
-                {cameraOff ? <VideoOff className="h-4 w-4" /> : <Video className="h-4 w-4" />}
-              </button>
-            )}
-            {/* Screen share toggle */}
-            <button
-              onClick={() => setScreenShare((s) => !s)}
-              className="tap flex h-9 w-9 items-center justify-center rounded-full border border-background/30 bg-background/10 hover:bg-background/20 transition-colors"
-              aria-label="Toggle screen share"
-              title="Screen share"
-              disabled={callStatus !== "connected"}
-            >
-              <ScreenShare className="h-4 w-4" />
-            </button>
-            {/* Add participant (stub) */}
-            <button
-              className="tap flex h-9 w-9 items-center justify-center rounded-full border border-background/30 bg-background/10 hover:bg-background/20 transition-colors"
-              aria-label="Add participant"
-              title="Add participant"
-              disabled={callStatus !== "connected"}
-            >
-              <UserPlus className="h-4 w-4" />
-            </button>
-            {/* End call */}
-            <button
-              onClick={endCall}
-              className="tap ml-1 flex h-9 items-center gap-1.5 rounded-full bg-background px-4 text-[12px] font-medium text-foreground hover:bg-background/90 transition-colors"
-              aria-label="End call"
-            >
-              <PhoneOff className="h-4 w-4" />
-              <span>End</span>
-            </button>
-          </div>
-        </div>
-      )}
+      {/* min-h-0 lets this flex-1 overlay shrink properly inside the
+          conversation pane's flex-col layout on short viewports. */}
+      <ChatCallOverlay call={call} displayName={displayName} />
 
       {/* Messages (hidden while call overlay is open) */}
       {!callMode && (

@@ -2,7 +2,7 @@
 import { useEffect } from "react";
 import {
   User, Bell, Lock, Palette, ShieldCheck, Building2, Database, Layers,
-  Grid3x3, Plug,
+  Grid3x3, Plug, CreditCard,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -16,12 +16,13 @@ import { AccessSecuritySection } from "./sections/access-security";
 import { OrganizationSection } from "./sections/organization";
 import { DataManagementSection } from "./sections/data-management";
 import { CompaniesSection } from "./sections/companies";
+import { BillingSection } from "./sections/billing";
 import { AccessMatrixModule } from "../access-matrix";
 import { IntegrationsModule } from "../integrations";
 
 const ICONS: Record<string, LucideIcon> = {
   User, Bell, Lock, Palette, ShieldCheck, Building2, Database, Layers,
-  Grid3x3, Plug,
+  Grid3x3, Plug, CreditCard,
 };
 
 export function SettingsModule() {
@@ -106,6 +107,7 @@ export function SettingsModule() {
         {activeTab === "data-management" && <DataManagementSection />}
         {activeTab === "companies" && <CompaniesSection />}
         {activeTab === "integrations" && <IntegrationsModule />}
+        {activeTab === "billing" && <BillingSection />}
       </main>
     </div>
   );

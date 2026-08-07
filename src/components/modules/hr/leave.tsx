@@ -98,18 +98,21 @@ export function Leave() {
   const totalPL = balances.reduce((s, b) => s + b.pl, 0);
   const pendingCompOffs = compOffs.filter((c) => c.status === "Pending").length;
 
-  const managerApprove = (r: LeaveRequest) => {
-    setLeaveStatus(r.id, "Manager Approved");
-    toast.success("Manager approved", { description: `${r.empName} · forwarded to HR` });
+  const managerApprove = async (r: LeaveRequest) => {
+    const ok = await setLeaveStatus(r.id, "Manager Approved");
+    if (ok) toast.success("Manager approved", { description: `${r.empName} · forwarded to HR` });
+    else toast.error("Couldn't approve", { description: "Try again." });
   };
-  const hrApprove = (r: LeaveRequest) => {
-    setLeaveStatus(r.id, "Approved");
-    toast.success("HR approved", { description: `${r.empName} · ${r.leaveType} (${r.days}d)` });
+  const hrApprove = async (r: LeaveRequest) => {
+    const ok = await setLeaveStatus(r.id, "Approved");
+    if (ok) toast.success("HR approved", { description: `${r.empName} · ${r.leaveType} (${r.days}d)` });
+    else toast.error("Couldn't approve", { description: "Try again." });
   };
-  const reject = (r: LeaveRequest) => {
-    setLeaveStatus(r.id, "Rejected");
+  const reject = async (r: LeaveRequest) => {
+    const ok = await setLeaveStatus(r.id, "Rejected");
     setRejecting(null);
-    toast.success("Leave rejected", { description: `${r.empName} · ${r.leaveType}` });
+    if (ok) toast.success("Leave rejected", { description: `${r.empName} · ${r.leaveType}` });
+    else toast.error("Couldn't reject", { description: "Try again." });
   };
 
   return (
@@ -348,10 +351,14 @@ export function Leave() {
       <ApplyLeaveDialog
         open={createOpen}
         onClose={() => setCreateOpen(false)}
-        onApply={(r) => {
-          addLeaveRequest(r);
-          setCreateOpen(false);
-          toast.success("Leave applied", { description: `${r.empName} · ${r.leaveType} (${r.days}d)` });
+        onApply={async (r) => {
+          const created = await addLeaveRequest(r);
+          if (created) {
+            setCreateOpen(false);
+            toast.success("Leave applied", { description: `${created.empName} · ${created.leaveType} (${created.days}d)` });
+          } else {
+            toast.error("Couldn't apply for leave", { description: "Try again." });
+          }
         }}
         nextId={requests.length + 1}
       />

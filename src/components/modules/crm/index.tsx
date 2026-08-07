@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { PageHeader } from "@/components/shared/page-header";
 import { cn } from "@/lib/utils";
 // (scrollbar-thin utility is defined globally in globals.css)
@@ -11,9 +11,20 @@ import { Contacts } from "./contacts";
 import { Activities } from "./activities";
 import { Reports } from "./reports";
 import { CRM_TABS, type CrmTab } from "./_helpers";
+import { useCrmStore } from "./_store";
 
 export function CRMModule() {
   const [tab, setTab] = useState<CrmTab>("pipeline");
+  const loaded = useCrmStore((s) => s.loaded);
+  const hydrate = useCrmStore((s) => s.hydrate);
+
+  useEffect(() => {
+    void hydrate();
+  }, [hydrate]);
+
+  if (!loaded) {
+    return <div className="p-6 text-[13px] text-muted-foreground">Loading CRM…</div>;
+  }
 
   return (
     <div className="flex min-h-full flex-col gap-4">

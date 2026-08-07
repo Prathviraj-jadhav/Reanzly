@@ -1,8 +1,8 @@
 "use client";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useAppStore } from "@/lib/store/app-store";
-import { FUEL_ENTRIES } from "@/lib/mock-data";
 import type { FuelEntry } from "@/lib/types";
+import { toast } from "sonner";
 import { FuelList } from "./fuel-list";
 import { FuelDetail } from "./fuel-detail";
 import { LogFuelDrawer } from "./log-fuel-drawer";
@@ -14,23 +14,63 @@ type SecondaryView = "list" | "analytics" | "anomalies";
 export function FuelEnergyModule() {
   const { activeView, navigate } = useAppStore();
   const [secondary, setSecondary] = useState<SecondaryView>("list");
-  // Lift FUEL_ENTRIES into state so in-session adds/edits persist across list ↔ detail.
-  const [fuelEntries, setFuelEntries] = useState<FuelEntry[]>(FUEL_ENTRIES);
+  // Real, database-backed fuel entries (src/app/api/fuel-entries) -
+  // previously useState(FUEL_ENTRIES) seeded from mock-data.ts.
+  const [fuelEntries, setFuelEntries] = useState<FuelEntry[]>([]);
+  const [loaded, setLoaded] = useState(false);
 
-  const addFuelEntry = useCallback((f: FuelEntry) => {
-    setFuelEntries((prev) => [f, ...prev]);
+  useEffect(() => {
+    fetch("/api/fuel-entries")
+      .then((r) => (r.ok ? r.json() : Promise.reject(r)))
+      .then(({ fuelEntries }) => setFuelEntries(fuelEntries))
+      .catch(() => toast.error("Couldn't load fuel entries", { description: "Try reloading the page." }))
+      .finally(() => setLoaded(true));
   }, []);
 
-  const updateFuelEntry = useCallback((id: string, data: Partial<FuelEntry>) => {
-    setFuelEntries((prev) => prev.map((f) => (f.id === id ? { ...f, ...data } : f)));
+  const addFuelEntry = useCallback(async (f: FuelEntry): Promise<boolean> => {
+    const { id: _clientId, ...payload } = f;
+    const res = await fetch("/api/fuel-entries", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      toast.error("Couldn't log fuel entry", { description: body.error || "Try again." });
+      return false;
+    }
+    const { fuelEntry } = await res.json();
+    setFuelEntries((prev) => [fuelEntry, ...prev]);
+    return true;
   }, []);
+
+  const updateFuelEntry = useCallback(async (id: string, data: Partial<FuelEntry>): Promise<boolean> => {
+    setFuelEntries((prev) => prev.map((f) => (f.id === id ? { ...f, ...data } : f))); // optimistic
+    const res = await fetch(`/api/fuel-entries/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      toast.error("Couldn't save fuel entry", { description: body.error || "Try again." });
+      return false;
+    }
+    const { fuelEntry } = await res.json();
+    setFuelEntries((prev) => prev.map((f) => (f.id === id ? fuelEntry : f)));
+    return true;
+  }, []);
+
+  if (!loaded) {
+    return <div className="p-6 text-[13px] text-muted-foreground">Loading fuel entries…</div>;
+  }
 
   if (
     activeView.module === "fuel-energy" &&
     activeView.view === "detail" &&
     activeView.id
   ) {
-    return <FuelDetail fuelId={activeView.id} />;
+    return <FuelDetail fuelId={activeView.id} fuelEntries={fuelEntries} onUpdate={updateFuelEntry} />;
   }
 
   const drawerOpen =

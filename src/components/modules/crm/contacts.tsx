@@ -192,10 +192,14 @@ export function Contacts() {
       <NewContactDialog
         open={createOpen}
         onClose={() => setCreateOpen(false)}
-        onAdd={(c) => {
-          addContact(c);
-          setCreateOpen(false);
-          toast.success("Contact added", { description: `${c.name} · ${c.contactId}` });
+        onAdd={async (c) => {
+          const created = await addContact(c);
+          if (created) {
+            setCreateOpen(false);
+            toast.success("Contact added", { description: `${created.name} · ${created.contactId}` });
+          } else {
+            toast.error("Couldn't add contact", { description: "Try again." });
+          }
         }}
         nextId={contacts.length + 1}
       />

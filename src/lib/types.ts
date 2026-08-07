@@ -126,6 +126,7 @@ export interface Customer {
   phone: string;
   gstin: string;
   city: string;
+  billingAddress?: string;
   activeTrips: number;
   outstandingBalance: number;
   status: "Active" | "Inactive";

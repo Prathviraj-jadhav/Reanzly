@@ -30,12 +30,13 @@
 
 import { useState } from "react";
 import {
-  Search as SearchIcon, Star, MapPin, Truck, Bookmark, Calendar, Package, Weight,
+  Search as SearchIcon, Star, MapPin, Truck, Bookmark, Calendar, Package, Weight, ArrowRight,
 } from "lucide-react";
 import {
   VEHICLE_TYPE_META, BODY_TYPE_META,
   type VehicleListing, type LoadListing,
 } from "./marketplace-data";
+import { motion } from "framer-motion";
 
 interface VehicleGridProps {
   listings: VehicleListing[];
@@ -105,18 +106,29 @@ function VehicleCard({
 }) {
   const meta = VEHICLE_TYPE_META[listing.vehicle.type];
   return (
-    <article
+    <motion.article
       role="listitem"
-      className="group flex flex-col gap-3 rounded-[6px] border border-border bg-background p-3 transition-colors hover:border-foreground/30"
+      whileHover={{ y: -4 }}
+      transition={{ duration: 0.2, ease: "easeOut" }}
+      className="group flex flex-col gap-3.5 rounded-[8px] border border-border bg-background p-3.5 transition-all hover:border-foreground/45 hover:shadow-[0_8px_30px_rgb(0,0,0,0.06)] dark:hover:shadow-[0_8px_30px_rgb(0,0,0,0.3)]"
     >
       {/* Photo placeholder */}
-      <div className="relative flex h-32 items-center justify-center overflow-hidden rounded-[5px] border border-border bg-muted/40">
-        <Truck className="h-12 w-12 text-foreground/25" aria-hidden />
-        <span className="absolute bottom-1.5 left-1.5 rounded-[3px] border border-border bg-background/80 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wider text-muted-foreground backdrop-blur-sm">
+      <div className="relative flex h-32 items-center justify-center overflow-hidden rounded-[6px] border border-border bg-gradient-to-br from-neutral-50 to-neutral-100 dark:from-neutral-900/60 dark:to-neutral-950/80">
+        {/* Large watermark text */}
+        <div className="absolute inset-0 flex items-center justify-center select-none overflow-hidden opacity-[0.03] dark:opacity-[0.05]">
+          <span className="font-mono font-black text-5xl tracking-widest uppercase truncate max-w-full px-2">
+            {meta.label.split(" ")[0] || "TRUCK"}
+          </span>
+        </div>
+        
+        <Truck className="h-9 w-9 text-foreground/20 transition-transform duration-300 group-hover:scale-110" aria-hidden />
+        
+        <span className="absolute bottom-2.5 left-2.5 rounded-[4px] border border-border bg-background/90 px-2 py-0.5 text-[9px] font-mono font-medium uppercase tracking-wider text-muted-foreground backdrop-blur-sm shadow-sm">
           {meta.label}
         </span>
         {listing.owner.verified && (
-          <span className="absolute right-1.5 top-1.5 inline-flex items-center gap-0.5 rounded-[3px] border border-foreground/30 bg-foreground/5 px-1 py-0 text-[9px] font-medium uppercase tracking-wider text-foreground">
+          <span className="absolute left-2.5 top-2.5 inline-flex items-center gap-1 rounded-[4px] border border-foreground/15 bg-background/90 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-foreground backdrop-blur-sm shadow-sm">
+            <span className="h-1.5 w-1.5 rounded-full bg-foreground" />
             Verified
           </span>
         )}
@@ -125,74 +137,79 @@ function VehicleCard({
           onClick={onToggleSave}
           aria-pressed={saved}
           aria-label={saved ? "Remove from saved" : "Save this listing"}
-          className="tap absolute bottom-1.5 right-1.5 flex h-7 w-7 items-center justify-center rounded-[4px] border border-border bg-background/80 text-foreground backdrop-blur-sm transition-colors hover:bg-background"
+          className="tap absolute right-2.5 top-2.5 flex h-7.5 w-7.5 items-center justify-center rounded-full border border-border bg-background/90 text-foreground backdrop-blur-sm shadow-sm transition-all hover:bg-background hover:scale-105 active:scale-95"
         >
-          <Bookmark className={"h-3.5 w-3.5 " + (saved ? "fill-foreground" : "")} />
+          <Bookmark className={"h-3.5 w-3.5 transition-colors " + (saved ? "fill-foreground text-foreground" : "text-muted-foreground")} />
         </button>
       </div>
 
       {/* Title + route */}
       <div>
-        <h3 className="line-clamp-2 text-[14px] font-semibold leading-snug text-foreground">
+        <h3 className="line-clamp-2 text-[14.5px] font-semibold leading-normal tracking-tight text-foreground">
           {listing.title}
         </h3>
-        <p className="mt-1 flex items-center gap-1 text-[12px] text-muted-foreground">
-          <MapPin className="h-3 w-3 shrink-0" />
-          <span className="truncate">{listing.route.origin} → {listing.route.destination}</span>
-          <span className="text-muted-foreground/60">· {listing.route.distanceKm} km</span>
+        <p className="mt-1.5 flex items-center gap-1.5 text-[11.5px] text-muted-foreground">
+          <MapPin className="h-3 w-3 shrink-0 text-muted-foreground/80" />
+          <span className="font-medium text-foreground truncate">{listing.route.origin}</span>
+          <span className="text-muted-foreground/40">→</span>
+          <span className="font-medium text-foreground truncate">{listing.route.destination}</span>
+          <span className="font-mono text-[10px] bg-muted/40 px-1 py-0.2 rounded shrink-0">
+            {listing.route.distanceKm}km
+          </span>
         </p>
       </div>
 
       {/* Owner + rating */}
-      <div className="flex items-center justify-between gap-2">
-        <span className="truncate text-[12px] text-muted-foreground" title={listing.owner.name}>
+      <div className="flex items-center justify-between gap-2 text-[12px]">
+        <span className="font-medium text-muted-foreground truncate" title={listing.owner.name}>
           {listing.owner.name}
         </span>
-        <span className="flex shrink-0 items-center gap-0.5 text-[11px] font-medium text-foreground">
-          <Star className="h-3 w-3 fill-foreground" />
-          <span className="tabular">{listing.rating.toFixed(1)}</span>
-          <span className="text-muted-foreground">({listing.reviewCount})</span>
+        <span className="flex shrink-0 items-center gap-1 rounded-[4px] bg-neutral-50 dark:bg-neutral-900 px-1.5 py-0.5 text-[10.5px] font-semibold text-foreground border border-border/40">
+          <Star className="h-3 w-3 fill-foreground stroke-foreground text-foreground" />
+          <span className="font-mono">{listing.rating.toFixed(1)}</span>
+          <span className="text-[9px] text-muted-foreground font-normal">({listing.reviewCount})</span>
         </span>
       </div>
 
       {/* Badges */}
       <div className="flex flex-wrap items-center gap-1">
-        <span className="rounded-[3px] border border-border bg-muted/20 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wider text-muted-foreground">
+        <span className="rounded-[4px] border border-border/70 px-1.5 py-0.5 text-[8.5px] font-mono uppercase tracking-wider text-muted-foreground">
           {BODY_TYPE_META[listing.vehicle.bodyType].label}
         </span>
-        <span className="rounded-[3px] border border-border bg-muted/20 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wider text-muted-foreground">
-          {listing.vehicle.axle}-tyre
+        <span className="rounded-[4px] border border-border/70 px-1.5 py-0.5 text-[8.5px] font-mono uppercase tracking-wider text-muted-foreground">
+          {listing.vehicle.axle} Axle
         </span>
-        <span className="rounded-[3px] border border-border bg-muted/20 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wider text-muted-foreground">
-          {listing.vehicle.capacityTonnes}T
+        <span className="rounded-[4px] border border-border/70 px-1.5 py-0.5 text-[8.5px] font-mono uppercase tracking-wider text-muted-foreground">
+          {listing.vehicle.capacityTonnes} Tons
         </span>
-        <span className="rounded-[3px] border border-border bg-muted/20 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wider text-muted-foreground">
-          {listing.vehicle.year}
+        <span className="rounded-[4px] border border-border/70 px-1.5 py-0.5 text-[8.5px] font-mono uppercase tracking-wider text-muted-foreground">
+          Yr {listing.vehicle.year}
         </span>
-        <span className="ml-auto text-[10px] tabular text-muted-foreground">
-          {listing.totalBookings} bookings
+        <span className="ml-auto text-[9.5px] font-mono text-muted-foreground">
+          {listing.totalBookings} trips
         </span>
       </div>
 
       {/* Price + CTA */}
-      <div className="mt-auto flex items-center justify-between gap-2 border-t border-border pt-2.5">
+      <div className="mt-auto flex items-center justify-between gap-3 border-t border-border/80 pt-3">
         <div>
-          <p className="text-[16px] font-semibold tabular text-foreground">
+          <p className="text-[18px] font-bold font-mono tracking-tight text-foreground">
             ₹{listing.pricing.perDay.toLocaleString("en-IN")}
           </p>
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+          <p className="text-[9px] uppercase tracking-widest text-muted-foreground">
             per day
           </p>
         </div>
         <button
           type="button"
           onClick={onView}
-          className="tap flex h-9 flex-1 items-center justify-center rounded-[5px] bg-foreground px-3 text-[12px] font-medium text-background transition-colors hover:bg-foreground/90"
+          className="tap flex h-9.5 flex-1 items-center justify-center gap-1 rounded-[5px] bg-foreground px-3 text-[12px] font-semibold text-background transition-all hover:bg-foreground/90 hover:shadow-md active:scale-[0.98]"
         >
-          View details
+          <span>View Details</span>
+          <ArrowRight className="h-3.5 w-3.5 transition-transform duration-200 group-hover:translate-x-0.5" />
         </button>
       </div>
-    </article>
+    </motion.article>
   );
 }
 
@@ -237,77 +254,94 @@ export function LoadsGrid({ loads, onApply }: LoadsGridProps) {
 
 function LoadCard({ load, onApply }: { load: LoadListing; onApply: () => void }) {
   return (
-    <article className="flex flex-col gap-3 rounded-[6px] border border-border bg-background p-4 transition-colors hover:border-foreground/30">
+    <motion.article
+      whileHover={{ y: -4 }}
+      transition={{ duration: 0.2, ease: "easeOut" }}
+      className="group flex flex-col gap-3.5 rounded-[8px] border border-border bg-background p-4 transition-all hover:border-foreground/45 hover:shadow-[0_8px_30px_rgb(0,0,0,0.06)] dark:hover:shadow-[0_8px_30px_rgb(0,0,0,0.3)]"
+    >
       {/* Header */}
-      <div className="flex items-start justify-between gap-2">
+      <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="truncate text-[14px] font-semibold text-foreground">
-            {load.shipper}
-          </p>
-          <p className="mt-0.5 text-[11px] uppercase tracking-wider text-muted-foreground">
-            Posted {load.postedAt} · Load ID {load.id}
+          <div className="flex items-center gap-2">
+            <p className="truncate text-[14.5px] font-semibold text-foreground">
+              {load.shipper}
+            </p>
+            <span className="inline-flex items-center gap-1 rounded-[3px] border border-border bg-muted/30 px-1 py-0.2 text-[8px] font-mono text-muted-foreground uppercase">
+              ID {load.id}
+            </span>
+          </div>
+          <p className="mt-0.5 text-[10.5px] font-mono text-muted-foreground">
+            Posted {load.postedAt}
           </p>
         </div>
+        
         <div className="shrink-0 text-right">
-          <p className="text-[16px] font-semibold tabular text-foreground">
+          <p className="text-[17px] font-bold font-mono text-foreground">
             ₹{load.budget.toLocaleString("en-IN")}
           </p>
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+          <p className="text-[9px] uppercase tracking-widest text-muted-foreground">
             budget
           </p>
         </div>
       </div>
 
-      {/* Route */}
-      <div className="flex items-center gap-2 rounded-[5px] border border-border bg-muted/20 px-3 py-2 text-[12px]">
-        <MapPin className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-        <span className="font-medium text-foreground">{load.origin}</span>
-        <span className="text-muted-foreground">→</span>
-        <span className="font-medium text-foreground">{load.destination}</span>
-        <span className="ml-auto text-[10px] tabular text-muted-foreground">{load.distanceKm} km</span>
+      {/* Route map-style indicator */}
+      <div className="flex items-center gap-2.5 rounded-[6px] border border-border/80 bg-neutral-50/50 dark:bg-neutral-900/30 px-3 py-2.5 text-[12.5px]">
+        <div className="flex flex-1 items-center gap-2 truncate">
+          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-foreground" />
+          <span className="font-semibold text-foreground truncate">{load.origin}</span>
+          <span className="text-muted-foreground/35 select-none font-light">────</span>
+          <span className="h-1.5 w-1.5 shrink-0 rounded-full border border-foreground bg-background" />
+          <span className="font-semibold text-foreground truncate">{load.destination}</span>
+        </div>
+        <span className="shrink-0 font-mono text-[10.5px] bg-muted/40 px-1.5 py-0.2 rounded text-muted-foreground">
+          {load.distanceKm} km
+        </span>
       </div>
 
       {/* Requirements */}
-      <div className="flex flex-wrap items-center gap-1">
-        <span className="rounded-[3px] border border-border bg-muted/20 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wider text-muted-foreground">
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span className="rounded-[4px] border border-border/70 px-1.5 py-0.5 text-[8.5px] font-mono uppercase tracking-wider text-muted-foreground">
           {VEHICLE_TYPE_META[load.vehicleTypeRequired].label}
         </span>
-        <span className="rounded-[3px] border border-border bg-muted/20 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wider text-muted-foreground">
+        <span className="rounded-[4px] border border-border/70 px-1.5 py-0.5 text-[8.5px] font-mono uppercase tracking-wider text-muted-foreground">
           {BODY_TYPE_META[load.bodyTypeRequired].label}
         </span>
-        <span className="rounded-[3px] border border-border bg-muted/20 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wider text-muted-foreground">
-          <Weight className="inline h-2.5 w-2.5" /> {load.weightTonnes}T
+        <span className="rounded-[4px] border border-border/70 px-1.5 py-0.5 text-[8.5px] font-mono uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+          <Weight className="h-2.5 w-2.5" />
+          {load.weightTonnes} Tons
         </span>
       </div>
 
       {/* Pickup + delivery */}
-      <div className="grid grid-cols-2 gap-2 text-[12px]">
+      <div className="grid grid-cols-2 gap-2 text-[12px] border-t border-b border-border/40 py-2">
         <div className="flex items-center gap-1.5 text-muted-foreground">
-          <Calendar className="h-3 w-3" />
-          <span>Pickup: <span className="text-foreground">{load.pickupDate}</span></span>
+          <Calendar className="h-3.5 w-3.5 text-muted-foreground/70" />
+          <span>Pickup: <span className="font-medium text-foreground">{load.pickupDate}</span></span>
         </div>
         <div className="flex items-center gap-1.5 text-muted-foreground">
-          <Calendar className="h-3 w-3" />
-          <span>Delivery: <span className="text-foreground">{load.deliveryDate}</span></span>
+          <Calendar className="h-3.5 w-3.5 text-muted-foreground/70" />
+          <span>Delivery: <span className="font-medium text-foreground">{load.deliveryDate}</span></span>
         </div>
       </div>
 
       {/* Description */}
-      <p className="line-clamp-2 text-[12px] leading-snug text-muted-foreground">
+      <p className="line-clamp-2 text-[12px] leading-relaxed text-muted-foreground">
         {load.description}
       </p>
 
       {/* CTA */}
-      <div className="mt-auto flex items-center gap-2 border-t border-border pt-2.5">
+      <div className="mt-auto flex items-center gap-3 pt-2">
         <button
           type="button"
           onClick={onApply}
-          className="tap flex h-9 flex-1 items-center justify-center gap-1.5 rounded-[5px] bg-foreground px-3 text-[12px] font-medium text-background transition-colors hover:bg-foreground/90"
+          className="tap flex h-9.5 flex-1 items-center justify-center gap-1.5 rounded-[5px] bg-foreground px-3 text-[12px] font-semibold text-background transition-all hover:bg-foreground/90 hover:shadow-md active:scale-[0.98]"
         >
-          Apply for this load
+          <span>Apply for this load</span>
+          <ArrowRight className="h-3.5 w-3.5 transition-transform duration-200 group-hover:translate-x-0.5" />
         </button>
       </div>
-    </article>
+    </motion.article>
   );
 }
 

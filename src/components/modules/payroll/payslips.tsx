@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { DataTable, type Column } from "@/components/shared/data-table";
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -34,7 +34,6 @@ import {
   SheetDescription,
 } from "@/components/ui/sheet";
 import {
-  PAYSLIPS,
   DEPARTMENTS,
   PAYSLIP_STATUSES,
   type Payslip,
@@ -54,10 +53,19 @@ import {
 } from "./_helpers";
 
 export function PayslipsTab() {
-  const [rows, setRows] = useState<Payslip[]>(PAYSLIPS);
+  const [rows, setRows] = useState<Payslip[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<Set<string>>(new Set());
   const [cycleFilter, setCycleFilter] = useState<string>("");
+
+  useEffect(() => {
+    fetch("/api/payroll/payslips")
+      .then((r) => (r.ok ? r.json() : Promise.reject(r)))
+      .then(({ payslips }) => setRows(payslips))
+      .catch(() => toast.error("Couldn't load payslips", { description: "Try reloading the page." }))
+      .finally(() => setLoaded(true));
+  }, []);
   const [deptFilter, setDeptFilter] = useState<string>("");
   const [empFilter, setEmpFilter] = useState<string>("");
   const [view, setView] = useState<Payslip | null>(null);
@@ -104,26 +112,18 @@ export function PayslipsTab() {
   const approved = rows.filter((r) => r.status === "Approved").length;
   const totalNet = rows.reduce((s, r) => s + r.netPay, 0);
 
-  const updateStatus = (id: string, status: PayslipStatus) => {
-    setRows((prev) =>
-      prev.map((r) =>
-        r.id === id
-          ? {
-              ...r,
-              status,
-              audit: [
-                ...r.audit,
-                {
-                  id: `${r.id}-${r.audit.length + 1}`,
-                  at: new Date().toISOString(),
-                  by: "Reena Mehta",
-                  action: status === "Approved" ? "Payslip approved" : status === "Paid" ? "Payment disbursed" : status === "Hold" ? "Payslip held" : "Marked as draft",
-                },
-              ],
-            }
-          : r,
-      ),
-    );
+  const updateStatus = async (id: string, status: PayslipStatus) => {
+    const res = await fetch(`/api/payroll/payslips/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+    });
+    if (res.ok) {
+      setRows((prev) => prev.map((r) => (r.id === id ? { ...r, status } : r)));
+    } else {
+      const data = await res.json().catch(() => ({}));
+      toast.error("Couldn't update payslip", { description: data.error || "Try again." });
+    }
   };
 
   const columns: Column<Payslip>[] = [
@@ -256,6 +256,10 @@ export function PayslipsTab() {
   const cycleLabel = cycleFilter ? formatMonthYear(cycleFilter) : "All";
   const deptLabel = deptFilter || "All";
   const empLabel = empFilter ? empFilter.split("|")[1] : "All";
+
+  if (!loaded) {
+    return <div className="p-6 text-[13px] text-muted-foreground">Loading payslips…</div>;
+  }
 
   return (
     <div className="flex flex-col gap-4">

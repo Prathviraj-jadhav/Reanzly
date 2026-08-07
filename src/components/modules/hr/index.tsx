@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Btn } from "@/components/shared/btn";
 import { Banknote } from "lucide-react";
@@ -18,10 +18,17 @@ import { Exit } from "./exit";
 import { Issuances } from "./issuances";
 import { HR_TABS, type HrTab } from "./_helpers";
 import type { IssuanceType, Employee } from "./_data";
+import { useHrStore } from "./_store";
 
 export function HRModule() {
   const [tab, setTab] = useState<HrTab>("overview");
   const navigate = useAppStore((s) => s.navigate);
+  const hrLoaded = useHrStore((s) => s.loaded);
+  const hydrate = useHrStore((s) => s.hydrate);
+
+  useEffect(() => {
+    void hydrate();
+  }, [hydrate]);
 
   // ===== Issuance drawer state (owned here so Onboarding / Exit / Recruitment
   // can pre-open it with a template + employee). =====
@@ -45,6 +52,10 @@ export function HRModule() {
     setDrawerOpen(false);
     setDrawerKey("closed");
   }, []);
+
+  if (!hrLoaded) {
+    return <div className="p-6 text-[13px] text-muted-foreground">Loading HR…</div>;
+  }
 
   return (
     <div className="flex min-h-full flex-col gap-4">

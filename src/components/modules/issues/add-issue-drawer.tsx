@@ -1,5 +1,5 @@
 "use client";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Btn } from "@/components/shared/btn";
 import { toast } from "sonner";
 import {
@@ -30,8 +30,8 @@ import {
   SheetTitle,
   SheetDescription,
 } from "@/components/ui/sheet";
-import { VEHICLES, DRIVERS, INSPECTIONS } from "@/lib/mock-data";
-import type { Issue, IssueSeverity } from "@/lib/types";
+import { INSPECTIONS } from "@/lib/mock-data";
+import type { Issue, IssueSeverity, Vehicle, Driver } from "@/lib/types";
 import {
   ISSUE_SEVERITIES,
   ISSUE_SOURCES,
@@ -46,8 +46,8 @@ interface AddIssueDrawerProps {
   open: boolean;
   onClose: () => void;
   record?: Issue;
-  onAdd?: (issue: Issue) => void;
-  onUpdate?: (id: string, data: Partial<Issue>) => void;
+  onAdd?: (issue: Issue) => Promise<boolean>;
+  onUpdate?: (id: string, data: Partial<Issue>) => Promise<boolean>;
 }
 
 function recordToForm(record: Issue): IssueForm {
@@ -94,6 +94,19 @@ export function AddIssueDrawer({
   const [form, setForm] = useState<IssueForm>(() =>
     record ? recordToForm(record) : EMPTY_ISSUE_FORM,
   );
+  const [submitting, setSubmitting] = useState(false);
+
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [drivers, setDrivers] = useState<Driver[]>([]);
+  useEffect(() => {
+    Promise.all([
+      fetch("/api/vehicles").then((r) => (r.ok ? r.json() : { vehicles: [] })),
+      fetch("/api/drivers").then((r) => (r.ok ? r.json() : { drivers: [] })),
+    ]).then(([v, d]) => {
+      setVehicles(v.vehicles ?? []);
+      setDrivers(d.drivers ?? []);
+    }).catch(() => toast.error("Couldn't load fleet/roster data"));
+  }, []);
 
   const update = <K extends keyof IssueForm>(k: K, v: IssueForm[K]) =>
     setForm((s) => ({ ...s, [k]: v }));
@@ -132,13 +145,17 @@ export function AddIssueDrawer({
     }
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const payload = formToData(form);
+    setSubmitting(true);
+    let ok = true;
     if (record && onUpdate) {
-      onUpdate(record.id, payload);
-      toast.success(`Issue ${record.issueId} updated`, {
-        description: `${form.severity} · ${form.vehicle || "-"} · assigned to ${form.assignee}`,
-      });
+      ok = await onUpdate(record.id, payload);
+      if (ok) {
+        toast.success(`Issue ${record.issueId} updated`, {
+          description: `${form.severity} · ${form.vehicle || "-"} · assigned to ${form.assignee}`,
+        });
+      }
     } else if (onAdd) {
       const newId = `RZ-ISS-${String(Math.floor(Math.random() * 9000) + 1000).padStart(4, "0")}`;
       const newIssue: Issue = {
@@ -154,16 +171,15 @@ export function AddIssueDrawer({
         source: payload.source ?? "Manual",
         description: payload.description ?? "",
       };
-      onAdd(newIssue);
-      toast.success(`Issue ${newId} raised`, {
-        description: `${form.severity} · ${form.vehicle || "-"} · assigned to ${form.assignee}`,
-      });
-    } else {
-      const newId = `RZ-ISS-${String(Math.floor(Math.random() * 9000) + 1000).padStart(4, "0")}`;
-      toast.success(`Issue ${newId} raised`, {
-        description: `${form.severity} · ${form.vehicle || "-"} · assigned to ${form.assignee}`,
-      });
+      ok = await onAdd(newIssue);
+      if (ok) {
+        toast.success(`Issue ${newId} raised`, {
+          description: `${form.severity} · ${form.vehicle || "-"} · assigned to ${form.assignee}`,
+        });
+      }
     }
+    setSubmitting(false);
+    if (!ok) return; // onAdd/onUpdate already surfaced their own error toast
     setStep(1);
     setForm(EMPTY_ISSUE_FORM);
     onClose();
@@ -337,7 +353,7 @@ export function AddIssueDrawer({
                   </SelectTrigger>
                   <SelectContent className="max-h-72 overflow-y-auto scrollbar-thin">
                     <SelectItem value="none">- Select vehicle -</SelectItem>
-                    {VEHICLES.map((v) => (
+                    {vehicles.map((v) => (
                       <SelectItem key={v.id} value={v.name}>
                         {v.name} · {v.licensePlate}
                       </SelectItem>
@@ -390,7 +406,7 @@ export function AddIssueDrawer({
                       </SelectTrigger>
                       <SelectContent className="max-h-60 overflow-y-auto scrollbar-thin">
                         <SelectItem value="none">- Select assignee -</SelectItem>
-                        {DRIVERS.map((d) => (
+                        {drivers.map((d) => (
                           <SelectItem key={d.id} value={d.name}>
                             {d.name} · {d.role}
                           </SelectItem>
@@ -457,8 +473,8 @@ export function AddIssueDrawer({
           </Btn>
           <div className="text-[11px] text-muted-foreground tabular">Step {step} of 3</div>
           {isLastStep ? (
-            <Btn variant="primary" icon={<Check className="h-3.5 w-3.5" />} onClick={handleSubmit}>
-              {record ? "Save Changes" : "Raise Issue"}
+            <Btn variant="primary" icon={<Check className="h-3.5 w-3.5" />} onClick={handleSubmit} disabled={submitting}>
+              {submitting ? "Saving…" : record ? "Save Changes" : "Raise Issue"}
             </Btn>
           ) : (
             <Btn variant="primary" onClick={goNext} disabled={!canAdvance}>

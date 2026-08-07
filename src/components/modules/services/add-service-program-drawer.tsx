@@ -50,8 +50,8 @@ interface AddServiceProgramDrawerProps {
   record?: ServiceProgram;
   /** Create callback - persists the new program to the parent list state. */
   onAdd?: (program: ServiceProgram) => void;
-  /** Called when submitting in edit mode. */
-  onUpdate?: (id: string, data: Partial<ServiceProgram>) => void;
+  /** Called when submitting in edit mode, with the real updated record. */
+  onUpdate?: (id: string, updated: ServiceProgram) => void;
 }
 
 const STEPS = [
@@ -90,6 +90,7 @@ export function AddServiceProgramDrawer({
 }: AddServiceProgramDrawerProps) {
   const [step, setStep] = useState(1);
   const [form, setForm] = useState<ServiceProgramForm>(EMPTY_PROGRAM_FORM);
+  const [submitting, setSubmitting] = useState(false);
 
   // Pre-fill from record when entering edit mode.
   useEffect(() => {
@@ -142,25 +143,35 @@ export function AddServiceProgramDrawer({
   const updateTask = (idx: number, value: string) =>
     update("tasks", form.tasks.map((t, i) => (i === idx ? value : t)));
 
-  const handleSubmit = () => {
-    const validTasks = form.tasks.filter((t) => t.trim()).map((t, i) => ({
-      id: `t-${Date.now().toString(36)}-${i}`,
-      text: t.trim(),
-    }));
+  const handleSubmit = async () => {
+    const validTasks = form.tasks.filter((t) => t.trim());
+    setSubmitting(true);
+    const payload = {
+      name: form.name,
+      vehicleType: form.vehicleType,
+      serviceType: form.serviceType,
+      triggerType: form.triggerType,
+      intervalValue: Number(form.intervalValue) || 0,
+      intervalUnit: form.intervalUnit,
+      defaultVendor: form.defaultVendor,
+      estDurationHours: Number(form.estDurationHours) || 0,
+      estCost: Number(form.estCost) || 0,
+      tasks: validTasks,
+    };
+
     if (record && onUpdate) {
-      onUpdate(record.id, {
-        name: form.name,
-        vehicleType: form.vehicleType,
-        serviceType: form.serviceType,
-        triggerType: form.triggerType,
-        intervalValue: Number(form.intervalValue) || 0,
-        intervalUnit: form.intervalUnit,
-        defaultVendor: form.defaultVendor,
-        estDurationHours: Number(form.estDurationHours) || 0,
-        estCost: Number(form.estCost) || 0,
-        tasks: validTasks.length > 0 ? validTasks : record.tasks,
-        lastUpdated: new Date().toISOString(),
+      const res = await fetch(`/api/service-templates/${record.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
       });
+      setSubmitting(false);
+      if (!res.ok) {
+        toast.error("Could not update service program");
+        return;
+      }
+      const { template } = await res.json();
+      onUpdate(record.id, template);
       toast.success(`Service program updated`, {
         description: `${form.name} · ${form.vehicleType} · every ${form.intervalValue} ${form.intervalUnit}`,
       });
@@ -169,32 +180,19 @@ export function AddServiceProgramDrawer({
       onClose();
       return;
     }
-    if (onAdd) {
-      const newProgram: ServiceProgram = {
-        id: `sp-${Date.now()}`,
-        name: form.name,
-        vehicleType: form.vehicleType,
-        serviceType: form.serviceType,
-        triggerType: form.triggerType,
-        intervalValue: Number(form.intervalValue) || 0,
-        intervalUnit: form.intervalUnit,
-        linkedVehicles: 0,
-        tasks: validTasks,
-        defaultVendor: form.defaultVendor,
-        estDurationHours: Number(form.estDurationHours) || 0,
-        estCost: Number(form.estCost) || 0,
-        lastUpdated: new Date().toISOString(),
-        status: "Active",
-      };
-      onAdd(newProgram);
-      toast.success(`Service program created`, {
-        description: `${form.name} · ${form.vehicleType} · every ${form.intervalValue} ${form.intervalUnit}`,
-      });
-      setStep(1);
-      setForm(EMPTY_PROGRAM_FORM);
-      onClose();
+
+    const res = await fetch("/api/service-templates", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    setSubmitting(false);
+    if (!res.ok) {
+      toast.error("Could not create service program");
       return;
     }
+    const { template } = await res.json();
+    onAdd?.(template);
     toast.success(`Service program created`, {
       description: `${form.name} · ${form.vehicleType} · every ${form.intervalValue} ${form.intervalUnit}`,
     });
@@ -511,8 +509,8 @@ export function AddServiceProgramDrawer({
           </Btn>
           <div className="text-[11px] text-muted-foreground tabular">Step {step} of 3</div>
           {isLastStep ? (
-            <Btn variant="primary" icon={<Check className="h-3.5 w-3.5" />} onClick={handleSubmit}>
-              {record ? "Save Changes" : "Create Program"}
+            <Btn variant="primary" icon={<Check className="h-3.5 w-3.5" />} onClick={handleSubmit} disabled={submitting}>
+              {submitting ? "Saving…" : record ? "Save Changes" : "Create Program"}
             </Btn>
           ) : (
             <Btn variant="primary" onClick={goNext} disabled={!canAdvance}>

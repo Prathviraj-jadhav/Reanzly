@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { DataTable, type Column } from "@/components/shared/data-table";
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -34,7 +34,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  SALARY_STRUCTURES,
   STRUCTURE_NAMES,
   type SalaryStructure,
   type StructureName,
@@ -49,11 +48,20 @@ import {
 } from "./_helpers";
 
 export function SalaryStructuresTab() {
-  const [rows, setRows] = useState<SalaryStructure[]>(SALARY_STRUCTURES);
+  const [rows, setRows] = useState<SalaryStructure[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const [search, setSearch] = useState("");
   const [addOpen, setAddOpen] = useState(false);
   const [view, setView] = useState<SalaryStructure | null>(null);
   const [compareIds, setCompareIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    fetch("/api/payroll/structures")
+      .then((r) => (r.ok ? r.json() : Promise.reject(r)))
+      .then(({ structures }) => setRows(structures))
+      .catch(() => toast.error("Couldn't load salary structures", { description: "Try reloading the page." }))
+      .finally(() => setLoaded(true));
+  }, []);
 
   const filtered = useMemo(() => {
     let r = rows;
@@ -171,6 +179,10 @@ export function SalaryStructuresTab() {
 
   const compareStructures = compareIds.map((id) => rows.find((r) => r.id === id)).filter(Boolean) as SalaryStructure[];
 
+  if (!loaded) {
+    return <div className="p-6 text-[13px] text-muted-foreground">Loading salary structures…</div>;
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -242,27 +254,19 @@ export function SalaryStructuresTab() {
         <StructureComparison structures={compareStructures} onClose={() => setCompareIds([])} />
       )}
 
-      <StructureDrawer open={addOpen} onClose={() => setAddOpen(false)} onSave={(d) => {
-        const newRec: SalaryStructure = {
-          id: `str-${String(rows.length + 1).padStart(3, "0")}`,
-          name: (d.name ?? "Driver (Permanent)") as StructureName,
-          ctcAnnual: d.ctcAnnual ?? 425000,
-          basicPct: d.basicPct ?? 40,
-          daPct: d.daPct ?? 10,
-          hraPct: d.hraPct ?? 20,
-          specialAllowance: d.specialAllowance ?? 0,
-          conveyance: d.conveyance ?? 1600,
-          medicalAllowance: d.medicalAllowance ?? 1250,
-          statutoryBonus: d.statutoryBonus ?? 0,
-          pfPct: d.pfPct ?? 12,
-          esiApplicable: d.esiApplicable ?? false,
-          ptApplicable: true,
-          tdsApplicable: d.tdsApplicable ?? false,
-          activeHeadcount: 0,
-          department: d.department ?? "Operations",
-        };
-        setRows((prev) => [newRec, ...prev]);
-        toast.success(`Structure created`, { description: newRec.name });
+      <StructureDrawer open={addOpen} onClose={() => setAddOpen(false)} onSave={async (d) => {
+        const res = await fetch("/api/payroll/structures", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(d),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          toast.error("Couldn't create structure", { description: data.error || "Try again." });
+          return;
+        }
+        setRows((prev) => [data.structure, ...prev]);
+        toast.success("Structure created", { description: data.structure.name });
         setAddOpen(false);
       }} />
 

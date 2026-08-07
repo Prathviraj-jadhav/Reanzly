@@ -164,6 +164,7 @@ export interface VehicleOnboardingForm {
   ownership: string;
   labels: string;
   vin: string;
+  licensePlate: string;
   // Maintenance
   serviceProgram: string;
   preferredVendor: string;
@@ -246,6 +247,7 @@ export const EMPTY_VEHICLE_FORM: VehicleOnboardingForm = {
   ownership: "Owned",
   labels: "",
   vin: "",
+  licensePlate: "",
   serviceProgram: "Standard 20k km program",
   preferredVendor: "",
   defaultTechnician: "",

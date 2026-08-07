@@ -1,10 +1,9 @@
 "use client";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { SavageInput, SavageTextarea } from "@/components/shared/savage-input";
 import { Autocomplete, type AutocompleteOption } from "@/components/shared/autocomplete";
-import { VEHICLES, DRIVERS, CUSTOMERS, VENDORS } from "@/lib/mock-data";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
@@ -50,13 +49,15 @@ import {
   isValidGstin,
   type JobOrderForm,
 } from "./_helpers";
-import type { Trip } from "@/lib/types";
+import type { Trip, Vehicle, Driver, Customer, Vendor } from "@/lib/types";
 
 interface JobOrderDrawerProps {
   open: boolean;
   onClose: () => void;
-  /** Create callback - persists the new trip to the parent list state. */
-  onAdd?: (trip: Trip) => void;
+  /** Create callback - persists the new trip via the real API. Resolves
+   * false (not a throw) on failure - the caller already surfaces its own
+   * error toast. */
+  onAdd?: (trip: Trip) => Promise<boolean>;
 }
 
 const BRANCHES = ["Mumbai HQ", "Pune Branch", "Delhi NCR", "Bengaluru Hub", "Chennai Coastal", "Kolkata East"];
@@ -75,13 +76,39 @@ export function JobOrderDrawer({ open, onClose, onAdd }: JobOrderDrawerProps) {
   const [form, setForm] = useState<JobOrderForm>(EMPTY_JOB_ORDER);
   const [freightOverride, setFreightOverride] = useState<string>("");
 
+  // Real customers/vendors/vehicles/drivers (src/app/api/*) - previously
+  // this drawer's autocomplete and vehicle/driver assignment both pulled
+  // from src/lib/mock-data.ts, completely disconnected from any of this
+  // session's real data. Fetched once on mount since the drawer stays
+  // mounted and only toggles visibility via `open`.
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [drivers, setDrivers] = useState<Driver[]>([]);
+
+  useEffect(() => {
+    Promise.all([
+      fetch("/api/customers").then((r) => (r.ok ? r.json() : { customers: [] })),
+      fetch("/api/vendors").then((r) => (r.ok ? r.json() : { vendors: [] })),
+      fetch("/api/vehicles").then((r) => (r.ok ? r.json() : { vehicles: [] })),
+      fetch("/api/drivers").then((r) => (r.ok ? r.json() : { drivers: [] })),
+    ])
+      .then(([c, v, veh, drv]) => {
+        setCustomers(c.customers ?? []);
+        setVendors(v.vendors ?? []);
+        setVehicles(veh.vehicles ?? []);
+        setDrivers(drv.drivers ?? []);
+      })
+      .catch(() => toast.error("Couldn't load customers/vendors/fleet data"));
+  }, []);
+
   const update = <K extends keyof JobOrderForm>(k: K, v: JobOrderForm[K]) =>
     setForm((s) => ({ ...s, [k]: v }));
 
   // ===== Customer autocomplete options =====
   const customerOptions: AutocompleteOption[] = useMemo(
-    () => CUSTOMERS.map((c) => ({ value: c.companyName, label: c.companyName, hint: c.city })),
-    [],
+    () => customers.map((c) => ({ value: c.companyName, label: c.companyName, hint: c.city })),
+    [customers],
   );
 
   const partyOptions: AutocompleteOption[] = useMemo(() => {
@@ -93,10 +120,10 @@ export function JobOrderDrawer({ open, onClose, onAdd }: JobOrderDrawerProps) {
       seen.add(key);
       set.push({ value: label, label, hint: `${hint} · ${kind}` });
     };
-    CUSTOMERS.forEach((c) => push(c.companyName, c.city, "Customer"));
-    VENDORS.forEach((v) => push(v.companyName, v.city, "Vendor"));
+    customers.forEach((c) => push(c.companyName, c.city, "Customer"));
+    vendors.forEach((v) => push(v.companyName, v.city, "Vendor"));
     return set;
-  }, []);
+  }, [customers, vendors]);
 
   // ===== Per-step validation =====
   const stepErrors = useMemo(() => {
@@ -120,6 +147,8 @@ export function JobOrderDrawer({ open, onClose, onAdd }: JobOrderDrawerProps) {
     if (!form.orderType) s2.push("Order type is required");
     if (!form.serviceMode) s2.push("Service mode is required");
     if (!form.loadType) s2.push("Load type is required");
+    if (!form.vehicle) s2.push("Vehicle is required");
+    if (!form.driver) s2.push("Driver is required");
     if (s2.length) errors[2] = s2;
     // Step 3 - Parties
     const s3: string[] = [];
@@ -182,8 +211,10 @@ export function JobOrderDrawer({ open, onClose, onAdd }: JobOrderDrawerProps) {
     setStep(s);
   };
 
+  const [submitting, setSubmitting] = useState(false);
+
   // ===== Submit =====
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const issues = Object.values(stepErrors).flat();
     if (issues.length) {
       toast("Compliance check failed", {
@@ -194,8 +225,12 @@ export function JobOrderDrawer({ open, onClose, onAdd }: JobOrderDrawerProps) {
     }
     if (onAdd) {
       const now = new Date().toISOString();
-      const vehicle = VEHICLES.find((v) => v.name === form.vehicle) ?? VEHICLES[0];
-      const driver = DRIVERS.find((d) => d.name === form.driver) ?? DRIVERS[0];
+      const vehicle = vehicles.find((v) => v.name === form.vehicle);
+      const driver = drivers.find((d) => d.name === form.driver);
+      if (!vehicle || !driver) {
+        toast.error("Select a real vehicle and driver", { description: "Reload the fleet/roster and try again." });
+        return;
+      }
       const newTrip: Trip = {
         id: `trip-${Date.now()}`,
         tripId: form.orderNumber || `TRIP-${Date.now()}`,
@@ -215,10 +250,17 @@ export function JobOrderDrawer({ open, onClose, onAdd }: JobOrderDrawerProps) {
         paymentStatus: "Unpaid",
         orderMode: form.orderModeLegacy,
         eWayBill: form.triggerEwayBill ? "PENDING" : undefined,
-        distanceKm: 480,
+        // Not yet computed - this app has no real geocoding/routing
+        // integration (out of scope; would need a real Maps provider key).
+        // 0 is an honest "not calculated" rather than a plausible-looking
+        // fabricated distance.
+        distanceKm: 0,
         customer: form.customer,
       };
-      onAdd(newTrip);
+      setSubmitting(true);
+      const ok = await onAdd(newTrip);
+      setSubmitting(false);
+      if (!ok) return; // onAdd already surfaced its own error toast
       toast.success("Job Order created", {
         description: `${form.orderNumber} · ${form.customer} · Freight ${formatINR(freight)}`,
       });
@@ -311,8 +353,16 @@ export function JobOrderDrawer({ open, onClose, onAdd }: JobOrderDrawerProps) {
         {/* Content - scrollable */}
         <div className="flex-1 overflow-y-auto scrollbar-thin px-5 py-5">
           {step === 1 && <Step1Customer form={form} update={update} customerOptions={customerOptions} />}
-          {step === 2 && <Step2Locations form={form} update={update} />}
-          {step === 3 && <Step3Parties form={form} update={update} partyOptions={partyOptions} />}
+          {step === 2 && <Step2Locations form={form} update={update} vehicles={vehicles} drivers={drivers} />}
+          {step === 3 && (
+            <Step3Parties
+              form={form}
+              update={update}
+              partyOptions={partyOptions}
+              customerCount={customers.length}
+              vendorCount={vendors.length}
+            />
+          )}
           {step === 4 && (
             <Step4Cargo
               form={form}
@@ -363,8 +413,9 @@ export function JobOrderDrawer({ open, onClose, onAdd }: JobOrderDrawerProps) {
               variant="primary"
               icon={<Check className="h-3.5 w-3.5" />}
               onClick={handleSubmit}
+              disabled={submitting}
             >
-              Create Job Order
+              {submitting ? "Creating…" : "Create Job Order"}
             </Btn>
           ) : (
             <Btn
@@ -530,9 +581,13 @@ function Step1Customer({
 function Step2Locations({
   form,
   update,
+  vehicles,
+  drivers,
 }: {
   form: JobOrderForm;
   update: <K extends keyof JobOrderForm>(k: K, v: JobOrderForm[K]) => void;
+  vehicles: Vehicle[];
+  drivers: Driver[];
 }) {
   const gstinValid = form.gstin.trim() === "" || isValidGstin(form.gstin);
   return (
@@ -600,6 +655,26 @@ function Step2Locations({
         <FieldGroup label="Load Type" required>
           <PillChoice options={LOAD_TYPES} value={form.loadType} onChange={(v) => update("loadType", v)} columns={3} />
         </FieldGroup>
+        <FieldGroup label="Vehicle" required hint={vehicles.length === 0 ? "No vehicles in your fleet registry yet" : undefined}>
+          <Select value={form.vehicle} onValueChange={(v) => update("vehicle", v)}>
+            <SelectTrigger className="h-8 w-full rounded-[5px] text-[13px]"><SelectValue placeholder="Select a vehicle" /></SelectTrigger>
+            <SelectContent>
+              {vehicles.map((v) => (
+                <SelectItem key={v.id} value={v.name}>{v.name} · {v.licensePlate}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </FieldGroup>
+        <FieldGroup label="Driver" required hint={drivers.length === 0 ? "No drivers on the roster yet" : undefined}>
+          <Select value={form.driver} onValueChange={(v) => update("driver", v)}>
+            <SelectTrigger className="h-8 w-full rounded-[5px] text-[13px]"><SelectValue placeholder="Select a driver" /></SelectTrigger>
+            <SelectContent>
+              {drivers.map((d) => (
+                <SelectItem key={d.id} value={d.name}>{d.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </FieldGroup>
       </div>
     </StepShell>
   );
@@ -610,10 +685,14 @@ function Step3Parties({
   form,
   update,
   partyOptions,
+  customerCount,
+  vendorCount,
 }: {
   form: JobOrderForm;
   update: <K extends keyof JobOrderForm>(k: K, v: JobOrderForm[K]) => void;
   partyOptions: AutocompleteOption[];
+  customerCount: number;
+  vendorCount: number;
 }) {
   return (
     <StepShell
@@ -666,8 +745,8 @@ function Step3Parties({
       <div className="mt-4 flex items-center gap-2 rounded-[5px] border border-dashed border-border bg-accent/20 px-3 py-2">
         <Building2 className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
         <span className="text-[12px] text-muted-foreground">
-          Autocomplete pulls from <span className="font-medium text-foreground">{CUSTOMERS.length} customers</span> and{" "}
-          <span className="font-medium text-foreground">{VENDORS.length} vendors</span> in your master.
+          Autocomplete pulls from <span className="font-medium text-foreground">{customerCount} customers</span> and{" "}
+          <span className="font-medium text-foreground">{vendorCount} vendors</span> in your master.
         </span>
       </div>
     </StepShell>
@@ -1004,6 +1083,3 @@ function StepShell({
     </div>
   );
 }
-
-// Unused exports kept for backwards-compat with callers that may import them
-export { VEHICLES, DRIVERS };

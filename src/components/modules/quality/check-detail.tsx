@@ -26,7 +26,7 @@ import {
   FileText,
   ClipboardList,
 } from "lucide-react";
-import { toastSuccess, toastInfo } from "@/lib/toast";
+import { toastSuccess, toastInfo, toastError } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import {
   formatDate,
@@ -42,7 +42,6 @@ import {
   type ControlPoint,
   type CorrectiveAction,
 } from "./_helpers";
-import { QUALITY_CHECKS } from "./_helpers";
 
 const TABS = [
   { id: "overview", label: "Overview" },
@@ -62,17 +61,17 @@ const TYPE_ICON: Record<CheckType, React.ComponentType<{ className?: string }>> 
 interface CheckDetailProps {
   checkId: string;
   initialTab?: string;
+  checks: QualityCheck[];
+  onUpdate: (id: string, updated: QualityCheck) => void;
 }
 
-export function CheckDetail({ checkId, initialTab }: CheckDetailProps) {
+export function CheckDetail({ checkId, initialTab, checks, onUpdate }: CheckDetailProps) {
   const { navigate, navigateDetail } = useAppStore();
   const [activeTab, setActiveTab] = useState(initialTab || "overview");
-  const record = useMemo<QualityCheck | undefined>(
-    () => QUALITY_CHECKS.find((c) => c.id === checkId),
-    [checkId],
+  const check = useMemo<QualityCheck | undefined>(
+    () => checks.find((c) => c.id === checkId),
+    [checks, checkId],
   );
-
-  const check = record;
 
   if (!check) {
     return (
@@ -113,7 +112,20 @@ export function CheckDetail({ checkId, initialTab }: CheckDetailProps) {
     { label: "Re-verify Findings", onClick: () => toastInfo("Re-running conformance check", check.checkId) },
     {
       label: check.status === "Cancelled" ? "Reopen Check" : "Cancel Check",
-      onClick: () => toastSuccess(`Check ${check.status === "Cancelled" ? "reopened" : "cancelled"}`, check.checkId),
+      onClick: () => {
+        const nextStatus = check.status === "Cancelled" ? "Scheduled" : "Cancelled";
+        void fetch(`/api/quality-checks/${check.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: nextStatus }),
+        })
+          .then((res) => (res.ok ? res.json() : Promise.reject()))
+          .then(({ check: updated }) => {
+            onUpdate(check.id, updated);
+            toastSuccess(`Check ${nextStatus === "Cancelled" ? "cancelled" : "reopened"}`, check.checkId);
+          })
+          .catch(() => toastError("Could not update check", check.checkId));
+      },
     },
   ];
 

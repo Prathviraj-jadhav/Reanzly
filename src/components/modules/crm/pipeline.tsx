@@ -64,7 +64,6 @@ const STAGE_COLOR_LABEL: Record<DealStage, string> = {
 
 export function Pipeline({ onNavigate }: PipelineProps) {
   const deals = useCrmStore((s) => s.deals);
-  const moveDealStage = useCrmStore((s) => s.moveDealStage);
   const updateDeal = useCrmStore((s) => s.updateDeal);
 
   const [ownerFilter, setOwnerFilter] = useState<string>("All");
@@ -107,13 +106,18 @@ export function Pipeline({ onNavigate }: PipelineProps) {
         )
       : 0;
 
-  const handleMove = (dealId: string, stage: DealStage) => {
-    moveDealStage(dealId, stage);
+  const handleMove = async (dealId: string, stage: DealStage) => {
+    // A single combined update - moveDealStage alone would just PATCH the
+    // same endpoint a second time with less data, a redundant round-trip.
     const patch: Partial<Deal> = { stage, probability: stage === "Won" ? 100 : stage === "Lost" ? 0 : 50 };
-    updateDeal(dealId, patch);
-    toast.success(`Deal moved to ${stage}`, {
-      description: `Stage updated - forecast recalculated.`,
-    });
+    const ok = await updateDeal(dealId, patch);
+    if (ok) {
+      toast.success(`Deal moved to ${stage}`, {
+        description: `Stage updated - forecast recalculated.`,
+      });
+    } else {
+      toast.error("Couldn't move deal", { description: "Try again." });
+    }
   };
 
   return (

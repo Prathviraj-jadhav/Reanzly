@@ -5,19 +5,25 @@
  * A genuine, fully offline reasoning engine for Rean. No external API,
  * no network call, no API key, no download — it classifies intent from
  * the user's message with keyword matching, queries the tenant's own
- * live mock data (the same arrays every module in the app renders from),
- * and composes a real, grounded answer in Rean's voice.
+ * real database (the same tables every module in the app now reads and
+ * writes through its real CRUD API), and composes a real, grounded answer
+ * in Rean's voice.
+ *
+ * Previously every intent handler here read from src/lib/mock-data.ts's
+ * frozen in-memory arrays - a snapshot of what the app's data looked like
+ * before this session wired every module to real Prisma-backed CRUD. That
+ * meant Rean's answers had quietly stopped moving with the real data the
+ * rest of the app now shows (a create/update/delete anywhere else was
+ * invisible to Rean). Converted to real, companyId-scoped Prisma queries
+ * via src/lib/slm/live-data.ts, matching the pattern every other module's
+ * API route already uses.
  *
  * This exists because the app's original LLM path (`z-ai-web-dev-sdk`,
  * see src/app/api/rean/route.ts) depends on a `.z-ai-config` file that
  * only exists inside the sandbox this app was originally built in — it
  * cannot be configured with a normal API key, and is permanently broken
  * outside that sandbox. This engine is not a fallback bolted on next to
- * that call; it is the real answer path. It is deliberately NOT a
- * generic small language model — a few-hundred-MB in-browser model would
- * still have to be grounded in this same tenant data to be useful, and
- * would be slower and less accurate at exact figures than direct queries
- * against the data the app already has in memory.
+ * that call; it is the real answer path.
  *
  * Voice rules (mirrors REAN_SYSTEM_PROMPT in the old API route):
  *   - Sharp, direct, confident. No filler ("seamless", "elevate", etc).
@@ -26,19 +32,8 @@
  *   - Under ~150 words.
  */
 
-import {
-  INVOICES,
-  TRIPS,
-  VEHICLES,
-  DRIVERS,
-  ISSUES,
-  FUEL_ENTRIES,
-  DOCUMENTS,
-  REMINDERS,
-  KPI_STATS,
-  REAN_RECOMMENDATIONS,
-  REAN_ANOMALIES,
-} from "@/lib/mock-data";
+import { db } from "@/lib/db";
+import { computeKpis, computeAnomalies, computeRecommendations } from "./live-data";
 
 export interface LocalEngineResult {
   reply: string;
@@ -56,15 +51,12 @@ interface Intent {
    * either order, not the fixed phrase "overdue invoice".
    */
   all?: string[][];
-  handle: () => string;
+  handle: (companyId: string) => Promise<string>;
 }
 
-function daysUntil(iso: string): number {
-  return Math.round((new Date(iso).getTime() - Date.now()) / 86_400_000);
-}
-
-function daysSince(iso: string): number {
-  return -daysUntil(iso);
+function daysUntil(d: Date | string): number {
+  const t = typeof d === "string" ? new Date(d) : d;
+  return Math.round((t.getTime() - Date.now()) / 86_400_000);
 }
 
 function inr(n: number): string {
@@ -77,24 +69,24 @@ function joinList(items: string[], max = 5): string {
   return rest > 0 ? `${shown.join(", ")}, and ${rest} more` : shown.join(", ");
 }
 
-// ── Intent handlers — each queries real data, no canned strings ────
+// ── Intent handlers — each queries the real database, no canned strings ──
 
-function handleGreeting(): string {
-  return `Ready. ${KPI_STATS.activeTrips} trips active, ${KPI_STATS.openIssues} open issues, ${KPI_STATS.outstandingInvoices} invoices outstanding at ${inr(KPI_STATS.outstandingAmount)}. Ask me about invoices, trips, fleet, fuel, compliance, or drivers.`;
+async function handleGreeting(companyId: string): Promise<string> {
+  const k = await computeKpis(companyId);
+  return `Ready. ${k.activeTrips} trips active, ${k.openIssues} open issues, ${k.outstandingInvoices} invoices outstanding at ${inr(k.outstandingAmount)}. Ask me about invoices, trips, fleet, fuel, compliance, or drivers.`;
 }
 
-// Mock invoice due dates aren't always consistent with the seeded "Overdue"
-// status (the generator picks status and dueDate independently - see
-// mock-data.ts), so a straight date diff can land at zero or negative for
-// an invoice that's authoritatively flagged overdue. status is the source
-// of truth here; clamp the displayed/sorted day count to a sensible floor
-// instead of showing a nonsensical negative "-30d overdue".
-function overdueDays(dueDate: string): number {
-  return Math.max(1, daysSince(dueDate));
+function overdueDays(dueDate: Date | null): number {
+  if (!dueDate) return 1;
+  return Math.max(1, Math.round((Date.now() - dueDate.getTime()) / 86_400_000));
 }
 
-function handleOverdueInvoices(): string {
-  const overdue = INVOICES.filter((i) => i.status === "Overdue");
+async function handleOverdueInvoices(companyId: string): Promise<string> {
+  const overdue = await db.invoice.findMany({
+    where: { companyId, status: "Overdue" },
+    orderBy: { dueDate: "asc" },
+    take: 25,
+  });
   if (overdue.length === 0) return "No overdue invoices right now. Clean receivables.";
   const total = overdue.reduce((s, i) => s + i.totalAmount, 0);
   const worst = [...overdue].sort((a, b) => overdueDays(b.dueDate) - overdueDays(a.dueDate)).slice(0, 3);
@@ -104,110 +96,155 @@ function handleOverdueInvoices(): string {
   return `${overdue.length} invoices overdue, ${inr(total)} total. Worst first: ${lines}.${overdue.length > 3 ? ` ${overdue.length - 3} more behind those.` : ""}`;
 }
 
-function handleRevenue(): string {
-  const paid = INVOICES.filter((i) => i.status === "Paid").reduce((s, i) => s + i.totalAmount, 0);
-  const sent = INVOICES.filter((i) => i.status === "Sent").length;
-  return `Revenue this period: ${inr(KPI_STATS.revenueThisPeriod)}. Collected against ${paid > 0 ? inr(paid) : "₹0"} in paid invoices, ${sent} still sent and awaiting payment, ${KPI_STATS.outstandingInvoices} outstanding at ${inr(KPI_STATS.outstandingAmount)}. Cost per km running ₹${KPI_STATS.costPerKm}, fuel spend ${inr(KPI_STATS.fuelCostThisPeriod)} this period.`;
+async function handleRevenue(companyId: string): Promise<string> {
+  const [k, sentCount] = await Promise.all([
+    computeKpis(companyId),
+    db.invoice.count({ where: { companyId, status: "Sent" } }),
+  ]);
+  return `Revenue this period: ${inr(k.revenueThisPeriod)}. ${sentCount} invoice${sentCount === 1 ? "" : "s"} sent and awaiting payment, ${k.outstandingInvoices} outstanding at ${inr(k.outstandingAmount)}. Cost per km running ₹${k.costPerKm}, fuel spend ${inr(k.fuelCostThisPeriod)} this period.`;
 }
 
-function handleTrips(): string {
-  const active = TRIPS.filter((t) => t.status === "Active" || t.status === "In Transit");
-  const breakdown = TRIPS.filter((t) => t.status === "Breakdown");
-  const delivered = TRIPS.filter((t) => t.status === "Delivered").length;
-  let reply = `${active.length} trips active or in transit, ${delivered} delivered this period, completion rate ${KPI_STATS.completionRate}%.`;
+async function handleTrips(companyId: string): Promise<string> {
+  const [k, active, breakdown] = await Promise.all([
+    computeKpis(companyId),
+    db.trip.findMany({ where: { companyId, status: { in: ["Active", "In Transit"] } }, take: 1 }),
+    db.trip.findMany({ where: { companyId, status: "Breakdown" }, include: { vehicle: { select: { name: true } } }, take: 5 }),
+  ]);
+  void active;
+  let reply = `${k.activeTrips} trips active or in transit, ${k.completedTrips} delivered this period, completion rate ${k.completionRate}%.`;
   if (breakdown.length > 0) {
-    const names = breakdown.map((t) => `${t.tripId} (${t.vehicleName})`);
+    const names = breakdown.map((t) => `${t.tripId} (${t.vehicle?.name ?? "unassigned"})`);
     reply += ` ${breakdown.length} on breakdown: ${joinList(names, 3)}.`;
   }
   return reply;
 }
 
-function handleFleet(): string {
-  const idle = VEHICLES.filter((v) => v.status === "Idle");
-  const maint = VEHICLES.filter((v) => v.status === "In Maintenance");
-  let reply = `${KPI_STATS.vehicleActive} of ${VEHICLES.length} vehicles active, ${KPI_STATS.vehicleIdle} idle, ${KPI_STATS.vehicleMaintenance} in maintenance, ${KPI_STATS.vehicleOffline} offline.`;
-  if (idle.length > 0) {
-    reply += ` Idle: ${joinList(idle.map((v) => v.name), 4)}.`;
-  }
-  if (maint.length > 0) {
-    reply += ` In shop: ${joinList(maint.map((v) => v.name), 3)}.`;
-  }
+async function handleFleet(companyId: string): Promise<string> {
+  const [k, idle, maint] = await Promise.all([
+    computeKpis(companyId),
+    db.vehicle.findMany({ where: { companyId, status: "Idle" }, take: 4, select: { name: true } }),
+    db.vehicle.findMany({ where: { companyId, status: "In Maintenance" }, take: 3, select: { name: true } }),
+  ]);
+  let reply = `${k.vehicleActive} of ${k.vehicleTotal} vehicles active, ${k.vehicleIdle} idle, ${k.vehicleMaintenance} in maintenance, ${k.vehicleOffline} offline.`;
+  if (idle.length > 0) reply += ` Idle: ${joinList(idle.map((v) => v.name), 4)}.`;
+  if (maint.length > 0) reply += ` In shop: ${joinList(maint.map((v) => v.name), 3)}.`;
   return reply;
 }
 
-function handleFuel(): string {
-  const anomalies = FUEL_ENTRIES.filter((f) => f.anomaly);
+async function handleFuel(companyId: string): Promise<string> {
+  const [k, anomalies, fillCount] = await Promise.all([
+    computeKpis(companyId),
+    db.fuelEntry.findMany({
+      where: { companyId, anomaly: true },
+      include: { vehicle: { select: { name: true } } },
+      orderBy: { date: "desc" },
+      take: 3,
+    }),
+    db.fuelEntry.count({ where: { companyId } }),
+  ]);
   if (anomalies.length === 0) {
-    return `No fuel anomalies flagged. ${inr(KPI_STATS.fuelCostThisPeriod)} spent this period across ${FUEL_ENTRIES.length} logged fills.`;
+    return `No fuel anomalies flagged. ${inr(k.fuelCostThisPeriod)} spent this period across ${fillCount} logged fills.`;
   }
   const lines = anomalies
-    .slice(0, 3)
-    .map((f) => `${f.vehicle} at ${f.station} on ${new Date(f.date).toLocaleDateString("en-IN")}${f.anomalyNote ? ` — ${f.anomalyNote}` : ""}`)
+    .map((f) => `${f.vehicle?.name ?? "unassigned"} at ${f.station ?? "unknown station"} on ${f.date.toLocaleDateString("en-IN")}${f.anomalyNote ? ` — ${f.anomalyNote}` : ""}`)
     .join("; ");
-  return `${anomalies.length} fuel anomal${anomalies.length === 1 ? "y" : "ies"} flagged out of ${FUEL_ENTRIES.length} fills this period. ${lines}. Fuel spend ${inr(KPI_STATS.fuelCostThisPeriod)} total.`;
+  return `${anomalies.length} fuel anomal${anomalies.length === 1 ? "y" : "ies"} flagged out of ${fillCount} fills this period. ${lines}. Fuel spend ${inr(k.fuelCostThisPeriod)} total.`;
 }
 
-function handleIssues(): string {
-  const open = ISSUES.filter((i) => i.status === "Open" || i.status === "In Progress");
-  if (open.length === 0) return "No open issues. Board is clear.";
-  const critical = open.filter((i) => i.severity === "Critical" || i.severity === "High");
-  let reply = `${open.length} open issues (${KPI_STATS.openIssues} counted in ops).`;
+async function handleIssues(companyId: string): Promise<string> {
+  const [k, critical] = await Promise.all([
+    computeKpis(companyId),
+    db.issue.findMany({
+      where: { companyId, severity: { in: ["Critical", "High"] }, status: { in: ["Open", "InProgress"] } },
+      include: { vehicle: { select: { name: true } } },
+      take: 3,
+    }),
+  ]);
+  if (k.openIssues === 0) return "No open issues. Board is clear.";
+  let reply = `${k.openIssues} open issues.`;
   if (critical.length > 0) {
-    const lines = critical.slice(0, 3).map((i) => `${i.issueId} — ${i.title}${i.vehicle ? ` (${i.vehicle})` : ""}`);
+    const lines = critical.map((i) => `${i.issueId} — ${i.title}${i.vehicle ? ` (${i.vehicle.name})` : ""}`);
     reply += ` ${critical.length} high/critical: ${joinList(lines, 3)}.`;
   }
   return reply;
 }
 
-function handleCompliance(): string {
-  const expiring = DOCUMENTS.filter((d) => d.status === "Expiring Soon" || d.status === "Expired");
-  const upcoming = REMINDERS.filter((r) => r.daysRemaining <= 14).sort((a, b) => a.daysRemaining - b.daysRemaining);
+async function handleCompliance(companyId: string): Promise<string> {
+  const [k, expiring, upcoming] = await Promise.all([
+    computeKpis(companyId),
+    db.document.findMany({
+      where: { companyId, status: { in: ["Expiring Soon", "Expired"] } },
+      include: { vehicle: { select: { name: true } }, driver: { select: { name: true } } },
+      take: 5,
+    }),
+    db.reminder.findMany({
+      where: { companyId, dueDate: { lte: new Date(Date.now() + 14 * 86_400_000) } },
+      orderBy: { dueDate: "asc" },
+      take: 1,
+    }),
+  ]);
   if (expiring.length === 0 && upcoming.length === 0) {
-    return `All documents current. Compliance rate ${KPI_STATS.complianceRate}%.`;
+    return `All documents current. Compliance rate ${k.complianceRate}%.`;
   }
-  let reply = `Compliance rate ${KPI_STATS.complianceRate}%. `;
+  let reply = `Compliance rate ${k.complianceRate}%. `;
   if (expiring.length > 0) {
     const expired = expiring.filter((d) => d.status === "Expired");
-    reply += `${expiring.length} document${expiring.length === 1 ? "" : "s"} expiring or expired${expired.length > 0 ? ` (${expired.length} already expired)` : ""}: ${joinList(expiring.map((d) => `${d.name} (${d.entityName})`), 3)}.`;
+    const names = expiring.map((d) => `${d.name} (${d.vehicle?.name ?? d.driver?.name ?? d.entityType})`);
+    reply += `${expiring.length} document${expiring.length === 1 ? "" : "s"} expiring or expired${expired.length > 0 ? ` (${expired.length} already expired)` : ""}: ${joinList(names, 3)}.`;
   }
   if (upcoming.length > 0) {
     const soonest = upcoming[0];
-    const when = soonest.daysRemaining < 0 ? `overdue by ${Math.abs(soonest.daysRemaining)}d` : `in ${soonest.daysRemaining}d`;
-    reply += ` ${upcoming.length} renewal${upcoming.length === 1 ? "" : "s"} due within 14 days, soonest: ${soonest.name} for ${soonest.entity}, ${when}.`;
+    const days = daysUntil(soonest.dueDate);
+    const when = days < 0 ? `overdue by ${Math.abs(days)}d` : `in ${days}d`;
+    reply += ` Next renewal due: ${soonest.title}, ${when}.`;
   }
   return reply;
 }
 
-function handleDrivers(): string {
-  const expiringLicense = DRIVERS.filter((d) => daysUntil(d.licenseExpiry) <= 30 && daysUntil(d.licenseExpiry) >= 0);
-  const onLeave = DRIVERS.filter((d) => d.status === "On Leave");
-  const topRated = [...DRIVERS].sort((a, b) => b.rating - a.rating)[0];
-  let reply = `${DRIVERS.length} drivers/staff on roster, ${onLeave.length} on leave. Top-rated: ${topRated.name} at ${topRated.rating}★, ${topRated.tripsCompleted} trips, ${Math.round(topRated.onTimeRate * 100)}% on-time.`;
+async function handleDrivers(companyId: string): Promise<string> {
+  const [total, onLeave, topRated, expiringLicense] = await Promise.all([
+    db.driver.count({ where: { companyId } }),
+    db.driver.count({ where: { companyId, status: "On Leave" } }),
+    db.driver.findFirst({ where: { companyId }, orderBy: { rating: "desc" } }),
+    db.driver.findMany({
+      where: { companyId, licenseExpiry: { gte: new Date(), lte: new Date(Date.now() + 30 * 86_400_000) } },
+      take: 3,
+    }),
+  ]);
+  if (total === 0) return "No drivers on roster yet.";
+  let reply = `${total} drivers/staff on roster, ${onLeave} on leave.`;
+  if (topRated) {
+    reply += ` Top-rated: ${topRated.name} at ${topRated.rating}★, ${topRated.tripsCompleted} trips, ${Math.round((topRated.onTimeRate ?? 0) * 100)}% on-time.`;
+  }
   if (expiringLicense.length > 0) {
-    reply += ` ${expiringLicense.length} license${expiringLicense.length === 1 ? "" : "s"} expiring within 30 days: ${joinList(expiringLicense.map((d) => `${d.name} (${daysUntil(d.licenseExpiry)}d)`), 3)}.`;
+    const names = expiringLicense.map((d) => `${d.name} (${d.licenseExpiry ? daysUntil(d.licenseExpiry) : "?"}d)`);
+    reply += ` ${expiringLicense.length} license${expiringLicense.length === 1 ? "" : "s"} expiring within 30 days: ${joinList(names, 3)}.`;
   }
   return reply;
 }
 
-function handleRecommendations(): string {
-  if (REAN_RECOMMENDATIONS.length === 0) return "No open recommendations. Everything tracked is on plan.";
-  const lines = REAN_RECOMMENDATIONS.map((r) => `${r.title} — ${r.impact}`);
-  return `${REAN_RECOMMENDATIONS.length} recommendations open, highest impact first: ${lines.join("; ")}.`;
+async function handleRecommendations(companyId: string): Promise<string> {
+  const recs = await computeRecommendations(companyId);
+  if (recs.length === 0) return "No open recommendations. Everything tracked is on plan.";
+  const lines = recs.map((r) => `${r.title} — ${r.impact}`);
+  return `${recs.length} recommendation${recs.length === 1 ? "" : "s"} open, highest impact first: ${lines.join("; ")}.`;
 }
 
-function handleAnomalies(): string {
-  if (REAN_ANOMALIES.length === 0) return "No anomalies detected in the current window.";
-  const critical = REAN_ANOMALIES.filter((a) => a.severity === "critical");
-  const lines = REAN_ANOMALIES.slice(0, 4).map((a) => `${a.type} on ${a.entity}`);
-  return `${REAN_ANOMALIES.length} anomalies live${critical.length > 0 ? `, ${critical.length} critical` : ""}: ${lines.join("; ")}.`;
+async function handleAnomalies(companyId: string): Promise<string> {
+  const anomalies = await computeAnomalies(companyId);
+  if (anomalies.length === 0) return "No anomalies detected in the current window.";
+  const critical = anomalies.filter((a) => a.severity === "critical");
+  const lines = anomalies.slice(0, 4).map((a) => `${a.type} on ${a.entity}`);
+  return `${anomalies.length} anomalies live${critical.length > 0 ? `, ${critical.length} critical` : ""}: ${lines.join("; ")}.`;
 }
 
-function handleHelp(): string {
+async function handleHelp(): Promise<string> {
   return `I answer from your live operational data — no external service, works offline. Ask about: overdue invoices, revenue, active trips, fleet status, fuel anomalies, open issues, document/compliance expiry, drivers, or "what should I focus on."`;
 }
 
-function handleFallback(): string {
-  return `Not sure I follow — here's the snapshot: ${KPI_STATS.activeTrips} active trips, ${KPI_STATS.outstandingInvoices} invoices outstanding (${inr(KPI_STATS.outstandingAmount)}), ${KPI_STATS.openIssues} open issues, fleet at ${KPI_STATS.vehicleActive}/${VEHICLES.length} active. Try asking about invoices, trips, fleet, fuel, compliance, or drivers.`;
+async function handleFallback(companyId: string): Promise<string> {
+  const k = await computeKpis(companyId);
+  return `Not sure I follow — here's the snapshot: ${k.activeTrips} active trips, ${k.outstandingInvoices} invoices outstanding (${inr(k.outstandingAmount)}), ${k.openIssues} open issues, fleet at ${k.vehicleActive}/${k.vehicleTotal} active. Try asking about invoices, trips, fleet, fuel, compliance, or drivers.`;
 }
 
 // ── Intent registry — order matters, first match wins ──────────────
@@ -256,15 +293,16 @@ function classify(message: string): Intent | null {
 }
 
 /**
- * Answer a user message entirely locally — no network, no API key.
- * This is what powers /api/rean and /api/slm/chat now; both routes
- * used to depend on z-ai-web-dev-sdk, which cannot be configured
- * outside the original build sandbox.
+ * Answer a user message entirely locally — no network, no API key, but a
+ * real read against the tenant's own database. This is what powers
+ * /api/rean and /api/slm/chat now; both routes used to depend on
+ * z-ai-web-dev-sdk, which cannot be configured outside the original build
+ * sandbox.
  */
-export function answerLocally(message: string, _role: string): LocalEngineResult {
+export async function answerLocally(message: string, _role: string, companyId: string = "default-tenant"): Promise<LocalEngineResult> {
   const trimmed = message.trim();
-  if (!trimmed) return { reply: handleHelp(), intent: "help" };
+  if (!trimmed) return { reply: await handleHelp(), intent: "help" };
   const intent = classify(trimmed);
-  if (!intent) return { reply: handleFallback(), intent: "fallback" };
-  return { reply: intent.handle(), intent: intent.id };
+  if (!intent) return { reply: await handleFallback(companyId), intent: "fallback" };
+  return { reply: await intent.handle(companyId), intent: intent.id };
 }

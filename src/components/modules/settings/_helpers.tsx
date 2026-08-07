@@ -56,6 +56,7 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
   { id: "data-management", label: "Data Management", description: "Fields, templates, exports", icon: "Database" },
   { id: "companies", label: "Companies", description: "Multi-company & RLS isolation", icon: "Layers" },
   { id: "integrations", label: "Integrations", description: "Payments, SMS, WhatsApp, ERP", icon: "Plug" },
+  { id: "billing", label: "Billing & Plan", description: "Subscription, payment method, invoices", icon: "CreditCard" },
 ];
 
 // ===== Field label helper =====

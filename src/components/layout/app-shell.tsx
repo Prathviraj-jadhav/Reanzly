@@ -9,6 +9,7 @@ import { NotificationPanel } from "./notification-panel";
 import { AnnouncementsCenter } from "./announcements-center";
 import { CommandPalette } from "./command-palette";
 import { ChatPanel } from "./chat-panel";
+import { IncomingCallOverlay } from "./incoming-call-overlay";
 import { TourOverlay } from "./tour-overlay";
 import { CompanySwitcher } from "./company-switcher";
 import { ErrorBoundary } from "@/components/shared/error-boundary";
@@ -160,7 +161,6 @@ export function AppShell() {
               <ModuleRouter />
             </ErrorBoundary>
           </div>
-          <Footer />
         </main>
       </div>
 
@@ -193,32 +193,11 @@ export function AppShell() {
       <CommandPalette />
       <TourOverlay />
       <CompanySwitcher />
+      {/* Incoming call ringing card - surfaces regardless of whether the
+          chat panel is open, so a call isn't missed just because the user
+          is looking at a different module. */}
+      <IncomingCallOverlay />
     </div>
   );
 }
 
-function Footer() {
-  // Read the active portal from the store so the footer badge reflects the
-  // current product surface (admin / app / driver / vendor).
-  const portal = useAppStore((s) => s.portal);
-  return (
-    <footer className="mt-auto border-t border-border bg-background px-4 py-3 sm:px-5 lg:px-8">
-      <div className="mx-auto flex max-w-[1440px] flex-col items-center justify-between gap-2 text-[11px] text-muted-foreground sm:flex-row">
-        <div className="flex items-center gap-3">
-          <span className="font-medium text-foreground">Reanzly</span>
-          <span>·</span>
-          <span>The logistics operating system</span>
-        </div>
-        <div className="flex items-center gap-3">
-          <span>GDPR · DPDP compliant</span>
-          <span>·</span>
-          <span>Row-level isolation</span>
-          <span>·</span>
-          <span>v3.0 · Production</span>
-          <span>·</span>
-          <span className="font-mono uppercase tracking-wider">{portal} portal</span>
-        </div>
-      </div>
-    </footer>
-  );
-}

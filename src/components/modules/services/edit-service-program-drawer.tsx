@@ -36,7 +36,7 @@ interface EditServiceProgramDrawerProps {
   open: boolean;
   onClose: () => void;
   program?: ServiceProgram | null;
-  onUpdate?: (id: string, data: Partial<ServiceProgram>) => void;
+  onUpdate?: (id: string, updated: ServiceProgram) => void;
 }
 
 interface EditForm {
@@ -65,7 +65,7 @@ function fromProgram(p: ServiceProgram): EditForm {
   };
 }
 
-function toPatch(form: EditForm): Partial<ServiceProgram> {
+function toPatch(form: EditForm) {
   return {
     name: form.name.trim(),
     vehicleType: form.vehicleType,
@@ -76,7 +76,6 @@ function toPatch(form: EditForm): Partial<ServiceProgram> {
     defaultVendor: form.defaultVendor.trim(),
     estCost: Number(form.estCost) || 0,
     status: form.status,
-    lastUpdated: new Date().toISOString(),
   };
 }
 
@@ -108,6 +107,7 @@ export function EditServiceProgramDrawer({
   const [form, setForm] = useState<EditForm>(() =>
     program ? fromProgram(program) : fromProgram(EMPTY_PROGRAM),
   );
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -120,18 +120,28 @@ export function EditServiceProgramDrawer({
   const update = <K extends keyof EditForm>(k: K, v: EditForm[K]) =>
     setForm((s) => ({ ...s, [k]: v }));
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!program) return;
     if (!form.name.trim()) {
       toast("Program name is required");
       return;
     }
-    if (onUpdate) {
-      onUpdate(program.id, toPatch(form));
-      toast.success("Service program updated", {
-        description: `${form.name} · ${form.serviceType}`,
-      });
+    setSubmitting(true);
+    const res = await fetch(`/api/service-templates/${program.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(toPatch(form)),
+    });
+    setSubmitting(false);
+    if (!res.ok) {
+      toast.error("Could not update service program");
+      return;
     }
+    const { template } = await res.json();
+    onUpdate?.(program.id, template);
+    toast.success("Service program updated", {
+      description: `${form.name} · ${form.serviceType}`,
+    });
     onClose();
   };
 
@@ -271,8 +281,9 @@ export function EditServiceProgramDrawer({
             variant="primary"
             icon={<Check className="h-3.5 w-3.5" />}
             onClick={handleSubmit}
+            disabled={submitting}
           >
-            Save Changes
+            {submitting ? "Saving…" : "Save Changes"}
           </Btn>
         </div>
       </SheetContent>

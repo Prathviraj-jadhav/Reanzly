@@ -53,10 +53,11 @@ interface AddVendorDrawerProps {
   onClose: () => void;
   /** When provided, the drawer acts as an Edit form pre-filled from this record. */
   record?: Vendor;
-  /** Create callback. */
-  onAdd?: (v: Vendor) => void;
+  /** Create callback. Resolves false (not a throw) on failure - the caller
+   * already surfaces its own error toast. */
+  onAdd?: (v: Vendor) => Promise<boolean>;
   /** Edit callback - receives the record id and a patch of changed fields. */
-  onUpdate?: (id: string, data: Partial<Vendor>) => void;
+  onUpdate?: (id: string, data: Partial<Vendor>) => Promise<boolean>;
 }
 
 const TIER_DESCRIPTIONS: Record<number, { tagline: string; tier: string }> = {
@@ -129,7 +130,9 @@ export function AddVendorDrawer({ open, onClose, record, onAdd, onUpdate }: AddV
     setStep(s);
   };
 
-  const handleSubmit = () => {
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async () => {
     const issues = Object.values(stepErrors).flat();
     if (issues.length) {
       toast("Compliance check failed", {
@@ -138,11 +141,10 @@ export function AddVendorDrawer({ open, onClose, record, onAdd, onUpdate }: AddV
       setStep(1);
       return;
     }
+    setSubmitting(true);
+    let ok = true;
     if (isEdit && record && onUpdate) {
-      onUpdate(record.id, formToVendorPatch(form));
-      toast.success("Vendor updated", {
-        description: `${form.companyName} · ${form.serviceType}`,
-      });
+      ok = await onUpdate(record.id, formToVendorPatch(form));
     } else if (!isEdit && onAdd) {
       const patch = formToVendorPatch(form);
       const newVendor: Vendor = {
@@ -158,15 +160,13 @@ export function AddVendorDrawer({ open, onClose, record, onAdd, onUpdate }: AddV
         paymentTerms: patch.paymentTerms ?? "Net 30",
         rating: patch.rating ?? 0,
       };
-      onAdd(newVendor);
-      toast.success("Vendor created", {
-        description: `${form.companyName} · ${form.serviceType}`,
-      });
-    } else {
-      toast.success(isEdit ? "Vendor updated" : "Vendor created", {
-        description: `${form.companyName} · ${form.serviceType}`,
-      });
+      ok = await onAdd(newVendor);
     }
+    setSubmitting(false);
+    if (!ok) return; // onAdd/onUpdate already surfaced their own error toast
+    toast.success(isEdit ? "Vendor updated" : "Vendor created", {
+      description: `${form.companyName} · ${form.serviceType}`,
+    });
     setStep(1);
     setForm(EMPTY_VENDOR_FORM);
     onClose();
@@ -297,8 +297,9 @@ export function AddVendorDrawer({ open, onClose, record, onAdd, onUpdate }: AddV
               variant="primary"
               icon={<Check className="h-3.5 w-3.5" />}
               onClick={handleSubmit}
+              disabled={submitting}
             >
-              {isEdit ? "Save Changes" : "Create Vendor"}
+              {submitting ? "Saving…" : isEdit ? "Save Changes" : "Create Vendor"}
             </Btn>
           ) : (
             <Btn variant="primary" onClick={goNext} disabled={!canAdvance}>

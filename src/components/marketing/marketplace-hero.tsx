@@ -178,14 +178,14 @@ export function MarketplaceHero({
 
         {/* Search bar (4 fields + full-text search) */}
         <form
-          className="mx-auto mt-9 w-full max-w-3xl"
+          className="mx-auto mt-10 w-full max-w-3xl rounded-[12px] border border-border bg-background/50 p-2 shadow-2xl backdrop-blur-md dark:bg-neutral-900/30 dark:shadow-neutral-950/20"
           role="search"
           onSubmit={(e) => {
             e.preventDefault();
             onClearAndFocusCatalogue();
           }}
         >
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1.2fr_auto]">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-[1.1fr_1.1fr_1.3fr_0.9fr] lg:gap-0 lg:divide-x lg:divide-border">
             {/* Origin with custom suggestions popover */}
             <FieldInput
               icon={<MapPin className="h-3.5 w-3.5" />}
@@ -213,7 +213,7 @@ export function MarketplaceHero({
             />
 
             {/* Vehicle Type custom dropdown */}
-            <div ref={typeContainerRef} className="flex flex-col gap-1 relative">
+            <div ref={typeContainerRef} className="flex flex-col gap-1 relative lg:px-2">
               <label className="block text-[10px] font-medium uppercase tracking-wider text-muted-foreground text-left sm:sr-only">
                 Vehicle type
               </label>
@@ -222,12 +222,12 @@ export function MarketplaceHero({
                 <button
                   type="button"
                   onClick={() => setTypeOpen(!typeOpen)}
-                  className="focus-ring flex h-11 w-full items-center justify-between rounded-[6px] border border-border bg-background pl-8 pr-3 text-[13px] text-foreground text-left transition-colors focus:border-foreground"
+                  className="focus-ring flex h-11 w-full items-center justify-between rounded-[6px] border border-border bg-background pl-8 pr-3 text-[13px] text-foreground text-left transition-colors focus:border-foreground lg:border-none lg:bg-transparent lg:rounded-none lg:focus:ring-0"
                 >
                   <span className="truncate">
                     {vehicleTypeFilter ? VEHICLE_TYPE_META[vehicleTypeFilter].label : "Any vehicle"}
                   </span>
-                  <span className="border-l border-border pl-2 text-[8px] text-muted-foreground select-none">
+                  <span className="text-[8px] text-muted-foreground select-none">
                     ▼
                   </span>
                 </button>
@@ -286,7 +286,7 @@ export function MarketplaceHero({
             </div>
 
             {/* Date */}
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1 lg:px-2">
               <label className="block text-[10px] font-medium uppercase tracking-wider text-muted-foreground text-left sm:sr-only">
                 Available from
               </label>
@@ -297,14 +297,14 @@ export function MarketplaceHero({
                   value={availabilityDate}
                   onChange={(e) => onAvailabilityDate(e.target.value)}
                   aria-label="Available from date"
-                  className="focus-ring h-11 w-full rounded-[6px] border border-border bg-background pl-8 pr-2 text-[13px] text-foreground"
+                  className="focus-ring h-11 w-full rounded-[6px] border border-border bg-background pl-8 pr-2 text-[13px] text-foreground lg:border-none lg:bg-transparent lg:rounded-none lg:focus:ring-0"
                 />
               </div>
             </div>
           </div>
 
           {/* Full-text search + submit */}
-          <div className="mt-3 flex items-center gap-2">
+          <div className="mt-2.5 flex items-center gap-2 rounded-[10px] border border-border bg-background p-1.5 shadow-md">
             <div className="relative flex-1">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
               <input
@@ -312,17 +312,17 @@ export function MarketplaceHero({
                 type="search"
                 value={search}
                 onChange={(e) => onSearch(e.target.value)}
-                placeholder="Search by route, owner, vehicle model — e.g. Mumbai-Pune, Tata Ace, Sharma Logistics"
+                placeholder="Search route, owner, model — e.g. Tata Ace, Sharma Logistics"
                 aria-label="Search vehicle listings"
-                className="focus-ring h-12 w-full rounded-[6px] border border-border bg-background pl-10 pr-3 text-[14px] text-foreground placeholder:text-muted-foreground"
+                className="h-10 w-full rounded-[6px] border-none bg-transparent pl-9 pr-3 text-[13.5px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-0"
               />
             </div>
             <button
               type="submit"
-              className="tap inline-flex h-12 items-center justify-center gap-1.5 rounded-[6px] bg-foreground px-5 text-[13px] font-medium uppercase tracking-wider text-background transition-colors hover:bg-foreground/90"
+              className="tap inline-flex h-10 items-center justify-center gap-1.5 rounded-[6px] bg-foreground px-5 text-[12px] font-semibold uppercase tracking-wider text-background transition-all hover:opacity-90 hover:scale-[1.02] active:scale-[0.98]"
             >
               Search
-              <ArrowRight className="h-4 w-4" />
+              <ArrowRight className="h-3.5 w-3.5" />
             </button>
           </div>
         </form>
@@ -394,7 +394,7 @@ function FieldInput({
   containerRef: React.RefObject<HTMLDivElement | null>;
 }) {
   return (
-    <div ref={containerRef} className="flex flex-col gap-1 relative">
+    <div ref={containerRef} className="flex flex-col gap-1 relative lg:px-2">
       <label className="block text-[10px] font-medium uppercase tracking-wider text-muted-foreground text-left sm:sr-only">
         {label}
       </label>
@@ -412,7 +412,7 @@ function FieldInput({
           onFocus={() => setFocused(true)}
           placeholder={placeholder}
           aria-label={label}
-          className="focus-ring h-11 w-full rounded-[6px] border border-border bg-background pl-8 pr-2 text-[13px] text-foreground placeholder:text-muted-foreground"
+          className="focus-ring h-11 w-full rounded-[6px] border border-border bg-background pl-8 pr-2 text-[13px] text-foreground placeholder:text-muted-foreground lg:border-none lg:bg-transparent lg:rounded-none lg:focus:ring-0 lg:focus-visible:ring-0"
         />
       </div>
 

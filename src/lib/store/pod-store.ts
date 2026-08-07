@@ -1,16 +1,13 @@
 "use client";
 
 import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
-import { LORRY_RECEIPTS, TRIPS } from "@/lib/mock-data";
 
 /* ============================================================
    pod-store.ts - Proof of Delivery records.
-   Persisted to localStorage under "reanzly-pod".
-
-   Photos are stored inline as base64 data URLs (downscaled by
-   src/lib/photo.ts fileToCapturedPhoto). For larger deploys,
-   swap to /api/storage/[...key] uploads.
+   Backed by the real Pod model via /api/pod (session/company-scoped),
+   replacing the former Zustand persist()+localStorage store. Photos stay
+   inline as base64 data URLs (src/lib/photo.ts fileToCapturedPhoto), just
+   persisted as Pod columns instead of browser storage.
    ============================================================ */
 
 export type PODType = "Delivery" | "Pickup" | "Return";
@@ -77,221 +74,85 @@ export interface ProofOfDelivery {
   updatedAt: string;
 }
 
+type NewPOD = Omit<ProofOfDelivery, "id" | "voucherNumber" | "reportNumber" | "audit" | "createdAt" | "updatedAt" | "createdBy">;
+
 interface PODState {
   pods: ProofOfDelivery[];
   hasHydrated: boolean;
-  setHasHydrated: (v: boolean) => void;
+  fetchPods: () => Promise<void>;
 
-  addPOD: (p: Omit<ProofOfDelivery, "id" | "voucherNumber" | "reportNumber" | "audit" | "createdAt" | "updatedAt" | "createdBy">) => string;
-  updatePOD: (id: string, patch: Partial<ProofOfDelivery>) => void;
-  removePOD: (id: string) => void;
-  setSubmissionStatus: (id: string, status: PODSubmissionStatus) => void;
-  appendAudit: (id: string, user: string, action: string) => void;
+  addPOD: (p: NewPOD) => Promise<ProofOfDelivery | null>;
+  updatePOD: (id: string, patch: Partial<ProofOfDelivery>) => Promise<ProofOfDelivery | null>;
+  removePOD: (id: string) => Promise<boolean>;
+  setSubmissionStatus: (id: string, status: PODSubmissionStatus) => Promise<boolean>;
 }
 
-const NOW = () => new Date().toISOString();
-const DAYS_AGO = (n: number) => new Date(Date.now() - n * 86400000).toISOString();
-const DAYS_FROM_NOW = (n: number) => new Date(Date.now() + n * 86400000).toISOString();
+export const usePODStore = create<PODState>()((set, get) => ({
+  pods: [],
+  hasHydrated: false,
 
-function seedPODs(): ProofOfDelivery[] {
-  const out: ProofOfDelivery[] = [];
-  const sample = LORRY_RECEIPTS.slice(0, 14);
-  sample.forEach((lr, i) => {
-    const trip = TRIPS.find((t) => t.lrNumber === lr.lrNumber);
-    const delivered = trip?.status === "Delivered";
-    const statuses: PODStatus[] = ["Delivered", "Delivered", "Delivered", "Pending", "Damaged", "Rejected"];
-    const subs: PODSubmissionStatus[] = ["Approved", "Approved", "Submitted", "Submitted", "Draft", "Approved"];
-    const status = delivered ? statuses[i % statuses.length] : "Pending";
-    const sub = delivered ? subs[i % subs.length] : "Draft";
-    const pod: ProofOfDelivery = {
-      id: `pod-${i + 1}`,
-      voucherNumber: `RZ-POD-${String(i + 1).padStart(5, "0")}`,
-      consignmentNumber: lr.lrNumber,
-      type: i % 5 === 0 ? "Return" : i % 3 === 0 ? "Pickup" : "Delivery",
-      source: lr.origin,
-      destination: lr.destination,
-      consignee: lr.consignee,
-      consignor: lr.consignor,
-      consignmentDate: lr.date,
-      loadingDate: DAYS_AGO(8 - (i % 7)),
-      receivingDate: delivered ? DAYS_AGO(6 - (i % 5)) : undefined,
-      reportingDate: delivered ? DAYS_AGO(7 - (i % 5)) : undefined,
-      unloadingDate: delivered ? DAYS_AGO(5 - (i % 4)) : undefined,
-      weight: 1200 + (i % 9) * 800,
-      packages: 12 + (i % 30),
-      status,
-      reportNumber: `RZ-PODR-${String(i + 1).padStart(4, "0")}`,
-      submissionStatus: sub,
-      deliveryDate: delivered ? DAYS_AGO(5 - (i % 4)) : undefined,
-      contactPhone: `+91 ${(9876543210 - i * 13).toString().slice(0, 10)}`,
-      contactEmail: `consignee.${i + 1}@example.in`,
-      contactRelation: i % 2 === 0 ? "Owner" : "Authorized Representative",
-      startOdometer: 48210 + i * 137,
-      endOdometer: 48210 + i * 137 + 240 + (i % 80),
-      distance: 240 + (i % 80),
-      remarks: i % 4 === 0 ? "Goods received in good condition" : i % 4 === 1 ? "Minor delay due to traffic" : "",
-      unloadingCharges: 600 + (i % 5) * 200,
-      otherCharges: i % 3 === 0 ? 250 : 0,
-      vehicleNumber: trip?.vehicleName ?? "MH 12 AB 7896",
-      vehicleHireNumber: `VH-${String(1000 + i).padStart(5, "0")}`,
-      createdBy: i % 2 === 0 ? "Driver · Rohit D." : "Driver · Sukhbir S.",
-      createdAt: DAYS_AGO(6 - (i % 5)),
-      updatedAt: DAYS_AGO(5 - (i % 4)),
-      audit: [
-        {
-          id: `a-${i}-1`,
-          timestamp: DAYS_AGO(6 - (i % 5)),
-          user: i % 2 === 0 ? "Driver · Rohit D." : "Driver · Sukhbir S.",
-          action: "POD created",
-        },
-        ...(delivered
-          ? [{
-              id: `a-${i}-2`,
-              timestamp: DAYS_AGO(5 - (i % 4)),
-              user: "Accountant · Meena",
-              action: "Submission approved",
-            }]
-          : []),
-      ],
-    };
-    out.push(pod);
-  });
-  // add one future pending POD for variety
-  out.push({
-    id: "pod-15",
-    voucherNumber: "RZ-POD-00015",
-    consignmentNumber: LORRY_RECEIPTS[14]?.lrNumber ?? "RZ-LR-2024-0350",
-    type: "Delivery",
-    source: LORRY_RECEIPTS[14]?.origin ?? "Mumbai",
-    destination: LORRY_RECEIPTS[14]?.destination ?? "Nagpur",
-    consignee: LORRY_RECEIPTS[14]?.consignee ?? "Bharat Logistics",
-    consignor: LORRY_RECEIPTS[14]?.consignor ?? "Sterling Industries",
-    consignmentDate: DAYS_AGO(1),
-    loadingDate: DAYS_AGO(1),
-    status: "Pending",
-    reportNumber: "RZ-PODR-0015",
-    submissionStatus: "Draft",
-    remarks: "Awaiting delivery confirmation",
-    vehicleNumber: "MH 14 PQ 4421",
-    createdBy: "Driver · Murthy I.",
-    createdAt: DAYS_AGO(1),
-    updatedAt: DAYS_AGO(1),
-    audit: [
-      {
-        id: "a-15-1",
-        timestamp: DAYS_AGO(1),
-        user: "Driver · Murthy I.",
-        action: "POD created (draft)",
-      },
-    ],
-  });
-  return out;
-}
+  fetchPods: async () => {
+    try {
+      const res = await fetch("/api/pod");
+      if (!res.ok) {
+        set({ hasHydrated: true });
+        return;
+      }
+      const { pods } = await res.json();
+      set({ pods, hasHydrated: true });
+    } catch {
+      set({ hasHydrated: true });
+    }
+  },
 
-function nextVoucherNumber(existing: { voucherNumber: string }[]): string {
-  const nums = existing
-    .map((x) => parseInt(x.voucherNumber.replace(/\D/g, ""), 10))
-    .filter((n) => !isNaN(n));
-  const max = nums.length ? Math.max(...nums) : 0;
-  return `RZ-POD-${String(max + 1).padStart(5, "0")}`;
-}
+  addPOD: async (p) => {
+    try {
+      const res = await fetch("/api/pod", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(p),
+      });
+      if (!res.ok) return null;
+      const { pod } = await res.json();
+      set((s) => ({ pods: [pod, ...s.pods] }));
+      return pod as ProofOfDelivery;
+    } catch {
+      return null;
+    }
+  },
 
-export const usePODStore = create<PODState>()(
-  persist(
-    (set, get) => ({
-      pods: seedPODs(),
-      hasHydrated: false,
-      setHasHydrated: (v) => set({ hasHydrated: v }),
+  updatePOD: async (id, patch) => {
+    try {
+      const res = await fetch(`/api/pod/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      });
+      if (!res.ok) return null;
+      const { pod } = await res.json();
+      set((s) => ({ pods: s.pods.map((x) => (x.id === id ? pod : x)) }));
+      return pod as ProofOfDelivery;
+    } catch {
+      return null;
+    }
+  },
 
-      addPOD: (p) => {
-        const id = `pod-${Date.now().toString(36)}-${Math.floor(Math.random() * 99)}`;
-        const voucherNumber = nextVoucherNumber(get().pods);
-        const reportNumber = `RZ-PODR-${String(get().pods.length + 1).padStart(4, "0")}`;
-        const ts = NOW();
-        const full: ProofOfDelivery = {
-          ...p,
-          id,
-          voucherNumber,
-          reportNumber,
-          audit: [
-            { id: `a-${id}`, timestamp: ts, user: "Current user", action: "POD created" },
-          ],
-          createdBy: "Current user",
-          createdAt: ts,
-          updatedAt: ts,
-        };
-        set((s) => ({ pods: [full, ...s.pods] }));
-        return id;
-      },
-      updatePOD: (id, patch) =>
-        set((s) => ({
-          pods: s.pods.map((p) =>
-            p.id === id ? { ...p, ...patch, updatedAt: NOW() } : p,
-          ),
-        })),
-      removePOD: (id) =>
-        set((s) => ({ pods: s.pods.filter((p) => p.id !== id) })),
-      setSubmissionStatus: (id, status) =>
-        set((s) => ({
-          pods: s.pods.map((p) =>
-            p.id === id
-              ? {
-                  ...p,
-                  submissionStatus: status,
-                  updatedAt: NOW(),
-                  audit: [
-                    ...p.audit,
-                    {
-                      id: `a-${Date.now().toString(36)}`,
-                      timestamp: NOW(),
-                      user: "Current user",
-                      action: `Submission status → ${status}`,
-                    },
-                  ],
-                }
-              : p,
-          ),
-        })),
-      appendAudit: (id, user, action) =>
-        set((s) => ({
-          pods: s.pods.map((p) =>
-            p.id === id
-              ? {
-                  ...p,
-                  updatedAt: NOW(),
-                  audit: [
-                    ...p.audit,
-                    {
-                      id: `a-${Date.now().toString(36)}`,
-                      timestamp: NOW(),
-                      user,
-                      action,
-                    },
-                  ],
-                }
-              : p,
-          ),
-        })),
-    }),
-    {
-      name: "reanzly-pod",
-      storage: createJSONStorage(() => localStorage),
-      partialize: (s) => ({ pods: s.pods }),
-      onRehydrateStorage: () => (state) => {
-        state?.setHasHydrated(true);
-      },
-      merge: (persisted, current) => {
-        const p = (persisted ?? {}) as Partial<PODState>;
-        const base = current as PODState;
-        return {
-          ...base,
-          ...p,
-          hasHydrated: base.hasHydrated,
-        };
-      },
-    },
-  ),
-);
+  removePOD: async (id) => {
+    try {
+      const res = await fetch(`/api/pod/${id}`, { method: "DELETE" });
+      if (!res.ok) return false;
+      set((s) => ({ pods: s.pods.filter((p) => p.id !== id) }));
+      return true;
+    } catch {
+      return false;
+    }
+  },
+
+  setSubmissionStatus: async (id, status) => {
+    const updated = await get().updatePOD(id, { submissionStatus: status });
+    return updated !== null;
+  },
+}));
 
 /* ============================================================
    Constants
@@ -345,18 +206,25 @@ export function relativeTime(iso?: string): string {
   return formatDate(iso);
 }
 
-/** Lorry receipts list - used by the create wizard for autocomplete. */
-export function lorryReceiptOptions(): { lrNumber: string; origin: string; destination: string; consignor: string; consignee: string }[] {
-  return LORRY_RECEIPTS.slice(0, 30).map((lr) => ({
-    lrNumber: lr.lrNumber,
-    origin: lr.origin,
-    destination: lr.destination,
-    consignor: lr.consignor,
-    consignee: lr.consignee,
-  }));
+/** Real lorry receipts (for the create wizard's autocomplete), fetched fresh each call. */
+export async function lorryReceiptOptions(): Promise<{ lrNumber: string; origin: string; destination: string; consignor: string; consignee: string }[]> {
+  try {
+    const res = await fetch("/api/lorry-receipts");
+    if (!res.ok) return [];
+    const { lrs } = await res.json();
+    return (lrs ?? []).slice(0, 30).map((lr: any) => ({
+      lrNumber: lr.lrNumber,
+      origin: lr.origin,
+      destination: lr.destination,
+      consignor: lr.consignor,
+      consignee: lr.consignee,
+    }));
+  } catch {
+    return [];
+  }
 }
 
 /** Days-from-now ISO string (used by the create wizard). */
 export function daysFromNow(n: number): string {
-  return DAYS_FROM_NOW(n);
+  return new Date(Date.now() + n * 86400000).toISOString();
 }

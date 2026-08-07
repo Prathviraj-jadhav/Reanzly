@@ -7,20 +7,25 @@ import { getRoleFeatures } from "@/lib/content/role-features";
 import {
   LayoutDashboard, KanbanSquare, Truck, Map, Car, FileText,
   Receipt, Wallet, Banknote, Users, Building2, UserCog,
-  ClipboardCheck, AlertCircle, Wrench, Settings2, Fuel, Bell,
-  FolderArchive, BarChart3, Settings, Zap,
-  Network, X, Plus, MessageSquare,
-  FileCheck, Calculator, Contact, Users2, ShieldCheck, BookText,
-  Warehouse as WarehouseIcon, Scale, Grid3x3,
-  Handshake, Store, Gavel, FileSignature, Plug,
-  LifeBuoy, Wrench as FieldServiceIcon, CheckSquare, BookOpen,
-  CalendarRange, ShoppingCart, ClipboardCheck as QualityIcon,
-  Repeat, FileQuestion, Megaphone,
+  FolderArchive, BarChart3, Settings,
+  X, Plus, MessageSquare,
+  FileCheck, Contact, Users2, ShieldCheck, BookText,
+  Warehouse as WarehouseIcon,
+  Handshake, Store, Gavel, Plug,
   LayoutGrid, Search, ChevronRight,
   Award, Landmark,
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Sheet, SheetContent, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import {
+  DndContext, closestCenter, KeyboardSensor, PointerSensor, TouchSensor,
+  useSensor, useSensors, type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext, verticalListSortingStrategy, sortableKeyboardCoordinates, useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { GripVertical } from "lucide-react";
 
 /**
  * Reduced-motion guard — inlined here (rather than imported from
@@ -44,10 +49,8 @@ interface NavItem {
   description?: string;
 }
 
-// PRIMARY modules - the daily-driver surface. Rendered directly in the
-// sidebar nav as 4 labelled groups. Secondary modules live in
-// SECONDARY_GROUPS below and are reachable via the "More" Sheet drawer at
-// the bottom of the sidebar.
+// PRIMARY modules - every module lives directly in the sidebar now (no
+// "More" overflow drawer - SECONDARY_GROUPS below is deliberately empty).
 const PRIMARY_GROUPS: { label: string; items: NavItem[] }[] = [
   {
     label: "Operations",
@@ -56,6 +59,13 @@ const PRIMARY_GROUPS: { label: string; items: NavItem[] }[] = [
       { id: "operations-hub", label: "Operations Hub", icon: KanbanSquare },
       { id: "pod", label: "POD", icon: FileCheck },
       { id: "warehouse", label: "Warehouse", icon: WarehouseIcon },
+      // Documents doesn't belong to one specific operational module (it's
+      // the company-wide vault for vehicle, driver, customer and company
+      // paperwork alike) - promoted out of the More drawer here rather than
+      // tabbed under an arbitrary single parent. Document Studio, Knowledge
+      // Base and Reminders are now tabs inside it (see CLUSTERS in
+      // router.tsx).
+      { id: "documents", label: "Documents", icon: FolderArchive },
     ],
   },
   {
@@ -63,6 +73,12 @@ const PRIMARY_GROUPS: { label: string; items: NavItem[] }[] = [
     items: [
       { id: "trips", label: "Trips", icon: Truck },
       { id: "fleet-map", label: "Fleet Map", icon: Map },
+      // Vehicles is the entry point for the whole vehicle-lifecycle cluster -
+      // Inspection, Issues, Maintenance, Workshop, Services, Fuel & Energy,
+      // Compliance and Quality are reached as tabs inside it (see
+      // VEHICLE_CLUSTER_TABS in router.tsx), not as separate sidebar/More
+      // items - they used to be 8 nearly-indistinguishable entries buried in
+      // the More drawer.
       { id: "vehicles", label: "Vehicles", icon: Car },
       { id: "lorry-receipts", label: "Lorry Receipts", icon: FileText },
     ],
@@ -79,100 +95,75 @@ const PRIMARY_GROUPS: { label: string; items: NavItem[] }[] = [
   {
     label: "People",
     items: [
+      // Customers and Vendors are reached as tabs inside CRM - all three
+      // are customer/vendor-relationship surfaces (see CLUSTERS in
+      // router.tsx). Kept as real, independently CRUD-wired modules
+      // underneath; only the sidebar entry point changed.
       { id: "crm", label: "CRM", icon: Contact },
-      { id: "customers", label: "Customers", icon: Users },
-      { id: "vendors", label: "Vendors", icon: Building2 },
-      { id: "drivers-staff", label: "Drivers & Staff", icon: UserCog },
+      // Drivers & Staff and Payroll are reached as tabs inside HR - same
+      // reasoning: one People-management entry point instead of three.
       { id: "hr", label: "HR", icon: Users2 },
-      { id: "payroll", label: "Payroll", icon: Banknote },
-    ],
-  },
-];
-
-// SECONDARY modules - collapsed into the "More" Sheet drawer at the bottom of
-// the sidebar. Each module carries a one-line description so the More drawer
-// reads like a directory rather than a bare icon list. Grouped by category
-// label; the Broker Network group is gated by `brokerVisible` at render time.
-const SECONDARY_GROUPS: { label: string; items: NavItem[] }[] = [
-  {
-    label: "Finance Tools",
-    items: [
-      { id: "rate-cards", label: "Rate Cards", icon: Calculator, description: "Lane pricing templates" },
-      { id: "purchase", label: "Purchase", icon: ShoppingCart, description: "Purchase orders & vendors" },
-      { id: "subscriptions", label: "Subscriptions", icon: Repeat, description: "Plan, billing & add-ons" },
-    ],
-  },
-  {
-    label: "Compliance",
-    items: [
-      { id: "inspection", label: "Inspection", icon: ClipboardCheck, description: "Pre & post-trip checklists" },
-      { id: "issues", label: "Issues", icon: AlertCircle, description: "Logged incidents & defects" },
-      { id: "compliance", label: "Compliance", icon: Scale, description: "Statutory & regulatory" },
-      { id: "maintenance", label: "Maintenance", icon: Wrench, description: "Service schedule & history" },
-      { id: "services", label: "Services", icon: Settings2, description: "Recurring service jobs" },
-      { id: "fuel-energy", label: "Fuel & Energy", icon: Fuel, description: "Fuel logs & energy metrics" },
-      { id: "reminders", label: "Reminders", icon: Bell, description: "Renewals & expiry alerts" },
-      { id: "quality", label: "Quality", icon: QualityIcon, description: "QA checks & audits" },
     ],
   },
   {
     label: "Intelligence",
     items: [
-      { id: "documents", label: "Documents", icon: FolderArchive, description: "Document vault" },
-      { id: "document-studio", label: "Document Studio", icon: FileSignature, description: "Templates & e-sign" },
-      { id: "reports", label: "Reports", icon: BarChart3, description: "Saved & scheduled reports" },
-      { id: "knowledge", label: "Knowledge Base", icon: BookOpen, description: "Internal playbooks" },
-      { id: "surveys", label: "Surveys", icon: FileQuestion, description: "Feedback & NPS" },
-    ],
-  },
-  {
-    label: "Service",
-    items: [
-      { id: "helpdesk", label: "Helpdesk", icon: LifeBuoy, description: "Support ticket queue" },
-      { id: "field-service", label: "Field Service", icon: FieldServiceIcon, description: "On-site job dispatch" },
-      { id: "approvals", label: "Approvals", icon: CheckSquare, description: "Pending approvals queue" },
-      { id: "planning", label: "Planning", icon: CalendarRange, description: "Routes, slots & capacity" },
-    ],
-  },
-  {
-    label: "Growth",
-    items: [
-      { id: "marketing", label: "Marketing", icon: Megaphone, description: "Campaigns & leads" },
+      { id: "reports", label: "Reports", icon: BarChart3 },
     ],
   },
   {
     label: "Platform",
     items: [
-      { id: "chat", label: "Chat", icon: MessageSquare, description: "Internal messaging" },
-      { id: "settings", label: "Settings", icon: Settings, description: "Workspace preferences" },
-      { id: "integrations", label: "Integrations", icon: Plug, description: "Connected apps & APIs" },
-      { id: "automation", label: "Automation", icon: Zap, description: "Workflows & rules" },
-      { id: "system-design", label: "System Design", icon: Network, description: "Module & schema builder" },
-      { id: "access-matrix", label: "Access Matrix", icon: Grid3x3, description: "Roles & permissions" },
-      { id: "superadmin", label: "Superadmin", icon: ShieldCheck, description: "Platform administration" },
+      { id: "chat", label: "Chat", icon: MessageSquare },
+      { id: "settings", label: "Settings", icon: Settings },
+      { id: "integrations", label: "Integrations", icon: Plug },
+      { id: "superadmin", label: "Superadmin", icon: ShieldCheck },
     ],
   },
   {
     label: "Broker Network",
     items: [
-      { id: "broker-console", label: "Broker Console", icon: Handshake, description: "Broker dashboard" },
-      { id: "broker-marketplace", label: "Broker Marketplace", icon: Store, description: "Load board & bids" },
-      { id: "broker-settlements", label: "Broker Settlements", icon: Gavel, description: "Commission & payouts" },
+      { id: "broker-console", label: "Broker Console", icon: Handshake },
+      { id: "broker-marketplace", label: "Broker Marketplace", icon: Store },
+      { id: "broker-settlements", label: "Broker Settlements", icon: Gavel },
     ],
   },
   {
     label: "Ecosystem",
     items: [
-      { id: "app-store", label: "App Store", icon: Store, description: "Browse & install modules" },
-      { id: "partner-programme", label: "Partner Programme", icon: Award, description: "Resell Reanzly, earn commission" },
-      { id: "financial-services", label: "Financial Services", icon: Landmark, description: "Invoice financing & working capital" },
+      { id: "partner-programme", label: "Partner Programme", icon: Award },
+      { id: "financial-services", label: "Financial Services", icon: Landmark },
     ],
   },
 ];
 
+// SECONDARY modules - deliberately empty. Every module now lives directly
+// in the sidebar (PRIMARY_GROUPS) - nothing is tucked away behind a "More"
+// overflow drawer anymore. Kept as an array (rather than deleted outright)
+// so the "More" Sheet code path degrades gracefully - it renders nothing
+// and its trigger button hides itself - instead of requiring every one of
+// its call sites to be ripped out.
+const SECONDARY_GROUPS: { label: string; items: NavItem[] }[] = [];
+
 // Combined list - used by NAV_ITEM_BY_ID so the "For Your Role" featured
 // section can resolve any ModuleId (primary or secondary) to its NavItem.
 const ALL_GROUPS = [...PRIMARY_GROUPS, ...SECONDARY_GROUPS];
+
+/** Applies a saved drag order to a list of nav items - items not present in
+ *  the saved order (e.g. newly added modules) fall back to the end, in
+ *  their original relative order. */
+function applyOrder(items: NavItem[], order: ModuleId[] | undefined): NavItem[] {
+  if (!order || order.length === 0) return items;
+  // Named posByIdMap, not `pos = new Map(...)` - `Map` is shadowed in this
+  // file by the lucide-react icon used for the "Fleet Map" nav item.
+  const posById: Partial<Record<ModuleId, number>> = {};
+  order.forEach((id, i) => { posById[id] = i; });
+  return [...items].sort((a, b) => {
+    const ai = posById[a.id] ?? Infinity;
+    const bi = posById[b.id] ?? Infinity;
+    return ai - bi;
+  });
+}
 
 // Role-based permission check
 function canAccess(module: ModuleId, permissions: string[]): boolean {
@@ -400,6 +391,16 @@ function SidebarContent({
   const [moreOpen, setMoreOpen] = useState(false);
   const [moreSearch, setMoreSearch] = useState("");
 
+  // User-customizable primary-item order, persisted per group label. Drag
+  // handles appear on each primary nav item (expanded mode only).
+  const sidebarOrder = useAppStore((s) => s.sidebarOrder);
+  const setSidebarGroupOrder = useAppStore((s) => s.setSidebarGroupOrder);
+  const sidebarDndSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
   const navRef = useRef<HTMLElement>(null);
   // Nav item stagger entrance — plays once on mount, not on every render.
   // Scoped to the <nav> element so only sidebar nav items are targeted.
@@ -527,24 +528,45 @@ function SidebarContent({
         {!collapsed && (
           <>
             {PRIMARY_GROUPS.map((group, gi) => {
-              const visible = group.items.filter(
-                (it) => canAccess(it.id, currentRole.permissions) && !featuredSet.has(it.id) && !isHiddenForRole(it.id, currentRole.id),
+              const accessible = group.items.filter(
+                (it) =>
+                  canAccess(it.id, currentRole.permissions) &&
+                  !featuredSet.has(it.id) &&
+                  !isHiddenForRole(it.id, currentRole.id) &&
+                  (!isBrokerModule(it.id) || brokerVisible),
               );
-              if (visible.length === 0) return null;
+              if (accessible.length === 0) return null;
+              const visible = applyOrder(accessible, sidebarOrder[group.label]);
+              const handleDragEnd = (e: DragEndEvent) => {
+                const { active, over } = e;
+                if (!over || active.id === over.id) return;
+                const ids = visible.map((it) => it.id);
+                const from = ids.indexOf(active.id as ModuleId);
+                const to = ids.indexOf(over.id as ModuleId);
+                if (from === -1 || to === -1) return;
+                const reordered = [...ids];
+                reordered.splice(from, 1);
+                reordered.splice(to, 0, active.id as ModuleId);
+                setSidebarGroupOrder(group.label, reordered);
+              };
               return (
                 <div key={group.label} className="px-2">
                   {gi > 0 && <div className="my-1.5 h-px bg-border" />}
                   <div className="flex items-center gap-1.5 px-2.5 pt-1.5 pb-1 text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
                     {group.label}
                   </div>
-                  {visible.map((item) => (
-                    <NavButton
-                      key={item.id}
-                      item={item}
-                      isActive={activeView.module === item.id}
-                      navigate={navigate}
-                    />
-                  ))}
+                  <DndContext sensors={sidebarDndSensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                    <SortableContext items={visible.map((it) => it.id)} strategy={verticalListSortingStrategy}>
+                      {visible.map((item) => (
+                        <SortableNavButton
+                          key={item.id}
+                          item={item}
+                          isActive={activeView.module === item.id}
+                          navigate={navigate}
+                        />
+                      ))}
+                    </SortableContext>
+                  </DndContext>
                 </div>
               );
             })}
@@ -578,33 +600,39 @@ function SidebarContent({
           command palette. Both share the same button chrome so the bottom
           rail reads as a single row of quick actions. */}
       <div className="shrink-0 border-t border-border p-2 space-y-1">
-        {/* More button - opens the secondary-modules Sheet drawer */}
-        {collapsed ? (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                onClick={() => setMoreOpen(true)}
-                className="tap flex h-9 w-full items-center justify-center rounded-[5px] text-muted-foreground hover:bg-sidebar-accent hover:text-foreground transition-colors"
-                aria-label="More modules"
-              >
-                <LayoutGrid className="h-[18px] w-[18px]" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="right" sideOffset={8}>
-              More modules
-            </TooltipContent>
-          </Tooltip>
-        ) : (
-          <button
-            onClick={() => setMoreOpen(true)}
-            className="tap flex w-full items-center gap-2.5 rounded-[5px] px-2.5 py-2 text-[13px] font-medium text-foreground hover:bg-sidebar-accent transition-colors"
-          >
-            <span className="flex h-[22px] w-[22px] items-center justify-center rounded-[5px] bg-foreground text-background">
-              <LayoutGrid className="h-[15px] w-[15px]" />
-            </span>
-            <span>More</span>
-            <ChevronRight className="ml-auto h-3.5 w-3.5 text-muted-foreground" />
-          </button>
+        {/* More button - only rendered if there's something secondary left
+            to show. Everything lives directly in the sidebar now, so this
+            stays hidden today; kept rather than deleted so a future
+            secondary item degrades gracefully instead of needing this
+            block rebuilt. */}
+        {visibleSecondaryGroups.length > 0 && (
+          collapsed ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => setMoreOpen(true)}
+                  className="tap flex h-9 w-full items-center justify-center rounded-[5px] text-muted-foreground hover:bg-sidebar-accent hover:text-foreground transition-colors"
+                  aria-label="More modules"
+                >
+                  <LayoutGrid className="h-[18px] w-[18px]" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right" sideOffset={8}>
+                More modules
+              </TooltipContent>
+            </Tooltip>
+          ) : (
+            <button
+              onClick={() => setMoreOpen(true)}
+              className="tap flex w-full items-center gap-2.5 rounded-[5px] px-2.5 py-2 text-[13px] font-medium text-foreground hover:bg-sidebar-accent transition-colors"
+            >
+              <span className="flex h-[22px] w-[22px] items-center justify-center rounded-[5px] bg-foreground text-background">
+                <LayoutGrid className="h-[15px] w-[15px]" />
+              </span>
+              <span>More</span>
+              <ChevronRight className="ml-auto h-3.5 w-3.5 text-muted-foreground" />
+            </button>
+          )
         )}
 
         {/* Quick Add FAB - Jakob's Law: mirrors Linear/Notion quick-create */}
@@ -818,6 +846,46 @@ function NavButton({
     );
   }
   return <div className="sidebar-nav-item mb-0.5">{btn}</div>;
+}
+
+/** NavButton wrapped in a drag handle for primary-group reordering
+ *  ("customizable sidebar"). The handle is a separate small target next to
+ *  the button rather than making the whole row draggable, so a normal click
+ *  anywhere on the button still just navigates - only grabbing the grip
+ *  icon starts a drag. */
+function SortableNavButton({
+  item,
+  isActive,
+  navigate,
+}: {
+  item: NavItem;
+  isActive: boolean;
+  navigate: SidebarProps["navigate"];
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 50 : undefined,
+  } as React.CSSProperties;
+
+  return (
+    <div ref={setNodeRef} style={style} className="group/sortable relative flex items-center">
+      <button
+        {...attributes}
+        {...listeners}
+        tabIndex={-1}
+        aria-hidden
+        className="tap absolute left-0 z-10 flex h-6 w-4 shrink-0 cursor-grab items-center justify-center rounded-[3px] text-muted-foreground/0 group-hover/sortable:text-muted-foreground/60 hover:!text-foreground active:cursor-grabbing"
+        style={{ touchAction: "none" }}
+      >
+        <GripVertical className="h-3 w-3" />
+      </button>
+      <div className="min-w-0 flex-1 pl-4">
+        <NavButton item={item} isActive={isActive} navigate={navigate} />
+      </div>
+    </div>
+  );
 }
 
 /** A single module row inside the "More" Sheet drawer. Denser than the

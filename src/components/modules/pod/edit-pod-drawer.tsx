@@ -94,6 +94,7 @@ function fromPod(pod: ProofOfDelivery): EditForm {
 export function EditPODDrawer({ open, onClose, pod }: EditPODDrawerProps) {
   const updatePOD = usePODStore((s) => s.updatePOD);
   const [form, setForm] = useState<EditForm>(emptyForm);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     /* eslint-disable react-hooks/set-state-in-effect */
@@ -106,13 +107,14 @@ export function EditPODDrawer({ open, onClose, pod }: EditPODDrawerProps) {
   const update = <K extends keyof EditForm>(k: K, v: EditForm[K]) =>
     setForm((s) => ({ ...s, [k]: v }));
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!pod) return;
     if (!form.consignmentNumber.trim()) {
       toast("Consignment number is required");
       return;
     }
-    updatePOD(pod.id, {
+    setSubmitting(true);
+    const updated = await updatePOD(pod.id, {
       consignmentNumber: form.consignmentNumber.trim(),
       type: form.type,
       status: form.status,
@@ -124,6 +126,11 @@ export function EditPODDrawer({ open, onClose, pod }: EditPODDrawerProps) {
       otherCharges: form.otherCharges ? Number(form.otherCharges) : undefined,
       remarks: form.remarks.trim() || undefined,
     });
+    setSubmitting(false);
+    if (!updated) {
+      toast.error("Could not update POD");
+      return;
+    }
     toast.success("POD updated", {
       description: `${pod.voucherNumber} · ${form.status} · ${form.submissionStatus}`,
     });
@@ -277,8 +284,8 @@ export function EditPODDrawer({ open, onClose, pod }: EditPODDrawerProps) {
         {/* Footer */}
         <div className="flex items-center justify-between gap-2 border-t border-border px-5 py-3">
           <Btn variant="ghost" onClick={onClose}>Cancel</Btn>
-          <Btn variant="primary" icon={<Check className="h-3.5 w-3.5" />} onClick={handleSubmit} disabled={!pod}>
-            Save Changes
+          <Btn variant="primary" icon={<Check className="h-3.5 w-3.5" />} onClick={handleSubmit} disabled={!pod || submitting}>
+            {submitting ? "Saving…" : "Save Changes"}
           </Btn>
         </div>
       </SheetContent>

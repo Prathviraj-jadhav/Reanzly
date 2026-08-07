@@ -1,8 +1,8 @@
 "use client";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useAppStore } from "@/lib/store/app-store";
-import { INSPECTIONS } from "@/lib/mock-data";
 import type { Inspection } from "@/lib/types";
+import { toast } from "sonner";
 import { InspectionList } from "./inspection-list";
 import { InspectionDetail } from "./inspection-detail";
 import { AddInspectionDrawer } from "./add-inspection-drawer";
@@ -11,16 +11,56 @@ import { FormBuilder } from "./form-builder";
 export function InspectionModule() {
   const { activeView, navigate } = useAppStore();
   const [showFormBuilder, setShowFormBuilder] = useState(false);
-  // Lift INSPECTIONS into state so in-session adds/edits persist across list ↔ detail.
-  const [inspections, setInspections] = useState<Inspection[]>(INSPECTIONS);
+  // Real, database-backed inspections (src/app/api/inspections) -
+  // previously useState(INSPECTIONS) seeded from mock-data.ts.
+  const [inspections, setInspections] = useState<Inspection[]>([]);
+  const [loaded, setLoaded] = useState(false);
 
-  const addInspection = useCallback((i: Inspection) => {
-    setInspections((prev) => [i, ...prev]);
+  useEffect(() => {
+    fetch("/api/inspections")
+      .then((r) => (r.ok ? r.json() : Promise.reject(r)))
+      .then(({ inspections }) => setInspections(inspections))
+      .catch(() => toast.error("Couldn't load inspections", { description: "Try reloading the page." }))
+      .finally(() => setLoaded(true));
   }, []);
 
-  const updateInspection = useCallback((id: string, data: Partial<Inspection>) => {
-    setInspections((prev) => prev.map((i) => (i.id === id ? { ...i, ...data } : i)));
+  const addInspection = useCallback(async (i: Inspection): Promise<boolean> => {
+    const { id: _clientId, ...payload } = i;
+    const res = await fetch("/api/inspections", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      toast.error("Couldn't create inspection", { description: body.error || "Try again." });
+      return false;
+    }
+    const { inspection } = await res.json();
+    setInspections((prev) => [inspection, ...prev]);
+    return true;
   }, []);
+
+  const updateInspection = useCallback(async (id: string, data: Partial<Inspection>): Promise<boolean> => {
+    setInspections((prev) => prev.map((i) => (i.id === id ? { ...i, ...data } : i))); // optimistic
+    const res = await fetch(`/api/inspections/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      toast.error("Couldn't save inspection", { description: body.error || "Try again." });
+      return false;
+    }
+    const { inspection } = await res.json();
+    setInspections((prev) => prev.map((i) => (i.id === id ? inspection : i)));
+    return true;
+  }, []);
+
+  if (!loaded) {
+    return <div className="p-6 text-[13px] text-muted-foreground">Loading inspections…</div>;
+  }
 
   // Detail view
   if (
@@ -28,7 +68,7 @@ export function InspectionModule() {
     activeView.view === "detail" &&
     activeView.id
   ) {
-    return <InspectionDetail inspectionId={activeView.id} initialTab={activeView.tab} />;
+    return <InspectionDetail inspectionId={activeView.id} initialTab={activeView.tab} inspections={inspections} onUpdate={updateInspection} />;
   }
 
   // Drawer visibility

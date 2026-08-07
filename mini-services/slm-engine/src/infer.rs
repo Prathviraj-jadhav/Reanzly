@@ -104,21 +104,57 @@ pub fn load() -> Result<Qwen2Session> {
     Ok(Qwen2Session { model: Mutex::new(model), tokenizer, eos_token, device })
 }
 
+/// Sentinel error, downcast out of the ordinary `anyhow::Result` at the call
+/// site to distinguish "the model is mid-generation for another request"
+/// from any other failure. A client that times out and gives up does not
+/// stop the server-side generation it triggered (spawn_blocking has no
+/// cancellation hook here) - without this, a second request arriving while
+/// the first is still running would silently queue behind the same blocking
+/// Mutex::lock() with no timeout, and repeated timeouts under load pile up
+/// into a growing backlog that makes every subsequent request wait longer
+/// (observed directly: a trivial "Say OK." prompt took 20s+ with zero bytes
+/// back after a burst of earlier test requests, vs ~2s on a clean engine).
+/// Failing fast bounds worst-case latency to "one generation" instead of
+/// "however many are queued ahead of you," and lets the caller's existing
+/// fallback path (client.ts's inferSLM, on any non-ok response) degrade
+/// gracefully. Using a downcastable marker (instead of a parallel error enum)
+/// keeps every existing `?` conversion below working unchanged.
+#[derive(Debug)]
+pub struct ModelBusy;
+
+impl std::fmt::Display for ModelBusy {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "model is busy with another generation")
+    }
+}
+
+impl std::error::Error for ModelBusy {}
+
 /// Generate a reply to `prompt`. `tier` maps to a sampling profile rather
 /// than a different model (this service intentionally runs ONE well-tested
 /// small model rather than juggling several GGUF architectures - see the
 /// build notes for why that trade-off was made).
 pub fn generate(session: &Qwen2Session, prompt: &str, tier: &str) -> Result<String> {
+    // Token budgets, not just a prompt instruction, bound worst-case latency.
+    // Measured: this 0.5B model reliably ignores "reply in under 60 words"
+    // and generates toward its full token budget for grounding-heavy
+    // prompts regardless of tier or instruction - ~0.23s/token on this CPU,
+    // so the old "fast" budget of 160 tokens meant a genuine worst case of
+    // ~37s, not the few-second reply "fast" implies. Trimmed each tier's cap
+    // rather than trusting the model to self-regulate.
     let (temperature, sample_len): (f64, usize) = match tier {
-        "fast" => (0.7, 160),
-        "power" => (0.8, 512),
-        _ => (0.75, 320), // "balanced" and any unrecognized tier
+        "fast" => (0.7, 80),
+        "power" => (0.8, 400),
+        _ => (0.75, 200), // "balanced" and any unrecognized tier
     };
 
-    let mut model = session
-        .model
-        .lock()
-        .map_err(|_| anyhow::anyhow!("model mutex poisoned"))?;
+    let mut model = match session.model.try_lock() {
+        Ok(guard) => guard,
+        Err(std::sync::TryLockError::WouldBlock) => return Err(ModelBusy.into()),
+        Err(std::sync::TryLockError::Poisoned(_)) => {
+            return Err(anyhow::anyhow!("model mutex poisoned"));
+        }
+    };
 
     let mut tos = TokenOutputStream::new(session.tokenizer.clone());
     let formatted = format!("<|im_start|>user\n{prompt}<|im_end|>\n<|im_start|>assistant\n");
@@ -172,21 +208,31 @@ pub fn generate(session: &Qwen2Session, prompt: &str, tier: &str) -> Result<Stri
     Ok(out.trim().to_string())
 }
 
+/// What the axum handler does with a generation attempt: a normal reply
+/// (possibly an inline error string, for parity with the previous behavior)
+/// or a `Busy` signal that should map to a real HTTP status rather than a
+/// 200 body, so the client's `res.ok` check routes it to the fallback path.
+pub enum InferOutcome {
+    Text(String),
+    Busy,
+}
+
 /// Entry point called by the axum handler. `session` is None when the model
 /// failed to load at startup (e.g. no network on first run to fetch it) -
 /// in that case we degrade gracefully instead of the endpoint 500ing, so the
 /// TypeScript client's health-check-driven fallback to the local JS engine
 /// still works exactly as designed even when this path is broken.
-pub fn infer_gguf_sync(session: Option<&Qwen2Session>, prompt: &str, tier: &str) -> String {
+pub fn infer_gguf_sync(session: Option<&Qwen2Session>, prompt: &str, tier: &str) -> InferOutcome {
     match session {
-        None => format!(
+        None => InferOutcome::Text(format!(
             "[slm-engine] Model not loaded (see startup logs - likely no network on first run to \
              fetch {REPO_GGUF}). Falling through to the caller's own fallback. Prompt was: '{prompt}'"
-        ),
+        )),
         Some(session) => match generate(session, prompt, tier) {
-            Ok(text) if !text.trim().is_empty() => text,
-            Ok(_) => "[slm-engine] Model produced an empty response.".to_string(),
-            Err(e) => format!("[slm-engine] Inference error: {e}"),
+            Ok(text) if !text.trim().is_empty() => InferOutcome::Text(text),
+            Ok(_) => InferOutcome::Text("[slm-engine] Model produced an empty response.".to_string()),
+            Err(e) if e.downcast_ref::<ModelBusy>().is_some() => InferOutcome::Busy,
+            Err(e) => InferOutcome::Text(format!("[slm-engine] Inference error: {e}")),
         },
     }
 }

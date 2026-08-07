@@ -1,11 +1,10 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { DetailLayout, InfoRow, InfoSection, StatCard } from "@/components/shared/detail-layout";
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge, docStatusBadge } from "@/components/shared/status-badge";
 import { useAppStore } from "@/lib/store/app-store";
-import { DOCUMENTS, VEHICLES, DRIVERS, CUSTOMERS, VENDORS } from "@/lib/mock-data";
-import type { DocumentRecord } from "@/lib/types";
+import type { DocumentRecord, Vehicle, Driver, Customer, Vendor } from "@/lib/types";
 import {
   Pencil,
   Download,
@@ -41,20 +40,36 @@ const TABS = [
 
 interface DocumentDetailProps {
   documentId: string;
+  documents: DocumentRecord[];
+  onUpdate: (id: string, data: Partial<DocumentRecord>) => Promise<boolean>;
 }
 
-export function DocumentDetail({ documentId }: DocumentDetailProps) {
+export function DocumentDetail({ documentId, documents, onUpdate: onUpdateReal }: DocumentDetailProps) {
   const { navigate, navigateDetail } = useAppStore();
   const [activeTab, setActiveTab] = useState("overview");
-  const [record, setRecord] = useState<DocumentRecord | undefined>(
-    () => DOCUMENTS.find((d) => d.id === documentId),
-  );
+  const doc = documents.find((d) => d.id === documentId);
   const [editing, setEditing] = useState(false);
 
-  const doc = record;
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [drivers, setDrivers] = useState<Driver[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [vendors, setVendors] = useState<Vendor[]>([]);
+  useEffect(() => {
+    Promise.all([
+      fetch("/api/vehicles").then((r) => (r.ok ? r.json() : { vehicles: [] })),
+      fetch("/api/drivers").then((r) => (r.ok ? r.json() : { drivers: [] })),
+      fetch("/api/customers").then((r) => (r.ok ? r.json() : { customers: [] })),
+      fetch("/api/vendors").then((r) => (r.ok ? r.json() : { vendors: [] })),
+    ]).then(([v, d, c, ven]) => {
+      setVehicles(v.vehicles ?? []);
+      setDrivers(d.drivers ?? []);
+      setCustomers(c.customers ?? []);
+      setVendors(ven.vendors ?? []);
+    });
+  }, []);
 
   const handleUpdate = (id: string, data: Partial<DocumentRecord>) => {
-    setRecord((prev) => (prev ? { ...prev, ...data } : prev));
+    onUpdateReal(id, data);
   };
 
   if (!doc) {
@@ -74,16 +89,16 @@ export function DocumentDetail({ documentId }: DocumentDetailProps) {
   // Find linked entity
   let linkedEntity: { id: string; module: "vehicles" | "drivers-staff" | "customers" | "vendors" } | null = null;
   if (doc.entityType === "Vehicle") {
-    const v = VEHICLES.find((x) => x.name === doc.entityName);
+    const v = vehicles.find((x) => x.name === doc.entityName);
     if (v) linkedEntity = { id: v.id, module: "vehicles" };
   } else if (doc.entityType === "Driver") {
-    const d = DRIVERS.find((x) => x.name === doc.entityName);
+    const d = drivers.find((x) => x.name === doc.entityName);
     if (d) linkedEntity = { id: d.id, module: "drivers-staff" };
   } else if (doc.entityType === "Customer") {
-    const c = CUSTOMERS.find((x) => x.companyName === doc.entityName);
+    const c = customers.find((x) => x.companyName === doc.entityName);
     if (c) linkedEntity = { id: c.id, module: "customers" };
   } else if (doc.entityType === "Vendor") {
-    const vd = VENDORS.find((x) => x.companyName === doc.entityName);
+    const vd = vendors.find((x) => x.companyName === doc.entityName);
     if (vd) linkedEntity = { id: vd.id, module: "vendors" };
   }
 

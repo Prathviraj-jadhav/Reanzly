@@ -1,7 +1,6 @@
 "use client";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useAppStore } from "@/lib/store/app-store";
-import { PURCHASE_ORDERS } from "./_helpers";
 import type { PurchaseOrder } from "./_helpers";
 import { POList } from "./po-list";
 import { PODetail } from "./po-detail";
@@ -9,10 +8,25 @@ import { AddPODrawer } from "./add-po-drawer";
 
 export function PurchaseModule() {
   const { activeView, navigate } = useAppStore();
-  const [orders, setOrders] = useState<PurchaseOrder[]>(PURCHASE_ORDERS);
+  const [orders, setOrders] = useState<PurchaseOrder[]>([]);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/purchase-orders")
+      .then((r) => (r.ok ? r.json() : { purchaseOrders: [] }))
+      .then(({ purchaseOrders }) => {
+        setOrders(purchaseOrders ?? []);
+        setLoaded(true);
+      })
+      .catch(() => setLoaded(true));
+  }, []);
 
   const addPO = useCallback((po: PurchaseOrder) => {
     setOrders((prev) => [po, ...prev]);
+  }, []);
+
+  const updatePO = useCallback((id: string, updated: PurchaseOrder) => {
+    setOrders((prev) => prev.map((o) => (o.id === id ? updated : o)));
   }, []);
 
   // Detail view
@@ -21,7 +35,7 @@ export function PurchaseModule() {
     activeView.view === "detail" &&
     activeView.id
   ) {
-    return <PODetail poId={activeView.id} initialTab={activeView.tab} />;
+    return <PODetail poId={activeView.id} initialTab={activeView.tab} orders={orders} onUpdate={updatePO} />;
   }
 
   // Drawer visibility
@@ -35,7 +49,7 @@ export function PurchaseModule() {
 
   return (
     <>
-      <POList purchaseOrders={orders} onCreate={() => navigate("purchase", "create")} />
+      <POList purchaseOrders={orders} loaded={loaded} onCreate={() => navigate("purchase", "create")} onUpdate={updatePO} />
       <AddPODrawer open={drawerOpen} onClose={closeDrawer} onAdd={addPO} />
     </>
   );

@@ -169,12 +169,16 @@ export function Activities() {
         onClose={() => setLogOpen(false)}
         accounts={accounts.map((a) => a.name)}
         leads={leads.map((l) => l.name)}
-        onLog={(activity) => {
-          addActivity(activity);
-          setLogOpen(false);
-          toast.success("Activity logged", {
-            description: `${activity.type} · ${activity.title}`,
-          });
+        onLog={async (activity) => {
+          const created = await addActivity(activity);
+          if (created) {
+            setLogOpen(false);
+            toast.success("Activity logged", {
+              description: `${created.type} · ${created.title}`,
+            });
+          } else {
+            toast.error("Couldn't log activity", { description: "Try again." });
+          }
         }}
         nextId={activities.length + 1}
       />

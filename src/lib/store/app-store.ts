@@ -92,7 +92,8 @@ export type SettingsTab =
   | "data-management"
   | "companies"
   | "access-matrix"
-  | "integrations";
+  | "integrations"
+  | "billing";
 
 export interface ViewState {
   module: ModuleId;
@@ -343,6 +344,12 @@ interface AppState {
   toggleSidebar: () => void;
   setSidebarCollapsed: (v: boolean) => void;
 
+  // User-customized item order within a sidebar group, keyed by group
+  // label (e.g. "Fleet" -> ["vehicles","trips","fleet-map","lorry-receipts"]).
+  // A group with no entry here just renders in its default order.
+  sidebarOrder: Record<string, ModuleId[]>;
+  setSidebarGroupOrder: (groupLabel: string, order: ModuleId[]) => void;
+
   mobileSidebarOpen: boolean;
   setMobileSidebarOpen: (v: boolean) => void;
   toggleMobileSidebar: () => void;
@@ -377,6 +384,7 @@ interface AppState {
     message: string;
     actionLabel?: string;
     actionModule?: ModuleId;
+    actionSettingsTab?: SettingsTab;
   } | null;
   systemAlertDismissed: string[];
   dismissSystemAlert: () => void;
@@ -660,6 +668,10 @@ export const useAppStore = create<AppState>()(
       sidebarCollapsed: false,
       toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
       setSidebarCollapsed: (v) => set({ sidebarCollapsed: v }),
+
+      sidebarOrder: {},
+      setSidebarGroupOrder: (groupLabel, order) =>
+        set((s) => ({ sidebarOrder: { ...s.sidebarOrder, [groupLabel]: order } })),
       mobileSidebarOpen: false,
       setMobileSidebarOpen: (v) => set({ mobileSidebarOpen: v }),
       toggleMobileSidebar: () => set((s) => ({ mobileSidebarOpen: !s.mobileSidebarOpen })),
@@ -702,6 +714,7 @@ export const useAppStore = create<AppState>()(
           "Your Reanzly trial ends Aug 14. Add a payment method to keep your data and avoid service interruption.",
         actionLabel: "Add payment method",
         actionModule: "settings" as ModuleId,
+        actionSettingsTab: "billing",
       },
       systemAlertDismissed: [],
       dismissSystemAlert: () =>
@@ -775,6 +788,7 @@ export const useAppStore = create<AppState>()(
       name: "reanzly-app",
       partialize: (s) => ({
         sidebarCollapsed: s.sidebarCollapsed,
+        sidebarOrder: s.sidebarOrder,
         activeCompany: s.activeCompany,
         currentRole: s.currentRole,
         isAuthenticated: s.isAuthenticated,

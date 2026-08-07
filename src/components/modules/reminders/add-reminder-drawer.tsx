@@ -1,5 +1,5 @@
 "use client";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Btn } from "@/components/shared/btn";
 import { toast } from "sonner";
 import {
@@ -29,8 +29,7 @@ import {
   SheetTitle,
   SheetDescription,
 } from "@/components/ui/sheet";
-import { VEHICLES, DRIVERS } from "@/lib/mock-data";
-import type { Reminder } from "@/lib/types";
+import type { Reminder, Vehicle, Driver } from "@/lib/types";
 import {
   REMINDER_TYPES,
   REMINDER_ENTITY_TYPES,
@@ -46,8 +45,8 @@ interface AddReminderDrawerProps {
   open: boolean;
   onClose: () => void;
   record?: Reminder;
-  onAdd?: (reminder: Reminder) => void;
-  onUpdate?: (id: string, data: Partial<Reminder>) => void;
+  onAdd?: (reminder: Reminder) => Promise<boolean>;
+  onUpdate?: (id: string, data: Partial<Reminder>) => Promise<boolean>;
 }
 
 function recordToForm(record: Reminder): ReminderForm {
@@ -100,15 +99,31 @@ export function AddReminderDrawer({
   const [form, setForm] = useState<ReminderForm>(() =>
     record ? recordToForm(record) : EMPTY_REMINDER_FORM,
   );
+  const [submitting, setSubmitting] = useState(false);
+
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [drivers, setDrivers] = useState<Driver[]>([]);
+  useEffect(() => {
+    Promise.all([
+      fetch("/api/vehicles").then((r) => (r.ok ? r.json() : { vehicles: [] })),
+      fetch("/api/drivers").then((r) => (r.ok ? r.json() : { drivers: [] })),
+    ]).then(([v, d]) => {
+      setVehicles(v.vehicles ?? []);
+      setDrivers(d.drivers ?? []);
+    }).catch(() => toast.error("Couldn't load fleet/roster data"));
+  }, []);
 
   const update = <K extends keyof ReminderForm>(k: K, v: ReminderForm[K]) =>
     setForm((s) => ({ ...s, [k]: v }));
 
+  // form.entity stores the real vehicle/driver name directly (matched
+  // server-side to a real record) - previously stored a composed display
+  // label ("name · plate") sourced from mock-data.ts with no real id at all.
   const entityOptions = useMemo(() => {
     return form.entityType === "Vehicle"
-      ? VEHICLES.map((v) => ({ id: v.id, label: `${v.name} · ${v.licensePlate}` }))
-      : DRIVERS.map((d) => ({ id: d.id, label: `${d.name} · ${d.role}` }));
-  }, [form.entityType]);
+      ? vehicles.map((v) => ({ id: v.id, name: v.name, label: `${v.name} · ${v.licensePlate}` }))
+      : drivers.map((d) => ({ id: d.id, name: d.name, label: `${d.name} · ${d.role}` }));
+  }, [form.entityType, vehicles, drivers]);
 
   const errors: string[] = [];
   if (step === 1) {
@@ -136,13 +151,17 @@ export function AddReminderDrawer({
     if (step > 1) setStep(step - 1);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const payload = formToData(form);
+    setSubmitting(true);
+    let ok = true;
     if (record && onUpdate) {
-      onUpdate(record.id, payload);
-      toast.success("Reminder updated", {
-        description: `${form.name} · ${form.entityType} · due ${formatDate(form.dueDate)}`,
-      });
+      ok = await onUpdate(record.id, payload);
+      if (ok) {
+        toast.success("Reminder updated", {
+          description: `${form.name} · ${form.entityType} · due ${formatDate(form.dueDate)}`,
+        });
+      }
     } else if (onAdd) {
       const newReminder: Reminder = {
         id: `rem-${Date.now()}`,
@@ -154,15 +173,15 @@ export function AddReminderDrawer({
         daysRemaining: payload.daysRemaining ?? 0,
         status: payload.status ?? "Upcoming",
       };
-      onAdd(newReminder);
-      toast.success("Reminder created", {
-        description: `${form.name} · ${form.entityType} · due ${formatDate(form.dueDate)}`,
-      });
-    } else {
-      toast.success("Reminder created", {
-        description: `${form.name} · ${form.entityType} · due ${formatDate(form.dueDate)}`,
-      });
+      ok = await onAdd(newReminder);
+      if (ok) {
+        toast.success("Reminder created", {
+          description: `${form.name} · ${form.entityType} · due ${formatDate(form.dueDate)}`,
+        });
+      }
     }
+    setSubmitting(false);
+    if (!ok) return; // onAdd/onUpdate already surfaced their own error toast
     setStep(1);
     setForm(EMPTY_REMINDER_FORM);
     onClose();
@@ -269,7 +288,7 @@ export function AddReminderDrawer({
                       <SelectContent className="max-h-60 overflow-y-auto scrollbar-thin">
                         <SelectItem value="none">- Select -</SelectItem>
                         {entityOptions.map((e) => (
-                          <SelectItem key={e.id} value={e.label}>{e.label}</SelectItem>
+                          <SelectItem key={e.id} value={e.name}>{e.label}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -426,8 +445,8 @@ export function AddReminderDrawer({
           </Btn>
           <div className="text-[11px] text-muted-foreground tabular">Step {step} of 3</div>
           {isLastStep ? (
-            <Btn variant="primary" icon={<Check className="h-3.5 w-3.5" />} onClick={handleSubmit}>
-              {record ? "Save Changes" : "Create Reminder"}
+            <Btn variant="primary" icon={<Check className="h-3.5 w-3.5" />} onClick={handleSubmit} disabled={submitting}>
+              {submitting ? "Saving…" : record ? "Save Changes" : "Create Reminder"}
             </Btn>
           ) : (
             <Btn variant="primary" onClick={goNext} disabled={!canAdvance}>

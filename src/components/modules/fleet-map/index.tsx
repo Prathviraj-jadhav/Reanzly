@@ -2,11 +2,11 @@
 
 import { useMemo, useState, useEffect } from "react";
 import dynamic from "next/dynamic";
-import { VEHICLES, TRIPS, DRIVERS } from "@/lib/mock-data";
 import { PageHeader } from "@/components/shared/page-header";
 import { Btn } from "@/components/shared/btn";
 import { toast } from "sonner";
 import { useAppStore } from "@/lib/store/app-store";
+import type { Vehicle, Trip, Driver } from "@/lib/types";
 import {
   Shield,
   RefreshCw,
@@ -42,6 +42,27 @@ const OsmMap = dynamic(() => import("./osm-map"), {
 });
 
 export function FleetMapModule() {
+  // Real, database-backed vehicles/trips/drivers (src/app/api/*) -
+  // previously read directly from mock-data.ts. Read-only here (Fleet Map
+  // doesn't create/edit records, just visualizes fleet state), so a plain
+  // fetch-on-mount is enough - no CRUD wiring needed.
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [trips, setTrips] = useState<Trip[]>([]);
+  const [drivers, setDrivers] = useState<Driver[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  useEffect(() => {
+    Promise.all([
+      fetch("/api/vehicles").then((r) => (r.ok ? r.json() : { vehicles: [] })),
+      fetch("/api/trips").then((r) => (r.ok ? r.json() : { trips: [] })),
+      fetch("/api/drivers").then((r) => (r.ok ? r.json() : { drivers: [] })),
+    ]).then(([v, t, d]) => {
+      setVehicles(v.vehicles ?? []);
+      setTrips(t.trips ?? []);
+      setDrivers(d.drivers ?? []);
+    }).catch(() => toast.error("Couldn't load fleet map data", { description: "Try reloading the page." }))
+      .finally(() => setLoaded(true));
+  }, []);
+
   // ---- Filters ----
   const [filters, setFilters] = useState<FilterState>({
     search: "",
@@ -86,14 +107,14 @@ export function FleetMapModule() {
   // Build driver list (operators on vehicles + drivers from DRIVERS with role Driver).
   const driverOptions = useMemo(() => {
     const set = new Set<string>();
-    VEHICLES.forEach((v) => v.operator && set.add(v.operator));
-    DRIVERS.filter((d) => d.role === "Driver").forEach((d) => set.add(d.name));
+    vehicles.forEach((v) => v.operator && set.add(v.operator));
+    drivers.filter((d) => d.role === "Driver").forEach((d) => set.add(d.name));
     return Array.from(set).sort();
-  }, []);
+  }, [vehicles, drivers]);
 
   // Apply filters
   const filteredVehicles = useMemo(() => {
-    return VEHICLES.filter((v) => {
+    return vehicles.filter((v) => {
       if (filters.search.trim()) {
         const q = filters.search.toLowerCase();
         const matches =
@@ -108,23 +129,23 @@ export function FleetMapModule() {
       if (filters.status && v.status !== filters.status) return false;
       return true;
     });
-  }, [filters]);
+  }, [filters, vehicles]);
 
   const selectedVehicle = useMemo(
-    () => VEHICLES.find((v) => v.id === selectedVehicleId) ?? null,
-    [selectedVehicleId]
+    () => vehicles.find((v) => v.id === selectedVehicleId) ?? null,
+    [selectedVehicleId, vehicles]
   );
   const selectedTrip = useMemo(() => {
     if (!selectedVehicle?.assignedTripId) return null;
-    return TRIPS.find((t) => t.id === selectedVehicle.assignedTripId) ?? null;
-  }, [selectedVehicle]);
+    return trips.find((t) => t.id === selectedVehicle.assignedTripId) ?? null;
+  }, [selectedVehicle, trips]);
 
   const playbackPath = useMemo(() => {
     if (!playbackActive || !playbackVehicleId) return undefined;
-    const v = VEHICLES.find((x) => x.id === playbackVehicleId);
+    const v = vehicles.find((x) => x.id === playbackVehicleId);
     if (!v) return undefined;
     return buildPlaybackPath(v);
-  }, [playbackActive, playbackVehicleId]);
+  }, [playbackActive, playbackVehicleId, vehicles]);
 
   const activeCount = useMemo(
     () => filteredVehicles.filter((v) => v.status === "Active").length,
@@ -164,6 +185,10 @@ export function FleetMapModule() {
     toast.info("Fullscreen view", {
       description: "Press Esc to exit.",
     });
+  }
+
+  if (!loaded) {
+    return <div className="p-6 text-[13px] text-muted-foreground">Loading fleet map…</div>;
   }
 
   return (
@@ -206,7 +231,7 @@ export function FleetMapModule() {
         drivers={driverOptions}
         activeCount={activeCount}
         totalShown={filteredVehicles.length}
-        totalCount={VEHICLES.length}
+        totalCount={vehicles.length}
       />
 
       {/* Main grid: map + right sidebar (legend) */}
@@ -217,7 +242,7 @@ export function FleetMapModule() {
           <div className="relative h-[60vh] min-h-[460px] lg:h-[640px]">
             <OsmMap
               vehicles={filteredVehicles}
-              trips={TRIPS}
+              trips={trips}
               geofences={GEOFENCES}
               showRoutes={filters.showRoutes}
               showPlannedRoutes={filters.showPlannedRoutes}
@@ -285,7 +310,7 @@ export function FleetMapModule() {
                   vehicles={filteredVehicles}
                   breaches={GEOFENCE_BREACHES}
                   onSelectVehicle={(name) => {
-                    const v = VEHICLES.find((x) => x.name === name);
+                    const v = vehicles.find((x) => x.name === name);
                     if (v) handleSelectVehicle(v.id);
                   }}
                   onOpenGeofences={() => setGeofenceOpen(true)}
@@ -316,7 +341,7 @@ export function FleetMapModule() {
             vehicles={filteredVehicles}
             breaches={GEOFENCE_BREACHES}
             onSelectVehicle={(name) => {
-              const v = VEHICLES.find((x) => x.name === name);
+              const v = vehicles.find((x) => x.name === name);
               if (v) handleSelectVehicle(v.id);
             }}
             onOpenGeofences={() => setGeofenceOpen(true)}

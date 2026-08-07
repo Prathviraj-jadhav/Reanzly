@@ -39,7 +39,6 @@ import {
   INSPECTOR_OPTIONS,
   EMPTY_CHECK_FORM,
   toInputDate,
-  formatDate,
   FieldLabel,
   type CheckForm,
   type CheckType,
@@ -72,6 +71,7 @@ const LOCATION_OPTIONS = [
 
 export function AddCheckDrawer({ open, onClose, onAdd }: AddCheckDrawerProps) {
   const [form, setForm] = useState<CheckForm>(() => EMPTY_CHECK_FORM());
+  const [submitting, setSubmitting] = useState(false);
 
   const update = <K extends keyof CheckForm>(k: K, v: CheckForm[K]) =>
     setForm((s) => ({ ...s, [k]: v }));
@@ -103,48 +103,42 @@ export function AddCheckDrawer({ open, onClose, onAdd }: AddCheckDrawerProps) {
   if (!form.date) errors.push("Check date is required");
   if (!form.location) errors.push("Location is required");
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (errors.length > 0) {
       toastInfo("Cannot create check", errors[0]);
       return;
     }
-    const newId = `qc-${Date.now()}`;
-    const checkId = `QC-${String(Math.floor(Math.random() * 9000) + 7100).padStart(5, "0")}`;
     const refLabel = referenceOptions.find((r) => r.id === form.reference)?.label || form.reference;
-    const newCheck: QualityCheck = {
-      id: newId,
-      checkId,
-      type: form.type,
-      reference: refLabel,
-      referenceEntity: form.reference,
-      referenceModule:
-        form.type === "Document"
-          ? "drivers-staff"
-          : form.type === "Process Audit"
-            ? "customers"
-            : "vehicles",
-      inspector: form.inspector,
-      date: form.date,
-      result: "Conditional" as CheckResult,
-      status: "Scheduled",
-      score: 0,
-      location: form.location,
-      findings: [],
-      controlPoints: [],
-      correctiveActions: [],
-      activity: [
-        {
-          id: `act-${Date.now()}`,
-          ts: new Date().toISOString(),
-          actor: form.inspector,
-          action: "Check scheduled",
-          detail: `${form.type} check ${checkId} scheduled for ${formatDate(form.date)}`,
-        },
-      ],
-      notes: form.notes.trim() || undefined,
-    };
-    onAdd?.(newCheck);
-    toastSuccess(`Check ${checkId} scheduled`, `${form.type} · ${refLabel} · ${form.inspector}`);
+    const referenceModule =
+      form.type === "Document"
+        ? "drivers-staff"
+        : form.type === "Process Audit"
+          ? "customers"
+          : "vehicles";
+
+    setSubmitting(true);
+    const res = await fetch("/api/quality-checks", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        type: form.type,
+        reference: refLabel,
+        referenceEntity: form.reference,
+        referenceModule,
+        inspector: form.inspector,
+        date: form.date,
+        location: form.location,
+        notes: form.notes.trim() || undefined,
+      }),
+    });
+    setSubmitting(false);
+    if (!res.ok) {
+      toastInfo("Could not create check", "Please try again");
+      return;
+    }
+    const { check } = await res.json();
+    onAdd?.(check);
+    toastSuccess(`Check ${check.checkId} scheduled`, `${form.type} · ${refLabel} · ${form.inspector}`);
     setForm(EMPTY_CHECK_FORM());
     onClose();
   };
@@ -306,8 +300,8 @@ export function AddCheckDrawer({ open, onClose, onAdd }: AddCheckDrawerProps) {
             <MapPin className="h-3 w-3" />
             {form.location}
           </div>
-          <Btn variant="primary" icon={<Check className="h-3.5 w-3.5" />} onClick={handleSubmit}>
-            Schedule Check
+          <Btn variant="primary" icon={<Check className="h-3.5 w-3.5" />} onClick={handleSubmit} disabled={submitting}>
+            {submitting ? "Scheduling…" : "Schedule Check"}
           </Btn>
         </div>
       </SheetContent>

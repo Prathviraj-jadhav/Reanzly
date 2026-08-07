@@ -48,7 +48,15 @@ export function DriverFieldApp() {
   const driverName = useDriverStore((s) => s.driverName);
   const checkOut = useDriverStore((s) => s.checkOut);
   const duty = useDriverStore((s) => s.duty);
+  const hydrate = useDriverStore((s) => s.hydrate);
   const logout = useAppStore((s) => s.logout);
+
+  // Resolve the real logged-in driver's identity + assigned trips
+  // (GET /api/driver/me) on every mount - not just once - so a fresh login
+  // (or a reassignment made elsewhere) is always reflected.
+  useEffect(() => {
+    void hydrate();
+  }, [hydrate]);
 
   function handleLogout() {
     // Best practice: clock the driver out of duty before tearing down the

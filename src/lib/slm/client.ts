@@ -32,12 +32,18 @@ export async function inferSLM(prompt: string, options: InferOptions = {}): Prom
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ prompt, tier, stream: options.stream || false }),
-      // CPU-only GGUF generation genuinely takes several seconds (measured
-      // ~3.5s for a 160-token "fast" reply, ~7.6s for a 320-token "balanced"
-      // reply) - a short timeout here doesn't detect an unhealthy engine, it
-      // just discards real answers before they finish and silently falls
-      // back to the local heuristic engine on every request.
-      signal: AbortSignal.timeout(30000),
+      // CPU-only GGUF generation latency is dominated by *prompt* length
+      // (prefill), not just the output token budget - measured ~5s for a
+      // short prompt vs 30s+ for a realistic ~250-character grounding-data
+      // prompt on "fast" tier, even after trimming both the prompt wrapper
+      // and the token budget (route.ts, infer.rs). Most live-data answers
+      // in this app carry that much grounding context, so 30s was cutting
+      // off genuine, correct generations in progress rather than catching
+      // an actually unhealthy engine - the caller sees "Rean is typing..."
+      // (chat-service already emits typing:update) for the wait either way,
+      // so letting real generation finish beats discarding it for an
+      // instant but less natural raw-data-dump fallback.
+      signal: AbortSignal.timeout(45000),
     });
 
     if (res.ok) {
@@ -50,7 +56,7 @@ export async function inferSLM(prompt: string, options: InferOptions = {}): Prom
   // Fallback to local-engine heuristic classification. Use the caller's
   // original short query if they gave one - the local engine's keyword
   // matching produces nonsense when fed a multi-paragraph LLM prompt.
-  const { reply } = answerLocally(options.fallbackQuery ?? prompt, "Agent");
+  const { reply } = await answerLocally(options.fallbackQuery ?? prompt, "Agent");
   return reply;
 }
 

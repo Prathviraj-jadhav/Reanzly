@@ -39,8 +39,10 @@ import type { Vehicle } from "@/lib/types";
 
 interface VehicleOnboardingProps {
   onClose: () => void;
-  /** Create callback - persists the new vehicle to the parent list state. */
-  onAdd?: (vehicle: Vehicle) => void;
+  /** Create callback - persists the new vehicle via the real API. Resolves
+   * false (not a throw) on failure, since the caller already surfaces its
+   * own error toast - this just tells the form whether to close. */
+  onAdd?: (vehicle: Vehicle) => Promise<boolean>;
 }
 
 export function VehicleOnboarding({ onClose, onAdd }: VehicleOnboardingProps) {
@@ -60,6 +62,7 @@ export function VehicleOnboarding({ onClose, onAdd }: VehicleOnboardingProps) {
     const e: Record<string, string> = {};
     if (!form.name.trim()) e.name = "Vehicle name is required";
     if (!form.vin.trim()) e.vin = "VIN is required";
+    if (!form.licensePlate.trim()) e.licensePlate = "License plate is required";
     return e;
   }, [form]);
 
@@ -68,7 +71,9 @@ export function VehicleOnboarding({ onClose, onAdd }: VehicleOnboardingProps) {
     sectionRefs.current[id]?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
-  const handleSave = () => {
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
     if (Object.keys(errors).length > 0) {
       toast("Cannot save vehicle", {
         description: errors[Object.keys(errors)[0]],
@@ -88,7 +93,7 @@ export function VehicleOnboarding({ onClose, onAdd }: VehicleOnboardingProps) {
       type: form.type,
       group: "Line Haul",
       currentMeter: Number(form.inServiceOdometer) || 0,
-      licensePlate: "",
+      licensePlate: form.licensePlate,
       watchers: [],
       operator: form.defaultTechnician || "",
       fuelType: "Diesel",
@@ -96,7 +101,10 @@ export function VehicleOnboarding({ onClose, onAdd }: VehicleOnboardingProps) {
       distanceThisPeriod: 0,
     };
     if (onAdd) {
-      onAdd(newVehicle);
+      setSaving(true);
+      const ok = await onAdd(newVehicle);
+      setSaving(false);
+      if (!ok) return; // onAdd already surfaced its own error toast
       toast.success("Vehicle onboarded", {
         description: `${form.name} added to fleet registry`,
       });
@@ -125,11 +133,11 @@ export function VehicleOnboarding({ onClose, onAdd }: VehicleOnboardingProps) {
         description="Add a vehicle to the fleet registry - fill in details across six sections."
         actions={
           <>
-            <Btn icon={<X className="h-3.5 w-3.5" />} onClick={onClose}>
+            <Btn icon={<X className="h-3.5 w-3.5" />} onClick={onClose} disabled={saving}>
               Cancel
             </Btn>
-            <Btn variant="primary" icon={<Save className="h-3.5 w-3.5" />} onClick={handleSave}>
-              Save Vehicle
+            <Btn variant="primary" icon={<Save className="h-3.5 w-3.5" />} onClick={handleSave} disabled={saving}>
+              {saving ? "Saving…" : "Save Vehicle"}
             </Btn>
           </>
         }
@@ -215,6 +223,15 @@ export function VehicleOnboarding({ onClose, onAdd }: VehicleOnboardingProps) {
                 placeholder="17-character VIN"
                 mono
                 error={errors.vin}
+              />
+              <FormField
+                label="License Plate"
+                required
+                value={form.licensePlate}
+                onChange={(v) => update("licensePlate", v)}
+                placeholder="e.g. MH 12 JK 4521"
+                mono
+                error={errors.licensePlate}
               />
               <FormSelect
                 label="Vehicle Type"
@@ -513,11 +530,11 @@ export function VehicleOnboarding({ onClose, onAdd }: VehicleOnboardingProps) {
 
           {/* Footer actions */}
           <div className="flex items-center justify-end gap-2 border-t border-border pt-4">
-            <Btn icon={<X className="h-3.5 w-3.5" />} onClick={onClose}>
+            <Btn icon={<X className="h-3.5 w-3.5" />} onClick={onClose} disabled={saving}>
               Cancel
             </Btn>
-            <Btn variant="primary" icon={<Save className="h-3.5 w-3.5" />} onClick={handleSave}>
-              Save Vehicle
+            <Btn variant="primary" icon={<Save className="h-3.5 w-3.5" />} onClick={handleSave} disabled={saving}>
+              {saving ? "Saving…" : "Save Vehicle"}
             </Btn>
           </div>
         </div>

@@ -1,4 +1,6 @@
 use axum::{
+    http::StatusCode,
+    response::IntoResponse,
     routing::{get, post},
     Json, Router,
 };
@@ -116,7 +118,7 @@ struct InferResponse {
 async fn infer_handler(
     axum::extract::State(state): axum::extract::State<Arc<AppState>>,
     Json(payload): Json<InferRequest>,
-) -> String {
+) -> impl IntoResponse {
     // CPU-bound generation runs on a blocking thread so it doesn't stall the
     // async runtime's other in-flight requests (embeddings, health checks).
     let result = tokio::task::spawn_blocking(move || {
@@ -125,7 +127,13 @@ async fn infer_handler(
     .await;
 
     match result {
-        Ok(text) => text,
-        Err(e) => format!("[slm-engine] Inference task panicked: {e}"),
+        Ok(infer::InferOutcome::Text(text)) => (StatusCode::OK, text).into_response(),
+        // 503, not a 200 body - the TypeScript client's `res.ok` check routes
+        // this straight to its local-heuristic fallback instead of treating
+        // it as a real (if odd-looking) reply.
+        Ok(infer::InferOutcome::Busy) => {
+            (StatusCode::SERVICE_UNAVAILABLE, "[slm-engine] busy - another generation is in progress").into_response()
+        }
+        Err(e) => (StatusCode::OK, format!("[slm-engine] Inference task panicked: {e}")).into_response(),
     }
 }

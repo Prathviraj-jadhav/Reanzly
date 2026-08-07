@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, type ReactNode } from "react";
+import { useState, useMemo, useEffect, type ReactNode } from "react";
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable, type Column } from "@/components/shared/data-table";
 import { Btn } from "@/components/shared/btn";
@@ -47,6 +47,11 @@ const DATE_RANGE_PRESETS = [
 
 export function PODModule() {
   const { activeView } = useAppStore();
+  const fetchPods = usePODStore((s) => s.fetchPods);
+
+  useEffect(() => {
+    void fetchPods();
+  }, [fetchPods]);
 
   // Detail view - route before any list hooks to keep hook order stable.
   if (

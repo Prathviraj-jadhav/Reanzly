@@ -159,7 +159,7 @@ export function customerToForm(c: Customer): CustomerForm {
     creditLimit: c.creditLimit ? String(c.creditLimit) : "",
     accountManager: c.accountManager,
     branchAssociation: "",
-    billingAddress: "",
+    billingAddress: c.billingAddress ?? "",
   };
 }
 
@@ -173,6 +173,7 @@ export function formToCustomerPatch(form: CustomerForm): Partial<Customer> {
     paymentTerms: form.paymentTerms,
     creditLimit: form.creditLimit ? Number(form.creditLimit) : 0,
     accountManager: form.accountManager || "Unassigned",
+    billingAddress: form.billingAddress,
     city: form.branchAssociation
       ? form.branchAssociation.replace(" Branch", "").replace(" HQ", "")
       : undefined,

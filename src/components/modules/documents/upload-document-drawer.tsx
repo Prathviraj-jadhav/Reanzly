@@ -1,5 +1,5 @@
 "use client";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Btn } from "@/components/shared/btn";
 import { toast } from "sonner";
 import {
@@ -32,8 +32,7 @@ import {
   SheetTitle,
   SheetDescription,
 } from "@/components/ui/sheet";
-import { VEHICLES, DRIVERS, CUSTOMERS, VENDORS } from "@/lib/mock-data";
-import type { DocumentRecord } from "@/lib/types";
+import type { DocumentRecord, Vehicle, Driver, Customer, Vendor } from "@/lib/types";
 import {
   DOCUMENT_TYPES,
   ENTITY_TYPES,
@@ -50,8 +49,8 @@ interface UploadDocumentDrawerProps {
   open: boolean;
   onClose: () => void;
   record?: DocumentRecord;
-  onAdd?: (data: Partial<DocumentRecord>) => void;
-  onUpdate?: (id: string, data: Partial<DocumentRecord>) => void;
+  onAdd?: (data: Partial<DocumentRecord>) => Promise<boolean>;
+  onUpdate?: (id: string, data: Partial<DocumentRecord>) => Promise<boolean>;
 }
 
 function recordToForm(record: DocumentRecord): DocumentForm {
@@ -108,17 +107,39 @@ export function UploadDocumentDrawer({
   const [form, setForm] = useState<DocumentForm>(() =>
     record ? recordToForm(record) : EMPTY_DOC_FORM,
   );
+  const [submitting, setSubmitting] = useState(false);
+
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [drivers, setDrivers] = useState<Driver[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [vendors, setVendors] = useState<Vendor[]>([]);
+  useEffect(() => {
+    Promise.all([
+      fetch("/api/vehicles").then((r) => (r.ok ? r.json() : { vehicles: [] })),
+      fetch("/api/drivers").then((r) => (r.ok ? r.json() : { drivers: [] })),
+      fetch("/api/customers").then((r) => (r.ok ? r.json() : { customers: [] })),
+      fetch("/api/vendors").then((r) => (r.ok ? r.json() : { vendors: [] })),
+    ]).then(([v, d, c, ven]) => {
+      setVehicles(v.vehicles ?? []);
+      setDrivers(d.drivers ?? []);
+      setCustomers(c.customers ?? []);
+      setVendors(ven.vendors ?? []);
+    }).catch(() => toast.error("Couldn't load fleet/roster/customer/vendor data"));
+  }, []);
 
   const update = <K extends keyof DocumentForm>(k: K, v: DocumentForm[K]) =>
     setForm((s) => ({ ...s, [k]: v }));
 
+  // entityOptions.name is the real, directly-matchable name persisted server
+  // side; .label is just the richer display string shown in the dropdown -
+  // previously both were sourced from mock-data.ts with no real ids at all.
   const entityOptions = useMemo(() => {
-    if (form.entityType === "Vehicle") return VEHICLES.map((v) => ({ id: v.id, label: `${v.name} · ${v.licensePlate}` }));
-    if (form.entityType === "Driver") return DRIVERS.map((d) => ({ id: d.id, label: `${d.name} · ${d.role}` }));
-    if (form.entityType === "Customer") return CUSTOMERS.map((c) => ({ id: c.id, label: c.companyName }));
-    if (form.entityType === "Vendor") return VENDORS.map((v) => ({ id: v.id, label: v.companyName }));
-    return [{ id: "company-1", label: "Reanzly Logistics Pvt Ltd" }];
-  }, [form.entityType]);
+    if (form.entityType === "Vehicle") return vehicles.map((v) => ({ id: v.id, name: v.name, label: `${v.name} · ${v.licensePlate}` }));
+    if (form.entityType === "Driver") return drivers.map((d) => ({ id: d.id, name: d.name, label: `${d.name} · ${d.role}` }));
+    if (form.entityType === "Customer") return customers.map((c) => ({ id: c.id, name: c.companyName, label: c.companyName }));
+    if (form.entityType === "Vendor") return vendors.map((v) => ({ id: v.id, name: v.companyName, label: v.companyName }));
+    return [{ id: "company-1", name: "Reanzly Logistics Pvt Ltd", label: "Reanzly Logistics Pvt Ltd" }];
+  }, [form.entityType, vehicles, drivers, customers, vendors]);
 
   const handleEntityTypeChange = (t: string) => {
     setForm((s) => ({ ...s, entityType: t, entity: "" }));
@@ -164,23 +185,27 @@ export function UploadDocumentDrawer({
     if (step > 1) setStep(step - 1);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const payload = formToData(form, record);
+    setSubmitting(true);
+    let ok = true;
     if (record && onUpdate) {
-      onUpdate(record.id, payload);
-      toast.success("Document updated", {
-        description: `${form.documentType} · ${form.entity} · ${form.fileName || record.name}`,
-      });
+      ok = await onUpdate(record.id, payload);
+      if (ok) {
+        toast.success("Document updated", {
+          description: `${form.documentType} · ${form.entity} · ${form.fileName || record.name}`,
+        });
+      }
     } else if (onAdd) {
-      onAdd(payload);
-      toast.success("Document uploaded", {
-        description: `${form.documentType} · ${form.entity} · ${form.fileName}`,
-      });
-    } else {
-      toast.success("Document uploaded", {
-        description: `${form.documentType} · ${form.entity} · ${form.fileName}`,
-      });
+      ok = await onAdd(payload);
+      if (ok) {
+        toast.success("Document uploaded", {
+          description: `${form.documentType} · ${form.entity} · ${form.fileName}`,
+        });
+      }
     }
+    setSubmitting(false);
+    if (!ok) return; // onAdd/onUpdate already surfaced their own error toast
     setStep(1);
     setForm(EMPTY_DOC_FORM);
     onClose();
@@ -285,7 +310,7 @@ export function UploadDocumentDrawer({
                       <SelectContent className="max-h-60 overflow-y-auto scrollbar-thin">
                         <SelectItem value="none">- Select -</SelectItem>
                         {entityOptions.map((e) => (
-                          <SelectItem key={e.id} value={e.label}>{e.label}</SelectItem>
+                          <SelectItem key={e.id} value={e.name}>{e.label}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -454,8 +479,8 @@ export function UploadDocumentDrawer({
           </Btn>
           <div className="text-[11px] text-muted-foreground tabular">Step {step} of 3</div>
           {isLastStep ? (
-            <Btn variant="primary" icon={<Check className="h-3.5 w-3.5" />} onClick={handleSubmit}>
-              {record ? "Save Changes" : "Upload Document"}
+            <Btn variant="primary" icon={<Check className="h-3.5 w-3.5" />} onClick={handleSubmit} disabled={submitting}>
+              {submitting ? "Saving…" : record ? "Save Changes" : "Upload Document"}
             </Btn>
           ) : (
             <Btn variant="primary" onClick={goNext} disabled={!canAdvance}>

@@ -1,8 +1,8 @@
 "use client";
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { useAppStore } from "@/lib/store/app-store";
-import { INVOICES } from "@/lib/mock-data";
 import type { Invoice, InvoiceStatus } from "@/lib/types";
+import { toast } from "sonner";
 import { InvoiceList } from "./invoice-list";
 import { InvoiceDetail } from "./invoice-detail";
 import { AddInvoiceDrawer } from "./add-invoice-drawer";
@@ -30,22 +30,35 @@ export function InvoiceModule() {
   const [recordPaymentTarget, setRecordPaymentTarget] =
     useState<Invoice | null>(null);
 
-  // Lifted state so edits from the detail view reflect on the list without
-  // a full reload. Seeded from the static mock so existing data persists.
-  const [invoices, setInvoices] = useState<Invoice[]>(INVOICES);
+  // Real, database-backed invoices (src/app/api/invoices) - previously
+  // useState(INVOICES) seeded from mock-data.ts.
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [loaded, setLoaded] = useState(false);
 
   // Task 15-d: per-invoice meta (assigned contacts, design config, activity
-  // timeline, release log). Seeded lazily for every invoice on mount so the
-  // detail view's Activity + Design tabs aren't empty for legacy mocks.
-  const [invoiceMeta, setInvoiceMeta] = useState<Record<string, InvoiceMeta>>(
-    () => {
-      const init: Record<string, InvoiceMeta> = {};
-      for (const inv of INVOICES) {
-        init[inv.invoiceNumber] = seedInvoiceMeta(inv);
-      }
-      return init;
-    },
-  );
+  // timeline, release log) - deliberately still local-only/in-memory, not
+  // part of this pass's real-data scope (a presentation/workflow layer on
+  // top of the real invoice record, not the record itself). Seeded once
+  // real invoices arrive so the detail view's Activity + Design tabs aren't
+  // empty.
+  const [invoiceMeta, setInvoiceMeta] = useState<Record<string, InvoiceMeta>>({});
+
+  useEffect(() => {
+    fetch("/api/invoices")
+      .then((r) => (r.ok ? r.json() : Promise.reject(r)))
+      .then(({ invoices }) => {
+        setInvoices(invoices);
+        setInvoiceMeta((prev) => {
+          const next = { ...prev };
+          for (const inv of invoices) {
+            if (!next[inv.invoiceNumber]) next[inv.invoiceNumber] = seedInvoiceMeta(inv);
+          }
+          return next;
+        });
+      })
+      .catch(() => toast.error("Couldn't load invoices", { description: "Try reloading the page." }))
+      .finally(() => setLoaded(true));
+  }, []);
 
   // Saved invoice templates — start with the curated seed list (Task 15-d).
   const [savedTemplates, setSavedTemplates] = useState<SavedInvoiceTemplate[]>(
@@ -58,19 +71,45 @@ export function InvoiceModule() {
   // Bulk release target — a batch of invoices selected from the list.
   const [bulkReleaseTarget, setBulkReleaseTarget] = useState<Invoice[]>([]);
 
-  const handleUpdate = useCallback((id: string, patch: Partial<Invoice>) => {
-    setInvoices((prev) => prev.map((i) => (i.id === id ? { ...i, ...patch } : i)));
+  const handleUpdate = useCallback(async (id: string, patch: Partial<Invoice>): Promise<boolean> => {
+    setInvoices((prev) => prev.map((i) => (i.id === id ? { ...i, ...patch } : i))); // optimistic
+    const res = await fetch(`/api/invoices/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(patch),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      toast.error("Couldn't save invoice", { description: body.error || "Try again." });
+      return false;
+    }
+    const { invoice } = await res.json();
+    setInvoices((prev) => prev.map((i) => (i.id === id ? invoice : i)));
+    return true;
   }, []);
 
   // Bulk status patch (Task 15-d) — used by the list's bulk "Mark as Sent"
-  // and bulk "Release Selected" actions.
+  // and bulk "Release Selected" actions. One real PATCH per invoice - a
+  // dedicated bulk endpoint isn't worth it for an action this infrequent.
   const handleUpdateStatus = useCallback(
-    (targets: Invoice[], status: InvoiceStatus) => {
+    async (targets: Invoice[], status: InvoiceStatus) => {
       if (targets.length === 0) return;
       const ids = new Set(targets.map((t) => t.id));
       setInvoices((prev) =>
         prev.map((i) => (ids.has(i.id) ? { ...i, status } : i)),
+      ); // optimistic
+      const results = await Promise.all(
+        targets.map((t) =>
+          fetch(`/api/invoices/${t.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ status }),
+          }).then((r) => r.ok)
+        ),
       );
+      if (results.some((ok) => !ok)) {
+        toast.error("Some invoices couldn't be updated", { description: "Reload to see the real current state." });
+      }
       // Log a status-change activity on each invoice's timeline.
       const ts = new Date().toISOString();
       setInvoiceMeta((prev) => {
@@ -96,11 +135,23 @@ export function InvoiceModule() {
   );
 
   const addInvoice = useCallback(
-    (inv: Invoice, assignedContactIds?: string[]) => {
-      setInvoices((prev) => [inv, ...prev]);
+    async (inv: Invoice, assignedContactIds?: string[]): Promise<boolean> => {
+      const { id: _clientId, ...payload } = inv;
+      const res = await fetch("/api/invoices", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        toast.error("Couldn't create invoice", { description: body.error || "Try again." });
+        return false;
+      }
+      const { invoice } = await res.json();
+      setInvoices((prev) => [invoice, ...prev]);
       // Seed meta for the new invoice — preserve the assigned contacts the
       // user picked in the Add Invoice drawer (Task 15-d).
-      const seeded = seedInvoiceMeta(inv);
+      const seeded = seedInvoiceMeta(invoice);
       if (assignedContactIds && assignedContactIds.length > 0) {
         seeded.assignedContactIds = assignedContactIds;
         const ts = new Date().toISOString();
@@ -113,7 +164,8 @@ export function InvoiceModule() {
           detail: `${assignedContactIds.length} contact${assignedContactIds.length === 1 ? "" : "s"} assigned at creation`,
         });
       }
-      setInvoiceMeta((prev) => ({ ...prev, [inv.invoiceNumber]: seeded }));
+      setInvoiceMeta((prev) => ({ ...prev, [invoice.invoiceNumber]: seeded }));
+      return true;
     },
     [],
   );
@@ -333,15 +385,17 @@ export function InvoiceModule() {
     return m?.assignedContactIds;
   }, [releaseTarget, invoiceMeta]);
 
+  if (!loaded) {
+    return <div className="p-6 text-[13px] text-muted-foreground">Loading invoices…</div>;
+  }
+
   // Detail view
   if (
     activeView.module === "invoice" &&
     activeView.view === "detail" &&
     activeView.id
   ) {
-    const detailInvoice =
-      invoices.find((i) => i.invoiceNumber === activeView.id) ??
-      INVOICES.find((i) => i.invoiceNumber === activeView.id);
+    const detailInvoice = invoices.find((i) => i.invoiceNumber === activeView.id);
     const detailMeta = detailInvoice
       ? invoiceMeta[detailInvoice.invoiceNumber]
       : undefined;

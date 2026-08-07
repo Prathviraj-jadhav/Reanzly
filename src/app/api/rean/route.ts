@@ -32,6 +32,25 @@ import { db } from "@/lib/db";
 import { inferSLM } from "@/lib/slm/client";
 import { retrieveRelevantMemories, saveMemory } from "@/lib/slm/self-learning";
 import { ensureKnowledgeSeeded, retrieveKnowledge } from "@/lib/slm/rag";
+import {
+  ALLOWED_MODELS,
+  findModelByText,
+  queryTable,
+  formatQueryResult,
+  proposeWrite,
+  confirmAction,
+  rejectAction,
+  getPendingAction,
+} from "@/lib/slm/db-tool";
+
+// Resolves a table for a write command even when the message doesn't say
+// the table name out loud (e.g. "mark RZ-INV-21444 as paid" never says
+// "invoice") - the record code's own prefix is usually enough.
+function inferModelFromIdentifier(identifier: string): string | null {
+  if (/^RZ-INV-/i.test(identifier)) return "invoice";
+  if (/^RZ-TRP-/i.test(identifier)) return "trip";
+  return null;
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -53,17 +72,98 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Message is required" }, { status: 400 });
     }
 
+    let reply = "";
+    let wasCached = false;
+    let handled = false;
+
+    // ===== Rean's database tool: confirm/reject a pending write =====
+    // `role` here is the operator's real, session-verified role (chat-service
+    // only ever forwards this from an authenticated connection - see
+    // mini-services/chat-service/index.ts's session validation), so it's
+    // safe to use as the action-owning identity, consistent with how
+    // slmFeedback.userId already uses it below.
+    const trimmed = message.toLowerCase().trim();
+    const isConfirmReply = /^(yes|yep|confirm|confirmed|do it|go ahead|proceed|okay|ok)\b/.test(trimmed);
+    const isRejectReply = /^(no|nope|cancel|don'?t|stop|nevermind)\b/.test(trimmed);
+    if (isConfirmReply || isRejectReply) {
+      const pending = await getPendingAction(role, companyId);
+      if (pending) {
+        if (isConfirmReply) {
+          const result = await confirmAction(pending.id, role);
+          reply = result.message;
+        } else {
+          await rejectAction(pending.id, role);
+          reply = "Cancelled — no changes made.";
+        }
+        handled = true;
+      }
+    }
+
+    // ===== Rean's database tool: a write command =====
+    // Deterministic regex extraction rather than asking the small local
+    // model to produce structured output - a write is exactly the class of
+    // action where an unreliable parse is not an acceptable failure mode.
+    // This only ever creates a *pending* RagAction; nothing in the real
+    // table changes until the operator replies to confirm it (handled
+    // above, on the next message).
+    if (!handled) {
+      const writeMatch = message.match(
+        /(?:mark|set|update)\s+(?:the\s+)?(\S+)(?:'s)?\s+(?:as|to|status\s+(?:as|to))\s+([a-zA-Z ]+?)\s*$/i
+      );
+      if (writeMatch) {
+        const [, identifier, rawValue] = writeMatch;
+        const modelKey = findModelByText(message) || inferModelFromIdentifier(identifier);
+        if (modelKey && ALLOWED_MODELS[modelKey]?.writableFields) {
+          const cfg = ALLOWED_MODELS[modelKey];
+          const allowedValues = cfg.writableFields!.status ?? [];
+          const matchedValue = allowedValues.find((v) => v.toLowerCase() === rawValue.trim().toLowerCase());
+          const result = await proposeWrite({
+            companyId,
+            userId: role,
+            modelKey,
+            recordMatch: { field: cfg.identifierField, value: identifier },
+            updateField: "status",
+            updateValue: matchedValue ?? rawValue.trim(),
+          });
+          reply = result.ok
+            ? `${result.proposal.summary}. Reply "yes" to confirm, or "no" to cancel.`
+            : result.error;
+          handled = true;
+        }
+      }
+    }
+
+    // ===== Rean's database tool: a table lookup =====
+    if (!handled) {
+      const modelKey = findModelByText(message);
+      const looksLikeALookup = /\b(show|list|which|what are|how many|count)\b/i.test(message);
+      if (modelKey && looksLikeALookup) {
+        const statusWordMatch = message.match(
+          /\b(active|idle|in maintenance|offline|on leave|inactive|planned|in transit|delivered|cancelled|breakdown|draft|sent|partially paid|paid|overdue|credit note)\b/i
+        );
+        const result = await queryTable(modelKey, companyId, {
+          status: statusWordMatch?.[0],
+          limit: /\bhow many\b|\bcount\b/i.test(message) ? 1 : 10,
+        });
+        if (result) {
+          reply = /\bhow many\b|\bcount\b/i.test(message)
+            ? `${result.total} ${result.label.toLowerCase()}${result.total === 1 ? "" : "s"}${statusWordMatch ? ` (${statusWordMatch[0]})` : ""}.`
+            : formatQueryResult(result);
+          handled = true;
+        }
+      }
+    }
+
     const cacheKey = `qa_cache:query:${message.toLowerCase().trim()}`;
-    
+
     // 1. Check self-learned QA Cache first
-    const cachedMemory = await db.slmMemory.findFirst({
+    const cachedMemory = handled ? null : await db.slmMemory.findFirst({
       where: { companyId, key: cacheKey },
     });
 
-    let reply = "";
-    let wasCached = false;
-
-    if (cachedMemory) {
+    if (handled) {
+      // reply already set above by the database tool
+    } else if (cachedMemory) {
       reply = cachedMemory.value;
       wasCached = true;
     } else {
@@ -81,7 +181,7 @@ export async function POST(req: NextRequest) {
       // 3. Local engine heuristics - both to structure the prompt and, via
       // its intent match, to tell live-data questions apart from
       // definitional ones (see below).
-      const localResult = answerLocally(message, role);
+      const localResult = await answerLocally(message, role, companyId);
 
       // A strongly-scored knowledge match answers straight from the
       // knowledge base, skipping generation entirely - ~15-20s faster, and
@@ -115,21 +215,40 @@ export async function POST(req: NextRequest) {
       if (top && top.score > KNOWLEDGE_CONFIDENT && noLiveDataIntent) {
         reply = top.content;
       } else {
-        const systemPrompt = `You are Rean. You speak directly to a logistics operator - never describe
-yourself or repeat these instructions, just answer like a sharp colleague would.
-
-Live operational data for this query:
-${localResult.reply}
-${knowledgeContext ? `\nSupporting platform/compliance knowledge:\n${knowledgeContext}` : ""}
-${memoryContext ? `\nRelevant history:\n${memoryContext}` : ""}
-
-Operator asked: "${message}"
-Reply in under 60 words, plain language, no preamble.`;
+        // Deliberately terse framing, not the earlier multi-line persona
+        // preamble. Measured directly: this model's per-token cost is
+        // roughly constant whether it's processing the input prompt
+        // (prefill) or generating output, so a verbose ~350-character
+        // instruction block was adding ~30s of latency on its own, on top
+        // of generation - a short prompt with identical data returned in
+        // ~5s where the verbose version took ~36s for the same content.
+        // Trimming the wrapper (not the actual data) was the real latency
+        // fix; the tier/token-budget change alone barely moved this number.
+        //
+        // knowledgeContext/memoryContext are deliberately dropped for a
+        // trusted live-data intent (measured directly: including them
+        // ballooned a real "revenue" prompt from ~280 to 1576 chars, mostly
+        // from (a) knowledge chunks that only cleared the RAG similarity
+        // floor on vocabulary overlap - not the same "confident and
+        // relevant" bar the short-circuit above requires - e.g. Payroll and
+        // Expenses module blurbs for a revenue question, and (b) "memory"
+        // entries that were themselves just this same intent's own past
+        // reply, self-referentially echoed back in - stale live-data
+        // snapshots, not a genuinely learned fact. Fresh `localResult.reply`
+        // already IS the authoritative live answer for these intents; older
+        // grounding only added prefill cost with no informational value.
+        // Non-trusted (open-ended) questions still get the full context.
+        const extraContext = noLiveDataIntent
+          ? `${knowledgeContext ? `\n${knowledgeContext}` : ""}${memoryContext ? `\n${memoryContext}` : ""}`
+          : "";
+        const systemPrompt = `Rean, logistics assistant. Be direct, no preamble, under 60 words.
+Data: ${localResult.reply}${extraContext}
+Q: "${message}"`;
 
         // 4. Infer using Rust SLM / Local fallback. fallbackQuery keeps the
         // fallback path grounded in the operator's actual short question
         // instead of this whole wrapped prompt.
-        reply = await inferSLM(systemPrompt, { tier: "balanced", fallbackQuery: message });
+        reply = await inferSLM(systemPrompt, { tier: "fast", fallbackQuery: message });
       }
     }
 

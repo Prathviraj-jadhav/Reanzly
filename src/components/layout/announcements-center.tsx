@@ -106,6 +106,7 @@ export function AnnouncementsCenter() {
   const markAllNotifRead = useAppStore((s) => s.markAllNotifRead);
   const navigate = useAppStore((s) => s.navigate);
   const dismissSystemAlert = useAppStore((s) => s.dismissSystemAlert);
+  const setSettingsTab = useAppStore((s) => s.setSettingsTab);
   const [section, setSection] = useState<Section>("alerts");
 
   const unreadCount = notifications.filter((n) => !n.read).length;
@@ -193,6 +194,9 @@ export function AnnouncementsCenter() {
               onAction={() => {
                 if (systemAlert?.actionModule) {
                   navigate(systemAlert.actionModule);
+                  if (systemAlert.actionModule === "settings" && systemAlert.actionSettingsTab) {
+                    setSettingsTab(systemAlert.actionSettingsTab);
+                  }
                   setOpen(false);
                 }
               }}

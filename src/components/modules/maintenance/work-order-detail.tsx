@@ -4,7 +4,7 @@ import { DetailLayout, InfoRow, InfoSection, StatCard } from "@/components/share
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { useAppStore } from "@/lib/store/app-store";
-import { WORK_ORDERS, VEHICLES, VENDORS, ISSUES } from "@/lib/mock-data";
+import { VEHICLES, VENDORS, ISSUES } from "@/lib/mock-data";
 import type { WorkOrder } from "@/lib/types";
 import {
   Pencil,
@@ -55,20 +55,20 @@ const ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
 
 interface WorkOrderDetailProps {
   workOrderId: string;
+  workOrders: WorkOrder[];
+  onUpdate: (id: string, data: Partial<WorkOrder>) => Promise<boolean>;
 }
 
-export function WorkOrderDetail({ workOrderId }: WorkOrderDetailProps) {
+export function WorkOrderDetail({ workOrderId, workOrders, onUpdate: onUpdateReal }: WorkOrderDetailProps) {
   const { navigate, navigateDetail } = useAppStore();
   const [activeTab, setActiveTab] = useState("overview");
-  const [record, setRecord] = useState<WorkOrder | undefined>(
-    () => WORK_ORDERS.find((w) => w.workOrderId === workOrderId),
-  );
+  const record = workOrders.find((w) => w.workOrderId === workOrderId);
   const [editing, setEditing] = useState(false);
 
   const wo = record;
 
   const handleUpdate = (id: string, data: Partial<WorkOrder>) => {
-    setRecord((prev) => (prev ? { ...prev, ...data } : prev));
+    onUpdateReal(id, data);
   };
 
   // Deterministic parts consumed (3-5 parts)

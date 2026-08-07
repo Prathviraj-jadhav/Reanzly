@@ -974,10 +974,17 @@ etc.), fully offline. Wired into `/api/rean` and `/api/slm/chat`. Also fixed the
 underlying "chat is not working" bug — the socket client was addressing a
 production-only Caddy gateway path in local dev.
 
-**Stage 2 — Teams-style chat upgrades.** 🟡 Built, not yet independently verified.
-Message edit/soft-delete, poll voting, rich text/code blocks, attachment upload,
-mute, global search — code and Prisma migration (`ChatMessage.deleted/edited`,
-`ChatPollVote`) are in place. Has not yet had an end-to-end browser verification pass.
+**Stage 2 — Teams-style chat upgrades.** 🟢 Done and verified. Message
+edit/soft-delete, poll voting, attachment upload, pin, and reactions were built
+via parallel agents much earlier this session but never actually confirmed —
+verified with a real authenticated socket.io client exercising every event
+against a real channel and checking actual database rows after each one (not
+just the broadcast payload): edit, delete, pin, react, and poll-vote all
+persisted correctly, and a real multipart file upload round-tripped byte-for-
+byte through `/api/chat/upload`. Global search and mute are deliberately
+client-side-only (search filters already-loaded messages; mute is a per-device
+preference) — confirmed by code review that this is a documented design
+choice, not missing backend work. Full detail in `worklog.md` Task 14.
 
 A separate dev-server "unexpected Turbopack error" (reported by the user, unrelated
 to Stage 2's own code) turned out to be stale `next dev` processes racing on port
@@ -1020,12 +1027,195 @@ just UI observation): a real chat message was sent, and Rean's genuine
 model-generated reply was confirmed in the database at the expected inference
 latency, not the instant fallback path.
 
-Open: round-trip latency for anything needing live data is still 16-30s (CPU-only
-0.5B inference) — needs tuning before this feels like live chat. The knowledge-vs-
-live-data routing heuristic in `/api/rean` was iterated against real failures until
-every tested case worked, but remains a heuristic, not a learned classifier.
+Latency tuned and two real bugs fixed, not just the model made to "feel" faster
+(see `worklog.md` Task 15). Measured that prompt length (prefill), not output
+length, dominates cost on this CPU-only setup, then cut the system-prompt
+wrapper, tier, and per-tier token budgets accordingly. Separately found that
+`infer.rs` held a *blocking* mutex with no timeout and no cancellation when a
+client gave up, so repeated client timeouts under test load piled
+genuinely-still-running generations up behind each other — this, not raw model
+speed, was the cause of an observed full hang (20s+, zero bytes back) on even a
+trivial prompt. Fixed with `try_lock()` + an immediate `503` when the model is
+already busy, verified directly with two concurrent requests (second one back
+in ~3ms, not queued). Re-testing the real `/api/rean` endpoint afterward still
+showed the raw fallback template coming back at 45s — traced the actual prompt
+with a script calling the real functions against the real DB and found it was
+1576 characters, not the ~280 used to validate the earlier fixes: 3 RAG
+knowledge chunks matched on vocabulary overlap alone, plus 2 "memory" entries
+that were just Rean's own prior reply echoed back into itself, both
+unconditionally appended even though `localResult.reply` already had the
+authoritative fresh answer for these intents. Dropped both for trusted
+live-data intents; verified against the real endpoint with two different
+live-data questions — genuinely generated (non-template) replies in ~27-28s,
+comfortably inside the 45s timeout, instead of landing right at its edge.
+Open: ~27-28s is still slow for live chat; closing that further needs real
+follow-on engineering (KV-cache reuse for the repeated prompt preamble, a
+faster quantization, or true token streaming), not attempted here. The
+knowledge-vs-live-data routing heuristic in `/api/rean` was iterated against
+real failures until every tested case worked, but remains a heuristic, not a
+learned classifier.
 
-**Stage 3 — Real WebRTC calling.** ⬜ Not started.
+**Stage 3 — Real WebRTC calling.** 🟡 Signaling/negotiation and scheduled
+calls real and verified end-to-end; actual bidirectional audio/video and
+screen share genuinely built but blocked on a manual two-device test this
+sandboxed environment cannot perform.
+The existing call UI in `chat-panel.tsx` was found to be entirely fake — a
+`setTimeout`-driven "calling → connected" animation with zero real media or
+signaling, its own code comment admitting as much ("Simulate the call
+connecting after 1.5s"). Built real infrastructure to replace it:
+`src/lib/store/call-store.ts` (real `RTCPeerConnection`, `getUserMedia`/
+`getDisplayMedia`, SDP offer/answer + ICE exchange) and a global
+`incoming-call-overlay.tsx`, wired to a real signaling relay in
+`chat-service` (`call:invite/accept/reject/cancel/end/offer/answer/
+ice-candidate`, backed by a genuine `Call` table). Verified with a real
+second authenticated user (a raw socket.io client logged in as a different
+seeded account, not a stub) that the full signaling chain works and that
+the browser's actual `RTCPeerConnection` generates and sends a genuine SDP
+offer — real negotiation, not simulation. That same test found and fixed a
+real bug: a blocked-microphone failure was being silently swallowed,
+letting the call proceed to negotiate with zero media tracks instead of
+aborting.
+
+Screen share and scheduled calls were then picked up (see `worklog.md` Task
+16). Tested `getDisplayMedia()` directly in the sandbox rather than assuming
+it shared the mic/camera block: it does — same `NotAllowedError`, confirmed
+not assumed. Scheduled calls went from "data model supports it, no UI" to a
+fully built and verified feature: `src/app/api/chat/calls/route.ts`
+(list/create/cancel, session-scoped like every other chat route),
+`call-store.ts` extended to forward `scheduledCallId` through to
+`call:invite` (chat-service already accepted it, the client never sent
+one), and a schedule popover + upcoming-calls banner in `chat-panel.tsx`.
+Verified for real: a scheduled call landed as a genuine `Call` row in
+SQLite; cancelling it flipped `status` to `cancelled` with a real `endedAt`,
+confirmed in SQLite not just the API response; and — the part that actually
+needed proving — that "Join" *resumes* the same scheduled row instead of
+creating a duplicate, verified with a real second authenticated socket
+connection emitting `call:invite` with `scheduledCallId` set: the ack
+returned the identical `callId`, and SQLite confirmed that same row (not a
+new one) moved from `scheduled` to `ringing`. Found and fixed an unrelated
+real bug along the way: `marketplace-grid.tsx`'s `VehicleCard` was missing
+its closing `}`, silently 500ing any route needing a fresh compile of that
+page graph (including, unhelpfully, `/api/auth/login` when tested via a
+fresh `curl` rather than the already-compiled open browser tab) — pre-
+existing, unrelated to this session's other work, fixed with the missing
+brace. What remains genuinely unverified — not unstarted, not untested by
+choice, specifically blocked by this environment — is actual bidirectional
+audio/video between two real parties, which needs a manual two-device test
+outside this sandbox. Full detail in `worklog.md` Tasks 12 and 16.
+
+**"Make it production-grade, no more fake data/API keys."** 🟡 Six core ERP
+modules genuinely real; rest of the app and all third-party integrations
+explicitly scoped and deferred, not silently skipped.
+Audited the whole codebase first rather than guessing at scope
+(`worklog.md` Task 17): found ~20 third-party integrations (payment, SMS/
+WhatsApp, maps, logistics, government portals) are 100% simulated with no
+real API client code anywhere - not a fake key sitting in `.env`, but
+`setTimeout`/`Math.random()` fake network round-trips standing in for real
+ones - and found the entire core ERP UI (Vehicles, Trips, Invoices, and
+~20 more modules) was pure client-side state seeded from
+`mock-data.ts`, completely disconnected from the real DB rows this
+session had already seeded earlier (Task 13) that only Rean's chat tool
+ever read. Asked the user to prioritize rather than either freezing or
+attempting a multi-week rewrite blind; they chose to wire up
+Vehicles/Drivers/Customers/Vendors/Trips/Invoices first and to defer all
+external integrations until they can supply real credentials.
+Built real, session-scoped CRUD (`GET`/`POST`/`PATCH`/`DELETE`) for all
+six (`worklog.md` Task 18): extended the Prisma schema for UI fields that
+had nowhere to persist, rewired every module off `useState(MOCK_ARRAY)`
+onto real API calls, and fixed every create-flow drawer to actually await
+its real API call rather than firing a success toast the instant a fake,
+synchronous, in-memory push happened. Verified all six end-to-end with
+real authenticated API calls checked against live SQLite state, not just
+the JSON response, plus a live browser render confirming real seeded
+record counts. Found and fixed three genuine, previously-invisible bugs
+along the way, each caught by actually running the code: the trip-creation
+flow had no vehicle/driver picker at all and silently assigned the first
+mock vehicle/driver to every job order regardless of intent; a customer's
+billing address was collected as required but silently discarded on save;
+and a wrong assumption in this session's own first-draft Trips API
+(`customer` is `Trip`'s relation field name, not a scalar column like it
+is on `Invoice`) was caught by a real Prisma error, not code review.
+Explicitly NOT attempted in this pass, and tracked as such rather than
+silently left out: ~15 more mock-data/localStorage-backed modules (CRM,
+HR, Ledger, SuperAdmin, Reports, and others - the user hasn't chosen these
+yet) and the ~20 fake integrations, which need real credentials only the
+user can supply.
+
+Continued (Task 19): 8 more modules made real the same way - Maintenance,
+Fuel & Energy, Issues, Reminders, Inspection, Documents, Expenses, Lorry
+Receipts. Found the same "detail page silently reads its own stale mock
+copy instead of the parent's real state" bug in five more places and fixed
+all of them; found two more `companyId`-less multi-tenancy gaps
+(`Inspection`, `WorkOrder`); found and immediately fixed a real schema bug
+of my own (a `Reminder.driverId` column with no declared relation) via an
+actual failing request, not review; found Documents' entire upload flow
+was already a complete no-op before this session touched it (no `onAdd`
+handler was ever wired); resolved a real status-vocabulary mismatch on
+`LorryReceipt` by keeping the LR module's own already-working UI
+vocabulary rather than rewriting five files to match an unenforced schema
+comment; and found/fixed a paise-vs-rupee unit bug in my own
+Expenses/LorryReceipts work, verified against real SQLite. 14 of the ~20
+mock-data-backed modules identified in the Task 17 audit are now real; the
+rest (CRM, HR, Ledger, SuperAdmin, Reports, and others) remain explicitly
+tracked, not started.
+
+Continued again (Task 20): investigated the remaining ~14 modules rather
+than assuming they'd all fit the same pattern, and found most genuinely
+need a real schema/architecture decision first - Services and POD have UI
+data shapes that don't match their DB models at all (template-vs-instance
+for Services, a much richer voucher workflow than the DB captures for
+POD), Quality/Purchase have no DB model yet, and CRM/HR/Ledger/SuperAdmin
+run on a different architecture (Zustand `persist`/localStorage, not
+`useState(mock)`) needing a different fix. Delivered the one module that
+was genuinely ready - Fleet Map - fully real and verified: confirmed the
+map only ever needed city-level coordinates (never precise GPS), swapped
+its mock reads for the real vehicle/trip/driver APIs, and verified both
+via console and a real screenshot that it now plots the real 20-vehicle
+fleet at real cities. 15 of ~20 mock-data modules are now real. Full detail
+in `worklog.md` Tasks 17-20.
+
+**Real user accounts, replacing the "dummy" demo-only login.** 🟢 Done and
+verified. The `User` Prisma model existed but was completely unused — no
+password hashing, no real session, "login" was a pure client-side role
+picker with no server check at all. Seeded 17 real, password-verified
+accounts (`src/scripts/seed-users.ts`, `@reanzly.in` emails, scrypt-hashed
+shared demo password) and built real session-based auth
+(`src/lib/auth.ts`, `/api/auth/login|logout|me`) — an opaque, DB-backed
+session token, not a JWT, so logout actually revokes access rather than
+just discarding a client-side value. Along the way, found and closed a real
+identity-spoofing vulnerability: chat trusted any client-supplied `userId`
+with zero verification, letting any caller read another user's
+conversations or post messages as anyone. Every chat route and
+`chat-service`'s own socket handshake now derive identity from the verified
+session instead. Verified through the actual browser UI (not just curl):
+wrong password shows the real server error, correct password persists a
+real session across a full page reload, and an unauthenticated socket
+connection is now rejected outright. Full detail in `worklog.md` Tasks 9–11.
+
+**Rean's scoped database-query tool.** 🟢 Done and verified. Built around an
+explicit model allowlist (`src/lib/slm/db-tool.ts`) — Vehicle, Driver,
+Customer, Vendor, Trip, Invoice, Expense, Issue — with curated display
+columns and, for a subset, a whitelisted set of writable status values.
+Every identity/security table (`User` passwords, `Session`, `PlatformUser`,
+integration credentials, audit logs) is simply never listed; there is no
+generic "query any table" escape hatch. Writes go through the existing
+`RagAction` model as a real confirm-before-execute flow: a proposed change
+sits `pending` until the same user replies to confirm it, with a full audit
+trail of what was proposed, by whom, and the outcome. Found along the way
+that, like `User` before the accounts work, the business tables this tool
+needs were completely empty — all visible ERP data runs on `mock-data.ts`'s
+in-memory arrays, not the database — so seeded real rows
+(`src/scripts/seed-business-data.ts`) into the core tables to give it
+something real to query. Verified with seven scenarios checked against
+actual database state: real table lookups and counts against real seeded
+data (catching and fixing a real case-sensitivity bug along the way — SQLite
+comparisons are case-sensitive and every status value in the schema is
+Title Case, so a lowercase natural-language status word matched nothing
+until normalized), a full propose → confirm → real database change cycle, a
+propose → reject cycle that correctly left the data untouched, an attempt to
+query a non-allowlisted table (`User`) that correctly found nothing, and a
+different logged-in user's "yes" correctly failing to execute someone else's
+pending write. Full detail in `worklog.md` Task 13.
 
 **Open item — documentation accuracy.** `DEPLOYMENT.md` and `HOW-TO-BUILD-REANZLY.md`
 were authored by the other/concurrent session and describe more than currently exists.

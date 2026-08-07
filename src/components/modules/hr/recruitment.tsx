@@ -261,9 +261,10 @@ export function Recruitment({
       )}
 
       {view === "kanban" && (
-        <KanbanView positions={filtered} onMoveStage={(posId, candId, stage) => {
-          setCandidateStage(posId, candId, stage);
-          toast.success(`Candidate moved to ${stage}`);
+        <KanbanView positions={filtered} onMoveStage={async (posId, candId, stage) => {
+          const ok = await setCandidateStage(posId, candId, stage);
+          if (ok) toast.success(`Candidate moved to ${stage}`);
+          else toast.error("Couldn't move candidate", { description: "Try again." });
         }} onOpenPosition={(p) => setSelected(p)} />
       )}
 
@@ -285,11 +286,15 @@ export function Recruitment({
       <PositionDetailDrawer
         position={selected}
         onClose={() => setSelected(null)}
-        onMoveStage={(candId, stage) => {
+        onMoveStage={async (candId, stage) => {
           if (!selected) return;
-          setCandidateStage(selected.id, candId, stage);
-          setSelected({ ...selected, candidates: selected.candidates.map((c) => c.id === candId ? { ...c, stage } : c) });
-          toast.success(`Candidate moved to ${stage}`);
+          const ok = await setCandidateStage(selected.id, candId, stage);
+          if (ok) {
+            setSelected({ ...selected, candidates: selected.candidates.map((c) => c.id === candId ? { ...c, stage } : c) });
+            toast.success(`Candidate moved to ${stage}`);
+          } else {
+            toast.error("Couldn't move candidate", { description: "Try again." });
+          }
         }}
       />
     </div>

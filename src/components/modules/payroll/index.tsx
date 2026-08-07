@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/shared/page-header";
 import { cn } from "@/lib/utils";
 import {
@@ -16,10 +16,7 @@ import {
 import {
   PAYROLL_TABS,
   type PayrollTab,
-  PAY_CYCLES,
-  PAYSLIPS,
   STATUTORY_RETURNS,
-  SALARY_STRUCTURES,
   BANK_ADVICES,
   REIMBURSEMENTS,
   BONUSES,
@@ -40,28 +37,41 @@ import { LoansTab } from "./loans-advances";
 export function PayrollModule() {
   const [tab, setTab] = useState<PayrollTab>("overview");
 
-  const kpis = useMemo(() => {
-    const currentCycle = PAY_CYCLES[PAY_CYCLES.length - 1];
-    const totalPayrollCost = PAYSLIPS.reduce((s, p) => s + p.gross + (p.employerPF + p.employerESI), 0);
-    const netPayable = currentCycle.netTotal;
-    const pendingApprovals = PAYSLIPS.filter((p) => p.status === "Draft" || p.status === "Hold").length;
-    const pfTotal = PAYSLIPS.reduce((s, p) => s + p.pf, 0);
-    const esiTotal = PAYSLIPS.reduce((s, p) => s + p.esi, 0);
-    const tdsTotal = PAYSLIPS.reduce((s, p) => s + p.tds, 0);
-    const headcount = new Set(PAYSLIPS.map((p) => p.empCode)).size;
-    const upcomingDue = STATUTORY_RETURNS.filter((r) => r.status !== "Filed").length;
-    return {
-      totalPayrollCost,
-      netPayable,
-      currentCycleMonth: currentCycle.month,
-      pendingApprovals,
-      pfTotal,
-      esiTotal,
-      tdsTotal,
-      headcount,
-      upcomingDue,
-    };
+  // Real cycle/payslip/structure counts for the header KPI bar - fetched
+  // once here rather than duplicating each tab's own fetch. Statutory/Bank
+  // Advice/Reimbursements/Bonuses/Loans aren't converted yet (still the
+  // original mock arrays) - their counts below are flagged as such, not
+  // silently presented as if they were real.
+  const [cycleCount, setCycleCount] = useState(0);
+  const [payslipCount, setPayslipCount] = useState(0);
+  const [structureCount, setStructureCount] = useState(0);
+  const [kpis, setKpis] = useState({
+    totalPayrollCost: 0, netPayable: 0, currentCycleMonth: "", pendingApprovals: 0, headcount: 0,
+  });
+
+  useEffect(() => {
+    Promise.all([
+      fetch("/api/payroll/cycles").then((r) => (r.ok ? r.json() : { cycles: [] })),
+      fetch("/api/payroll/payslips").then((r) => (r.ok ? r.json() : { payslips: [] })),
+      fetch("/api/payroll/structures").then((r) => (r.ok ? r.json() : { structures: [] })),
+    ]).then(([cyclesRes, payslipsRes, structuresRes]) => {
+      const cycles = cyclesRes.cycles ?? [];
+      const payslips = payslipsRes.payslips ?? [];
+      setCycleCount(cycles.length);
+      setPayslipCount(payslips.length);
+      setStructureCount((structuresRes.structures ?? []).length);
+      const currentCycle = cycles[0];
+      setKpis({
+        totalPayrollCost: payslips.reduce((s: number, p: any) => s + p.gross + p.employerPF + p.employerESI, 0),
+        netPayable: currentCycle?.netTotal ?? 0,
+        currentCycleMonth: currentCycle?.month ?? "",
+        pendingApprovals: payslips.filter((p: any) => p.status === "Draft" || p.status === "Hold").length,
+        headcount: new Set(payslips.map((p: any) => p.empCode)).size,
+      });
+    });
   }, []);
+
+  const upcomingDue = STATUTORY_RETURNS.filter((r) => r.status !== "Filed").length;
 
   return (
     <div className="flex min-h-full flex-col gap-4">
@@ -71,21 +81,21 @@ export function PayrollModule() {
         meta={[
           { label: "Owner", value: "Reena Mehta · HR Manager" },
           { label: "Approver", value: "Vikram Kapoor · Owner" },
-          { label: "Cycle", value: formatMonthYear(kpis.currentCycleMonth) },
+          { label: "Cycle", value: kpis.currentCycleMonth ? formatMonthYear(kpis.currentCycleMonth) : "—" },
         ]}
         actions={
           <span className="hidden text-[11px] text-muted-foreground tabular sm:inline">
-            {PAY_CYCLES.length} cycles · {PAYSLIPS.length} payslips · {SALARY_STRUCTURES.length} structures
+            {cycleCount} cycles · {payslipCount} payslips · {structureCount} structures
           </span>
         }
       />
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         <KpiTile icon={<Coins className="h-3.5 w-3.5" />} label="Payroll Cost" value={formatINRCompact(kpis.totalPayrollCost)} hint="gross + employer contrib" />
-        <KpiTile icon={<Banknote className="h-3.5 w-3.5" />} label="Net Payable" value={formatINRCompact(kpis.netPayable)} hint={`for ${formatMonthYear(kpis.currentCycleMonth)}`} />
-        <KpiTile icon={<CalendarClock className="h-3.5 w-3.5" />} label="Current Cycle" value={formatMonthYear(kpis.currentCycleMonth)} hint="processing" />
+        <KpiTile icon={<Banknote className="h-3.5 w-3.5" />} label="Net Payable" value={formatINRCompact(kpis.netPayable)} hint={kpis.currentCycleMonth ? `for ${formatMonthYear(kpis.currentCycleMonth)}` : "no cycle yet"} />
+        <KpiTile icon={<CalendarClock className="h-3.5 w-3.5" />} label="Current Cycle" value={kpis.currentCycleMonth ? formatMonthYear(kpis.currentCycleMonth) : "—"} hint="latest" />
         <KpiTile icon={<Clock className="h-3.5 w-3.5" />} label="Pending Approvals" value={String(kpis.pendingApprovals)} hint="draft + hold payslips" />
-        <KpiTile icon={<AlertTriangle className="h-3.5 w-3.5" />} label="Statutory Due" value={String(kpis.upcomingDue)} hint="pending + overdue returns" />
+        <KpiTile icon={<AlertTriangle className="h-3.5 w-3.5" />} label="Statutory Due" value={String(upcomingDue)} hint="pending + overdue returns" />
         <KpiTile icon={<Users className="h-3.5 w-3.5" />} label="Headcount" value={String(kpis.headcount)} hint="on payroll" />
       </div>
 
@@ -117,7 +127,7 @@ export function PayrollModule() {
       </div>
 
       <p className="text-[11px] text-muted-foreground">
-        {PAY_CYCLES.length} cycles · {PAYSLIPS.length} payslips · {SALARY_STRUCTURES.length} salary structures ·{" "}
+        {cycleCount} cycles · {payslipCount} payslips · {structureCount} salary structures ·{" "}
         {STATUTORY_RETURNS.length} statutory returns · {BANK_ADVICES.length} bank advices · {REIMBURSEMENTS.length} reimbursements · {BONUSES.length} bonuses · {LOANS.length} loans · PF 12% / ESI 4.75%+1.75% / PT INR 200 / TDS slabs
       </p>
     </div>

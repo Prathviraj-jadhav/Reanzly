@@ -202,28 +202,27 @@ export function Leads() {
     },
   ];
 
-  const handleConvert = (lead: Lead) => {
+  const handleConvert = async (lead: Lead) => {
     const deal = {
-      id: `dl-${Date.now()}`,
-      dealId: `DL-${String(Date.now()).slice(-5)}`,
       title: `${lead.company.split(" ")[0]} Lane Contract`,
       company: lead.company,
       contact: lead.name,
-      contactId: undefined,
       value: Math.floor(500000 + Math.random() * 2500000),
       stage: "New Lead" as const,
       expectedClose: new Date(Date.now() + 30 * 86400000).toISOString(),
       owner: lead.owner,
       lane: lead.laneInterest,
-      leadId: lead.id,
-      created: new Date().toISOString(),
       probability: 10,
     };
-    convertLeadToDeal(lead.id, deal);
-    toast.success("Lead converted to deal", {
-      description: `${lead.name} → ${deal.dealId}`,
-    });
-    setSelected(null);
+    const created = await convertLeadToDeal(lead.id, deal);
+    if (created) {
+      toast.success("Lead converted to deal", {
+        description: `${lead.name} → ${created.dealId}`,
+      });
+      setSelected(null);
+    } else {
+      toast.error("Couldn't convert lead", { description: "Try again." });
+    }
   };
 
   const rowActions = [
@@ -298,20 +297,28 @@ export function Leads() {
         lead={selected}
         onClose={() => setSelected(null)}
         onConvert={handleConvert}
-        onStatusChange={(id, status) => {
-          setLeadStatus(id, status);
-          if (selected) setSelected({ ...selected, status });
-          toast.success(`Status changed to ${status}`);
+        onStatusChange={async (id, status) => {
+          const ok = await setLeadStatus(id, status);
+          if (ok) {
+            if (selected) setSelected({ ...selected, status });
+            toast.success(`Status changed to ${status}`);
+          } else {
+            toast.error("Couldn't update status", { description: "Try again." });
+          }
         }}
       />
 
       <NewLeadDialog
         open={createOpen}
         onClose={() => setCreateOpen(false)}
-        onAdd={(lead) => {
-          addLead(lead);
-          setCreateOpen(false);
-          toast.success("Lead created", { description: `${lead.name} · ${lead.leadId}` });
+        onAdd={async (lead) => {
+          const created = await addLead(lead);
+          if (created) {
+            setCreateOpen(false);
+            toast.success("Lead created", { description: `${created.name} · ${created.leadId}` });
+          } else {
+            toast.error("Couldn't create lead", { description: "Try again." });
+          }
         }}
       />
     </div>

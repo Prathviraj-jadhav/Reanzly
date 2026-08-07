@@ -1,11 +1,11 @@
 "use client";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { DetailLayout, InfoRow, InfoSection, StatCard } from "@/components/shared/detail-layout";
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge, inspectionResultBadge } from "@/components/shared/status-badge";
 import { useAppStore } from "@/lib/store/app-store";
-import { INSPECTIONS, VEHICLES, DRIVERS, ISSUES } from "@/lib/mock-data";
-import type { Inspection } from "@/lib/types";
+import { ISSUES } from "@/lib/mock-data";
+import type { Inspection, Vehicle, Driver } from "@/lib/types";
 import {
   Pencil,
   Printer,
@@ -47,20 +47,30 @@ const TABS = [
 interface InspectionDetailProps {
   inspectionId: string;
   initialTab?: string;
+  inspections: Inspection[];
+  onUpdate: (id: string, data: Partial<Inspection>) => Promise<boolean>;
 }
 
-export function InspectionDetail({ inspectionId, initialTab }: InspectionDetailProps) {
+export function InspectionDetail({ inspectionId, initialTab, inspections, onUpdate: onUpdateReal }: InspectionDetailProps) {
   const { navigate, navigateDetail } = useAppStore();
   const [activeTab, setActiveTab] = useState(initialTab || "overview");
-  const [record, setRecord] = useState<Inspection | undefined>(
-    () => INSPECTIONS.find((i) => i.inspectionId === inspectionId),
-  );
+  const inspection = inspections.find((i) => i.inspectionId === inspectionId);
   const [editing, setEditing] = useState(false);
 
-  const inspection = record;
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [drivers, setDrivers] = useState<Driver[]>([]);
+  useEffect(() => {
+    Promise.all([
+      fetch("/api/vehicles").then((r) => (r.ok ? r.json() : { vehicles: [] })),
+      fetch("/api/drivers").then((r) => (r.ok ? r.json() : { drivers: [] })),
+    ]).then(([v, d]) => {
+      setVehicles(v.vehicles ?? []);
+      setDrivers(d.drivers ?? []);
+    });
+  }, []);
 
   const handleUpdate = (id: string, data: Partial<Inspection>) => {
-    setRecord((prev) => (prev ? { ...prev, ...data } : prev));
+    onUpdateReal(id, data);
   };
 
   const checklist = useMemo<ChecklistItemDef[]>(() => {
@@ -82,8 +92,8 @@ export function InspectionDetail({ inspectionId, initialTab }: InspectionDetailP
     );
   }
 
-  const vehicle = VEHICLES.find((v) => v.name === inspection.vehicle);
-  const driver = DRIVERS.find((d) => d.name === inspection.driver);
+  const vehicle = vehicles.find((v) => v.name === inspection.vehicle);
+  const driver = drivers.find((d) => d.name === inspection.driver);
   const meta = inspectionResultBadge(inspection.result);
 
   // Linked issues - derived from issues mentioning this vehicle/inspection

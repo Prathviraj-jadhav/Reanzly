@@ -21,7 +21,7 @@ import {
   ClipboardList,
   Gauge,
 } from "lucide-react";
-import { toastSuccess } from "@/lib/toast";
+import { toastSuccess, toastError } from "@/lib/toast";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -45,7 +45,9 @@ import {
 
 interface ChecksListProps {
   checks: QualityCheck[];
+  loaded: boolean;
   onCreate: () => void;
+  onUpdate: (id: string, updated: QualityCheck) => void;
 }
 
 const TYPE_ICON: Record<CheckType, React.ComponentType<{ className?: string }>> = {
@@ -63,7 +65,7 @@ const DATE_RANGE_PRESETS = [
   { id: "90d", label: "Last 90 days" },
 ];
 
-export function ChecksList({ checks, onCreate }: ChecksListProps) {
+export function ChecksList({ checks, loaded, onCreate, onUpdate }: ChecksListProps) {
   const { navigateDetail } = useAppStore();
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<Set<CheckType>>(new Set());
@@ -246,7 +248,19 @@ export function ChecksList({ checks, onCreate }: ChecksListProps) {
     { label: "Print Report", onClick: (c: QualityCheck) => toastSuccess("Generating PDF", c.checkId) },
     {
       label: "Cancel Check",
-      onClick: (c: QualityCheck) => toastSuccess("Check cancelled", c.checkId),
+      onClick: (c: QualityCheck) => {
+        void fetch(`/api/quality-checks/${c.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: "Cancelled" }),
+        })
+          .then((res) => (res.ok ? res.json() : Promise.reject()))
+          .then(({ check }) => {
+            onUpdate(c.id, check);
+            toastSuccess("Check cancelled", c.checkId);
+          })
+          .catch(() => toastError("Could not cancel check", c.checkId));
+      },
       destructive: true,
     },
   ];
@@ -392,21 +406,27 @@ export function ChecksList({ checks, onCreate }: ChecksListProps) {
           </div>
         </div>
 
-        <DataTable
-          data={filtered}
-          columns={columns}
-          onRowClick={(c) => navigateDetail("quality", c.id)}
-          rowActions={rowActions}
-          bulkActions={bulkActions}
-          emptyTitle="No quality checks logged"
-          emptyDescription="Schedule a new quality check to start measuring conformance."
-          emptyAction={
-            <Btn variant="primary" icon={<Plus className="h-3.5 w-3.5" />} onClick={onCreate}>
-              New Quality Check
-            </Btn>
-          }
-          initialSort={{ key: "date", dir: "desc" }}
-        />
+        {!loaded ? (
+          <div className="px-4 py-10 text-center text-[13px] text-muted-foreground">
+            Loading quality checks…
+          </div>
+        ) : (
+          <DataTable
+            data={filtered}
+            columns={columns}
+            onRowClick={(c) => navigateDetail("quality", c.id)}
+            rowActions={rowActions}
+            bulkActions={bulkActions}
+            emptyTitle="No quality checks logged"
+            emptyDescription="Schedule a new quality check to start measuring conformance."
+            emptyAction={
+              <Btn variant="primary" icon={<Plus className="h-3.5 w-3.5" />} onClick={onCreate}>
+                New Quality Check
+              </Btn>
+            }
+            initialSort={{ key: "date", dir: "desc" }}
+          />
+        )}
       </div>
 
       <p className="text-[11px] text-muted-foreground">

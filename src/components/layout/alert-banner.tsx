@@ -29,6 +29,7 @@ export function AlertBanner() {
   const dismiss = useAppStore((s) => s.dismissSystemAlert);
   const navigate = useAppStore((s) => s.navigate);
   const setAnnounceOpen = useAppStore((s) => s.setAnnounceOpen);
+  const setSettingsTab = useAppStore((s) => s.setSettingsTab);
 
   if (!alert) return null;
   if (dismissed.includes(alert.id)) return null;
@@ -69,6 +70,9 @@ export function AlertBanner() {
           onClick={() => {
             if (alert.actionModule) {
               navigate(alert.actionModule);
+              if (alert.actionModule === "settings" && alert.actionSettingsTab) {
+                setSettingsTab(alert.actionSettingsTab);
+              }
             } else {
               setAnnounceOpen(true);
             }

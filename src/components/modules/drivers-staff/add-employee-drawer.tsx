@@ -58,8 +58,10 @@ import type { Driver } from "@/lib/types";
 interface AddEmployeeDrawerProps {
   open: boolean;
   onClose: () => void;
-  /** Create callback - persists the new driver/staff to the parent list. */
-  onAdd?: (driver: Driver) => void;
+  /** Create callback - persists the new driver/staff via the real API.
+   * Resolves false (not a throw) on failure - the caller already surfaces
+   * its own error toast, this just tells the form whether to close. */
+  onAdd?: (driver: Driver) => Promise<boolean>;
 }
 
 const STEP_DESCRIPTIONS: Record<number, { tagline: string; tier: string }> = {
@@ -68,7 +70,7 @@ const STEP_DESCRIPTIONS: Record<number, { tagline: string; tier: string }> = {
   3: { tier: "Access", tagline: "System role and module permissions" },
   4: { tier: "Employment", tagline: "Compensation, joining, and banking" },
   5: { tier: "License", tagline: "Compliance documents - required for drivers" },
-  6: { tier: "Review", tagline: "Confirm and generate credentials" },
+  6: { tier: "Review", tagline: "Confirm and add to the roster" },
 };
 
 export function AddEmployeeDrawer({ open, onClose, onAdd }: AddEmployeeDrawerProps) {
@@ -76,6 +78,7 @@ export function AddEmployeeDrawer({ open, onClose, onAdd }: AddEmployeeDrawerPro
   const [form, setForm] = useState<EmployeeForm>(EMPTY_EMPLOYEE_FORM);
   // Generated credentials after submit (used on success toast)
   const [credentials, setCredentials] = useState<{ email: string; password: string } | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   const update = <K extends keyof EmployeeForm>(k: K, v: EmployeeForm[K]) =>
     setForm((s) => ({ ...s, [k]: v }));
@@ -149,7 +152,7 @@ export function AddEmployeeDrawer({ open, onClose, onAdd }: AddEmployeeDrawerPro
     return pwd;
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const issues = Object.values(stepErrors).flat();
     if (issues.length) {
       toast("Compliance check failed", {
@@ -159,6 +162,10 @@ export function AddEmployeeDrawer({ open, onClose, onAdd }: AddEmployeeDrawerPro
       return;
     }
     const email = form.email || `${form.fullName.toLowerCase().replace(/\s+/g, ".")}@reanzly.in`;
+    // Suggested credentials only - no login account is actually provisioned
+    // here (that's a separate real system: src/lib/auth.ts + the Session/
+    // User tables). The toast below is worded accordingly, not claiming an
+    // account was created.
     const password = generateTempPassword();
     setCredentials({ email, password });
     if (onAdd) {
@@ -179,10 +186,13 @@ export function AddEmployeeDrawer({ open, onClose, onAdd }: AddEmployeeDrawerPro
         onTimeRate: 0,
         city: form.address ? form.address.split(",")[0].trim() : "-",
       };
-      onAdd(newDriver);
+      setSubmitting(true);
+      const ok = await onAdd(newDriver);
+      setSubmitting(false);
+      if (!ok) return; // onAdd already surfaced its own error toast
     }
     toast.success("Employee added", {
-      description: `${form.fullName} · credentials generated`,
+      description: `${form.fullName} added to the roster`,
     });
     setStep(1);
     setForm(EMPTY_EMPLOYEE_FORM);
@@ -202,7 +212,7 @@ export function AddEmployeeDrawer({ open, onClose, onAdd }: AddEmployeeDrawerPro
               Add Employee
             </SheetTitle>
             <SheetDescription className="text-[12px] text-muted-foreground">
-              Six steps · credentials auto-generated · auto-saved as draft
+              Six steps · added to the real roster on submit
             </SheetDescription>
           </div>
           <button
@@ -326,8 +336,9 @@ export function AddEmployeeDrawer({ open, onClose, onAdd }: AddEmployeeDrawerPro
               variant="primary"
               icon={<Sparkles className="h-3.5 w-3.5" />}
               onClick={handleSubmit}
+              disabled={submitting}
             >
-              Generate Credentials
+              {submitting ? "Adding…" : "Add Employee"}
             </Btn>
           ) : (
             <Btn variant="primary" onClick={goNext} disabled={!canAdvance}>

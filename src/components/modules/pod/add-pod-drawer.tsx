@@ -122,14 +122,14 @@ const EMPTY: PODFormState = {
   vehicleHireNumber: "",
 };
 
-const LR_OPTIONS = lorryReceiptOptions();
-
 export function AddPODDrawer({ open, onClose }: AddPODDrawerProps) {
   const addPOD = usePODStore((s) => s.addPOD);
   const [step, setStep] = useState(1);
   const [form, setForm] = useState<PODFormState>(EMPTY);
   const [lrQuery, setLrQuery] = useState("");
   const [lrOpen, setLrOpen] = useState(false);
+  const [lrOptions, setLrOptions] = useState<Awaited<ReturnType<typeof lorryReceiptOptions>>>([]);
+  const [submitting, setSubmitting] = useState(false);
 
   // reset on open - legitimate form-reset pattern; the rule's cascading-render
   // concern does not apply here because this only fires when `open` flips true.
@@ -140,6 +140,7 @@ export function AddPODDrawer({ open, onClose }: AddPODDrawerProps) {
       setForm(EMPTY);
       setLrQuery("");
       setLrOpen(false);
+      void lorryReceiptOptions().then(setLrOptions);
     }
   }, [open]);
 
@@ -148,15 +149,15 @@ export function AddPODDrawer({ open, onClose }: AddPODDrawerProps) {
 
   const filteredLRs = useMemo(() => {
     const q = lrQuery.toLowerCase().trim();
-    if (!q) return LR_OPTIONS.slice(0, 8);
-    return LR_OPTIONS.filter(
+    if (!q) return lrOptions.slice(0, 8);
+    return lrOptions.filter(
       (l) =>
         l.lrNumber.toLowerCase().includes(q) ||
         l.origin.toLowerCase().includes(q) ||
         l.destination.toLowerCase().includes(q) ||
         l.consignee.toLowerCase().includes(q),
     ).slice(0, 8);
-  }, [lrQuery]);
+  }, [lrQuery, lrOptions]);
 
   const distance = useMemo(() => {
     const s = Number(form.startOdometer);
@@ -195,7 +196,7 @@ export function AddPODDrawer({ open, onClose }: AddPODDrawerProps) {
     if (step > 1) setStep(step - 1);
   };
 
-  const applyLR = (lr: typeof LR_OPTIONS[number]) => {
+  const applyLR = (lr: typeof lrOptions[number]) => {
     update("consignmentNumber", lr.lrNumber);
     update("source", lr.origin);
     update("destination", lr.destination);
@@ -205,13 +206,14 @@ export function AddPODDrawer({ open, onClose }: AddPODDrawerProps) {
     setLrQuery("");
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!form.consignmentNumber.trim()) {
       toast("Consignment number is required");
       setStep(1);
       return;
     }
-    const id = addPOD({
+    setSubmitting(true);
+    const created = await addPOD({
       consignmentNumber: form.consignmentNumber,
       type: form.type,
       source: form.source,
@@ -245,11 +247,16 @@ export function AddPODDrawer({ open, onClose }: AddPODDrawerProps) {
       vehicleNumber: form.vehicleNumber,
       vehicleHireNumber: form.vehicleHireNumber,
     });
+    setSubmitting(false);
+    if (!created) {
+      toast.error("Could not create POD");
+      return;
+    }
     toast.success("POD created", {
       description: `Voucher generated - submission status: ${form.submissionStatus}`,
     });
     onClose();
-    return id;
+    return created.id;
   };
 
   return (
@@ -657,8 +664,8 @@ export function AddPODDrawer({ open, onClose }: AddPODDrawerProps) {
               <ChevronRight className="h-3.5 w-3.5" />
             </Btn>
           ) : (
-            <Btn variant="primary" icon={<Check className="h-3.5 w-3.5" />} onClick={handleSubmit}>
-              Submit POD
+            <Btn variant="primary" icon={<Check className="h-3.5 w-3.5" />} onClick={handleSubmit} disabled={submitting}>
+              {submitting ? "Submitting…" : "Submit POD"}
             </Btn>
           )}
         </div>

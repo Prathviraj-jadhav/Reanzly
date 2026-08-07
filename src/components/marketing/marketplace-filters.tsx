@@ -22,7 +22,7 @@
  * is a Radix Sheet that mirrors the desktop sidebar exactly.
  */
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   Sheet, SheetContent, SheetTitle,
 } from "@/components/ui/sheet";
@@ -33,8 +33,9 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
-  Search, SlidersHorizontal, X, RotateCcw,
+  Search, SlidersHorizontal, X, RotateCcw, ChevronDown,
 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   VEHICLE_LISTINGS,
   VEHICLE_TYPE_META, VEHICLE_TYPE_ORDER,
@@ -208,9 +209,9 @@ function SidebarBody({
     arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v];
 
   return (
-    <div className="flex flex-col gap-6 p-4">
+    <div className="flex flex-col gap-5 p-4">
       {/* Search */}
-      <div>
+      <div className="border-b border-border/50 pb-4">
         <label className="mb-1.5 block text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
           Search
         </label>
@@ -227,12 +228,9 @@ function SidebarBody({
         </div>
       </div>
 
-      {/* Vehicle type */}
-      <div>
-        <h3 className="mb-2 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-          Vehicle type
-        </h3>
-        <ul className="flex flex-col gap-1">
+      {/* Collapsible: Vehicle Type */}
+      <CollapsibleSection title="Vehicle Class" defaultOpen={true}>
+        <ul className="flex flex-col gap-1 max-h-56 overflow-y-auto pr-1 scrollbar-thin">
           {VEHICLE_TYPE_ORDER.map((vt) => {
             const checked = state.vehicleTypeFilter === vt;
             const count = vehicleTypeCounts[vt] ?? 0;
@@ -241,7 +239,7 @@ function SidebarBody({
                 <label
                   className={
                     "flex cursor-pointer items-center gap-2 rounded-[4px] px-1.5 py-1 text-[12px] transition-colors hover:bg-accent " +
-                    (checked ? "text-foreground" : "text-muted-foreground")
+                    (checked ? "text-foreground font-medium" : "text-muted-foreground")
                   }
                 >
                   <Checkbox
@@ -250,174 +248,228 @@ function SidebarBody({
                     aria-label={VEHICLE_TYPE_META[vt].label}
                   />
                   <span className="flex-1 truncate">{VEHICLE_TYPE_META[vt].label}</span>
-                  <span className="text-[10px] tabular text-muted-foreground">{count}</span>
+                  <span className="text-[10px] tabular text-muted-foreground font-mono">{count}</span>
                 </label>
               </li>
             );
           })}
         </ul>
-      </div>
+      </CollapsibleSection>
 
-      {/* Body type */}
-      <div>
-        <h3 className="mb-2 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-          Body type
-        </h3>
-        <ul className="flex flex-col gap-1">
-          {BODY_TYPE_ORDER.map((b) => {
-            const checked = state.selectedBodyTypes.includes(b);
-            const count = bodyCounts[b] ?? 0;
-            return (
-              <li key={b}>
-                <label
-                  className={
-                    "flex cursor-pointer items-center gap-2 rounded-[4px] px-1.5 py-1 text-[12px] transition-colors hover:bg-accent " +
-                    (checked ? "text-foreground" : "text-muted-foreground")
-                  }
-                >
-                  <Checkbox
-                    checked={checked}
-                    onCheckedChange={() => onPatch({ selectedBodyTypes: toggleArr(state.selectedBodyTypes, b) })}
-                    aria-label={BODY_TYPE_META[b].label}
-                  />
-                  <span className="flex-1 truncate">{BODY_TYPE_META[b].label}</span>
-                  <span className="text-[10px] tabular text-muted-foreground">{count}</span>
-                </label>
-              </li>
-            );
-          })}
-        </ul>
-      </div>
+      {/* Collapsible: Specifications */}
+      <CollapsibleSection title="Specifications" defaultOpen={false}>
+        <div className="flex flex-col gap-4">
+          {/* Body type */}
+          <div>
+            <h4 className="mb-1.5 text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Body Type
+            </h4>
+            <ul className="flex flex-col gap-1">
+              {BODY_TYPE_ORDER.map((b) => {
+                const checked = state.selectedBodyTypes.includes(b);
+                const count = bodyCounts[b] ?? 0;
+                return (
+                  <li key={b}>
+                    <label
+                      className={
+                        "flex cursor-pointer items-center gap-2 rounded-[4px] px-1.5 py-1 text-[12px] transition-colors hover:bg-accent " +
+                        (checked ? "text-foreground font-medium" : "text-muted-foreground")
+                      }
+                    >
+                      <Checkbox
+                        checked={checked}
+                        onCheckedChange={() => onPatch({ selectedBodyTypes: toggleArr(state.selectedBodyTypes, b) })}
+                        aria-label={BODY_TYPE_META[b].label}
+                      />
+                      <span className="flex-1 truncate">{BODY_TYPE_META[b].label}</span>
+                      <span className="text-[10px] tabular text-muted-foreground font-mono">{count}</span>
+                    </label>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
 
-      {/* Axle */}
-      <div>
-        <h3 className="mb-2 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-          Axle
-        </h3>
-        <ul className="flex flex-col gap-1">
-          {AXLE_ORDER.map((a) => {
-            const checked = state.selectedAxles.includes(a);
-            const count = axleCounts[a] ?? 0;
-            return (
-              <li key={a}>
-                <label
-                  className={
-                    "flex cursor-pointer items-center gap-2 rounded-[4px] px-1.5 py-1 text-[12px] transition-colors hover:bg-accent " +
-                    (checked ? "text-foreground" : "text-muted-foreground")
-                  }
-                >
-                  <Checkbox
-                    checked={checked}
-                    onCheckedChange={() => onPatch({ selectedAxles: toggleArr(state.selectedAxles, a) })}
-                    aria-label={AXLE_META[a].label}
-                  />
-                  <span className="flex-1 truncate">{AXLE_META[a].label}</span>
-                  <span className="text-[10px] tabular text-muted-foreground">{count}</span>
-                </label>
-              </li>
-            );
-          })}
-        </ul>
-      </div>
+          {/* Axle */}
+          <div>
+            <h4 className="mb-1.5 text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Axles
+            </h4>
+            <ul className="flex flex-col gap-1">
+              {AXLE_ORDER.map((a) => {
+                const checked = state.selectedAxles.includes(a);
+                const count = axleCounts[a] ?? 0;
+                return (
+                  <li key={a}>
+                    <label
+                      className={
+                        "flex cursor-pointer items-center gap-2 rounded-[4px] px-1.5 py-1 text-[12px] transition-colors hover:bg-accent " +
+                        (checked ? "text-foreground font-medium" : "text-muted-foreground")
+                      }
+                    >
+                      <Checkbox
+                        checked={checked}
+                        onCheckedChange={() => onPatch({ selectedAxles: toggleArr(state.selectedAxles, a) })}
+                        aria-label={AXLE_META[a].label}
+                      />
+                      <span className="flex-1 truncate">{AXLE_META[a].label}</span>
+                      <span className="text-[10px] tabular text-muted-foreground font-mono">{count}</span>
+                    </label>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
 
-      {/* Region */}
-      <div>
-        <h3 className="mb-2 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-          Region
-        </h3>
-        <ul className="flex flex-col gap-1">
-          {REGION_LIST.map((r) => {
-            const checked = state.selectedRegions.includes(r);
-            const count = regionCounts[r] ?? 0;
-            return (
-              <li key={r}>
-                <label
-                  className={
-                    "flex cursor-pointer items-center gap-2 rounded-[4px] px-1.5 py-1 text-[12px] transition-colors hover:bg-accent " +
-                    (checked ? "text-foreground" : "text-muted-foreground")
-                  }
-                >
-                  <Checkbox
-                    checked={checked}
-                    onCheckedChange={() => onPatch({ selectedRegions: toggleArr(state.selectedRegions, r) })}
-                    aria-label={r}
-                  />
-                  <span className="flex-1 truncate">{r}</span>
-                  <span className="text-[10px] tabular text-muted-foreground">{count}</span>
-                </label>
-              </li>
-            );
-          })}
-        </ul>
-      </div>
-
-      {/* Price ceiling */}
-      <div>
-        <div className="mb-2 flex items-baseline justify-between">
-          <h3 className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-            Max price / day
-          </h3>
-          <span className="text-[11px] font-medium tabular text-foreground">
-            ₹{state.priceCeiling.toLocaleString("en-IN")}
-          </span>
+          {/* Region */}
+          <div>
+            <h4 className="mb-1.5 text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Region
+            </h4>
+            <ul className="flex flex-col gap-1">
+              {REGION_LIST.map((r) => {
+                const checked = state.selectedRegions.includes(r);
+                const count = regionCounts[r] ?? 0;
+                return (
+                  <li key={r}>
+                    <label
+                      className={
+                        "flex cursor-pointer items-center gap-2 rounded-[4px] px-1.5 py-1 text-[12px] transition-colors hover:bg-accent " +
+                        (checked ? "text-foreground font-medium" : "text-muted-foreground")
+                      }
+                    >
+                      <Checkbox
+                        checked={checked}
+                        onCheckedChange={() => onPatch({ selectedRegions: toggleArr(state.selectedRegions, r) })}
+                        aria-label={r}
+                      />
+                      <span className="flex-1 truncate">{r}</span>
+                      <span className="text-[10px] tabular text-muted-foreground font-mono">{count}</span>
+                    </label>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
         </div>
-        <Slider
-          value={[state.priceCeiling]}
-          min={PRICE_FLOOR}
-          max={PRICE_MAX}
-          step={500}
-          onValueChange={(v) => onPatch({ priceCeiling: v[0] ?? PRICE_MAX })}
-          aria-label="Max price per day"
-        />
-        <div className="mt-1 flex justify-between text-[9px] tabular text-muted-foreground">
-          <span>₹{PRICE_FLOOR.toLocaleString("en-IN")}</span>
-          <span>₹{PRICE_MAX.toLocaleString("en-IN")}+</span>
+      </CollapsibleSection>
+
+      {/* Collapsible: Pricing & Timing */}
+      <CollapsibleSection title="Pricing & Timing" defaultOpen={false}>
+        <div className="flex flex-col gap-4">
+          {/* Price ceiling */}
+          <div>
+            <div className="mb-2 flex items-baseline justify-between">
+              <span className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Max Price / Day
+              </span>
+              <span className="text-[11px] font-mono font-medium text-foreground">
+                ₹{state.priceCeiling.toLocaleString("en-IN")}
+              </span>
+            </div>
+            <Slider
+              value={[state.priceCeiling]}
+              min={PRICE_FLOOR}
+              max={PRICE_MAX}
+              step={500}
+              onValueChange={(v) => onPatch({ priceCeiling: v[0] ?? PRICE_MAX })}
+              aria-label="Max price per day"
+            />
+            <div className="mt-1 flex justify-between text-[9px] tabular text-muted-foreground font-mono">
+              <span>₹{PRICE_FLOOR.toLocaleString("en-IN")}</span>
+              <span>₹{PRICE_MAX.toLocaleString("en-IN")}+</span>
+            </div>
+          </div>
+
+          {/* Availability date */}
+          <div>
+            <span className="mb-1.5 block text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Available From
+            </span>
+            <input
+              type="date"
+              value={state.availabilityDate}
+              onChange={(e) => onPatch({ availabilityDate: e.target.value })}
+              aria-label="Available from date"
+              className="focus-ring h-9 w-full rounded-[5px] border border-border bg-background px-2 text-[12px] text-foreground"
+            />
+          </div>
         </div>
-      </div>
+      </CollapsibleSection>
 
-      {/* Availability date */}
-      <div>
-        <h3 className="mb-1.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-          Available from
-        </h3>
-        <input
-          type="date"
-          value={state.availabilityDate}
-          onChange={(e) => onPatch({ availabilityDate: e.target.value })}
-          aria-label="Available from date"
-          className="focus-ring h-9 w-full rounded-[5px] border border-border bg-background px-2 text-[12px] text-foreground"
-        />
-      </div>
-
-      {/* Toggles */}
-      <div>
-        <h3 className="mb-2 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-          Show only
-        </h3>
-        <ul className="flex flex-col gap-2">
+      {/* Collapsible: Verification & Driver */}
+      <CollapsibleSection title="Verification & Driver" defaultOpen={false}>
+        <ul className="flex flex-col gap-1.5">
           <ToggleRow
-            label="Verified owners"
+            label="Verified owners only"
             checked={state.verifiedOnly}
             onCheckedChange={(v) => onPatch({ verifiedOnly: v })}
           />
           <ToggleRow
-            label="With driver"
+            label="Includes driver options"
             checked={state.withDriverOnly}
             onCheckedChange={(v) => onPatch({ withDriverOnly: v })}
           />
         </ul>
-      </div>
+      </CollapsibleSection>
 
       {/* Clear */}
       <button
         type="button"
         onClick={onClear}
         disabled={!anyFilterActive}
-        className="tap inline-flex h-9 items-center justify-center gap-1.5 rounded-[5px] border border-border text-[12px] font-medium text-foreground transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-40"
+        className="tap mt-2 inline-flex h-9 items-center justify-center gap-1.5 rounded-[5px] border border-border text-[12px] font-medium text-foreground transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-40"
       >
         <RotateCcw className="h-3.5 w-3.5" />
         Clear all filters
       </button>
+    </div>
+  );
+}
+
+/* ============================================================
+   CollapsibleSection — helper for filters accordion
+   ============================================================ */
+function CollapsibleSection({
+  title,
+  children,
+  defaultOpen = true,
+}: {
+  title: string;
+  children: React.ReactNode;
+  defaultOpen?: boolean;
+}) {
+  const [isOpen, setIsOpen] = useState(defaultOpen);
+  return (
+    <div className="border-b border-border/50 pb-4">
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex w-full items-center justify-between text-left focus:outline-none"
+      >
+        <span className="text-[10px] font-bold uppercase tracking-wider text-foreground">
+          {title}
+        </span>
+        <ChevronDown
+          className={
+            "h-3.5 w-3.5 text-muted-foreground transition-transform duration-200 " +
+            (isOpen ? "rotate-180" : "")
+          }
+        />
+      </button>
+      <AnimatePresence initial={false}>
+        {isOpen && (
+          <motion.div
+            initial={{ height: 0, opacity: 0, marginTop: 0 }}
+            animate={{ height: "auto", opacity: 1, marginTop: 12 }}
+            exit={{ height: 0, opacity: 0, marginTop: 0 }}
+            transition={{ duration: 0.2, ease: "easeInOut" }}
+            className="overflow-hidden"
+          >
+            {children}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

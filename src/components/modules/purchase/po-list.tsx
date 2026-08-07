@@ -16,7 +16,7 @@ import {
   IndianRupee,
   Package,
 } from "lucide-react";
-import { toastSuccess } from "@/lib/toast";
+import { toastSuccess, toastError } from "@/lib/toast";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -39,7 +39,9 @@ import {
 
 interface POListProps {
   purchaseOrders: PurchaseOrder[];
+  loaded: boolean;
   onCreate: () => void;
+  onUpdate: (id: string, updated: PurchaseOrder) => void;
 }
 
 const DATE_RANGE_PRESETS = [
@@ -49,7 +51,7 @@ const DATE_RANGE_PRESETS = [
   { id: "365d", label: "Last 12 months" },
 ];
 
-export function POList({ purchaseOrders, onCreate }: POListProps) {
+export function POList({ purchaseOrders, loaded, onCreate, onUpdate }: POListProps) {
   const { navigateDetail } = useAppStore();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<Set<POStatus>>(new Set());
@@ -211,7 +213,19 @@ export function POList({ purchaseOrders, onCreate }: POListProps) {
     },
     {
       label: "Cancel PO",
-      onClick: (p: PurchaseOrder) => toastSuccess("PO cancelled", p.poNumber),
+      onClick: (p: PurchaseOrder) => {
+        void fetch(`/api/purchase-orders/${p.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: "Cancelled" }),
+        })
+          .then((res) => (res.ok ? res.json() : Promise.reject()))
+          .then(({ purchaseOrder }) => {
+            onUpdate(p.id, purchaseOrder);
+            toastSuccess("PO cancelled", p.poNumber);
+          })
+          .catch(() => toastError("Could not cancel PO", p.poNumber));
+      },
       destructive: true,
     },
   ];
@@ -357,21 +371,27 @@ export function POList({ purchaseOrders, onCreate }: POListProps) {
           </div>
         </div>
 
-        <DataTable
-          data={filtered}
-          columns={columns}
-          onRowClick={(p) => navigateDetail("purchase", p.id)}
-          rowActions={rowActions}
-          bulkActions={bulkActions}
-          emptyTitle="No purchase orders"
-          emptyDescription="Raise a new PO to start procuring fleet supplies."
-          emptyAction={
-            <Btn variant="primary" icon={<Plus className="h-3.5 w-3.5" />} onClick={onCreate}>
-              New Purchase Order
-            </Btn>
-          }
-          initialSort={{ key: "poDate", dir: "desc" }}
-        />
+        {!loaded ? (
+          <div className="px-4 py-10 text-center text-[13px] text-muted-foreground">
+            Loading purchase orders…
+          </div>
+        ) : (
+          <DataTable
+            data={filtered}
+            columns={columns}
+            onRowClick={(p) => navigateDetail("purchase", p.id)}
+            rowActions={rowActions}
+            bulkActions={bulkActions}
+            emptyTitle="No purchase orders"
+            emptyDescription="Raise a new PO to start procuring fleet supplies."
+            emptyAction={
+              <Btn variant="primary" icon={<Plus className="h-3.5 w-3.5" />} onClick={onCreate}>
+                New Purchase Order
+              </Btn>
+            }
+            initialSort={{ key: "poDate", dir: "desc" }}
+          />
+        )}
       </div>
 
       <p className="text-[11px] text-muted-foreground">

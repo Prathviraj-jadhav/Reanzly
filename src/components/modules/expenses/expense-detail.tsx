@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   DetailLayout,
   InfoRow,
@@ -10,8 +10,7 @@ import { Btn } from "@/components/shared/btn";
 import { SectionCard } from "@/components/shared/section-card";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { useAppStore } from "@/lib/store/app-store";
-import { EXPENSES, VEHICLES, TRIPS } from "@/lib/mock-data";
-import type { Expense } from "@/lib/types";
+import type { Expense, Vehicle, Trip } from "@/lib/types";
 import {
   Receipt,
   Banknote,
@@ -58,24 +57,34 @@ const TABS = [
 
 interface ExpenseDetailProps {
   expenseId: string;
+  expenses: Expense[];
+  onUpdate: (id: string, data: Partial<Expense>) => Promise<boolean>;
 }
 
-export function ExpenseDetail({ expenseId }: ExpenseDetailProps) {
+export function ExpenseDetail({ expenseId, expenses, onUpdate: onUpdateReal }: ExpenseDetailProps) {
   const { navigate, navigateDetail } = useAppStore();
   const [activeTab, setActiveTab] = useState("overview");
-  const [record, setRecord] = useState<Expense | undefined>(
-    () => EXPENSES.find((e) => e.id === expenseId),
-  );
+  const expense = expenses.find((e) => e.id === expenseId);
   const [editing, setEditing] = useState(false);
 
-  const expense = record;
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [trips, setTrips] = useState<Trip[]>([]);
+  useEffect(() => {
+    Promise.all([
+      fetch("/api/vehicles").then((r) => (r.ok ? r.json() : { vehicles: [] })),
+      fetch("/api/trips").then((r) => (r.ok ? r.json() : { trips: [] })),
+    ]).then(([v, t]) => {
+      setVehicles(v.vehicles ?? []);
+      setTrips(t.trips ?? []);
+    });
+  }, []);
 
   const handleUpdate = (id: string, data: Partial<Expense>) => {
-    setRecord((prev) => (prev ? { ...prev, ...data } : prev));
+    onUpdateReal(id, data);
   };
 
-  const vehicle = expense ? VEHICLES.find((v) => v.name === expense.vehicle) : undefined;
-  const trip = expense ? TRIPS.find((t) => t.tripId === expense.trip) : undefined;
+  const vehicle = expense ? vehicles.find((v) => v.name === expense.vehicle) : undefined;
+  const trip = expense ? trips.find((t) => t.tripId === expense.trip) : undefined;
 
   if (!expense) {
     return (

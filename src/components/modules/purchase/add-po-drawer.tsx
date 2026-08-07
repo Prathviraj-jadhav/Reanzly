@@ -49,7 +49,6 @@ import {
   type POForm,
   type POLineForm,
   type PurchaseOrder,
-  type POStatus,
 } from "./_helpers";
 
 interface AddPODrawerProps {
@@ -67,6 +66,7 @@ const STEPS = [
 export function AddPODrawer({ open, onClose, onAdd }: AddPODrawerProps) {
   const [step, setStep] = useState(1);
   const [form, setForm] = useState<POForm>(() => EMPTY_PO_FORM());
+  const [submitting, setSubmitting] = useState(false);
 
   const update = <K extends keyof POForm>(k: K, v: POForm[K]) =>
     setForm((s) => ({ ...s, [k]: v }));
@@ -164,61 +164,45 @@ export function AddPODrawer({ open, onClose, onAdd }: AddPODrawerProps) {
     if (step > 1) setStep(step - 1);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const vendor = VENDORS.find((v) => v.id === form.vendor);
     if (!vendor) {
       toastInfo("Vendor missing", "Select a vendor before saving");
       return;
     }
-    const poNum = `RZ-PO-${String(Math.floor(Math.random() * 9000) + 2500).padStart(5, "0")}`;
-    const newPO: PurchaseOrder = {
-      id: `po-${Date.now()}`,
-      poNumber: poNum,
-      vendor: vendor.companyName,
-      vendorId: vendor.id,
-      category: form.category,
-      poDate: form.poDate,
-      expectedDelivery: form.expectedDelivery,
-      deliveryLocation: form.deliveryLocation,
-      paymentTerms: form.paymentTerms,
-      buyer: form.buyer,
-      status: "Draft" as POStatus,
-      currency: "INR",
-      subtotal: Math.round(subtotal),
-      taxTotal: Math.round(taxTotal),
-      total: Math.round(total),
-      notes: form.notes.trim() || undefined,
-      lines: form.lines.map((l, i) => {
-        const sub = Number(l.qty) * Number(l.unitPrice);
-        const tax = (sub * Number(l.taxRate)) / 100;
-        return {
-          id: `pol-new-${i + 1}`,
+    setSubmitting(true);
+    const res = await fetch("/api/purchase-orders", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        vendorId: vendor.id,
+        category: form.category,
+        poDate: form.poDate,
+        expectedDelivery: form.expectedDelivery,
+        deliveryLocation: form.deliveryLocation,
+        paymentTerms: form.paymentTerms,
+        buyer: form.buyer,
+        notes: form.notes.trim() || undefined,
+        lines: form.lines.map((l) => ({
           itemCode: l.itemCode || "MISC",
           description: l.description,
           category: l.category,
           uom: l.uom,
           qty: Number(l.qty),
-          receivedQty: 0,
           unitPrice: Number(l.unitPrice),
           taxRate: Number(l.taxRate),
-          taxAmount: Math.round(tax),
-          total: Math.round(sub + tax),
-        };
+        })),
       }),
-      receipts: [],
-      bills: [],
-      activity: [
-        {
-          id: `act-${Date.now()}`,
-          ts: new Date().toISOString(),
-          actor: form.buyer,
-          action: "PO created",
-          detail: `Drafted PO ${poNum} for ${vendor.companyName}`,
-        },
-      ],
-    };
-    onAdd?.(newPO);
-    toastSuccess(`PO ${poNum} created`, `Vendor: ${vendor.companyName} · ${formatINR(Math.round(total))} · Draft`);
+    });
+    setSubmitting(false);
+    if (!res.ok) {
+      const { error } = await res.json().catch(() => ({ error: "Could not create PO" }));
+      toastInfo("Could not create PO", error);
+      return;
+    }
+    const { purchaseOrder } = await res.json();
+    onAdd?.(purchaseOrder);
+    toastSuccess(`PO ${purchaseOrder.poNumber} created`, `Vendor: ${vendor.companyName} · ${formatINR(purchaseOrder.total)} · Draft`);
     setStep(1);
     setForm(EMPTY_PO_FORM());
     onClose();
@@ -596,8 +580,8 @@ export function AddPODrawer({ open, onClose, onAdd }: AddPODrawerProps) {
             Step {step} of 3
           </div>
           {isLastStep ? (
-            <Btn variant="primary" icon={<Check className="h-3.5 w-3.5" />} onClick={handleSubmit}>
-              Create Draft PO
+            <Btn variant="primary" icon={<Check className="h-3.5 w-3.5" />} onClick={handleSubmit} disabled={submitting}>
+              {submitting ? "Creating…" : "Create Draft PO"}
             </Btn>
           ) : (
             <Btn variant="primary" onClick={goNext} disabled={!canAdvance}>
