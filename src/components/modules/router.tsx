@@ -85,11 +85,6 @@ const CLUSTERS: ClusterTab[][] = [
     { id: "invoice", label: "Overview" },
     { id: "rate-cards", label: "Rate Cards" },
   ],
-  // Purchase orders are vendor-facing spend.
-  [
-    { id: "vendors", label: "Overview" },
-    { id: "purchase", label: "Purchase" },
-  ],
   // Settings becomes the home for org-level configuration/administration
   // surfaces that don't belong to one specific operational module.
   [
@@ -103,10 +98,19 @@ const CLUSTERS: ClusterTab[][] = [
   // customer/vendor-relationship surfaces - one People entry point for all
   // of them instead of five. Customers and Vendors keep their own real,
   // independently CRUD-wired module components unchanged underneath.
+  // Purchase (vendor-facing spend) rides along here too - it used to be its
+  // own 2-tab [vendors, purchase] cluster, but since CLUSTER_BY_MODULE is
+  // built by flattening every cluster into one Map keyed by module id, and
+  // "vendors" was a member of BOTH that cluster and this one, this cluster
+  // (defined later in the array) silently won and Purchase's tab strip
+  // never rendered - "purchase" had no sidebar entry either, so the whole
+  // module was unreachable from the UI despite having real CRUD underneath.
+  // Folding it in here as a tab removes the collision.
   [
     { id: "crm", label: "Overview" },
     { id: "customers", label: "Customers" },
     { id: "vendors", label: "Vendors" },
+    { id: "purchase", label: "Purchase" },
     { id: "helpdesk", label: "Helpdesk" },
     { id: "marketing", label: "Marketing" },
     { id: "surveys", label: "Surveys" },
