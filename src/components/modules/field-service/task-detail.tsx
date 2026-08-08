@@ -105,7 +105,7 @@ export function TaskDetail({ taskId }: TaskDetailProps) {
     const newPart: PartUsed = {
       id: `p-${Date.now()}`,
       name: "New part",
-      partNo: "—",
+      partNo: "-",
       qty: 1,
       unitCost: 0,
     };

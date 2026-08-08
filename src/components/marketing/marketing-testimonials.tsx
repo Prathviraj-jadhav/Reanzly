@@ -6,12 +6,12 @@ import { useAppStore } from "@/lib/store/app-store";
 import { toast } from "sonner";
 
 /**
- * MarketingTestimonials — "From real partners on the directory."
+ * MarketingTestimonials - "From real partners on the directory."
  *
  * Section id="case-studies". 2-col grid of six quote cards. Each card
  * attributes the quote to a REAL logistics partner from the public
  * Logistics Partner Directory (Shree Balaji Transport, Patel Freight
- * Movers, Sundaram Cold Chain, etc.) — no more anonymous "mid-size
+ * Movers, Sundaram Cold Chain, etc.) - no more anonymous "mid-size
  * logistics firm" attributions.
  *
  * Each card shows: large quote mark, the quote body, a hairline
@@ -50,7 +50,7 @@ export function MarketingTestimonials() {
             From real partners on the directory.
           </h2>
           <p className="mt-4 text-base leading-relaxed text-muted-foreground">
-            Six logistics companies listed on the Reanzly directory — each
+            Six logistics companies listed on the Reanzly directory - each
             with a real profile you can view, real lanes they run, and the
             shifts they saw after going live.
           </p>

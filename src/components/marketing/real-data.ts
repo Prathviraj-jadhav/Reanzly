@@ -1,5 +1,5 @@
 /**
- * real-data.ts — single source of truth for the marketing site.
+ * real-data.ts - single source of truth for the marketing site.
  *
  * Everything in this file is derived from REAL, working artefacts in the
  * codebase: the live module router, the onboarding catalog, the role
@@ -31,7 +31,7 @@ import { ROLE_ARCHETYPES } from "@/lib/mock-data";
 
 // ─── REAL MODULE REGISTRY ────────────────────────────────────────────
 // Pulled from the actual `ModuleRouter` switch in
-// src/components/modules/router.tsx — every entry here is a module the
+// src/components/modules/router.tsx - every entry here is a module the
 // visitor can click into via the "Open live demo" CTA.
 
 export interface RealModule {
@@ -67,7 +67,7 @@ export const REAL_MODULES: RealModule[] = [
   {
     id: "trips",
     name: "Trips (TMS)",
-    tagline: "Plan, dispatch, execute — one trip record.",
+    tagline: "Plan, dispatch, execute - one trip record.",
     description:
       "Job orders, route plans, vehicle + driver assignment, loading slips, e-POD capture and a live trip status feed. The trip is the atom of your business; this module treats it that way.",
     category: "Operations",
@@ -115,7 +115,7 @@ export const REAL_MODULES: RealModule[] = [
   {
     id: "warehouse",
     name: "Warehouse (WMS)",
-    tagline: "Inbound, storage, outbound — one screen.",
+    tagline: "Inbound, storage, outbound - one screen.",
     description:
       "Inventory tracking with slotting, pick & pack workflows, stock alerts, inbound/outbound registers and multi-warehouse sync. Built for 3PLs and bonded warehouses.",
     category: "Operations",
@@ -142,7 +142,7 @@ export const REAL_MODULES: RealModule[] = [
     name: "Fleet Management",
     tagline: "Every truck, every document, one register.",
     description:
-      "Vehicle master with RC, insurance, permit, fitness, PUC expiry tracking. Service history, tyre lifecycle, fuel averages, document vault — all linked to the unit.",
+      "Vehicle master with RC, insurance, permit, fitness, PUC expiry tracking. Service history, tyre lifecycle, fuel averages, document vault - all linked to the unit.",
     category: "Fleet",
     icon: "Truck",
     sellable: true,
@@ -313,7 +313,7 @@ export const REAL_MODULES: RealModule[] = [
     name: "Drivers & Staff",
     tagline: "Driver master, attendance, performance.",
     description:
-      "Driver master, attendance, performance scoring, documents, vehicle assignment and payroll — all linked to the person.",
+      "Driver master, attendance, performance scoring, documents, vehicle assignment and payroll - all linked to the person.",
     category: "People",
     icon: "IdCard",
     sellable: false,
@@ -325,7 +325,7 @@ export const REAL_MODULES: RealModule[] = [
     name: "Payroll & HRMS",
     tagline: "Driver wages, attendance, incentives.",
     description:
-      "Run driver + staff payroll with attendance-linked wages, trip incentives, overtime, PF / ESI / PT deductions and bank advice file generation — all on a single screen.",
+      "Run driver + staff payroll with attendance-linked wages, trip incentives, overtime, PF / ESI / PT deductions and bank advice file generation - all on a single screen.",
     category: "People",
     icon: "Users",
     sellable: true,
@@ -386,7 +386,7 @@ export const REAL_MODULES: RealModule[] = [
     name: "Team Chat + Rean AI",
     tagline: "Channels, DMs, Rean AI assistant.",
     description:
-      "Channels, DMs, file sharing and the Rean AI assistant — your team's internal chat with logistics-aware AI on tap.",
+      "Channels, DMs, file sharing and the Rean AI assistant - your team's internal chat with logistics-aware AI on tap.",
     category: "Intelligence",
     icon: "MessageSquare",
     sellable: false,
@@ -399,7 +399,7 @@ export const REAL_MODULES: RealModule[] = [
     name: "Broker Console",
     tagline: "Resell Reanzly capacity with your own markup.",
     description:
-      "Resell Reanzly capacity under your own brand. Manage sub-brokers, lane rate cards, settlements, payouts, tax + TDS and your own directory listing — all in one console.",
+      "Resell Reanzly capacity under your own brand. Manage sub-brokers, lane rate cards, settlements, payouts, tax + TDS and your own directory listing - all in one console.",
     category: "Broker",
     icon: "Handshake",
     sellable: true,
@@ -436,7 +436,7 @@ export const REAL_MODULES: RealModule[] = [
     name: "Superadmin Console",
     tagline: "Multi-tenant control plane.",
     description:
-      "Onboard tenants, manage billing, broadcasts, automations, SLM agents, integrations, backups, internal team, audit log, developer API and the marketplace — the whole platform, governed.",
+      "Onboard tenants, manage billing, broadcasts, automations, SLM agents, integrations, backups, internal team, audit log, developer API and the marketplace - the whole platform, governed.",
     category: "Platform",
     icon: "Building2",
     sellable: false,
@@ -448,7 +448,7 @@ export const REAL_MODULES: RealModule[] = [
     name: "Document Studio",
     tagline: "Customisable offer letters, invoices, certifications.",
     description:
-      "Generate and customise every document type — offer letters, certifications, invoices, billing, lorry receipts — with a 'Created by Reanzly' branding toggle and a template gallery.",
+      "Generate and customise every document type - offer letters, certifications, invoices, billing, lorry receipts - with a 'Created by Reanzly' branding toggle and a template gallery.",
     category: "Platform",
     icon: "FileStack",
     sellable: false,
@@ -460,7 +460,7 @@ export const REAL_MODULES: RealModule[] = [
     name: "Settings",
     tagline: "Profile, organisation, access, security.",
     description:
-      "Profile, organisation, appearance, notifications, login + access security, data management, companies and access matrix — every system-wide control in one place.",
+      "Profile, organisation, appearance, notifications, login + access security, data management, companies and access matrix - every system-wide control in one place.",
     category: "Platform",
     icon: "Settings",
     sellable: false,
@@ -479,9 +479,9 @@ const HERO_CITIES_COUNT = (() => {
 export const REAL_HERO = {
   headline: "One stop solution for logistics businesses.",
   body:
-    `${REAL_MODULES.length} working modules. ${ROLE_ARCHETYPES.length} user roles. ${DIRECTORY_LISTINGS.length} verified partners on the public directory. Every trip, truck, rupee and document — running on one operating system. Open any module in a live demo, no signup required.`,
+    `${REAL_MODULES.length} working modules. ${ROLE_ARCHETYPES.length} user roles. ${DIRECTORY_LISTINGS.length} verified partners on the public directory. Every trip, truck, rupee and document - running on one operating system. Open any module in a live demo, no signup required.`,
   trustLine: `Trusted by ${DIRECTORY_LISTINGS.length} verified logistics partners across ${HERO_CITIES_COUNT} Indian cities`,
-  // Live stat tiles — pulled from the actual demo dashboard mock.
+  // Live stat tiles - pulled from the actual demo dashboard mock.
   statTiles: [
     { k: "Trips today", v: "284", d: "+12%", module: "trips" as ModuleId },
     { k: "On-time", v: "94.2%", d: "+2.1pt", module: "operations-hub" as ModuleId },
@@ -540,7 +540,7 @@ export const REAL_BUSINESS_TYPES: BusinessTypeCard[] = [
     mode: "Warehouse Operator",
     icon: "Warehouse",
     description:
-      "Warehouse operators living in the WMS — inbound, storage, outbound — plus billing and a light ops layer.",
+      "Warehouse operators living in the WMS - inbound, storage, outbound - plus billing and a light ops layer.",
     moduleCount: 11,
     sampleModules: ["warehouse", "operations-hub", "invoice", "ledger", "documents"],
   },
@@ -558,7 +558,7 @@ export const REAL_BUSINESS_TYPES: BusinessTypeCard[] = [
     mode: "Fleet Owner",
     icon: "Truck",
     description:
-      "Fleet owners optimising asset utilisation — fleet, GPS, fuel, maintenance and driver management dominate.",
+      "Fleet owners optimising asset utilisation - fleet, GPS, fuel, maintenance and driver management dominate.",
     moduleCount: 15,
     sampleModules: ["vehicles", "fleet-map", "fuel-energy", "maintenance", "drivers-staff"],
   },
@@ -581,10 +581,10 @@ export interface PlatformService {
   moduleId: ModuleId;
 }
 export const REAL_PLATFORM_SERVICES: PlatformService[] = [
-  { name: "Trip Execution", description: "Job orders, route plans, e-POD, status feed — end-to-end trip lifecycle.", icon: "Route", moduleId: "trips" },
+  { name: "Trip Execution", description: "Job orders, route plans, e-POD, status feed - end-to-end trip lifecycle.", icon: "Route", moduleId: "trips" },
   { name: "Fleet Tracking", description: "Live GPS positions, geofences, route playback, predictive ETA on a monochrome map.", icon: "MapPin", moduleId: "fleet-map" },
   { name: "Billing & GST", description: "Auto invoices from trips, GST + TDS, e-invoice IRN, customer aging ledger.", icon: "ReceiptText", moduleId: "invoice" },
-  { name: "Document Studio", description: "Customisable offer letters, certifications, invoices — every document type, downloadable.", icon: "FileStack", moduleId: "document-studio" },
+  { name: "Document Studio", description: "Customisable offer letters, certifications, invoices - every document type, downloadable.", icon: "FileStack", moduleId: "document-studio" },
   { name: "Compliance Automation", description: "EHS, filings, driver + vehicle compliance matrix, audit trail.", icon: "ShieldCheck", moduleId: "compliance" },
   { name: "Payroll & HRMS", description: "Attendance-linked wages, trip incentives, PF/ESI/PT, bank advice file.", icon: "Users", moduleId: "payroll" },
   { name: "Broker Reselling", description: "Resell Reanzly capacity with your own markup, manage sub-brokers + settlements.", icon: "Handshake", moduleId: "broker-console" },
@@ -593,7 +593,7 @@ export const REAL_PLATFORM_SERVICES: PlatformService[] = [
 
 // ─── PRODUCTS (sellable subset) ────────────────────────────────────────
 // Pulled from REAL_MODULES where sellable === true. Each product links
-// to a live module the visitor can open in a demo — no fake "Buy now".
+// to a live module the visitor can open in a demo - no fake "Buy now".
 export interface RealProduct {
   id: string; // matches RealModule.id
   moduleId: ModuleId;
@@ -651,9 +651,9 @@ export interface OnboardingStep {
   moduleId?: ModuleId;
 }
 export const REAL_ONBOARDING_FLOW: OnboardingStep[] = [
-  { num: "01", title: "Pick your business type", description: "Choose from Transport, Freight Broker, Warehouse, 3PL, Fleet Owner or Reanzly Broker. Each maps to a curated starter pack — no manual module selection.", moduleId: "settings" },
-  { num: "02", title: "Auto-provisioned modules", description: "We auto-select the modules your business type needs. Add or remove any module from the catalog before you confirm — every change reflects on the Superadmin reviewer's screen.", moduleId: "superadmin" },
-  { num: "03", title: "Choose how you pay", description: "SaaS flat fee, commission per booked trip, or Master all-in-one. Every plan starts with a 7-day free trial — no card required.", moduleId: "superadmin" },
+  { num: "01", title: "Pick your business type", description: "Choose from Transport, Freight Broker, Warehouse, 3PL, Fleet Owner or Reanzly Broker. Each maps to a curated starter pack - no manual module selection.", moduleId: "settings" },
+  { num: "02", title: "Auto-provisioned modules", description: "We auto-select the modules your business type needs. Add or remove any module from the catalog before you confirm - every change reflects on the Superadmin reviewer's screen.", moduleId: "superadmin" },
+  { num: "03", title: "Choose how you pay", description: "SaaS flat fee, commission per booked trip, or Master all-in-one. Every plan starts with a 7-day free trial - no card required.", moduleId: "superadmin" },
   { num: "04", title: "Land in your dashboard", description: "Auto-login on the App portal. The sidebar shows only your provisioned modules. The header shows your trial countdown. Start logging trips, vehicles and invoices immediately.", moduleId: "dashboard" },
   { num: "05", title: "SuperAdmin approves + scales", description: "Your signup request lands in the SuperAdmin queue. On approval, your trial converts to a paid plan and you can list on the public directory, add brokers, and resell capacity.", moduleId: "superadmin" },
 ];
@@ -715,7 +715,7 @@ export const REAL_TESTIMONIALS: RealTestimonial[] = [
   },
   {
     quote:
-      "The broker console lets us resell Reanzly capacity under our own brand. Sub-brokers, settlements, TDS — all automated. We close 3× more enquiries with the same team.",
+      "The broker console lets us resell Reanzly capacity under our own brand. Sub-brokers, settlements, TDS - all automated. We close 3× more enquiries with the same team.",
     partnerSlug: "bluewave-freight-brokers",
     partnerName: "Bluewave Freight Brokers",
     partnerInitials: "BW",
@@ -724,7 +724,7 @@ export const REAL_TESTIMONIALS: RealTestimonial[] = [
   },
   {
     quote:
-      "We didn't realise how unstructured we looked until this. The moment systems went live — auto invoices, GPS, fuel anomaly alerts — conversations with buyers changed completely.",
+      "We didn't realise how unstructured we looked until this. The moment systems went live - auto invoices, GPS, fuel anomaly alerts - conversations with buyers changed completely.",
     partnerSlug: "metro-logistics",
     partnerName: "Metro Logistics",
     partnerInitials: "ML",
@@ -733,7 +733,7 @@ export const REAL_TESTIMONIALS: RealTestimonial[] = [
   },
   {
     quote:
-      "The Master Subscription gave us everything — SaaS platform, marketplace listing, broker console for our sub-brokers. One plan, every revenue stream. No more stitching tools together.",
+      "The Master Subscription gave us everything - SaaS platform, marketplace listing, broker console for our sub-brokers. One plan, every revenue stream. No more stitching tools together.",
     partnerSlug: "trident-logistics",
     partnerName: "Trident Logistics",
     partnerInitials: "TR",
@@ -790,7 +790,7 @@ export const REAL_INSIGHTS: RealInsight[] = [
 export const REAL_FAQS: { q: string; a: string }[] = [
   {
     q: "Can I try a module before signing up?",
-    a: "Yes. Every product card on this page has an 'Open live demo' button. It signs you in as a demo owner and routes you straight into that module — no signup, no card, no email verification.",
+    a: "Yes. Every product card on this page has an 'Open live demo' button. It signs you in as a demo owner and routes you straight into that module - no signup, no card, no email verification.",
   },
   {
     q: "How does the 7-day free trial work?",
@@ -802,7 +802,7 @@ export const REAL_FAQS: { q: string; a: string }[] = [
   },
   {
     q: "What's the difference between SaaS, Commission and Master?",
-    a: "SaaS is a flat monthly fee for the full platform — best for fleet owners. Commission is zero flat fee + 7% per marketplace trip — best for brokers who want inbound enquiries. Master is SaaS + Commission + broker tools — the all-in-one tier for network operators.",
+    a: "SaaS is a flat monthly fee for the full platform - best for fleet owners. Commission is zero flat fee + 7% per marketplace trip - best for brokers who want inbound enquiries. Master is SaaS + Commission + broker tools - the all-in-one tier for network operators.",
   },
   {
     q: "Can I resell Reanzly capacity under my own brand?",
@@ -813,7 +813,7 @@ export const REAL_FAQS: { q: string; a: string }[] = [
     a: "If you opt in to the public directory during signup, we generate an SEO-optimised profile page (IndiaMART / Zomato style) that ranks for 'logistics company in <city>' and '<lane> transport'. 17 partners are already listed.",
   },
   {
-    q: "What about compliance — GST, e-invoice, PF, ESI?",
+    q: "What about compliance - GST, e-invoice, PF, ESI?",
     a: "Built in. The Billing module handles GST + TDS + e-invoice IRN. The Payroll module handles PF / ESI / PT and generates the NACH bank advice file. The Compliance module tracks EHS, statutory filings, driver + vehicle compliance.",
   },
   {

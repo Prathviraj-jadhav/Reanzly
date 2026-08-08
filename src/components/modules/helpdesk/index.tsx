@@ -20,7 +20,7 @@ export function HelpdeskModule() {
     setTickets((prev) => prev.map((t) => (t.id === id ? { ...t, ...data } : t)));
   }, []);
 
-  // Detail view — route before any list hooks to keep hook order stable.
+  // Detail view - route before any list hooks to keep hook order stable.
   if (
     activeView.module === "helpdesk" &&
     activeView.view === "detail" &&

@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { ArrowRight } from "lucide-react";
 
 /**
- * MarketingSpecialties — "Built for every type of logistics business."
+ * MarketingSpecialties - "Built for every type of logistics business."
  *
  * Section replaced with the REAL business types defined in the app-store
  * BusinessType union and the onboarding catalog's RECOMMENDED_PACKS.
@@ -49,7 +49,7 @@ export function MarketingSpecialties() {
           <p className="mt-4 text-base leading-relaxed text-muted-foreground">
             Pick your business type during onboarding and we auto-provision
             the modules you need. Each card below maps to a real
-            BusinessType in the platform — the same one the signup wizard
+            BusinessType in the platform - the same one the signup wizard
             uses.
           </p>
         </div>

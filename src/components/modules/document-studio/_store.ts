@@ -14,7 +14,7 @@ import {
 } from "./_data";
 import { nextDocNumber } from "./_helpers";
 
-// ===== Builder draft — in-flight document being authored =====
+// ===== Builder draft - in-flight document being authored =====
 export interface BuilderDraft {
   templateId: TemplateId;
   title: string;
@@ -228,7 +228,7 @@ export const useDocStudioStore = create<DocStudioState>()(
     }),
     {
       name: "reanzly-doc-studio",
-      // Only persist documents and branding — drafts are ephemeral
+      // Only persist documents and branding - drafts are ephemeral
       partialize: (s) => ({
         documents: s.documents,
         branding: s.branding,

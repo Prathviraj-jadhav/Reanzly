@@ -65,31 +65,31 @@ import {
 } from "lucide-react";
 
 /* ============================================================
-   SignupScreen — Smart Onboarding Wizard (AUTH-2 redesign)
+   SignupScreen - Smart Onboarding Wizard (AUTH-2 redesign)
 
    Five steps, one decision per step (Hick's Law):
-     1. Business Type   — the smart selector that drives everything.
+     1. Business Type   - the smart selector that drives everything.
                           Picking a business type auto-populates the
                           recommended module pack in Step 3.
-     2. Organisation    — company, legal entity, GSTIN, state,
+     2. Organisation    - company, legal entity, GSTIN, state,
                           fleet + headcount.
-     3. Modules         — recommended modules pre-checked; user can
+     3. Modules         - recommended modules pre-checked; user can
                           add/remove. Drives provisioned features.
-     4. Subscription    — SaaS / Commission / Master + directory opt-in.
+     4. Subscription    - SaaS / Commission / Master + directory opt-in.
                           Broker variants default to Master.
-     5. You + Review    — contact, password (with strength), role,
+     5. You + Review    - contact, password (with strength), role,
                           T&C consent, full review, submit.
 
    UX laws applied:
-   - Hick's Law        — one decision per step.
-   - Law of Proximity  — fields chunked with section labels.
-   - Doherty Threshold — inline validation on blur, instant step nav.
-   - Tesler's Law      — the wizard absorbs complexity (auto-selects
+   - Hick's Law        - one decision per step.
+   - Law of Proximity  - fields chunked with section labels.
+   - Doherty Threshold - inline validation on blur, instant step nav.
+   - Tesler's Law      - the wizard absorbs complexity (auto-selects
                          modules, auto-builds broker profile, sets
                          trial dates); the user just types and clicks.
-   - Aesthetic-Usability — 6px radius, hairline borders, tabular mono,
+   - Aesthetic-Usability - 6px radius, hairline borders, tabular mono,
                           no shadows, no hues, no emdashes.
-   - Fitts's Law       — 44px primary CTA, 40px inputs, 44px touch targets.
+   - Fitts's Law       - 44px primary CTA, 40px inputs, 44px touch targets.
 
    Monochrome Swiss design system. No hues, no shadows, no emdashes.
    ============================================================ */
@@ -117,7 +117,7 @@ const BUSINESS_TYPES: {
   {
     id: "Fleet Owner",
     label: "Fleet Owner",
-    blurb: "Own trucks — optimise utilisation, fuel, maintenance, drivers.",
+    blurb: "Own trucks - optimise utilisation, fuel, maintenance, drivers.",
     icon: Truck,
   },
   {
@@ -129,13 +129,13 @@ const BUSINESS_TYPES: {
   {
     id: "Warehouse",
     label: "Warehouse Operator",
-    blurb: "Inbound, storage, outbound — the WMS-led operator.",
+    blurb: "Inbound, storage, outbound - the WMS-led operator.",
     icon: Warehouse,
   },
   {
     id: "3PL",
     label: "3PL Provider",
-    blurb: "Transport + warehouse + brokerage — broadest stack.",
+    blurb: "Transport + warehouse + brokerage - broadest stack.",
     icon: Boxes,
   },
   {
@@ -281,7 +281,7 @@ export function SignupScreen() {
   const [showPw, setShowPw] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  // The recommended pack for the chosen business type — drives Step 3.
+  // The recommended pack for the chosen business type - drives Step 3.
   const recommendedPack = useMemo(
     () => (form.businessType ? recommendedPackFor(form.businessType) : null),
     [form.businessType],
@@ -290,7 +290,7 @@ export function SignupScreen() {
   // Preselect from marketing site: if a product was clicked ("Buy this
   // product & sign up"), find the matching onboarding module and mark it
   // as a bonus preselect on top of the recommended pack. We don't auto-pick
-  // a business type — the user must make that choice themselves (Hick's Law).
+  // a business type - the user must make that choice themselves (Hick's Law).
   const preselectedBonusModule = useMemo(() => {
     if (!selectedModuleForPurchase) return null;
     return (
@@ -451,7 +451,7 @@ export function SignupScreen() {
       roleChoice: form.roleChoice,
       agreedToTerms: form.agreedToTerms,
     };
-    // Doherty threshold — keep the success feedback under 600ms before the
+    // Doherty threshold - keep the success feedback under 600ms before the
     // store's auto-login redirect kicks in.
     setTimeout(() => {
       signup(payload);
@@ -534,7 +534,7 @@ export function SignupScreen() {
       </header>
 
       <main className="flex flex-1 overflow-hidden">
-        {/* Brand panel — desktop only */}
+        {/* Brand panel - desktop only */}
         <section className="relative hidden w-1/2 flex-col justify-between overflow-hidden border-r border-border bg-foreground p-10 text-background lg:flex">
           <div className="flex items-center gap-2">
             <Truck className="h-5 w-5" />
@@ -576,8 +576,8 @@ export function SignupScreen() {
 
             <ul className="space-y-2">
               {[
-                "Pick a business type — we auto-select your modules",
-                "SaaS, commission or master subscription — your call",
+                "Pick a business type - we auto-select your modules",
+                "SaaS, commission or master subscription - your call",
                 "Listed on the Reanzly directory (free, SEO-ranked)",
               ].map((line) => (
                 <li key={line} className="flex items-start gap-2 text-[13px] text-background/80">
@@ -607,7 +607,7 @@ export function SignupScreen() {
 
         {/* Form panel */}
         <section className="relative flex flex-1 flex-col overflow-hidden">
-          {/* Stepper — sits at top of the right panel (sticky-feeling via flex column) */}
+          {/* Stepper - sits at top of the right panel (sticky-feeling via flex column) */}
           <div className="z-10 border-b border-border bg-background/95 px-4 py-3 backdrop-blur sm:px-8">
             <div className="mx-auto flex max-w-[640px] items-center gap-1 overflow-x-auto no-scrollbar sm:gap-0">
               {STEPS.map((s, i) => {
@@ -681,7 +681,7 @@ export function SignupScreen() {
                       What best describes your business?
                     </h2>
                     <p className="mt-1 text-[13px] text-muted-foreground">
-                      This drives everything — we pre-pick the modules, broker tools
+                      This drives everything - we pre-pick the modules, broker tools
                       and subscription that fit how you operate. You can change it later.
                     </p>
                   </div>
@@ -689,7 +689,7 @@ export function SignupScreen() {
                   {preselectedBonusModule && (
                     <div className="rounded-[6px] border border-dashed border-border bg-accent/30 px-3 py-2 text-[11px] text-muted-foreground">
                       <PackageCheck className="mr-1 inline h-3 w-3" />
-                      You came from the <span className="font-medium text-foreground">{preselectedBonusModule.name}</span> product page — it will be pre-checked in your modules.
+                      You came from the <span className="font-medium text-foreground">{preselectedBonusModule.name}</span> product page - it will be pre-checked in your modules.
                     </div>
                   )}
 
@@ -847,7 +847,7 @@ export function SignupScreen() {
                       <span className="font-medium text-foreground">
                         {chosenBusinessType?.label ?? "your business"}
                       </span>{" "}
-                      are pre-checked. Add or remove — your trial includes every
+                      are pre-checked. Add or remove - your trial includes every
                       module you pick, free for 7 days.
                     </p>
                   </div>
@@ -859,7 +859,7 @@ export function SignupScreen() {
                     </div>
                   )}
 
-                  {/* Module catalog by category — collapsible sections */}
+                  {/* Module catalog by category - collapsible sections */}
                   <div className="space-y-2">
                     {MODULE_CATEGORIES.map((cat) => {
                       const mods = ONBOARDING_MODULES.filter((m) => m.category === cat);
@@ -1290,7 +1290,7 @@ export function SignupScreen() {
             </div>
           </div>
 
-          {/* Validation strip — bottom of right panel */}
+          {/* Validation strip - bottom of right panel */}
           {firstError && (
             <div
               className="flex items-center gap-2 border-t border-foreground/20 bg-foreground/[0.04] px-4 py-2 text-[11px] text-foreground animate-fade-in sm:px-8"
@@ -1307,7 +1307,7 @@ export function SignupScreen() {
 }
 
 /* ============================================================
-   Field primitives — keep the form visually consistent.
+   Field primitives - keep the form visually consistent.
    ============================================================ */
 
 function inputCls(error?: string): string {
@@ -1503,7 +1503,7 @@ function ReviewRow({
 }
 
 /* ============================================================
-   ModuleCategorySection — collapsible category group on Step 3.
+   ModuleCategorySection - collapsible category group on Step 3.
    ============================================================ */
 
 function ModuleCategorySection({

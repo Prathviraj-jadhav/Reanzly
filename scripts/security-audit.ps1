@@ -1,5 +1,5 @@
 # =============================================================================
-# Reanzly v2 — Enterprise System Security & Compliance Auditor (PowerShell)
+# Reanzly v2 - Enterprise System Security & Compliance Auditor (PowerShell)
 # =============================================================================
 
 Write-Host "=================================================================" -ForegroundColor Cyan

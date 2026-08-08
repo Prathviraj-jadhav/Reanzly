@@ -3,11 +3,11 @@
 import { REAL_STATS } from "./real-data";
 
 /**
- * MarketingStats — a tight 6-stat strip derived from real platform
+ * MarketingStats - a tight 6-stat strip derived from real platform
  * counts: working modules, user roles, directory partners, cities
  * covered, sellable products, verified reviews. Numbers come from
  * REAL_STATS which is computed from REAL_MODULES, ROLE_ARCHETYPES and
- * DIRECTORY_LISTINGS — no fabricated figures.
+ * DIRECTORY_LISTINGS - no fabricated figures.
  *
  * Renders as a 2/3/6 responsive grid so it stays balanced on every
  * breakpoint.

@@ -1792,7 +1792,7 @@ export const ISSUANCE_TEMPLATES: IssuanceTemplate[] = [
     category: "Onboarding",
     description: "Formal employment offer with designation, CTC, DOJ, and probation terms.",
     fields: ["subject", "body", "designation", "department", "branch", "ctc", "joiningDate", "noticePeriod", "effectiveDate"],
-    defaultSubject: "Letter of Appointment — Reanzly Logistics",
+    defaultSubject: "Letter of Appointment - Reanzly Logistics",
     defaultBody:
       "We are pleased to confirm your appointment as {designation} at Reanzly Logistics, {branch}, with effect from {joiningDate}. " +
       "Your annual CTC will be {ctc}, payable monthly subject to PF/ESI/TDS deductions. " +
@@ -1805,7 +1805,7 @@ export const ISSUANCE_TEMPLATES: IssuanceTemplate[] = [
     category: "Onboarding",
     description: "Pre-joining offer issued to a candidate with offered CTC and joining date.",
     fields: ["subject", "body", "designation", "branch", "ctc", "joiningDate", "validityDays"],
-    defaultSubject: "Offer of Employment — Reanzly Logistics",
+    defaultSubject: "Offer of Employment - Reanzly Logistics",
     defaultBody:
       "Following your interviews, we are delighted to extend an offer for the position of {designation} at our {branch}. " +
       "Your offered annual CTC is {ctc}, with joining on {joiningDate}. " +
@@ -1817,7 +1817,7 @@ export const ISSUANCE_TEMPLATES: IssuanceTemplate[] = [
     category: "Onboarding",
     description: "On-day-one report acknowledging the new joiner has reported and documents are collected.",
     fields: ["subject", "body", "designation", "branch", "joiningDate", "remarks"],
-    defaultSubject: "Joining Report — New Employee",
+    defaultSubject: "Joining Report - New Employee",
     defaultBody:
       "This is to certify that {employeeName} joined Reanzly Logistics, {branch}, as {designation} on {joiningDate}. " +
       "KYC documents (Aadhaar, PAN, photo, bank proof) have been collected and verified. " +
@@ -1831,8 +1831,8 @@ export const ISSUANCE_TEMPLATES: IssuanceTemplate[] = [
     fields: ["subject", "body", "effectiveDate", "validityDays"],
     defaultSubject: "Non-Disclosure Agreement",
     defaultBody:
-      "{employeeName} agrees to keep confidential all proprietary information of Reanzly Logistics — including customer lists, " +
-      "rate cards, fleet data, financials, and operational processes — both during and for {validityDays} days after the termination of employment. " +
+      "{employeeName} agrees to keep confidential all proprietary information of Reanzly Logistics - including customer lists, " +
+      "rate cards, fleet data, financials, and operational processes - both during and for {validityDays} days after the termination of employment. " +
       "Breach of this undertaking entitles the company to legal recourse.",
   },
   {
@@ -1841,7 +1841,7 @@ export const ISSUANCE_TEMPLATES: IssuanceTemplate[] = [
     category: "Onboarding",
     description: "Internal requisition to Admin for issuing a new employee ID card.",
     fields: ["subject", "body", "designation", "branch", "joiningDate", "remarks"],
-    defaultSubject: "ID Card Issuance — New Joiner",
+    defaultSubject: "ID Card Issuance - New Joiner",
     defaultBody:
       "Please issue a new employee ID card for {employeeName}, {designation}, {branch}. " +
       "DOJ: {joiningDate}. Photo and KYC verified. {remarks}",
@@ -1958,7 +1958,7 @@ export const ISSUANCE_TEMPLATES: IssuanceTemplate[] = [
     id: "salary-certificate",
     label: "Salary Certificate",
     category: "Certificate",
-    description: "Salary certificate stating CTC and monthly gross — typically for loans/visas.",
+    description: "Salary certificate stating CTC and monthly gross - typically for loans/visas.",
     fields: ["subject", "body", "designation", "branch", "joiningDate", "ctc", "remarks"],
     defaultSubject: "Salary Certificate",
     defaultBody:
@@ -1997,7 +1997,7 @@ export const ISSUANCE_TEMPLATES: IssuanceTemplate[] = [
     category: "Performance",
     description: "Annual/bi-annual appraisal outcome letter with rating and revised CTC.",
     fields: ["subject", "body", "designation", "ctc", "amount", "rating", "effectiveDate", "remarks"],
-    defaultSubject: "Appraisal Outcome — Review Cycle",
+    defaultSubject: "Appraisal Outcome - Review Cycle",
     defaultBody:
       "We are pleased to share your appraisal outcome. Based on the review cycle, your rating is {rating}/5 and your revised " +
       "annual CTC is {ctc}, with an increment of {amount} effective {effectiveDate}. We appreciate your contributions and look " +
@@ -2009,7 +2009,7 @@ export const ISSUANCE_TEMPLATES: IssuanceTemplate[] = [
     category: "Performance",
     description: "Letter announcing a promotion to a new designation with revised CTC.",
     fields: ["subject", "body", "designation", "ctc", "effectiveDate", "remarks"],
-    defaultSubject: "Promotion — Revised Designation",
+    defaultSubject: "Promotion - Revised Designation",
     defaultBody:
       "We are delighted to inform you that you have been promoted to the role of {designation} with effect from {effectiveDate}. " +
       "Your revised annual CTC will be {ctc}. We are confident that you will continue to excel in this new role. {remarks}",
@@ -2043,7 +2043,7 @@ export const ISSUANCE_TEMPLATES: IssuanceTemplate[] = [
     category: "Other",
     description: "Formal warning for misconduct, performance, or attendance issues.",
     fields: ["subject", "body", "designation", "branch", "effectiveDate", "reason", "remarks"],
-    defaultSubject: "Warning Letter — Disciplinary Action",
+    defaultSubject: "Warning Letter - Disciplinary Action",
     defaultBody:
       "This letter serves as a formal warning to {employeeName} ({designation}, {branch}) on account of {reason}, observed on " +
       "{effectiveDate}. We expect immediate correction. Further lapses may lead to stricter disciplinary action. {remarks}",

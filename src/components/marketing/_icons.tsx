@@ -5,7 +5,7 @@
  *
  * The content tables in `_data.ts` store icon names as strings so the data
  * file has no JSX. This helper maps those names to lucide-react components and
- * exposes a stable `<ModuleIcon name="..." />` component — using the wrapper
+ * exposes a stable `<ModuleIcon name="..." />` component - using the wrapper
  * (rather than `const Icon = resolve(name)`) keeps the
  * `react-hooks/static-components` lint rule happy because the lookup happens
  * at module scope, not inside a render body.

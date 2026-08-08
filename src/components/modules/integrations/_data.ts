@@ -114,7 +114,7 @@ export interface SyncDataItem {
 
 /** Sync configuration shown in the Connect drawer + persisted in store. */
 export interface IntegrationSyncConfig {
-  /** Default cadence — user can override in drawer. */
+  /** Default cadence - user can override in drawer. */
   frequency: SyncFrequency;
   /** What data flows in each cycle. */
   syncData: SyncDataItem[];
@@ -136,7 +136,7 @@ export interface IntegrationProvider {
   region: "IN" | "US" | "GLOBAL";
   /** Vendor URL for the docs / dashboard. */
   docsUrl: string;
-  /** Initials/mark shown on the tile (monochrome — text only, no logo). */
+  /** Initials/mark shown on the tile (monochrome - text only, no logo). */
   mark: string;
   /** True when the provider is officially supported by Reanzly. */
   official: boolean;
@@ -154,7 +154,7 @@ export interface IntegrationProvider {
   usedBy: string[];
   /** Default priority when multiple gateways are connected (1 = highest). */
   defaultPriority?: number;
-  /** Sync configuration — present when the provider supports DB sync. */
+  /** Sync configuration - present when the provider supports DB sync. */
   syncConfig?: IntegrationSyncConfig;
   /** Govt-specific: the entity identifier label (GSTIN, TAN, Establishment Code, IEC, etc.). */
   entityIdLabel?: string;
@@ -208,7 +208,7 @@ export const PAYMENT_PROVIDERS: IntegrationProvider[] = [
     id: "stripe",
     name: "Stripe",
     category: "payment",
-    tagline: "Global payments — cards, ACH, SEPA, iDEAL, Apple/Google Pay.",
+    tagline: "Global payments - cards, ACH, SEPA, iDEAL, Apple/Google Pay.",
     description:
       "Stripe is the developer-first global payment gateway. Accept 135+ currencies, Apple Pay, Google Pay, ACH, SEPA, iDEAL, and more. Built-in billing for subscriptions, invoicing, and marketplaces.",
     region: "GLOBAL",
@@ -417,7 +417,7 @@ export const SMS_PROVIDERS: IntegrationProvider[] = [
     id: "twilio-sms",
     name: "Twilio SMS",
     category: "sms",
-    tagline: "Global SMS with one API — covers 180+ countries.",
+    tagline: "Global SMS with one API - covers 180+ countries.",
     description:
       "Twilio Programmable SMS is the gold standard for global SMS. Send and receive SMS worldwide, with carrier intelligence, smart encoding, and conversation-level pricing.",
     region: "US",
@@ -653,7 +653,7 @@ export const EXTENSION_PROVIDERS: IntegrationProvider[] = [
     category: "plugin",
     tagline: "Auto-sync invoices, vouchers, and GST returns to Tally.",
     description:
-      "Tally Prime is the most popular accounting software in India. This plugin pushes invoices, payment vouchers, expenses, and journal entries from Reanzly into Tally automatically — no double entry.",
+      "Tally Prime is the most popular accounting software in India. This plugin pushes invoices, payment vouchers, expenses, and journal entries from Reanzly into Tally automatically - no double entry.",
     region: "IN",
     docsUrl: "https://tallysolutions.com/developers/",
     mark: "TA",
@@ -747,7 +747,7 @@ export const EXTENSION_PROVIDERS: IntegrationProvider[] = [
     category: "plugin",
     tagline: "Enterprise ERP sync via SAP RFC / OData.",
     description:
-      "Bi-directional sync with SAP S/4HANA — pushes invoices, GL postings, and purchase orders; pulls sales orders and material masters. For large logistics enterprises running SAP.",
+      "Bi-directional sync with SAP S/4HANA - pushes invoices, GL postings, and purchase orders; pulls sales orders and material masters. For large logistics enterprises running SAP.",
     region: "GLOBAL",
     docsUrl: "https://api.sap.com/",
     mark: "SAP",
@@ -1061,7 +1061,7 @@ export const EXTENSION_PROVIDERS: IntegrationProvider[] = [
     category: "extension",
     tagline: "Capture leads from any website into Reanzly CRM.",
     description:
-      "Browser extension that lets your sales team capture leads (name, phone, lane) from IndiaMART, JustDial, TradeIndia, or any website directly into Reanzly CRM — without leaving the page.",
+      "Browser extension that lets your sales team capture leads (name, phone, lane) from IndiaMART, JustDial, TradeIndia, or any website directly into Reanzly CRM - without leaving the page.",
     region: "GLOBAL",
     docsUrl: "https://reanzly.com/extensions/chrome",
     mark: "CR",
@@ -1116,7 +1116,7 @@ export const EXTENSION_PROVIDERS: IntegrationProvider[] = [
 ];
 
 /* ============================================================
-   ALL PROVIDERS — combined + seed default connections
+   ALL PROVIDERS - combined + seed default connections
    ============================================================ */
 
 export const ALL_PROVIDERS: IntegrationProvider[] = [
@@ -1220,7 +1220,7 @@ export const CATEGORY_ORDER: IntegrationCategory[] = [
   "telemetry", "maps", "fuel", "gov", "plugin", "banking", "extension", "identity",
 ];
 
-/** Seed connections — show the integrations page with one realistic
+/** Seed connections - show the integrations page with one realistic
  * connected gateway per category so the empty state doesn't lie. */
 export const SEED_CONNECTIONS: IntegrationSeedConnection[] = [
   {
@@ -1254,7 +1254,7 @@ export const SEED_CONNECTIONS: IntegrationSeedConnection[] = [
     connectedAt: new Date(Date.now() - 12 * 86400000).toISOString(),
     lastSyncAt: new Date(Date.now() - 35 * 60000).toISOString(),
     lastSyncStatus: "ok",
-    lastSyncMessage: "Sandbox mode — 4 test payments today",
+    lastSyncMessage: "Sandbox mode - 4 test payments today",
   },
   {
     providerId: "msg91",
@@ -1331,7 +1331,7 @@ export const SEED_CONNECTIONS: IntegrationSeedConnection[] = [
     connectedAt: new Date(Date.now() - 5 * 86400000).toISOString(),
     lastSyncAt: new Date(Date.now() - 5 * 86400000).toISOString(),
     lastSyncStatus: "error",
-    lastSyncMessage: "Missing credentials — re-enter HDFC API JSON",
+    lastSyncMessage: "Missing credentials - re-enter HDFC API JSON",
   },
   {
     providerId: "reanzly-chrome",

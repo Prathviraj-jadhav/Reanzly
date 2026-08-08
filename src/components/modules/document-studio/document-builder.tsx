@@ -135,7 +135,7 @@ export function DocumentBuilder({ onExit, onCommitted }: DocumentBuilderProps) {
   };
 
   // ===== Preview doc (constructed from draft) =====
-  // NOTE: not memoized — hooks cannot be called conditionally, and we have an
+  // NOTE: not memoized - hooks cannot be called conditionally, and we have an
   // early return above. The computation is trivial (a few arithmetic ops).
   let previewSubtotal: number | undefined;
   let previewTaxAmount: number | undefined;
@@ -307,7 +307,7 @@ export function DocumentBuilder({ onExit, onCommitted }: DocumentBuilderProps) {
 }
 
 // ============================================================
-//   STEP 1 — Template picker (inline grid)
+//   STEP 1 - Template picker (inline grid)
 // ============================================================
 function TemplatePicker({
   onPick,
@@ -374,7 +374,7 @@ function TemplatePicker({
 }
 
 // ============================================================
-//   STEP 2 — Parties
+//   STEP 2 - Parties
 // ============================================================
 function PartiesStep({
   draft,
@@ -426,7 +426,7 @@ function PartiesStep({
               <Textarea
                 value={`${draft.branding.addressLine1}, ${draft.branding.addressLine2}, ${draft.branding.city}, ${draft.branding.state} - ${draft.branding.pincode}`}
                 onChange={(e) => {
-                  // Best-effort parse — keep simple
+                  // Best-effort parse - keep simple
                   const parts = e.target.value.split(",").map((s) => s.trim());
                   updateDraft({
                     branding: {
@@ -498,7 +498,7 @@ function PartiesStep({
 }
 
 // ============================================================
-//   STEP 3 — Content (template-specific fields + line items)
+//   STEP 3 - Content (template-specific fields + line items)
 // ============================================================
 function ContentStep({
   draft,
@@ -567,7 +567,7 @@ function ContentStep({
 }
 
 // ============================================================
-//   STEP 4 — Branding
+//   STEP 4 - Branding
 // ============================================================
 function BrandingStep({
   draft,

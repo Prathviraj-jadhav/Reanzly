@@ -7,13 +7,13 @@ import { toast } from "sonner";
 import type { ModuleId } from "@/lib/store/app-store";
 
 /**
- * MarketingHero — topmost section of the company landing site.
+ * MarketingHero - topmost section of the company landing site.
  *
  * Premium Swiss/Scandinavian feel: eyebrow badge, oversized headline,
  * generous whitespace, a subtle bg-grid texture that fades out radially,
  * and a CSS/SVG mock of the logistics ops dashboard below the fold line.
  *
- * Every label in the dashboard mock now ties to a REAL module — clicking
+ * Every label in the dashboard mock now ties to a REAL module - clicking
  * any stat tile signs the visitor in as a demo Owner and routes them
  * straight into that module. Primary CTA "Open live demo" does the same
  * for the Trips module (the heart of the platform).
@@ -40,7 +40,7 @@ export function MarketingHero() {
       id="home"
       className="relative overflow-hidden border-b border-border bg-background"
     >
-      {/* Grid texture — fades out toward the edges */}
+      {/* Grid texture - fades out toward the edges */}
       <div
         className="bg-grid pointer-events-none absolute inset-0 opacity-30"
         style={{
@@ -96,7 +96,7 @@ export function MarketingHero() {
         </p>
       </div>
 
-      {/* Hero product visual — CSS/SVG mock of the logistics ops dashboard */}
+      {/* Hero product visual - CSS/SVG mock of the logistics ops dashboard */}
       <div className="hero-visual relative mx-auto max-w-5xl px-6 pb-24">
         <div className="overflow-hidden rounded-lg border border-border bg-card shadow-2xl shadow-black/5">
           {/* Faux window chrome */}
@@ -121,7 +121,7 @@ export function MarketingHero() {
 
           {/* Faux sidebar + main */}
           <div className="grid grid-cols-1 sm:grid-cols-[180px_1fr]">
-            {/* Sidebar — real module names */}
+            {/* Sidebar - real module names */}
             <div className="hidden flex-col gap-1 border-r border-border bg-background/50 p-3 sm:flex">
               {[
                 "Dashboard",
@@ -155,7 +155,7 @@ export function MarketingHero() {
 
             {/* Main content */}
             <div className="flex flex-col gap-4 p-4 sm:p-5">
-              {/* Stat tiles row — clickable, open the real module */}
+              {/* Stat tiles row - clickable, open the real module */}
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 {REAL_HERO.statTiles.map((s) => (
                   <button
@@ -251,7 +251,7 @@ export function MarketingHero() {
 }
 
 /* ============================================================
-   Sparkline — inline SVG, monochrome, no external deps.
+   Sparkline - inline SVG, monochrome, no external deps.
    ============================================================ */
 function Sparkline() {
   const values = [12, 18, 15, 22, 19, 26, 24, 30, 28, 35, 31, 38, 33, 42];
@@ -313,7 +313,7 @@ function Sparkline() {
 }
 
 /* ============================================================
-   FleetMapDots — a faux monochrome map: scattered dots over a faint
+   FleetMapDots - a faux monochrome map: scattered dots over a faint
    grid, suggesting live truck positions across India. No external deps.
    ============================================================ */
 function FleetMapDots() {

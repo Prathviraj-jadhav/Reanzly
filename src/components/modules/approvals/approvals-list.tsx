@@ -50,7 +50,7 @@ const DATE_RANGE_PRESETS = [
   { id: "90d", label: "Last 90 days" },
 ];
 
-/** Decision cell — shows the latest decision timestamp or "pending". */
+/** Decision cell - shows the latest decision timestamp or "pending". */
 function DecisionCell({ req }: { req: ApprovalRequest }) {
   if (req.status === "Pending") {
     return <span className="text-[12px] text-muted-foreground">pending</span>;
@@ -171,7 +171,7 @@ export function ApprovalsList({ requests }: ApprovalsListProps) {
       sortValue: (r) => r.amount,
       render: (r) => (
         <span className="tabular text-[12px] font-medium text-foreground">
-          {r.amount > 0 ? formatINR(r.amount) : "—"}
+          {r.amount > 0 ? formatINR(r.amount) : "-"}
         </span>
       ),
     },
@@ -259,7 +259,7 @@ export function ApprovalsList({ requests }: ApprovalsListProps) {
     title: "No approval requests found",
     description: "Adjust filters or submit a new approval request to get a decision.",
     action: (
-      <Btn variant="primary" icon={<Plus className="h-3.5 w-3.5" />} onClick={() => toast("New approval request", { description: "Coming soon — use the relevant module's request flow" })}>
+      <Btn variant="primary" icon={<Plus className="h-3.5 w-3.5" />} onClick={() => toast("New approval request", { description: "Coming soon - use the relevant module's request flow" })}>
         New Request
       </Btn>
     ),

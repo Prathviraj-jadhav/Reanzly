@@ -294,7 +294,7 @@ export function Header() {
     currentRole, setRole, navigate, setTourOpen,
     toggleMobileSidebar, logout, setAnnounceOpen, authUser,
   } = useAppStore();
-  // The signed-in identity — the real name typed at signup for self-serve
+  // The signed-in identity - the real name typed at signup for self-serve
   // accounts, falling back to the role archetype's demo persona name for
   // quick-login / "Open live demo" sessions (authUser.name === role.name
   // there, so this is a no-op in that case).
@@ -428,7 +428,7 @@ export function Header() {
         </kbd>
       </button>
 
-      {/* ===== Right zone — single right-aligned cluster.
+      {/* ===== Right zone - single right-aligned cluster.
           All header chrome after the search bar is grouped into one
           ml-auto wrapper so the cluster sticks to the right edge even
           when the search bar (flex-1 max-w-xl) doesn't fully expand.

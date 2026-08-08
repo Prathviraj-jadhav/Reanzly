@@ -10,7 +10,7 @@ import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 
 /**
- * MarketingModules — the redesigned Products section.
+ * MarketingModules - the redesigned Products section.
  *
  * Redesigned with a Swiss/Vercel-inspired high-fidelity monochrome aesthetic:
  *   - Category pills with smooth active-indicator animations.
@@ -92,7 +92,7 @@ export function MarketingModules() {
               Real working modules. Open any one in a live demo.
             </h2>
             <p className="mt-4 text-[15px] leading-relaxed text-muted-foreground">
-              Each product below is a live module in the Reanzly platform —
+              Each product below is a live module in the Reanzly platform -
               not a screenshot, not a mockup. Click &ldquo;Open live demo&rdquo;
               and you&apos;re inside the module, signed in as a demo owner, in
               under a second. No signup, no card, no email.
@@ -246,7 +246,7 @@ function ProductCard({
             <p className="mt-0.5 text-2xl font-medium tracking-tight font-mono text-foreground">
               {product.priceFrom > 0
                 ? `₹${product.priceFrom.toLocaleString("en-IN")}`
-                : "—"}
+                : "-"}
               {product.priceFrom > 0 && (
                 <span className="ml-0.5 text-xs font-normal text-muted-foreground">
                   /mo

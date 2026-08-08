@@ -248,7 +248,7 @@ export function ResourceList({ onCreate }: ResourceListProps) {
     <div className="flex flex-col gap-5">
       <PageHeader
         title="Resources"
-        description="Drivers, vehicles, and workshop bays — utilisation, conflicts, and shift coverage at a glance."
+        description="Drivers, vehicles, and workshop bays - utilisation, conflicts, and shift coverage at a glance."
         meta={[
           { label: "Total", value: total },
           { label: "Drivers", value: drivers },

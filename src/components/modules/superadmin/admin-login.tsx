@@ -55,9 +55,9 @@ const ROLE_ICON: Record<InternalRoleId, typeof Building2> = {
   "product-manager": Cpu,
 };
 
-/** Demo logins — shown on the AdminLogin screen so testers and internal team
+/** Demo logins - shown on the AdminLogin screen so testers and internal team
  *  members can one-tap sign in. Password is the same for all: "reanzly-admin".
- *  These are demo accounts only — not real credentials. Production uses
+ *  These are demo accounts only - not real credentials. Production uses
  *  NextAuth + 2FA enforced for all internal roles.
  */
 const DEMO_PASSWORD = "reanzly-admin";
@@ -468,7 +468,7 @@ function Step1RolePicker({
         <ArrowRight className="h-4 w-4" />
       </button>
 
-      {/* Demo accounts — one-tap sign in for the Reanzly internal team.
+      {/* Demo accounts - one-tap sign in for the Reanzly internal team.
           Each card shows the role, name, department, email and the shared
           demo password. Hover reveals an arrow → one click signs in. */}
       <div className="mt-6">

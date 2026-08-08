@@ -94,7 +94,7 @@ export function IntegrationsModule() {
   }, [connections, activeCategory, search]);
 
   const filteredAvailable = useMemo(() => {
-    // Providers not connected (or multi-instance providers — show even if connected, so user can add more)
+    // Providers not connected (or multi-instance providers - show even if connected, so user can add more)
     return ALL_PROVIDERS.filter((p) => {
       if (activeCategory !== "all" && p.category !== activeCategory) return false;
       if (search) {
@@ -553,7 +553,7 @@ function ConnectionCard({
         {connection.priority && (
           <span className="text-muted-foreground tabular">P{connection.priority}</span>
         )}
-        {/* Sync status badge — only when provider supports sync */}
+        {/* Sync status badge - only when provider supports sync */}
         {hasSyncConfig && (
           <SyncStatusBadge state={sync} />
         )}
@@ -570,7 +570,7 @@ function ConnectionCard({
               <span className="tabular">
                 Synced {formatDistanceToNow(new Date(connection.lastSyncAt), { addSuffix: true })}
               </span>
-              {/* Sync Now quick button — visible on hover for sync-capable connections */}
+              {/* Sync Now quick button - visible on hover for sync-capable connections */}
               {hasSyncConfig && (
                 <button
                   onClick={handleSync}
@@ -588,7 +588,7 @@ function ConnectionCard({
             {connection.lastSyncMessage && (
               <p className="mt-0.5 line-clamp-2 leading-tight">{connection.lastSyncMessage}</p>
             )}
-            {/* Records pulled / pushed — only for sync-capable providers */}
+            {/* Records pulled / pushed - only for sync-capable providers */}
             {hasSyncConfig && sync && (sync.recordsPulled > 0 || sync.recordsPushed > 0) && (
               <div className="mt-1.5 flex items-center gap-2 text-[10px] tabular">
                 <span className="inline-flex items-center gap-0.5">
@@ -725,9 +725,9 @@ function ProviderCard({
 }
 
 /* ============================================================
-   Sync status badge — compact indicator for sync-capable cards.
+   Sync status badge - compact indicator for sync-capable cards.
    States: idle / syncing / ok / error.
-   No colour hues — purely foreground/background contrast.
+   No colour hues - purely foreground/background contrast.
    ============================================================ */
 function SyncStatusBadge({ state }: { state?: ConnectionSyncState }) {
   if (!state) {

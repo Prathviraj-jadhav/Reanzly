@@ -1,0 +1,35 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Next.js build output
+/.next/
+/out/
+
+# Rust build target directories
+target/
+**/target/
+mini-services/slm-engine/target/
+
+# Local databases & backups
+/db/
+*.db
+*.db.enc
+*.db.bak
+
+# Local storage and photos
+/storage/
+/public/storage/
+
+# Logs & temp files
+*.log
+dev.log
+server.log
+
+# IDE & local agent config
+.vscode/
+.idea/
+.claude/
+.agents/
+.git/
+.github/

@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { ArrowRight } from "lucide-react";
 
 /**
- * MarketingProcess — "The real onboarding journey."
+ * MarketingProcess - "The real onboarding journey."
  *
  * Section id="process". Five steps in a vertical timeline describing the
  * ACTUAL signup journey: pick business type → auto-provisioned modules →
@@ -51,7 +51,7 @@ export function MarketingProcess() {
             The real onboarding journey.
           </h2>
           <p className="mt-4 text-base leading-relaxed text-muted-foreground">
-            From picking a business type to running your first trip —
+            From picking a business type to running your first trip -
             here&apos;s exactly what happens when you sign up. Every step
             maps to a real module you can open right now.
           </p>

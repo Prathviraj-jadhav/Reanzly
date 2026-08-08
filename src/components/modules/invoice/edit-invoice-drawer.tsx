@@ -279,7 +279,7 @@ export function EditInvoiceDrawer({
               </div>
             </div>
 
-            {/* Task 15-d: Assign To — parity with the Add Invoice drawer. */}
+            {/* Task 15-d: Assign To - parity with the Add Invoice drawer. */}
             {onAssign && (
               <div className="rounded-[6px] border border-border bg-card p-4">
                 <div className="mb-3 flex items-center justify-between">

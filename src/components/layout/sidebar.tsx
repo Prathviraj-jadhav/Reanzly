@@ -28,11 +28,11 @@ import { CSS } from "@dnd-kit/utilities";
 import { GripVertical } from "lucide-react";
 
 /**
- * Reduced-motion guard — inlined here (rather than imported from
+ * Reduced-motion guard - inlined here (rather than imported from
  * `@/lib/animations`) so this module doesn't statically pull the entire
  * GSAP library into the sidebar chunk. `@/lib/animations` re-exports
  * `gsap`/`useGSAP` from `gsap-utils.ts`, which imports gsap at module
- * load — so even importing the tiny `prefersReducedMotion` flag would
+ * load - so even importing the tiny `prefersReducedMotion` flag would
  * drag GSAP into the compile graph. GSAP is loaded lazily in the nav
  * stagger effect below instead.
  */
@@ -378,7 +378,7 @@ function SidebarContent({
 
   // Role-specific featured modules (shown in the "For Your Role" nav section).
   // The Role Context card (KPI tiles + quick actions) and the role switcher
-  // dropdown have been REMOVED — the sidebar is now navigation-only,
+  // dropdown have been REMOVED - the sidebar is now navigation-only,
   // following the Vercel design pattern. Role switching lives in the header
   // profile dropdown, where users expect it.
   const roleFeatures = getRoleFeatures(currentRole.id);
@@ -402,7 +402,7 @@ function SidebarContent({
   );
 
   const navRef = useRef<HTMLElement>(null);
-  // Nav item stagger entrance — plays once on mount, not on every render.
+  // Nav item stagger entrance - plays once on mount, not on every render.
   // Scoped to the <nav> element so only sidebar nav items are targeted.
   // GSAP is lazy-loaded so it doesn't bloat the sidebar chunk's compile
   // graph (the static import was a contributor to the dev server OOM);
@@ -435,7 +435,7 @@ function SidebarContent({
   // modules are excluded so they don't appear twice (they're already in the
   // "For Your Role" section at the top of the sidebar). Computed inline (no
   // useMemo) because `featuredSet` is a fresh Set every render, so memoization
-  // wouldn't actually save work — and the React Compiler can't preserve it.
+  // wouldn't actually save work - and the React Compiler can't preserve it.
   const visibleSecondaryGroups = SECONDARY_GROUPS.map((g) => ({
     label: g.label,
     items: g.items.filter(
@@ -696,7 +696,7 @@ function SidebarContent({
 
       {/* "More" Sheet drawer - all secondary modules grouped by category.
           Opens from the left so it visually extends the sidebar.
-          CRITICAL: showCloseButton={false} + a manual X in the header —
+          CRITICAL: showCloseButton={false} + a manual X in the header -
           no double-X bug (Task 10 regression). */}
       <Sheet open={moreOpen} onOpenChange={setMoreOpen}>
         <SheetContent

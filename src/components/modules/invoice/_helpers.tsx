@@ -495,7 +495,7 @@ function contactEmail(name: string, customerName: string): string {
 
 export const CONTACTS: CustomerContact[] = CUSTOMERS.flatMap((c, i) => {
   const list: CustomerContact[] = [];
-  // Primary Billing contact — uses the customer's existing contact person.
+  // Primary Billing contact - uses the customer's existing contact person.
   list.push({
     id: `ct-${c.id}-b`,
     customerId: c.id,
@@ -530,7 +530,7 @@ export const CONTACTS: CustomerContact[] = CUSTOMERS.flatMap((c, i) => {
       isPrimary: false,
     });
   }
-  // Owner (every fifth customer — only the larger accounts).
+  // Owner (every fifth customer - only the larger accounts).
   if (i % 5 === 0) {
     list.push({
       id: `ct-${c.id}-x`,
@@ -595,7 +595,7 @@ export const ORIENTATIONS = [
   { id: "Landscape", label: "Landscape" },
 ] as const;
 
-// Accent is intentionally subtle — only a thin top rule + total row
+// Accent is intentionally subtle - only a thin top rule + total row
 // underline. Body stays monochrome.
 export const ACCENT_CHOICES = [
   { id: "monochrome", label: "Monochrome", description: "Reanzly default", hex: "#0a0a0a" },
@@ -760,7 +760,7 @@ export function emptyInvoiceMeta(): InvoiceMeta {
   };
 }
 
-// Compose seed meta for an existing invoice — assigns a default
+// Compose seed meta for an existing invoice - assigns a default
 // Billing contact (the customer's primary) and seeds the activity
 // timeline so the panel isn't empty on first open.
 export function seedInvoiceMeta(invoice: Invoice): InvoiceMeta {

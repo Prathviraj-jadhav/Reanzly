@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # =============================================================================
-# Reanzly — build a clean, deployable source ZIP.
+# Reanzly - build a clean, deployable source ZIP.
 #
 # Produces:  download/reanzly-source.zip
 #
 # The ZIP contains the full source tree MINUS node_modules, .next, the local
-# SQLite DB, logs, screenshots, and other dev-only artefacts — so it is small
+# SQLite DB, logs, screenshots, and other dev-only artefacts - so it is small
 # enough to upload to AWS CodeCommit / S3 / a build pipeline.
 #
 # Usage:

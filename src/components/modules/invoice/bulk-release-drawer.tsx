@@ -53,7 +53,7 @@ import {
  *
  * Applies the release flow to multiple invoices at once. Simplified vs the
  * single-invoice release drawer:
- *   • Recipients are deduped across the selected invoices' customers —
+ *   • Recipients are deduped across the selected invoices' customers -
  *     finance user picks one shared set (typically the billing contacts).
  *   • Single channel + single email subject/body for the whole batch.
  *   • Schedule (now / later) applies to every invoice in the batch.
@@ -70,7 +70,7 @@ interface BulkReleaseDrawerProps {
   onClose: () => void;
   /** The invoices selected when "Release Selected" was clicked. */
   invoices: Invoice[];
-  /** Release a batch — called once per invoice. */
+  /** Release a batch - called once per invoice. */
   onReleaseBatch?: (
     invoice: Invoice,
     payload: BulkReleasePayload,
@@ -111,7 +111,7 @@ export function BulkReleaseDrawer({
   );
 
   // Re-seed the form whenever the drawer opens or the invoice selection
-  // changes — defaults the recipient list to all billing-primary contacts
+  // changes - defaults the recipient list to all billing-primary contacts
   // across the selected invoices' customers.
   useEffect(() => {
     if (!open) return;
@@ -320,7 +320,7 @@ export function BulkReleaseDrawer({
               <AlertCircle className="mr-1 inline h-3 w-3" />
               {nonDraftInvoices.length} invoice
               {nonDraftInvoices.length === 1 ? " is" : "s are"} already Sent /
-              Paid — they will receive a re-send but their status won&apos;t change.
+              Paid - they will receive a re-send but their status won&apos;t change.
             </p>
           )}
         </div>
@@ -328,7 +328,7 @@ export function BulkReleaseDrawer({
         {/* Body */}
         <div className="flex-1 overflow-y-auto scrollbar-thin px-5 py-5">
           <div className="flex flex-col gap-4">
-            {/* Recipients — deduped across selected invoices' customers */}
+            {/* Recipients - deduped across selected invoices' customers */}
             <BulkReleaseSection
               icon={<Users className="h-4 w-4" />}
               label="Recipients"

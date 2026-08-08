@@ -1,11 +1,11 @@
 "use client";
 
 /**
- * MarketplaceSite — public, SEO-optimised orchestrator for the Reanzly
+ * MarketplaceSite - public, SEO-optimised orchestrator for the Reanzly
  * Vehicle Rental Marketplace.
  *
  * Renders at `marketingView === "marketplace"` (state-driven, NOT a real
- * Next.js route — the visitor only ever sees `/` in the URL bar). Composes:
+ * Next.js route - the visitor only ever sees `/` in the URL bar). Composes:
  *   MarketplaceNav → MarketplaceHero → MarketplaceFilters + VehicleGrid
  *                  → MarketplaceCTA → MarketingFooter
  *                  → (Find Loads tab) MarketplaceLoadsSection
@@ -13,15 +13,15 @@
  *                  → (Dialog) MarketplaceDetailDialog
  *
  * Two tabs:
- *   • "vehicles" — browse vehicle listings (60 seed listings)
- *   • "loads"    — browse open loads posted by shippers (12 seed loads)
+ *   • "vehicles" - browse vehicle listings (60 seed listings)
+ *   • "loads"    - browse open loads posted by shippers (12 seed loads)
  *
  * Activities supported:
  *   • Browse listings (filter, sort, search, hero search w/ origin/dest/type/date)
  *   • View listing details (Dialog with Overview / Specs / Owner / Reviews / Book tabs)
- *   • Request Booking (stub form in the Book tab — date range + driver + message)
- *   • Contact Owner (stub — toast confirmation)
- *   • Save Listing (bookmark — persisted to localStorage)
+ *   • Request Booking (stub form in the Book tab - date range + driver + message)
+ *   • Contact Owner (stub - toast confirmation)
+ *   • Save Listing (bookmark - persisted to localStorage)
  *   • List Your Vehicle (CTA → opens ListYourVehicleSheet form stub)
  *   • Post a Load (CTA → opens PostLoadSheet form stub)
  *   • Find Loads (tab switch → LoadsGrid with "Apply for this load" stub)
@@ -136,7 +136,7 @@ export function MarketplaceSite() {
       if (filterState.selectedRegions.length > 0 && !filterState.selectedRegions.includes(l.route.region)) return false;
       if (l.pricing.perDay > filterState.priceCeiling) return false;
       if (filterState.verifiedOnly && !l.owner.verified) return false;
-      // withDriverOnly — every listing supports both modes (with/without driver),
+      // withDriverOnly - every listing supports both modes (with/without driver),
       // so the toggle is a no-op filter. We keep it for future richness.
       if (originQ && !l.route.origin.toLowerCase().includes(originQ) && !l.route.preferredLanes.join(" ").toLowerCase().includes(originQ)) return false;
       if (destQ && !l.route.destination.toLowerCase().includes(destQ) && !l.route.preferredLanes.join(" ").toLowerCase().includes(destQ)) return false;
@@ -156,7 +156,7 @@ export function MarketplaceSite() {
     } else if (sort === "rating") {
       list.sort((a, b) => b.rating - a.rating || b.reviewCount - a.reviewCount);
     } else if (sort === "newest") {
-      // postedAt strings like "2 days ago" / "1 week ago" — sort by a rough
+      // postedAt strings like "2 days ago" / "1 week ago" - sort by a rough
       // ordinal so "1 hour ago" < "2 days ago" < "1 month ago".
       const ord = (s: string) => {
         if (s.includes("hour")) return 1;
@@ -167,7 +167,7 @@ export function MarketplaceSite() {
       };
       list.sort((a, b) => ord(a.postedAt) - ord(b.postedAt));
     } else {
-      // "recommended" — featured first, then verified, then rating, then reviews.
+      // "recommended" - featured first, then verified, then rating, then reviews.
       list.sort((a, b) => {
         if (!!a.featured !== !!b.featured) return a.featured ? -1 : 1;
         if (a.owner.verified !== b.owner.verified) return a.owner.verified ? -1 : 1;
@@ -222,7 +222,7 @@ export function MarketplaceSite() {
   // ---- SEO: title + meta description + OG + canonical ----
   useEffect(() => {
     const prevTitle = document.title;
-    document.title = "Reanzly Vehicle Rental Marketplace — Rent Trucks, Trailers, Tempo Travellers Pan-India";
+    document.title = "Reanzly Vehicle Rental Marketplace - Rent Trucks, Trailers, Tempo Travellers Pan-India";
 
     const setMeta = (selector: string, attr: string, value: string) => {
       let el = document.head.querySelector<HTMLMetaElement>(selector);
@@ -238,11 +238,11 @@ export function MarketplaceSite() {
 
     const description =
       "Rent trucks, trailers, tempo travellers and container vehicles pan-India on the Reanzly Vehicle Rental Marketplace. " +
-      `${MARKETPLACE_STATS.totalListings}+ verified vehicles from Indian logistics owners — Tata Ace, Eicher, Ashok Leyland, Tata Prima, Volvo, refrigerated, tipper, flatbed. ` +
+      `${MARKETPLACE_STATS.totalListings}+ verified vehicles from Indian logistics owners - Tata Ace, Eicher, Ashok Leyland, Tata Prima, Volvo, refrigerated, tipper, flatbed. ` +
       "Per day, per km, or per trip pricing. With or without driver. List your idle vehicle or post a load today.";
 
     setMeta('meta[name="description"]', "content", description);
-    setMeta('meta[property="og:title"]', "content", "Reanzly Vehicle Rental Marketplace — Rent Trucks, Trailers, Tempo Travellers Pan-India");
+    setMeta('meta[property="og:title"]', "content", "Reanzly Vehicle Rental Marketplace - Rent Trucks, Trailers, Tempo Travellers Pan-India");
     setMeta('meta[property="og:description"]', "content", description);
     setMeta('meta[property="og:type"]', "content", "website");
     setMeta('meta[property="og:site_name"]', "content", "Reanzly");
@@ -311,7 +311,7 @@ export function MarketplaceSite() {
     return VEHICLE_LISTINGS.find((l) => l.id === selectedListingId) ?? null;
   }, [selectedListingId]);
 
-  // Visually-hidden anchor links to vehicle-type sections — internal links
+  // Visually-hidden anchor links to vehicle-type sections - internal links
   // for crawlers. Each type section in <VehicleGrid /> can carry an id like
   // `#cat-tata-ace` for deep-linking. The anchors are hidden from sighted users.
   const vehicleTypeAnchors = useMemo(

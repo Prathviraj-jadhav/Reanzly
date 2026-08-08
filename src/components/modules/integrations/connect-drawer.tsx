@@ -290,7 +290,7 @@ function ConnectDrawerForm({
           </div>
         </div>
 
-        {/* Government entity banner — shown only for govt-category providers */}
+        {/* Government entity banner - shown only for govt-category providers */}
         {isGov && (
           <div className="border-b border-border bg-muted/20 px-5 py-3.5">
             <div className="flex items-start gap-2">
@@ -303,7 +303,7 @@ function ConnectDrawerForm({
                   {provider.entityIdLabel
                     ? `Entity identifier: ${provider.entityIdLabel}. Fields below capture the portal credentials required for sync.`
                     : "Configure the portal credentials below to enable sync."}
-                  {provider.requiresRegion && " Region / State is mandatory — determines the jurisdiction office."}
+                  {provider.requiresRegion && " Region / State is mandatory - determines the jurisdiction office."}
                 </p>
               </div>
             </div>
@@ -415,7 +415,7 @@ function ConnectDrawerForm({
           })}
         </div>
 
-        {/* Sync configuration — only shown for providers with syncConfig */}
+        {/* Sync configuration - only shown for providers with syncConfig */}
         {hasSyncConfig && (
           <div className="border-t border-border px-5 py-4">
             <div className="mb-2 flex items-center justify-between">

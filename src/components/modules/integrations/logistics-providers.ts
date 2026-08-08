@@ -3,7 +3,7 @@
 /* ============================================================
    Logistics-focused Integrations Catalog
    ------------------------------------------------------------
-   25+ providers specific to transportation & logistics —
+   25+ providers specific to transportation & logistics -
    fleet telematics, 3PL shipping, e-commerce channels, WMS,
    maps & routing, government compliance, fuel cards, banking,
    CRM, email, insurance. All real providers with real docs URLs
@@ -243,7 +243,7 @@ export const LOGISTICS_PLATFORM_PROVIDERS: IntegrationProvider[] = [
     id: "shiprocket",
     name: "Shiprocket",
     category: "logistics",
-    tagline: "India's largest 3PL aggregator — 17+ courier partners.",
+    tagline: "India's largest 3PL aggregator - 17+ courier partners.",
     description:
       "Shiprocket aggregates 17+ courier partners (Bluedart, Delhivery, Ecom Express, Xpressbees, etc.). Push orders from Reanzly to Shiprocket, auto-allocate the cheapest courier, print labels, and track shipments end-to-end.",
     region: "IN",
@@ -275,7 +275,7 @@ export const LOGISTICS_PLATFORM_PROVIDERS: IntegrationProvider[] = [
     id: "delhivery",
     name: "Delhivery Direct API",
     category: "logistics",
-    tagline: "Direct API with Delhivery — India's largest 3PL.",
+    tagline: "Direct API with Delhivery - India's largest 3PL.",
     description:
       "Bypass aggregators and integrate directly with Delhivery. Push orders, generate AWBs, schedule pickups, and pull tracking. Best for high-volume shippers (>5,000 parcels/day).",
     region: "IN",
@@ -665,7 +665,7 @@ export const MAPS_PROVIDERS: IntegrationProvider[] = [
     category: "maps",
     tagline: "Enterprise maps, routing, and truck-specific attributes.",
     description:
-      "HERE provides enterprise maps with truck-specific routing (height, weight, hazmat restrictions) — best for heavy vehicles and cross-border logistics.",
+      "HERE provides enterprise maps with truck-specific routing (height, weight, hazmat restrictions) - best for heavy vehicles and cross-border logistics.",
     region: "GLOBAL",
     docsUrl: "https://developer.here.com/",
     mark: "HE",
@@ -693,7 +693,7 @@ export const MAPS_PROVIDERS: IntegrationProvider[] = [
 
 /* ---------- Government & Compliance ---------- */
 
-/** States & UTs of India — shared by the govt portal providers below. */
+/** States & UTs of India - shared by the govt portal providers below. */
 export const IN_STATES = [
   { value: "AN", label: "Andaman & Nicobar Islands" },
   { value: "AP", label: "Andhra Pradesh" },
@@ -778,7 +778,7 @@ export const GOV_PROVIDERS: IntegrationProvider[] = [
     id: "icegate",
     name: "ICEGATE (Customs)",
     category: "gov",
-    tagline: "Indian Customs EDI — filing, shipping bill, BOE status, RoDTEP.",
+    tagline: "Indian Customs EDI - filing, shipping bill, BOE status, RoDTEP.",
     description:
       "ICEGATE is the Indian Customs EDI System operated by CBIC. File shipping bills, bill of entries, track status, pull customs duty payment receipts, claim RoDTEP and RoSCTL scrips, and reconcile EGM/IGM against your lorry receipts. Essential for cross-border logistics and CHA workflows.",
     region: "IN",
@@ -824,7 +824,7 @@ export const GOV_PROVIDERS: IntegrationProvider[] = [
     category: "gov",
     tagline: "Pull government-issued documents with user consent.",
     description:
-      "DigiLocker is the official document wallet by MeitY. With user consent, pull Aadhaar, PAN, driving licence, RC, and insurance certificates — eliminating manual uploads. Driver onboarding becomes a one-tap flow instead of a 7-document scan queue.",
+      "DigiLocker is the official document wallet by MeitY. With user consent, pull Aadhaar, PAN, driving licence, RC, and insurance certificates - eliminating manual uploads. Driver onboarding becomes a one-tap flow instead of a 7-document scan queue.",
     region: "IN",
     docsUrl: "https://apis.digitalgov.in/",
     mark: "DL",
@@ -864,7 +864,7 @@ export const GOV_PROVIDERS: IntegrationProvider[] = [
     category: "gov",
     tagline: "File GSTR-1/3B, pull GSTR-2A/2B, reconcile ITC, pay tax.",
     description:
-      "GSTN is the backbone of the GST regime. File GSTR-1 (outward supplies), GSTR-3B (monthly summary), and GSTR-9 (annual return) directly from Reanzly. Auto-pull GSTR-2A/2B to reconcile Input Tax Credit (ITC) against your purchase register — unmatched ITC rows are surfaced for vendor follow-up. Pay tax via the integrated GST portal and pull challan + ARN receipts back into the ledger.",
+      "GSTN is the backbone of the GST regime. File GSTR-1 (outward supplies), GSTR-3B (monthly summary), and GSTR-9 (annual return) directly from Reanzly. Auto-pull GSTR-2A/2B to reconcile Input Tax Credit (ITC) against your purchase register - unmatched ITC rows are surfaced for vendor follow-up. Pay tax via the integrated GST portal and pull challan + ARN receipts back into the ledger.",
     region: "IN",
     docsUrl: "https://www.gst.gov.in/",
     mark: "GS",
@@ -939,7 +939,7 @@ export const GOV_PROVIDERS: IntegrationProvider[] = [
       { id: "epfoUsername", label: "EPFO Username", type: "text", required: true },
       { id: "epfoPassword", label: "EPFO Password", type: "password", required: true, secret: true },
       { id: "state", label: "State / UT", type: "select", required: true, options: IN_STATES },
-      { id: "uanSeed", label: "UAN Seed Range (optional)", type: "text", placeholder: "100000000000-100000000999", helpText: "Optional — used to bulk-allot UANs for new joiners." },
+      { id: "uanSeed", label: "UAN Seed Range (optional)", type: "text", placeholder: "100000000000-100000000999", helpText: "Optional - used to bulk-allot UANs for new joiners." },
     ],
     capabilities: [
       { label: "ECR filing", supported: true },
@@ -1022,7 +1022,7 @@ export const GOV_PROVIDERS: IntegrationProvider[] = [
     category: "gov",
     tagline: "File 24Q/26Q/27Q, generate Form 16/16A, view challan & defaults.",
     description:
-      "TRACES is the TDS Reconciliation Analysis and Correction Enabling System by CBDT. File quarterly TDS returns — 24Q (salary), 26Q (non-salary), 27Q (non-resident) — and 27EQ (TCS). Auto-generate Form 16 (salary) and Form 16A (non-salary) for employees and vendors. Reconcile challans against the OLTAS (Online Tax Accounting System) pull and respond to default notices.",
+      "TRACES is the TDS Reconciliation Analysis and Correction Enabling System by CBDT. File quarterly TDS returns - 24Q (salary), 26Q (non-salary), 27Q (non-resident) - and 27EQ (TCS). Auto-generate Form 16 (salary) and Form 16A (non-salary) for employees and vendors. Reconcile challans against the OLTAS (Online Tax Accounting System) pull and respond to default notices.",
     region: "IN",
     docsUrl: "https://www.tdscpc.gov.in/",
     mark: "TR",
@@ -1071,9 +1071,9 @@ export const GOV_PROVIDERS: IntegrationProvider[] = [
     id: "ptax",
     name: "Professional Tax (State Portal)",
     category: "gov",
-    tagline: "State-wise PT filing — MH, KA, TN, DL, WB, GJ, RJ and more.",
+    tagline: "State-wise PT filing - MH, KA, TN, DL, WB, GJ, RJ and more.",
     description:
-      "Professional Tax is levied by state governments on salaried employees and professionals. Each state has its own portal, return cycle, and challan format. Reanzly consolidates every state into one connect point — file monthly returns, generate challans, enroll new employees, and amend your RC. Multi-instance lets you maintain separate connections per state for branches across India.",
+      "Professional Tax is levied by state governments on salaried employees and professionals. Each state has its own portal, return cycle, and challan format. Reanzly consolidates every state into one connect point - file monthly returns, generate challans, enroll new employees, and amend your RC. Multi-instance lets you maintain separate connections per state for branches across India.",
     region: "IN",
     docsUrl: "https://www.mahagst.gov.in/",
     mark: "PT",
@@ -1302,7 +1302,7 @@ export const GOV_PROVIDERS: IntegrationProvider[] = [
   },
   {
     id: "e-way-bill-gov",
-    name: "e-Way Bill (NIC) — Govt Portal",
+    name: "e-Way Bill (NIC) - Govt Portal",
     category: "gov",
     tagline: "Generate, cancel, extend, verify e-Way Bills end-to-end.",
     description:
@@ -1494,7 +1494,7 @@ export const FUEL_PROVIDERS: IntegrationProvider[] = [
     id: "indian-oil-fleet",
     name: "IndianOil Fleet Card",
     category: "fuel",
-    tagline: "Fleet card for IOC pumps — controlled fuel purchases.",
+    tagline: "Fleet card for IOC pumps - controlled fuel purchases.",
     description:
       "IndianOil XTRAPOWER fleet card lets drivers refuel at any IOC pump. Reanzly pulls transaction data (litres, amount, odometer, pump location) and reconciles against vehicle trips.",
     region: "IN",
@@ -1659,7 +1659,7 @@ export const EMAIL_PROVIDERS: IntegrationProvider[] = [
     id: "aws-ses",
     name: "AWS SES",
     category: "extension",
-    tagline: "Amazon Simple Email Service — cheapest scale email.",
+    tagline: "Amazon Simple Email Service - cheapest scale email.",
     description:
       "AWS SES is the cheapest transactional email at scale (₹0.08/email). Best for high-volume notifications. Pull bounce/complaint events via SNS.",
     region: "GLOBAL",
@@ -1793,7 +1793,7 @@ export const INSURANCE_PROVIDERS: IntegrationProvider[] = [
     category: "extension",
     tagline: "Vehicle insurance + transit/cargo cover via API.",
     description:
-      "ICICI Lombard API for commercial vehicle insurance and marine cargo cover. Issue, renew, and claim — with transit insurance for shipments.",
+      "ICICI Lombard API for commercial vehicle insurance and marine cargo cover. Issue, renew, and claim - with transit insurance for shipments.",
     region: "IN",
     docsUrl: "https://www.icicilombard.com/partner-api",
     mark: "IL",
@@ -2111,7 +2111,7 @@ export const LOGISTICS_SEED_CONNECTIONS: LogisticsSeedConnection[] = [
     connectedAt: new Date(Date.now() - 6 * 86400000).toISOString(),
     lastSyncAt: new Date(Date.now() - 2 * 3600000).toISOString(),
     lastSyncStatus: "ok",
-    lastSyncMessage: "Sandbox — 4 test orders pushed today",
+    lastSyncMessage: "Sandbox - 4 test orders pushed today",
   },
   {
     providerId: "vahan",

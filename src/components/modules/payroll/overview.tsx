@@ -42,7 +42,7 @@ import {
 } from "./_helpers";
 
 const EMPTY_CYCLE: PayCycle = {
-  id: "", cycleNo: "—", month: "", status: "Draft", locked: false,
+  id: "", cycleNo: "-", month: "", status: "Draft", locked: false,
   headcount: 0, grossTotal: 0, deductionsTotal: 0, netTotal: 0, employerContribTotal: 0, audit: [],
 };
 

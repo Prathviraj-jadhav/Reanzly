@@ -1,11 +1,11 @@
 "use client";
 
 /**
- * MarketplaceLoadsSection — the "Find Loads" tab content.
+ * MarketplaceLoadsSection - the "Find Loads" tab content.
  *
  * Rendered when the visitor clicks "Find Loads" in the MarketplaceNav.
  * Composes:
- *   • A hero-style header with H1 "Find Loads Pan-India — Browse Open Freight
+ *   • A hero-style header with H1 "Find Loads Pan-India - Browse Open Freight
  *     from Verified Shippers" + subhead + 3-tile stats strip + a "Post a load"
  *     CTA for shippers who don't see the lane they need.
  *   • The LoadsGrid from marketplace-grid.tsx with the seed LOAD_LISTINGS.
@@ -15,12 +15,12 @@
  * two tabs feel like siblings.
  *
  * Props:
- *   loads           — the LOAD_LISTINGS seed array
- *   onApply         — called with the LoadListing when the user clicks
+ *   loads           - the LOAD_LISTINGS seed array
+ *   onApply         - called with the LoadListing when the user clicks
  *                     "Apply for this load" (the parent toasts a confirmation)
- *   onPostLoad      — opens the PostLoadSheet (when the visitor is a shipper
+ *   onPostLoad      - opens the PostLoadSheet (when the visitor is a shipper
  *                     who can't find a matching open load)
- *   onBrowseVehicles — flips back to the Vehicles tab (tertiary CTA)
+ *   onBrowseVehicles - flips back to the Vehicles tab (tertiary CTA)
  */
 
 import {
@@ -42,7 +42,7 @@ export interface MarketplaceLoadsSectionProps {
 export function MarketplaceLoadsSection({
   loads, onApply, onPostLoad, onBrowseVehicles,
 }: MarketplaceLoadsSectionProps) {
-  // Aggregate stats — total budget across open loads, distinct shippers,
+  // Aggregate stats - total budget across open loads, distinct shippers,
   // distinct origin cities.
   const totalBudget = loads.reduce((s, l) => s + l.budget, 0);
   const distinctShippers = new Set(loads.map((l) => l.shipper)).size;
@@ -75,17 +75,17 @@ export function MarketplaceLoadsSection({
             </span>
           </div>
 
-          {/* H1 — keyword-rich */}
+          {/* H1 - keyword-rich */}
           <h1
             id="loads-hero-title"
             className="mx-auto max-w-3xl text-[32px] font-medium leading-[1.1] tracking-tight text-foreground sm:text-[42px] lg:text-[40px]"
           >
-            Find Loads Pan-India — Browse Open Freight from Verified Shippers
+            Find Loads Pan-India - Browse Open Freight from Verified Shippers
           </h1>
 
           {/* Subhead */}
           <p className="mx-auto mt-5 max-w-2xl text-[14px] leading-relaxed text-muted-foreground sm:text-[15px]">
-            {MARKETPLACE_STATS.openLoads} open loads from Indian shippers —
+            {MARKETPLACE_STATS.openLoads} open loads from Indian shippers -
             Tata Steel, Reliance Retail, Sun Pharma, Amazon, ITC, Asian Paints
             and more. Apply to carry, get escrow-protected payment on delivery.
           </p>
@@ -130,11 +130,11 @@ export function MarketplaceLoadsSection({
           <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
             <div>
               <h2 className="text-[22px] font-medium tracking-tight text-foreground">
-                Open loads — apply to carry
+                Open loads - apply to carry
               </h2>
               <p className="mt-1 text-[13px] text-muted-foreground">
                 Posted by verified Indian shippers. Click <span className="font-medium text-foreground">Apply for this load</span> to
-                send your bid — the shipper gets your contact + vehicle spec
+                send your bid - the shipper gets your contact + vehicle spec
                 instantly.
               </p>
             </div>
@@ -167,7 +167,7 @@ export function MarketplaceLoadsSection({
 }
 
 /* ============================================================
-   StatCell — single tile in the hero stats strip
+   StatCell - single tile in the hero stats strip
    ============================================================ */
 function StatCell({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (

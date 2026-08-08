@@ -342,7 +342,7 @@ const CAMPAIGN_TITLES: { name: string; channel: Channel; goal: string }[] = [
   { name: "Customer Win-back Campaign", channel: "Email", goal: "Re-engage customers inactive for 90+ days" },
   { name: "Driver Recruitment Drive", channel: "SMS", goal: "Recruit 50 HMV drivers for Q4 ramp" },
   { name: "Seasonal Capacity Push", channel: "Email", goal: "Fill surplus fleet capacity before quarter-end" },
-  { name: "Monthly Newsletter — October", channel: "Email", goal: "Industry updates + Reanzly product news" },
+  { name: "Monthly Newsletter - October", channel: "Email", goal: "Industry updates + Reanzly product news" },
   { name: "Festive WhatsApp Wishes", channel: "WhatsApp", goal: "Customer relationship touchpoint for Diwali" },
   { name: "Rate Card Update Notification", channel: "SMS", goal: "Notify customers of fuel-adjusted rate revision" },
   { name: "POD Collection Reminder", channel: "WhatsApp", goal: "Reduce outstanding PODs through automated nudges" },

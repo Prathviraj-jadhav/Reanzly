@@ -252,7 +252,7 @@ export function POList({ purchaseOrders, loaded, onCreate, onUpdate }: POListPro
     <div className="flex flex-col gap-5">
       <PageHeader
         title="Purchase"
-        description="Raise purchase orders for fleet supplies — tyres, spare parts, fuel, lubricants, workshop tools, safety equipment and office supplies. Track receipts and vendor bills against each PO."
+        description="Raise purchase orders for fleet supplies - tyres, spare parts, fuel, lubricants, workshop tools, safety equipment and office supplies. Track receipts and vendor bills against each PO."
         actions={
           <>
             <Btn icon={<Download className="h-3.5 w-3.5" />} onClick={() => toastSuccess("Exporting POs", "CSV file generated")} aria-label="Export">

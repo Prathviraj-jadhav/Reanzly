@@ -1,19 +1,19 @@
 "use client";
 
 /**
- * PostLoadSheet — slide-in Sheet (right, max-w-xl) with a stub form for
+ * PostLoadSheet - slide-in Sheet (right, max-w-xl) with a stub form for
  * shippers to post a load that needs carrying.
  *
  * This is a stub: the submit handler toasts a success message and resets
  * the form. No real API call is made.
  *
  * Form sections:
- *   1. Shipper info — name, phone, email
- *   2. Load origin & destination — origin city, destination city, distance
+ *   1. Shipper info - name, phone, email
+ *   2. Load origin & destination - origin city, destination city, distance
  *      (auto-suggested based on common lanes), pickup date, delivery date
- *   3. Cargo details — weight (tonnes), vehicle type required (select),
+ *   3. Cargo details - weight (tonnes), vehicle type required (select),
  *      body type required (select), description (textarea)
- *   4. Budget — INR (with hint that owners can bid above/below)
+ *   4. Budget - INR (with hint that owners can bid above/below)
  *
  * Accessibility:
  *   • SheetTitle is visible (not sr-only).
@@ -47,7 +47,7 @@ export interface PostLoadSheetProps {
 
 const BODY_TYPE_KEYS: BodyType[] = ["open", "closed", "container", "refrigerated", "tipper", "tanker"];
 
-// Common lane distances for auto-suggest (kept terse — the user can override).
+// Common lane distances for auto-suggest (kept terse - the user can override).
 const LANE_DISTANCES: Record<string, number> = {
   "Mumbai-Pune": 148, "Pune-Mumbai": 148,
   "Mumbai-Ahmedabad": 525, "Ahmedabad-Mumbai": 525,
@@ -292,7 +292,7 @@ export function PostLoadSheet({ open, onOpenChange }: PostLoadSheetProps) {
 }
 
 /* ============================================================
-   FormSection — section with icon + title + required marker
+   FormSection - section with icon + title + required marker
    ============================================================ */
 function FormSection({
   icon, title, required, children,
@@ -315,7 +315,7 @@ function FormSection({
 }
 
 /* ============================================================
-   Field — labelled input wrapper
+   Field - labelled input wrapper
    ============================================================ */
 function Field({
   label, required, children,

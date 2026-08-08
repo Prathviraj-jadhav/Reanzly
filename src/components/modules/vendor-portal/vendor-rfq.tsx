@@ -199,7 +199,7 @@ export function VendorRFQ() {
         } else {
           toastInfo(
             "Quote not available",
-            `${row.id} is ${row.status.toLowerCase()} — quotes can only be submitted on Pending or Quoted RFQs.`,
+            `${row.id} is ${row.status.toLowerCase()} - quotes can only be submitted on Pending or Quoted RFQs.`,
           );
         }
       },
@@ -587,7 +587,7 @@ function SubmitQuoteSheet({ rfq, onClose, onSubmit }: SubmitQuoteSheetProps) {
                 </div>
                 <div className="mt-2 flex items-center gap-1.5 text-[10px] text-muted-foreground">
                   <TrendingUp className="h-3 w-3" />
-                  <span>Submit early — RFQs from {rfq.issuedBy} are typically decided within 48 hours.</span>
+                  <span>Submit early - RFQs from {rfq.issuedBy} are typically decided within 48 hours.</span>
                 </div>
               </div>
             </div>

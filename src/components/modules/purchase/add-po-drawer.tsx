@@ -378,7 +378,7 @@ export function AddPODrawer({ open, onClose, onAdd }: AddPODrawerProps) {
                 <Textarea
                   value={form.notes}
                   onChange={(e) => update("notes", e.target.value)}
-                  placeholder="Optional instructions for the vendor — batch number, special delivery notes…"
+                  placeholder="Optional instructions for the vendor - batch number, special delivery notes…"
                   className="min-h-[80px] rounded-[5px] text-[12px] bg-background"
                 />
               </div>

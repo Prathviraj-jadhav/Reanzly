@@ -101,7 +101,7 @@ export function InvoiceList({
     new Set(),
   );
   const [dateRange, setDateRange] = useState<string>("all");
-  // Task 15-d: top-level chip filter — All / Draft / Sent / Paid / Templates.
+  // Task 15-d: top-level chip filter - All / Draft / Sent / Paid / Templates.
   // The first four pre-apply the status filter; Templates swaps the body for
   // the saved-templates grid.
   const [viewMode, setViewMode] = useState<"all" | "Draft" | "Sent" | "Paid" | "Templates">("all");
@@ -639,7 +639,7 @@ export function InvoiceList({
   ];
 
   const bulkActions = [
-    // Task 15-d: bulk release — opens the dedicated bulk release drawer for
+    // Task 15-d: bulk release - opens the dedicated bulk release drawer for
     // >1 selected invoices; falls back to the single-invoice drawer for 1.
     ...(onBulkRelease || onRelease
       ? [
@@ -662,7 +662,7 @@ export function InvoiceList({
           },
         ]
       : []),
-    // Task 15-d: bulk Mark as Sent — quick toggle without the release drawer.
+    // Task 15-d: bulk Mark as Sent - quick toggle without the release drawer.
     ...(onUpdateStatus
       ? [
           {
@@ -681,7 +681,7 @@ export function InvoiceList({
           },
         ]
       : []),
-    // Task 15-d: bulk assign — opens a toast pointing the user to per-row
+    // Task 15-d: bulk assign - opens a toast pointing the user to per-row
     // assignment via the detail view (since assignees are contact-specific).
     {
       label: "Assign to Contact",
@@ -773,7 +773,7 @@ export function InvoiceList({
         }
       />
 
-      {/* Task 15-d: top-level chip filter — All / Draft / Sent / Paid / Templates.
+      {/* Task 15-d: top-level chip filter - All / Draft / Sent / Paid / Templates.
           The chip bar lets finance users pivot between status buckets and the
           saved-templates grid without dropping into the multi-select filter. */}
       <div className="flex flex-wrap items-center gap-1.5">

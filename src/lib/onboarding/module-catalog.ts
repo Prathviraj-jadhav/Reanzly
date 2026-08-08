@@ -1,5 +1,5 @@
 /**
- * Smart Onboarding — single source of truth for the module catalog,
+ * Smart Onboarding - single source of truth for the module catalog,
  * business-type → recommended-module mapping, and subscription-model
  * definitions. Shared by the self-serve signup wizard
  * (src/components/auth/signup-screen.tsx) and the SuperAdmin assisted
@@ -321,7 +321,7 @@ export const RECOMMENDED_PACKS: Record<
   "Freight Broker": {
     label: "Freight Broker",
     rationale:
-      "Freight brokers don't own fleets — they resell capacity. They need the broker console, CRM, billing and a lean operations layer.",
+      "Freight brokers don't own fleets - they resell capacity. They need the broker console, CRM, billing and a lean operations layer.",
     moduleIds: [
       "dashboard",
       "broker-console",
@@ -340,7 +340,7 @@ export const RECOMMENDED_PACKS: Record<
   Warehouse: {
     label: "Warehouse Operator",
     rationale:
-      "Warehouse operators live in the WMS — inbound, storage, outbound — plus billing and a light operations layer.",
+      "Warehouse operators live in the WMS - inbound, storage, outbound - plus billing and a light operations layer.",
     moduleIds: [
       "dashboard",
       "warehouse",
@@ -382,7 +382,7 @@ export const RECOMMENDED_PACKS: Record<
   "Fleet Owner": {
     label: "Fleet Owner",
     rationale:
-      "Fleet owners optimise asset utilisation — fleet, GPS, fuel, maintenance and driver management dominate.",
+      "Fleet owners optimise asset utilisation - fleet, GPS, fuel, maintenance and driver management dominate.",
     moduleIds: [
       "dashboard",
       "vehicles",

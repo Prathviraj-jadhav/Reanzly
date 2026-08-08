@@ -77,11 +77,11 @@ export function PayrollModule() {
     <div className="flex min-h-full flex-col gap-4">
       <PageHeader
         title="Payroll"
-        description="Standalone payroll processing — cycles, salary structures, payslips, statutory deductions (PF / ESI / TDS / PT), bank advice, reimbursements, bonuses and loans."
+        description="Standalone payroll processing - cycles, salary structures, payslips, statutory deductions (PF / ESI / TDS / PT), bank advice, reimbursements, bonuses and loans."
         meta={[
           { label: "Owner", value: "Reena Mehta · HR Manager" },
           { label: "Approver", value: "Vikram Kapoor · Owner" },
-          { label: "Cycle", value: kpis.currentCycleMonth ? formatMonthYear(kpis.currentCycleMonth) : "—" },
+          { label: "Cycle", value: kpis.currentCycleMonth ? formatMonthYear(kpis.currentCycleMonth) : "-" },
         ]}
         actions={
           <span className="hidden text-[11px] text-muted-foreground tabular sm:inline">
@@ -93,7 +93,7 @@ export function PayrollModule() {
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         <KpiTile icon={<Coins className="h-3.5 w-3.5" />} label="Payroll Cost" value={formatINRCompact(kpis.totalPayrollCost)} hint="gross + employer contrib" />
         <KpiTile icon={<Banknote className="h-3.5 w-3.5" />} label="Net Payable" value={formatINRCompact(kpis.netPayable)} hint={kpis.currentCycleMonth ? `for ${formatMonthYear(kpis.currentCycleMonth)}` : "no cycle yet"} />
-        <KpiTile icon={<CalendarClock className="h-3.5 w-3.5" />} label="Current Cycle" value={kpis.currentCycleMonth ? formatMonthYear(kpis.currentCycleMonth) : "—"} hint="latest" />
+        <KpiTile icon={<CalendarClock className="h-3.5 w-3.5" />} label="Current Cycle" value={kpis.currentCycleMonth ? formatMonthYear(kpis.currentCycleMonth) : "-"} hint="latest" />
         <KpiTile icon={<Clock className="h-3.5 w-3.5" />} label="Pending Approvals" value={String(kpis.pendingApprovals)} hint="draft + hold payslips" />
         <KpiTile icon={<AlertTriangle className="h-3.5 w-3.5" />} label="Statutory Due" value={String(upcomingDue)} hint="pending + overdue returns" />
         <KpiTile icon={<Users className="h-3.5 w-3.5" />} label="Headcount" value={String(kpis.headcount)} hint="on payroll" />

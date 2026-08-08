@@ -17,7 +17,7 @@ import LocomotiveScroll from "locomotive-scroll";
  *   const containerRef = useLocomotive();
  *   return <div ref={containerRef} data-scroll-container>...</div>
  *
- * IMPORTANT: Do NOT use this on the app shell — the app uses
+ * IMPORTANT: Do NOT use this on the app shell - the app uses
  * `overflow-y-auto` containers which conflict with Lenis's transform-based
  * smooth scroll. Only use on standalone marketing pages if needed.
  */

@@ -672,6 +672,37 @@ behavior across the other user roles.
       below) get real server-side permission checks from the start. The
       existing gap is a known, deliberately-deferred item, not silently
       ignored.
+- [x] **Built real DB-first schema + CRUD for POD, Services, Quality,
+      Purchase** - all 4 previously mock/missing-model modules now have
+      real Prisma models (`Pod` extended to match the full
+      `ProofOfDelivery` UI shape + `PodAuditEntry`; `ServiceTemplate` new,
+      `ServiceProgram` extended with `templateId` to link per-vehicle
+      instances back to a template; `QualityCheck` new; `PurchaseOrder`
+      new - nested collections as JSON-stringified columns, matching the
+      existing `documentsJson`/`argsJson` precedent since this schema has
+      no line-item-table precedent even for Invoice), real session/company
+      -scoped API routes, and real server-side permission checks via a new
+      `src/lib/permissions.ts` (`hasModuleAccess`/`requireModuleAccess`,
+      falling back from a cluster-tab leaf id like "quality" to its
+      cluster-parent permission like "vehicles" so the check matches what
+      the sidebar already grants). Verified via curl (401 unauth, 403
+      wrong-role, 201 create with correct paise math) and a live browser
+      pass logged in as owner - all 4 render real records, and PATCH
+      actions (POD submission status, Quality Cancel Check, PO Cancel PO)
+      round-trip through the UI into the DB and back.
+      Found and fixed a real bug during this pass: the Purchase module was
+      completely unreachable from the UI. `CLUSTER_BY_MODULE` in
+      `router.tsx` is built by flattening every cluster into one `Map`
+      keyed by module id; `"vendors"` was a member of both its own 2-tab
+      `[vendors, purchase]` cluster and the later-defined CRM cluster, so
+      the CRM cluster silently won the Map collision and Purchase's tab
+      strip never rendered, with no sidebar entry either. Fixed by folding
+      Purchase into the CRM cluster as a tab alongside Vendors and
+      removing the colliding standalone cluster.
+      Also flagged, not built (Tier-2, explicitly out of scope for this
+      pass): a "link service template to vehicle" flow, so the Service
+      Due tab's real `ServiceProgram` (per-vehicle instance) query
+      currently returns an honest empty list rather than fabricated rows.
 - [x] **Rean's local engine was answering from frozen mock data, not the
       real database** - all 12 intent handlers in `local-engine.ts`
       (invoices, revenue, trips, fleet, fuel, issues, compliance, drivers,
@@ -708,9 +739,9 @@ behavior across the other user roles.
       back). The chat panel's search bar already had rotating witty
       placeholders (`savage-placeholders.ts`, pre-existing) - not the same
       as role/data-personalized content, which is still open.
-- [ ] **Real DB-first schema for POD, Services, Quality, Purchase** - not
-      started this pass; the standing directive above unblocks it but the
-      actual schema design + CRUD build-out hasn't begun.
+- [x] **Real DB-first schema for POD, Services, Quality, Purchase** - done,
+      see the completed entry above (search "Built real DB-first schema +
+      CRUD for POD, Services, Quality, Purchase").
 
 ## Sidebar/navigation restructure (2026-08-07)
 

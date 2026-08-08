@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * App Store module helpers — icon-name resolution for the
+ * App Store module helpers - icon-name resolution for the
  * ONBOARDING_MODULES catalog (src/lib/onboarding/module-catalog.ts),
  * INR formatting, and a small "is this id actually routable" guard so
  * the Open button never crashes on a catalog id that doesn't map to a
@@ -112,7 +112,7 @@ export const APP_STORE_CATEGORIES: OnboardingModule["category"][] = [
 // A module is "installed" if selectedModules is undefined (demo/quick-login
 // sessions = everything unlocked), or the id (or the "*" wildcard) is
 // present in selectedModules. Mirrors toggleModuleProvisioned's own notion
-// of "current" in src/lib/store/app-store.ts — read-only here, no new
+// of "current" in src/lib/store/app-store.ts - read-only here, no new
 // store state.
 export function isModuleInstalled(authUser: AuthUser | null, moduleId: string): boolean {
   if (!authUser) return false;

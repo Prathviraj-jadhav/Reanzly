@@ -1,5 +1,5 @@
 /**
- * Directory listings — public Logistics Partner Directory data.
+ * Directory listings - public Logistics Partner Directory data.
  *
  * IndiaMART / Zomato-style public listing of logistics companies on the
  * Reanzly network. Rendered by `marketing-directory.tsx` on the landing page

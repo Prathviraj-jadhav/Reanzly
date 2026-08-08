@@ -60,15 +60,15 @@ export function InvoiceModule() {
       .finally(() => setLoaded(true));
   }, []);
 
-  // Saved invoice templates — start with the curated seed list (Task 15-d).
+  // Saved invoice templates - start with the curated seed list (Task 15-d).
   const [savedTemplates, setSavedTemplates] = useState<SavedInvoiceTemplate[]>(
     () => SAVED_INVOICE_TEMPLATES.map((t) => ({ ...t })),
   );
 
-  // Drawer targets — Release + Designer + BulkRelease (Task 15-d).
+  // Drawer targets - Release + Designer + BulkRelease (Task 15-d).
   const [designerTarget, setDesignerTarget] = useState<Invoice | null>(null);
   const [releaseTarget, setReleaseTarget] = useState<Invoice | null>(null);
-  // Bulk release target — a batch of invoices selected from the list.
+  // Bulk release target - a batch of invoices selected from the list.
   const [bulkReleaseTarget, setBulkReleaseTarget] = useState<Invoice[]>([]);
 
   const handleUpdate = useCallback(async (id: string, patch: Partial<Invoice>): Promise<boolean> => {
@@ -88,7 +88,7 @@ export function InvoiceModule() {
     return true;
   }, []);
 
-  // Bulk status patch (Task 15-d) — used by the list's bulk "Mark as Sent"
+  // Bulk status patch (Task 15-d) - used by the list's bulk "Mark as Sent"
   // and bulk "Release Selected" actions. One real PATCH per invoice - a
   // dedicated bulk endpoint isn't worth it for an action this infrequent.
   const handleUpdateStatus = useCallback(
@@ -149,7 +149,7 @@ export function InvoiceModule() {
       }
       const { invoice } = await res.json();
       setInvoices((prev) => [invoice, ...prev]);
-      // Seed meta for the new invoice — preserve the assigned contacts the
+      // Seed meta for the new invoice - preserve the assigned contacts the
       // user picked in the Add Invoice drawer (Task 15-d).
       const seeded = seedInvoiceMeta(invoice);
       if (assignedContactIds && assignedContactIds.length > 0) {
@@ -377,7 +377,7 @@ export function InvoiceModule() {
     return m?.designConfig ?? { ...DEFAULT_DESIGN_CONFIG };
   }, [designerTarget, invoiceMeta]);
 
-  // The release drawer's default recipients — the invoice's assigned
+  // The release drawer's default recipients - the invoice's assigned
   // contacts, falling back to the customer's primary billing contact.
   const releaseDefaultRecipients = useMemo<string[] | undefined>(() => {
     if (!releaseTarget) return undefined;

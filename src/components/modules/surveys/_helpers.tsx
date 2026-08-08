@@ -179,14 +179,14 @@ function generateResponses(surveyIdx: number, audience: SurveyAudience, count: n
           value = (surveyIdx + i) % 3 === 0 ? "No" : "Yes";
           break;
         case "Multiple Choice":
-          value = q.options?.[(i + surveyIdx) % q.options.length] ?? "—";
+          value = q.options?.[(i + surveyIdx) % q.options.length] ?? "-";
           break;
         case "Text":
           value = [
             "Smooth experience overall, team was responsive.",
             "Delivery was on time but POD collection took 2 days.",
             "Driver was professional and helpful.",
-            "Invoicing had a minor discrepancy — resolved quickly.",
+            "Invoicing had a minor discrepancy - resolved quickly.",
             "Communication could be more proactive.",
           ][i % 5];
           break;

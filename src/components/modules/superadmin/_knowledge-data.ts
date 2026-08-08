@@ -49,7 +49,7 @@ export const ARTICLE_CATEGORIES: KnowledgeCategory[] = [
 export const SEED_ARTICLES: KnowledgeArticle[] = [
   {
     id: "kb-001",
-    title: "Onboarding a new logistics org — 14-day checklist",
+    title: "Onboarding a new logistics org - 14-day checklist",
     category: "Onboarding",
     author: "Kavya Nair",
     authorRole: "Onboarding Specialist",
@@ -64,7 +64,7 @@ export const SEED_ARTICLES: KnowledgeArticle[] = [
   },
   {
     id: "kb-002",
-    title: "Plan change & proration — billing math reference",
+    title: "Plan change & proration - billing math reference",
     category: "Billing",
     author: "Neha Gupta",
     authorRole: "Billing Specialist",
@@ -79,7 +79,7 @@ export const SEED_ARTICLES: KnowledgeArticle[] = [
   },
   {
     id: "kb-003",
-    title: "Refund runbook — when and how to issue a refund",
+    title: "Refund runbook - when and how to issue a refund",
     category: "Billing",
     author: "Neha Gupta",
     authorRole: "Billing Specialist",
@@ -109,7 +109,7 @@ export const SEED_ARTICLES: KnowledgeArticle[] = [
   },
   {
     id: "kb-005",
-    title: "Handling an org suspension — high-impact approval",
+    title: "Handling an org suspension - high-impact approval",
     category: "Support",
     author: "Sanjay Rao",
     authorRole: "Security Officer",
@@ -124,7 +124,7 @@ export const SEED_ARTICLES: KnowledgeArticle[] = [
   },
   {
     id: "kb-006",
-    title: "Production incident response — Sev-1 runbook",
+    title: "Production incident response - Sev-1 runbook",
     category: "Runbooks",
     author: "Vivek Iyer",
     authorRole: "Developer",
@@ -139,7 +139,7 @@ export const SEED_ARTICLES: KnowledgeArticle[] = [
   },
   {
     id: "kb-007",
-    title: "Rean SLM agent loop trace — debugging guide",
+    title: "Rean SLM agent loop trace - debugging guide",
     category: "Engineering",
     author: "Vivek Iyer",
     authorRole: "Developer",
@@ -154,7 +154,7 @@ export const SEED_ARTICLES: KnowledgeArticle[] = [
   },
   {
     id: "kb-008",
-    title: "Stripe webhook retries — diagnosing duplicate invoices",
+    title: "Stripe webhook retries - diagnosing duplicate invoices",
     category: "Engineering",
     author: "Vivek Iyer",
     authorRole: "Developer",
@@ -199,7 +199,7 @@ export const SEED_ARTICLES: KnowledgeArticle[] = [
   },
   {
     id: "kb-011",
-    title: "New hire onboarding — Reanzly staff edition",
+    title: "New hire onboarding - Reanzly staff edition",
     category: "HR",
     author: "Anand Kumar",
     authorRole: "SuperAdmin",
@@ -214,7 +214,7 @@ export const SEED_ARTICLES: KnowledgeArticle[] = [
   },
   {
     id: "kb-012",
-    title: "Quarterly access review — RBAC audit cadence",
+    title: "Quarterly access review - RBAC audit cadence",
     category: "HR",
     author: "Sanjay Rao",
     authorRole: "Security Officer",
@@ -229,7 +229,7 @@ export const SEED_ARTICLES: KnowledgeArticle[] = [
   },
   {
     id: "kb-013",
-    title: "Marketplace listing — agent & template publishing",
+    title: "Marketplace listing - agent & template publishing",
     category: "Engineering",
     author: "Anand Kumar",
     authorRole: "SuperAdmin",
@@ -244,7 +244,7 @@ export const SEED_ARTICLES: KnowledgeArticle[] = [
   },
   {
     id: "kb-014",
-    title: "Backup restore — full tenant recovery drill",
+    title: "Backup restore - full tenant recovery drill",
     category: "Runbooks",
     author: "Vivek Iyer",
     authorRole: "Developer",
@@ -259,7 +259,7 @@ export const SEED_ARTICLES: KnowledgeArticle[] = [
   },
   {
     id: "kb-015",
-    title: "Customer escalation path — QBR rescue flow",
+    title: "Customer escalation path - QBR rescue flow",
     category: "Support",
     author: "Priya Sharma",
     authorRole: "Account Manager",

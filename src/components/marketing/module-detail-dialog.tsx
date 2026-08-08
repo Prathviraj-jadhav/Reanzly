@@ -14,7 +14,7 @@ import { Check, PackageCheck, ArrowRight, Play } from "lucide-react";
 import { toast } from "sonner";
 
 /**
- * ProductDetailDialog — opens when a visitor clicks "View details" on a
+ * ProductDetailDialog - opens when a visitor clicks "View details" on a
  * product card. Shows the full product shape: name, tagline, description,
  * prominent price, the highlight bullets, the "What you get" deliverables,
  * and a support line.

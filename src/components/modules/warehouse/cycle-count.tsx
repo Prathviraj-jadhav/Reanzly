@@ -570,7 +570,7 @@ function CycleCountDrawer({ open, record, onClose, onSave }: DrawerProps) {
               />
             </div>
             <div className="sm:col-span-2">
-              <FieldLabel hint="optional — auto-assign if blank">Assign Counter</FieldLabel>
+              <FieldLabel hint="optional - auto-assign if blank">Assign Counter</FieldLabel>
               <Select value={counter} onValueChange={setCounter} disabled={isView}>
                 <SelectTrigger className="h-8 w-full rounded-[5px] text-[13px]">
                   <SelectValue placeholder="Auto-assign" />

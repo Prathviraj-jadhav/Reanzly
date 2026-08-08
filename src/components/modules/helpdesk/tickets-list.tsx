@@ -56,7 +56,7 @@ const DATE_RANGE_PRESETS = [
   { id: "90d", label: "Last 90 days" },
 ];
 
-/** SLA cell — shows remaining time + overdue badge if breached. */
+/** SLA cell - shows remaining time + overdue badge if breached. */
 function SlaCell({ ticket }: { ticket: HelpdeskTicket }) {
   const { sla, status, resolvedAt } = ticket;
   // For resolved/closed tickets, show the resolution delta.

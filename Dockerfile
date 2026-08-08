@@ -1,5 +1,5 @@
 # =============================================================================
-# Reanzly — Production Dockerfile (Next.js standalone + Socket.IO chat service)
+# Reanzly - Production Dockerfile (Next.js standalone + Socket.IO chat service)
 # Multi-stage build. Single runtime image serves the Next.js app on :3000 and
 # the chat service on :3003, behind a Caddy gateway on :80.
 # =============================================================================

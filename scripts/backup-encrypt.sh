@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# Reanzly v2 — AES-256-GCM Encrypted Enterprise Backup Script
+# Reanzly v2 - AES-256-GCM Encrypted Enterprise Backup Script
 # =============================================================================
 
 set -e

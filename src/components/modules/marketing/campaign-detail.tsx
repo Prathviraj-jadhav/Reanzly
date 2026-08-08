@@ -103,8 +103,8 @@ export function CampaignDetail({
   const initKey = campaign?.id ?? "none";
   const [initedAb, setInitedAb] = useState<string | null>(null);
   if (campaign && initedAb !== initKey) {
-    setVariantA(`${campaign.name} — Subject A`);
-    setVariantB(`${campaign.name} — Subject B`);
+    setVariantA(`${campaign.name} - Subject A`);
+    setVariantB(`${campaign.name} - Subject B`);
     setInitedAb(initKey);
   }
 
@@ -257,7 +257,7 @@ export function CampaignDetail({
 }
 
 /* ============================================================
-   A/B Test Sheet — variant subject lines + audience split slider.
+   A/B Test Sheet - variant subject lines + audience split slider.
    No real send; state lives in the parent so the configuration
    persists while the drawer is open.
    ============================================================ */
@@ -322,7 +322,7 @@ function AbTestSheet({
           {/* Variant A */}
           <div className="mt-4">
             <Label className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-              Variant A — Subject line
+              Variant A - Subject line
             </Label>
             <Input
               value={variantA}
@@ -334,7 +334,7 @@ function AbTestSheet({
           {/* Variant B */}
           <div className="mt-4">
             <Label className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-              Variant B — Subject line
+              Variant B - Subject line
             </Label>
             <Input
               value={variantB}
@@ -405,7 +405,7 @@ function AbTestSheet({
 }
 
 /* ============================================================
-   Export Dialog — CSV preview table the user can copy.
+   Export Dialog - CSV preview table the user can copy.
    ============================================================ */
 function ExportDialog({
   open,
@@ -473,7 +473,7 @@ function ExportDialog({
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="text-[15px] font-medium tracking-tight">
-            Export performance — CSV preview
+            Export performance - CSV preview
           </DialogTitle>
           <DialogDescription className="text-[12px]">
             Copy the CSV below or download it as a file. One row per metric.

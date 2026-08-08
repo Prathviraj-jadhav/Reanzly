@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * MarketplaceHero — topmost section of the Vehicle Rental Marketplace.
+ * MarketplaceHero - topmost section of the Vehicle Rental Marketplace.
  *
  * Premium Swiss/Scandinavian feel: eyebrow badge, oversized headline
  * ("Rent Trucks, Trailers & Tempo Travellers Pan-India"), subhead, and a
@@ -160,7 +160,7 @@ export function MarketplaceHero({
           </span>
         </div>
 
-        {/* H1 — keyword-rich */}
+        {/* H1 - keyword-rich */}
         <h1
           id="marketplace-hero-title"
           className="mx-auto max-w-4xl text-[36px] font-medium leading-[1.08] tracking-tight text-foreground sm:text-5xl lg:text-[44px] animate-slide-up"
@@ -172,7 +172,7 @@ export function MarketplaceHero({
         <p className="mx-auto mt-6 max-w-2xl text-[15px] leading-relaxed text-muted-foreground sm:text-base animate-slide-up">
           Browse {MARKETPLACE_STATS.totalListings}+ verified vehicles for rent
           from Indian logistics owners. Tata Ace to Volvo tractor, container
-          to refrigerated, with driver or without — book a vehicle for your
+          to refrigerated, with driver or without - book a vehicle for your
           next consignment in minutes.
         </p>
 
@@ -312,7 +312,7 @@ export function MarketplaceHero({
                 type="search"
                 value={search}
                 onChange={(e) => onSearch(e.target.value)}
-                placeholder="Search route, owner, model — e.g. Tata Ace, Sharma Logistics"
+                placeholder="Search route, owner, model - e.g. Tata Ace, Sharma Logistics"
                 aria-label="Search vehicle listings"
                 className="h-10 w-full rounded-[6px] border-none bg-transparent pl-9 pr-3 text-[13.5px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-0"
               />
@@ -378,7 +378,7 @@ export function MarketplaceHero({
 }
 
 /* ============================================================
-   FieldInput — custom styled popover suggestion input
+   FieldInput - custom styled popover suggestion input
    ============================================================ */
 function FieldInput({
   icon, label, placeholder, value, onChange, focused, setFocused, suggestions, containerRef
@@ -460,7 +460,7 @@ function FieldInput({
 }
 
 /* ============================================================
-   StatCell — single tile in the hero stats strip
+   StatCell - single tile in the hero stats strip
    ============================================================ */
 function StatCell({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
@@ -477,7 +477,7 @@ function StatCell({ icon, label, value }: { icon: React.ReactNode; label: string
 }
 
 /* ============================================================
-   FeaturedTile — a hero "Featured vehicle" card
+   FeaturedTile - a hero "Featured vehicle" card
    ============================================================ */
 function FeaturedTile({
   listing, onView,

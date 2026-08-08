@@ -129,7 +129,7 @@ export function SurveyDetail({ surveyId, surveys, onBuild }: SurveyDetailProps) 
       onTabChange={(t) => setTab(t as SurveyTab)}
       actions={actions}
       quickActions={quickActions}
-      lastUpdated={`Last response ${survey.lastResponseAt ? relativeTime(survey.lastResponseAt) : "—"}`}
+      lastUpdated={`Last response ${survey.lastResponseAt ? relativeTime(survey.lastResponseAt) : "-"}`}
     >
       {tab === "overview" && <OverviewTab survey={survey} overallAvg={overallAvg} nps={nps} />}
       {tab === "questions" && <QuestionsTab survey={survey} onBuild={() => onBuild(survey)} />}
@@ -166,7 +166,7 @@ function OverviewTab({
           <InfoRow label="Owner" value={survey.owner} />
           <InfoRow label="Created" value={formatDate(survey.created)} />
           <InfoRow label="Closes on" value={survey.closesOn ? formatDate(survey.closesOn) : "Open-ended"} />
-          <InfoRow label="Last response" value={survey.lastResponseAt ? relativeTime(survey.lastResponseAt) : "—"} />
+          <InfoRow label="Last response" value={survey.lastResponseAt ? relativeTime(survey.lastResponseAt) : "-"} />
         </InfoSection>
 
         <InfoSection title="Question breakdown">
@@ -179,7 +179,7 @@ function OverviewTab({
           })}
           {survey.questions.length === 0 && (
             <div className="py-3 text-center text-[12px] text-muted-foreground">
-              No questions yet — open the Questions tab to add some.
+              No questions yet - open the Questions tab to add some.
             </div>
           )}
         </InfoSection>

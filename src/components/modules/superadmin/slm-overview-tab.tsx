@@ -107,7 +107,7 @@ export function SLMOverviewTab({
     runAgentRealLLM(a, input, brainLabel, "manual")
       .then((realRun) => {
         if (realRun) {
-          toast.success(`${a.name} started — real LLM`, {
+          toast.success(`${a.name} started - real LLM`, {
             description: "Single-turn loop completed.",
           });
           onOpenRun(realRun);
@@ -116,7 +116,7 @@ export function SLMOverviewTab({
         // Fall back to the simulation.
         const simRunId = runAgentSimulated(a, input, "manual");
         if (simRunId) {
-          toast.warning(`${a.name} started — simulation`, {
+          toast.warning(`${a.name} started - simulation`, {
             description: "Real LLM unavailable.",
           });
           const r = useSuperadminStore

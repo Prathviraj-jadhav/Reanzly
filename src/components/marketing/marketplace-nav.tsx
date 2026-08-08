@@ -1,23 +1,23 @@
 "use client";
 
 /**
- * MarketplaceNav — sticky top navigation for the public Vehicle Rental
+ * MarketplaceNav - sticky top navigation for the public Vehicle Rental
  * Marketplace.
  *
  * Mirrors the marketing-nav chrome (RZ wordmark + sticky + hairline border +
  * backdrop-blur) but with marketplace-specific actions:
  *   • Wordmark → "Back to home" (setMarketingView("landing"))
- *   • Centre: Tab switcher — Browse Vehicles | Find Loads
+ *   • Centre: Tab switcher - Browse Vehicles | Find Loads
  *            + eyebrow "60+ vehicles · 12 open loads"
  *   • Right: List your vehicle (border) + Post a load (filled) + Sign in
  *
  * Mobile collapses to a Sheet with the same tabs + CTAs + Back-to-home entry.
  *
  * Props:
- *   tab          — current tab ("vehicles" | "loads")
- *   onTabChange  — switch tabs
- *   onListVehicle — opens the ListYourVehicleSheet
- *   onPostLoad   — opens the PostLoadSheet
+ *   tab          - current tab ("vehicles" | "loads")
+ *   onTabChange  - switch tabs
+ *   onListVehicle - opens the ListYourVehicleSheet
+ *   onPostLoad   - opens the PostLoadSheet
  */
 
 import { useState } from "react";
@@ -90,7 +90,7 @@ export function MarketplaceNav({
           </span>
         </button>
 
-        {/* Centre — desktop tab switcher + count eyebrow */}
+        {/* Centre - desktop tab switcher + count eyebrow */}
         <div className="pointer-events-none absolute left-1/2 hidden -translate-x-1/2 flex-col items-center md:flex">
           <div className="pointer-events-auto flex items-center gap-1 rounded-[6px] border border-border bg-background p-0.5">
             <TabButton
@@ -239,7 +239,7 @@ export function MarketplaceNav({
 }
 
 /* ============================================================
-   TabButton — segmented control button (desktop centre switcher)
+   TabButton - segmented control button (desktop centre switcher)
    ============================================================ */
 function TabButton({
   active, onClick, icon, label,
@@ -275,7 +275,7 @@ function TabButton({
 }
 
 /* ============================================================
-   MobileTabRow — full-width tab row with description (mobile Sheet)
+   MobileTabRow - full-width tab row with description (mobile Sheet)
    ============================================================ */
 function MobileTabRow({
   active, onClick, icon, label, description,

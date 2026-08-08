@@ -78,7 +78,7 @@ export async function PATCH(
       const merged: Record<string, string> = { ...current };
       for (const [key, value] of Object.entries(body.fieldValues)) {
         if (typeof value !== "string") continue;
-        // Skip masked values — user didn't change them.
+        // Skip masked values - user didn't change them.
         if (value.includes("••")) continue;
         const field = provider?.fields.find((f) => f.id === key);
         const isSecret = field?.secret ?? isSecretField(key);

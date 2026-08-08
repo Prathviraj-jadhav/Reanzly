@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * LandingSite — public marketing site orchestrator.
+ * LandingSite - public marketing site orchestrator.
  *
  * Rebuilt as a company website (nexgenelit.com style) rather than a SaaS
  * pricing sheet. Composes 16 sections in the order a B2B logistics buyer
@@ -13,16 +13,16 @@
  *
  * Root wrapper is `min-h-screen flex flex-col` so the footer sticks to the
  * bottom of the viewport on short content and gets pushed naturally on long
- * content. Auth routing lives in AppShell — this component only renders when
+ * content. Auth routing lives in AppShell - this component only renders when
  * `marketingView === "landing"`.
  *
  * GSAP entrance animations are orchestrated here via a useEffect that
  * lazy-loads gsap + ScrollTrigger (dynamic import) so the first compile
- * of `/` doesn't have to bundle the entire GSAP library — that static
+ * of `/` doesn't have to bundle the entire GSAP library - that static
  * import was OOM-killing the dev server on the 3.9 GB / 0-swap box.
  * Animations run inside a gsap.context scoped to the root container;
  * ScrollTrigger handles below-the-fold reveals. Locomotive Scroll is
- * deliberately NOT used here — it can conflict with Next.js routing
+ * deliberately NOT used here - it can conflict with Next.js routing
  * and the app's own scroll containers.
  */
 
@@ -46,10 +46,10 @@ import { MarketingContact } from "./marketing-contact";
 import { MarketingFooter } from "./marketing-footer";
 
 /**
- * Reduced-motion guard — inlined here (rather than imported from
+ * Reduced-motion guard - inlined here (rather than imported from
  * `@/lib/animations`) so this module doesn't drag the entire GSAP library
  * into the landing page's compile graph. `@/lib/animations` re-exports
- * `gsap`/`useGSAP` from `gsap-utils.ts`, which statically imports gsap —
+ * `gsap`/`useGSAP` from `gsap-utils.ts`, which statically imports gsap -
  * importing even the tiny `prefersReducedMotion` flag from there would
  * pull all of GSAP into the first compile of `/`. GSAP + ScrollTrigger
  * are loaded lazily in the effect below instead.
@@ -116,7 +116,7 @@ export function LandingSite() {
           ease: "power3.out",
         });
 
-        // ── Stats — count up on scroll ───────────────────────────
+        // ── Stats - count up on scroll ───────────────────────────
         gsap.utils.toArray<HTMLElement>(".stat-number").forEach((el) => {
           const raw = el.getAttribute("data-value") || "0";
           const target = parseFloat(raw);
@@ -139,7 +139,7 @@ export function LandingSite() {
           });
         });
 
-        // ── Feature cards — stagger on scroll ────────────────────
+        // ── Feature cards - stagger on scroll ────────────────────
         gsap.from(".feature-card", {
           y: 20,
           opacity: 0,
@@ -149,7 +149,7 @@ export function LandingSite() {
           scrollTrigger: { trigger: ".features-grid", start: "top 80%" },
         });
 
-        // ── Module grid — stagger on scroll ──────────────────────
+        // ── Module grid - stagger on scroll ──────────────────────
         gsap.from(".module-card", {
           y: 20,
           opacity: 0,

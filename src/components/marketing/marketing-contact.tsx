@@ -6,11 +6,11 @@ import { COMPANY } from "./_data";
 import { Mail, Phone, MapPin, ArrowRight } from "lucide-react";
 
 /**
- * MarketingContact — "Let's talk about your logistics business."
+ * MarketingContact - "Let's talk about your logistics business."
  *
  * Section id="contact". Two-column layout: left column is the pitch + contact
  * details (email, phone, address from COMPANY); right column is a contact
- * form card. On submit the form shows a success toast (no real backend — this
+ * form card. On submit the form shows a success toast (no real backend - this
  * is a marketing page) and clears itself. Designed to feel like a premium B2B
  * services contact section, not a SaaS lead-gen form.
  */
@@ -44,7 +44,7 @@ export function MarketingContact() {
     >
       <div className="mx-auto max-w-7xl px-6 lg:px-8">
         <div className="grid grid-cols-1 gap-12 lg:grid-cols-2 lg:gap-16">
-          {/* Left column — pitch + contact details */}
+          {/* Left column - pitch + contact details */}
           <div>
             <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
               Contact
@@ -87,7 +87,7 @@ export function MarketingContact() {
             </div>
           </div>
 
-          {/* Right column — contact form card */}
+          {/* Right column - contact form card */}
           <div className="rounded-lg border border-border bg-background p-6 sm:p-8">
             <form onSubmit={onSubmit} className="flex flex-col gap-4">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

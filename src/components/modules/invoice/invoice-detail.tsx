@@ -160,7 +160,7 @@ export function InvoiceDetail({
         </Btn>
       )}
       {/* Legacy Send button (toast-only) kept for users who haven't adopted
-          the release flow yet — only rendered when no onRelease handler. */}
+          the release flow yet - only rendered when no onRelease handler. */}
       {!isCancelled && !isCreditNote && !onRelease && (
         <Btn
           icon={<Send className="h-3.5 w-3.5" />}
@@ -473,7 +473,7 @@ function InvoiceViewTab({
                   </div>
                 ) : (
                   <p className="text-[11px] text-muted-foreground">
-                    No assignees — invoice will be sent to the default billing contact.
+                    No assignees - invoice will be sent to the default billing contact.
                   </p>
                 )}
                 {onAssign && (
@@ -1190,7 +1190,7 @@ function DesignTab({
             label="Watermark"
             value={
               config.watermark
-                ? `On — "${config.watermarkText}"`
+                ? `On - "${config.watermarkText}"`
                 : "Off"
             }
           />
@@ -1286,7 +1286,7 @@ function AssignToInline({
   const contacts = contactsForCustomer(invoice.customer);
   // Local draft initialized from props on mount. The parent remounts this
   // component (via `key`) whenever the assigned set changes, so we don't
-  // need a useEffect to sync — the initial useState already reflects the
+  // need a useEffect to sync - the initial useState already reflects the
   // latest prop. (Avoids the react-hooks/set-state-in-effect rule.)
   const [draft, setDraft] = useState<string[]>(selectedIds);
 

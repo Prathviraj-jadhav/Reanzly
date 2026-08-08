@@ -126,7 +126,7 @@ function generateSeedEvents(connections: { providerId: string; connectedAt: stri
         processed,
         processingError: processed
           ? undefined
-          : "Schema validation failed — field 'data.object.id' missing",
+          : "Schema validation failed - field 'data.object.id' missing",
         payloadPreview: JSON.stringify({
           id: `evt_${Math.random().toString(36).slice(2, 12)}`,
           type: eventType,

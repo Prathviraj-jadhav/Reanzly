@@ -33,7 +33,7 @@ interface DocumentPreviewProps {
   doc: GeneratedDocument;
   onBack: () => void;
   onEdit: () => void;
-  // Toggle overrides stored at the preview level — when undefined, the doc.branding value is used
+  // Toggle overrides stored at the preview level - when undefined, the doc.branding value is used
   reanzlyBrandedOverride?: boolean;
   onBrandedToggle?: (v: boolean) => void;
   // Compact mode hides the toolbar (used inside the builder's preview step)
@@ -154,7 +154,7 @@ export function DocumentPreview({
 }
 
 // ============================================================
-//   A4Page — the actual printable A4 surface.
+//   A4Page - the actual printable A4 surface.
 //   Renders a different body layout per template id.
 // ============================================================
 function A4Page({ doc, branded }: { doc: GeneratedDocument; branded: boolean }) {
@@ -166,7 +166,7 @@ function A4Page({ doc, branded }: { doc: GeneratedDocument; branded: boolean }) 
   const recipientBlock = (
     <div className="flex flex-col gap-1">
       <div className="a4-section-title">To</div>
-      <div className="text-[11pt] font-medium">{doc.recipientName || "—"}</div>
+      <div className="text-[11pt] font-medium">{doc.recipientName || "-"}</div>
       {doc.recipientOrg && <div className="text-[10.5pt]">{doc.recipientOrg}</div>}
       {doc.recipientAddress && (
         <div className="text-[10pt] print-muted whitespace-pre-line">{doc.recipientAddress}</div>
@@ -225,7 +225,7 @@ function A4Page({ doc, branded }: { doc: GeneratedDocument; branded: boolean }) 
         </div>
       </div>
 
-      {/* Body — per template */}
+      {/* Body - per template */}
       <BodyRenderer doc={doc} tpl={tpl} />
 
       {/* Signature block */}
@@ -259,7 +259,7 @@ function A4Page({ doc, branded }: { doc: GeneratedDocument; branded: boolean }) 
 }
 
 // ============================================================
-//   Body renderer — switches on template id to render the
+//   Body renderer - switches on template id to render the
 //   appropriate body content + line item tables.
 // ============================================================
 function BodyRenderer({ doc, tpl }: { doc: GeneratedDocument; tpl: NonNullable<ReturnType<typeof templateById>> }) {
@@ -283,7 +283,7 @@ function BodyRenderer({ doc, tpl }: { doc: GeneratedDocument; tpl: NonNullable<R
         { label: "Amount", cls: "num" },
       ];
     } else if (tpl.id === "payslip") {
-      // Payslip uses two tables (earnings/deductions) — handled separately below
+      // Payslip uses two tables (earnings/deductions) - handled separately below
       return null;
     } else if (tpl.id === "delivery-note") {
       headers = [
@@ -293,7 +293,7 @@ function BodyRenderer({ doc, tpl }: { doc: GeneratedDocument; tpl: NonNullable<R
         { label: "Condition" },
       ];
     } else {
-      // Offer letter / salary certificate / SLA — generic 2-column
+      // Offer letter / salary certificate / SLA - generic 2-column
       headers = [
         { label: "#" },
         { label: cols[0]?.label ?? "Description" },

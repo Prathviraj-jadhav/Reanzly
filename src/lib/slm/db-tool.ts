@@ -32,7 +32,7 @@ interface ModelConfig {
 }
 
 const inr = (n: number) => `Rs ${Number(n ?? 0).toLocaleString("en-IN")}`;
-const dt = (v: any) => (v ? new Date(v).toISOString().slice(0, 10) : "—");
+const dt = (v: any) => (v ? new Date(v).toISOString().slice(0, 10) : "-");
 
 export const ALLOWED_MODELS: Record<string, ModelConfig> = {
   vehicle: {
@@ -196,9 +196,9 @@ export function formatQueryResult(result: QueryResult): string {
   if (rows.length === 1) {
     const row = rows[0];
     const parts = columns.map(
-      (c) => `${c.header}: ${c.format ? c.format(row[c.field]) : String(row[c.field] ?? "—")}`
+      (c) => `${c.header}: ${c.format ? c.format(row[c.field]) : String(row[c.field] ?? "-")}`
     );
-    return `${label} — ${parts.join(" · ")}.`;
+    return `${label} - ${parts.join(" · ")}.`;
   }
 
   return formatAsMarkdownTable(result);
@@ -211,7 +211,7 @@ export function formatAsMarkdownTable(result: QueryResult): string {
   const header = `| ${columns.map((c) => c.header).join(" | ")} |`;
   const divider = `| ${columns.map(() => "---").join(" | ")} |`;
   const body = rows
-    .map((row) => `| ${columns.map((c) => (c.format ? c.format(row[c.field]) : String(row[c.field] ?? "—"))).join(" | ")} |`)
+    .map((row) => `| ${columns.map((c) => (c.format ? c.format(row[c.field]) : String(row[c.field] ?? "-"))).join(" | ")} |`)
     .join("\n");
 
   const truncNote = total > rows.length ? `\n\n_Showing ${rows.length} of ${total} ${label.toLowerCase()} records._` : "";
@@ -276,7 +276,7 @@ export async function confirmAction(actionId: string, userId: string): Promise<{
     const data = JSON.parse(action.argsJson);
     await (db as any)[cfg.prismaKey].update({ where: { id: action.recordId! }, data });
     await db.ragAction.update({ where: { id: action.id }, data: { status: "executed", executedAt: new Date(), decidedAt: new Date() } });
-    return { ok: true, message: `Done — ${action.summary}.` };
+    return { ok: true, message: `Done - ${action.summary}.` };
   } catch (e) {
     await db.ragAction.update({ where: { id: action.id }, data: { status: "failed", errorMessage: String(e), decidedAt: new Date() } });
     return { ok: false, message: "That update failed on my end. Nothing was changed." };

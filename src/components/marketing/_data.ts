@@ -1,5 +1,5 @@
 /**
- * _data.ts — slimmed-down marketing content.
+ * _data.ts - slimmed-down marketing content.
  *
  * Fake marketing copy (CAPABILITIES, PRODUCTS, SERVICES, SPECIALTIES,
  * TRANSFORMATIONS, PROCESS_STEPS, TESTIMONIALS, STATS, INSIGHTS, FAQS,
@@ -8,9 +8,9 @@
  * onboarding catalog, the role archetypes and the directory listings.
  *
  * What remains here are the three bits of static copy still in use:
- *   - COMPANY      — name, tagline, contact details, Nexgen Elit credit.
- *   - NAV_LINKS    — top-nav anchors (all point to real section ids).
- *   - FOOTER_LINKS — footer columns (Products + Services reference the
+ *   - COMPANY      - name, tagline, contact details, Nexgen Elit credit.
+ *   - NAV_LINKS    - top-nav anchors (all point to real section ids).
+ *   - FOOTER_LINKS - footer columns (Products + Services reference the
  *                    real module / service names so the columns stay in
  *                    sync with what's on the page).
  */
@@ -84,7 +84,7 @@ export const FOOTER_LINKS: {
     "Document expiry",
   ],
   company: ["About", "Case Studies", "Careers", "Blog", "Partners", "Contact"],
-  // Network column — surfaces the directory / broker / pricing / marketplace pages.
+  // Network column - surfaces the directory / broker / pricing / marketplace pages.
   network: [
     { label: "Vehicle Rental Marketplace", href: "#marketplace" },
     { label: "Logistics Partner Directory", href: "#directory" },

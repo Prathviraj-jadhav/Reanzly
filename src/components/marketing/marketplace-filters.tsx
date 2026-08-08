@@ -1,17 +1,17 @@
 "use client";
 
 /**
- * MarketplaceFilters — left sidebar (desktop) / slide-over drawer (mobile)
+ * MarketplaceFilters - left sidebar (desktop) / slide-over drawer (mobile)
  * for the Vehicle Rental Marketplace.
  *
  * Controls:
- *   • Search input (mirrors the hero search — both update the same state)
+ *   • Search input (mirrors the hero search - both update the same state)
  *   • Vehicle type checkboxes (15 types, each with listing count)
  *   • Body type checkboxes (open / closed / container / refrigerated / tipper / tanker)
  *   • Axle checkboxes (4 / 6 / 10 / 12)
  *   • Region checkboxes (West / North / South / East / Central)
- *   • Availability date (single date input — show listings available from that date)
- *   • Price range (slider — max ₹/day)
+ *   • Availability date (single date input - show listings available from that date)
+ *   • Price range (slider - max ₹/day)
  *   • "Verified owners only" toggle
  *   • "With driver" toggle
  *   • Sort dropdown (Recommended / Price ↑ / Price ↓ / Rating / Newest)
@@ -428,7 +428,7 @@ function SidebarBody({
 }
 
 /* ============================================================
-   CollapsibleSection — helper for filters accordion
+   CollapsibleSection - helper for filters accordion
    ============================================================ */
 function CollapsibleSection({
   title,

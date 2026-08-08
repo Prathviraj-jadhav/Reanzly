@@ -18,7 +18,7 @@
    and pushes a SyncEvent to the history.
 
    All sync state is persisted to localStorage so it survives
-   reloads — exactly like the connections themselves.
+   reloads - exactly like the connections themselves.
    ============================================================ */
 
 import { create } from "zustand";
@@ -45,7 +45,7 @@ export interface IntegrationConnection {
   lastSyncAt?: string;
   lastSyncStatus?: "ok" | "error" | "pending";
   lastSyncMessage?: string;
-  /** User-facing label for multi-instance connections (e.g. "Razorpay — Mumbai"). */
+  /** User-facing label for multi-instance connections (e.g. "Razorpay - Mumbai"). */
   label?: string;
   /** Sync frequency override (falls back to provider.syncConfig.frequency if unset). */
   syncFrequency?: SyncFrequency;
@@ -80,7 +80,7 @@ export interface ConnectionSyncState {
   recordsPushed: number;
   /** Last 10 sync events (most recent first). */
   history: SyncEvent[];
-  /** Active sync state — when "syncing", the UI shows a spinner. */
+  /** Active sync state - when "syncing", the UI shows a spinner. */
   liveStatus: "idle" | "syncing" | "ok" | "error";
   /** Last error message (cleared on next successful sync). */
   lastError?: string;
@@ -94,7 +94,7 @@ interface IntegrationsState {
   lastRefreshedAt: string;
   /** True while a server sync is in-flight. */
   syncing: boolean;
-  /** Last server sync outcome — shown as a tiny toast-style badge. */
+  /** Last server sync outcome - shown as a tiny toast-style badge. */
   syncOutcome: { ok: boolean; message: string; at: string } | null;
 
   // === Actions ===
@@ -188,7 +188,7 @@ export function frequencyLabel(freq: SyncFrequency): string {
   }
 }
 
-/** Sample sync messages per provider id — used to make the SyncEvent.message feel real. */
+/** Sample sync messages per provider id - used to make the SyncEvent.message feel real. */
 const SYNC_MESSAGES: Record<string, string[]> = {
   gstn: [
     "Pulled 184 GSTR-2A line items · pushed GSTR-1 draft (47 invoices)",
@@ -317,7 +317,7 @@ function seedSyncStateForConnection(
       startedAt,
       completedAt,
       message: isError
-        ? "Sync failed — upstream returned 503 (service unavailable)"
+        ? "Sync failed - upstream returned 503 (service unavailable)"
         : pickMessage(conn.providerId, i),
       errorMessage: isError ? "503 Service Unavailable from upstream portal" : undefined,
     });
@@ -399,7 +399,7 @@ export const useIntegrationsStore = create<IntegrationsState>()(
                   durationMs: 0,
                   startedAt: now.toISOString(),
                   completedAt: now.toISOString(),
-                  message: "Connection established — initial test sync OK",
+                  message: "Connection established - initial test sync OK",
                 },
               ],
               liveStatus: "ok",
@@ -515,7 +515,7 @@ export const useIntegrationsStore = create<IntegrationsState>()(
                   lastSyncStatus: isError ? "error" : "ok",
                   status: isError ? "needs-config" : "connected",
                   lastSyncMessage: isError
-                    ? "Missing credentials — re-enter HDFC API JSON"
+                    ? "Missing credentials - re-enter HDFC API JSON"
                     : "Test successful · 200 OK in 412ms",
                 }
               : c,
@@ -617,7 +617,7 @@ export const useIntegrationsStore = create<IntegrationsState>()(
           : Math.round(recordsPulled * (0.25 + Math.random() * 0.2));
         const counter = (get().syncState[connectionId]?.history.length ?? 0) + 1;
         const message = isError
-          ? "Sync failed — upstream returned 503 (service unavailable)"
+          ? "Sync failed - upstream returned 503 (service unavailable)"
           : pickMessage(conn.providerId, counter);
 
         const event: SyncEvent = {

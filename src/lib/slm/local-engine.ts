@@ -3,7 +3,7 @@
  * ========================
  *
  * A genuine, fully offline reasoning engine for Rean. No external API,
- * no network call, no API key, no download — it classifies intent from
+ * no network call, no API key, no download - it classifies intent from
  * the user's message with keyword matching, queries the tenant's own
  * real database (the same tables every module in the app now reads and
  * writes through its real CRUD API), and composes a real, grounded answer
@@ -20,7 +20,7 @@
  *
  * This exists because the app's original LLM path (`z-ai-web-dev-sdk`,
  * see src/app/api/rean/route.ts) depends on a `.z-ai-config` file that
- * only exists inside the sandbox this app was originally built in — it
+ * only exists inside the sandbox this app was originally built in - it
  * cannot be configured with a normal API key, and is permanently broken
  * outside that sandbox. This engine is not a fallback bolted on next to
  * that call; it is the real answer path.
@@ -69,7 +69,7 @@ function joinList(items: string[], max = 5): string {
   return rest > 0 ? `${shown.join(", ")}, and ${rest} more` : shown.join(", ");
 }
 
-// ── Intent handlers — each queries the real database, no canned strings ──
+// ── Intent handlers - each queries the real database, no canned strings ──
 
 async function handleGreeting(companyId: string): Promise<string> {
   const k = await computeKpis(companyId);
@@ -91,7 +91,7 @@ async function handleOverdueInvoices(companyId: string): Promise<string> {
   const total = overdue.reduce((s, i) => s + i.totalAmount, 0);
   const worst = [...overdue].sort((a, b) => overdueDays(b.dueDate) - overdueDays(a.dueDate)).slice(0, 3);
   const lines = worst
-    .map((i) => `${i.invoiceNumber} (${i.customer}) — ${inr(i.totalAmount)}, ${overdueDays(i.dueDate)}d overdue`)
+    .map((i) => `${i.invoiceNumber} (${i.customer}) - ${inr(i.totalAmount)}, ${overdueDays(i.dueDate)}d overdue`)
     .join("; ");
   return `${overdue.length} invoices overdue, ${inr(total)} total. Worst first: ${lines}.${overdue.length > 3 ? ` ${overdue.length - 3} more behind those.` : ""}`;
 }
@@ -146,7 +146,7 @@ async function handleFuel(companyId: string): Promise<string> {
     return `No fuel anomalies flagged. ${inr(k.fuelCostThisPeriod)} spent this period across ${fillCount} logged fills.`;
   }
   const lines = anomalies
-    .map((f) => `${f.vehicle?.name ?? "unassigned"} at ${f.station ?? "unknown station"} on ${f.date.toLocaleDateString("en-IN")}${f.anomalyNote ? ` — ${f.anomalyNote}` : ""}`)
+    .map((f) => `${f.vehicle?.name ?? "unassigned"} at ${f.station ?? "unknown station"} on ${f.date.toLocaleDateString("en-IN")}${f.anomalyNote ? ` - ${f.anomalyNote}` : ""}`)
     .join("; ");
   return `${anomalies.length} fuel anomal${anomalies.length === 1 ? "y" : "ies"} flagged out of ${fillCount} fills this period. ${lines}. Fuel spend ${inr(k.fuelCostThisPeriod)} total.`;
 }
@@ -163,7 +163,7 @@ async function handleIssues(companyId: string): Promise<string> {
   if (k.openIssues === 0) return "No open issues. Board is clear.";
   let reply = `${k.openIssues} open issues.`;
   if (critical.length > 0) {
-    const lines = critical.map((i) => `${i.issueId} — ${i.title}${i.vehicle ? ` (${i.vehicle.name})` : ""}`);
+    const lines = critical.map((i) => `${i.issueId} - ${i.title}${i.vehicle ? ` (${i.vehicle.name})` : ""}`);
     reply += ` ${critical.length} high/critical: ${joinList(lines, 3)}.`;
   }
   return reply;
@@ -226,7 +226,7 @@ async function handleDrivers(companyId: string): Promise<string> {
 async function handleRecommendations(companyId: string): Promise<string> {
   const recs = await computeRecommendations(companyId);
   if (recs.length === 0) return "No open recommendations. Everything tracked is on plan.";
-  const lines = recs.map((r) => `${r.title} — ${r.impact}`);
+  const lines = recs.map((r) => `${r.title} - ${r.impact}`);
   return `${recs.length} recommendation${recs.length === 1 ? "" : "s"} open, highest impact first: ${lines.join("; ")}.`;
 }
 
@@ -239,15 +239,15 @@ async function handleAnomalies(companyId: string): Promise<string> {
 }
 
 async function handleHelp(): Promise<string> {
-  return `I answer from your live operational data — no external service, works offline. Ask about: overdue invoices, revenue, active trips, fleet status, fuel anomalies, open issues, document/compliance expiry, drivers, or "what should I focus on."`;
+  return `I answer from your live operational data - no external service, works offline. Ask about: overdue invoices, revenue, active trips, fleet status, fuel anomalies, open issues, document/compliance expiry, drivers, or "what should I focus on."`;
 }
 
 async function handleFallback(companyId: string): Promise<string> {
   const k = await computeKpis(companyId);
-  return `Not sure I follow — here's the snapshot: ${k.activeTrips} active trips, ${k.outstandingInvoices} invoices outstanding (${inr(k.outstandingAmount)}), ${k.openIssues} open issues, fleet at ${k.vehicleActive}/${k.vehicleTotal} active. Try asking about invoices, trips, fleet, fuel, compliance, or drivers.`;
+  return `Not sure I follow - here's the snapshot: ${k.activeTrips} active trips, ${k.outstandingInvoices} invoices outstanding (${inr(k.outstandingAmount)}), ${k.openIssues} open issues, fleet at ${k.vehicleActive}/${k.vehicleTotal} active. Try asking about invoices, trips, fleet, fuel, compliance, or drivers.`;
 }
 
-// ── Intent registry — order matters, first match wins ──────────────
+// ── Intent registry - order matters, first match wins ──────────────
 // Checked most-specific first so e.g. "overdue invoices" doesn't fall
 // through to the generic revenue handler just because "invoice" also
 // appears there.
@@ -293,7 +293,7 @@ function classify(message: string): Intent | null {
 }
 
 /**
- * Answer a user message entirely locally — no network, no API key, but a
+ * Answer a user message entirely locally - no network, no API key, but a
  * real read against the tenant's own database. This is what powers
  * /api/rean and /api/slm/chat now; both routes used to depend on
  * z-ai-web-dev-sdk, which cannot be configured outside the original build

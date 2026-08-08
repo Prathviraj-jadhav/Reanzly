@@ -93,7 +93,7 @@ export async function POST(req: NextRequest) {
           reply = result.message;
         } else {
           await rejectAction(pending.id, role);
-          reply = "Cancelled — no changes made.";
+          reply = "Cancelled - no changes made.";
         }
         handled = true;
       }

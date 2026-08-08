@@ -368,7 +368,7 @@ function WeekSchedule({
                       >
                         {dayAllocs.length === 0 && (
                           <div className="absolute inset-0 flex items-center justify-center">
-                            <span className="text-[10px] text-muted-foreground/40">—</span>
+                            <span className="text-[10px] text-muted-foreground/40">-</span>
                           </div>
                         )}
                         {dayAllocs.slice(0, 2).map((a) => {

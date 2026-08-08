@@ -265,7 +265,7 @@ export function AddCheckDrawer({ open, onClose, onAdd }: AddCheckDrawerProps) {
               <Textarea
                 value={form.notes}
                 onChange={(e) => update("notes", e.target.value)}
-                placeholder="Optional context — special instructions for the inspector…"
+                placeholder="Optional context - special instructions for the inspector…"
                 className="min-h-[80px] rounded-[5px] text-[12px] bg-background"
               />
             </div>
@@ -274,7 +274,7 @@ export function AddCheckDrawer({ open, onClose, onAdd }: AddCheckDrawerProps) {
               <div className="flex items-start gap-2 text-[12px] text-muted-foreground">
                 <ClipboardCheck className="h-3.5 w-3.5 mt-0.5 shrink-0" />
                 <div>
-                  <span className="text-foreground font-medium">Control points auto-load from the {form.type} template.</span> After scheduling, open the check to record measurements — findings and corrective actions generate automatically based on out-of-tolerance readings.
+                  <span className="text-foreground font-medium">Control points auto-load from the {form.type} template.</span> After scheduling, open the check to record measurements - findings and corrective actions generate automatically based on out-of-tolerance readings.
                 </div>
               </div>
             </div>

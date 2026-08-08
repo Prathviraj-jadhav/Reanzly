@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * MarketplaceDetailDialog — modal with the full vehicle listing breakdown
+ * MarketplaceDetailDialog - modal with the full vehicle listing breakdown
  * + booking + contact actions.
  *
  * Sections:
@@ -213,7 +213,7 @@ export function MarketplaceDetailDialog({
 }
 
 /* ============================================================
-   OverviewTab — description, route, features, documents
+   OverviewTab - description, route, features, documents
    ============================================================ */
 function OverviewTab({ listing }: { listing: VehicleListing }) {
   return (
@@ -337,7 +337,7 @@ function PriceRow({ label, value, muted }: { label: string; value: string; muted
 }
 
 /* ============================================================
-   SpecsTab — full vehicle spec table
+   SpecsTab - full vehicle spec table
    ============================================================ */
 function SpecsTab({ listing }: { listing: VehicleListing }) {
   const rows: { label: string; value: string }[] = [
@@ -370,7 +370,7 @@ function SpecsTab({ listing }: { listing: VehicleListing }) {
 }
 
 /* ============================================================
-   OwnerTab — owner profile card
+   OwnerTab - owner profile card
    ============================================================ */
 function OwnerTab({
   listing, onContactOwner,
@@ -444,7 +444,7 @@ function OwnerStat({ icon, label, value }: { icon: React.ReactNode; label: strin
 }
 
 /* ============================================================
-   ReviewsTab — list of reviews + aggregate rating
+   ReviewsTab - list of reviews + aggregate rating
    ============================================================ */
 function ReviewsTab({ listing }: { listing: VehicleListing }) {
   return (
@@ -509,7 +509,7 @@ function ReviewsTab({ listing }: { listing: VehicleListing }) {
 }
 
 /* ============================================================
-   BookTab — booking request form (stub)
+   BookTab - booking request form (stub)
    ============================================================ */
 function BookTab({ listing, onSignUp }: { listing: VehicleListing; onSignUp: () => void }) {
   const [fromDate, setFromDate] = useState("");

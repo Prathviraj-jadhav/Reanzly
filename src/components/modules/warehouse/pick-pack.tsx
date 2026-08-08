@@ -550,7 +550,7 @@ function PickListDrawer({ open, record, onClose, onSave }: DrawerProps) {
               />
             </div>
             <div className="sm:col-span-2">
-              <FieldLabel hint="optional — leave blank for auto-assign">Assign Picker</FieldLabel>
+              <FieldLabel hint="optional - leave blank for auto-assign">Assign Picker</FieldLabel>
               <Select value={picker} onValueChange={setPicker} disabled={isView}>
                 <SelectTrigger className="h-8 w-full rounded-[5px] text-[13px]">
                   <SelectValue placeholder="Auto-assign" />
@@ -569,7 +569,7 @@ function PickListDrawer({ open, record, onClose, onSave }: DrawerProps) {
               <textarea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                placeholder="e.g. fragile items — top shelf first"
+                placeholder="e.g. fragile items - top shelf first"
                 rows={3}
                 className="w-full rounded-[5px] border border-border bg-background px-2.5 py-2 text-[13px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-foreground/20"
               />

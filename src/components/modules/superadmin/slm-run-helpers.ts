@@ -5,12 +5,12 @@
    Overview tab's per-agent "Run" button.
 
    Two entry points:
-   • runAgentRealLLM(agent, input, brainName) — POSTs to the live
+   • runAgentRealLLM(agent, input, brainName) - POSTs to the live
      /api/slm/chat endpoint, builds a single-iteration AgentRun
      from the structured response, and writes it to the store via
      addAgentRun. Returns the run, or null on failure (caller
      falls back to the simulation).
-   • runAgentSimulated(agent, input, trigger) — thin wrapper around
+   • runAgentSimulated(agent, input, trigger) - thin wrapper around
      the store's runAgent so the fallback path is consistent.
 
    Both helpers keep the playground and overview tab in lock-step
@@ -142,7 +142,7 @@ function buildRealLLMRun(params: {
           ? "Cannot proceed autonomously. Escalating to human operator."
           : resp.decision === "request-approval"
             ? "Pausing for human approval before high-impact action."
-            : "Single-turn playground call — treating as terminal.";
+            : "Single-turn playground call - treating as terminal.";
   trace.push({
     iteration: 1,
     phase: "reflect",

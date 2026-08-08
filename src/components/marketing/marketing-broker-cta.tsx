@@ -4,7 +4,7 @@ import { useAppStore } from "@/lib/store/app-store";
 import { ArrowRight, Handshake } from "lucide-react";
 
 /**
- * MarketingBrokerCta — slim full-width broker-recruitment banner.
+ * MarketingBrokerCta - slim full-width broker-recruitment banner.
  *
  * Section id="brokers". Lives between the directory (above) and the pricing
  * section (below) on the landing page. Sells the Reanzly Broker program:
@@ -32,7 +32,7 @@ export function MarketingBrokerCta() {
     >
       <div className="mx-auto max-w-7xl px-6 lg:px-8">
         <div className="flex flex-col items-start gap-6 lg:flex-row lg:items-center lg:justify-between">
-          {/* Left — icon + headline + value prop */}
+          {/* Left - icon + headline + value prop */}
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[6px] border border-background/30 bg-background/10 text-background">
               <Handshake className="h-6 w-6" />
@@ -51,7 +51,7 @@ export function MarketingBrokerCta() {
             </div>
           </div>
 
-          {/* Right — CTA */}
+          {/* Right - CTA */}
           <div className="w-full sm:w-auto">
             <button
               type="button"

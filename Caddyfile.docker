@@ -1,4 +1,4 @@
-# Reanzly — Caddy gateway config for the Docker runtime.
+# Reanzly - Caddy gateway config for the Docker runtime.
 # Serves the app on :80, forwarding to Next.js (:3000) by default and to the
 # chat service (:3003) when ?XTransformPort=3003 is present.
 #

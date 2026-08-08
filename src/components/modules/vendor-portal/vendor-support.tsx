@@ -353,7 +353,7 @@ function TicketDetailSheet({ ticket, onClose, onAddReply }: TicketDetailSheetPro
           ? [{ from: "Account Manager" as const, body: "Acknowledged. I've routed this to the operations team. Will keep you posted.", at: ticket.lastReplyAt ?? ticket.createdAt }]
           : []),
         ...(ticket.messageCount > 2 && ticket.lastReplyBy === "Vendor"
-          ? [{ from: "Vendor" as const, body: "Following up — any update on this?", at: ticket.lastReplyAt ?? ticket.createdAt }]
+          ? [{ from: "Vendor" as const, body: "Following up - any update on this?", at: ticket.lastReplyAt ?? ticket.createdAt }]
           : []),
       ]
     : [];
@@ -403,8 +403,8 @@ function TicketDetailSheet({ ticket, onClose, onAddReply }: TicketDetailSheetPro
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                 <MetaCell icon={<Clock className="h-3 w-3" />} label="Opened" value={relativeTime(ticket.createdAt)} />
                 <MetaCell icon={<MessageSquare className="h-3 w-3" />} label="Messages" value={String(ticket.messageCount)} />
-                <MetaCell icon={<User className="h-3 w-3" />} label="Last by" value={ticket.lastReplyBy ?? "—"} />
-                <MetaCell icon={<Clock className="h-3 w-3" />} label="Last reply" value={ticket.lastReplyAt ? relativeTime(ticket.lastReplyAt) : "—"} />
+                <MetaCell icon={<User className="h-3 w-3" />} label="Last by" value={ticket.lastReplyBy ?? "-"} />
+                <MetaCell icon={<Clock className="h-3 w-3" />} label="Last reply" value={ticket.lastReplyAt ? relativeTime(ticket.lastReplyAt) : "-"} />
               </div>
 
               {/* Message thread */}
@@ -556,7 +556,7 @@ function NewTicketSheet({ open, onClose, onSubmit }: NewTicketSheetProps) {
               placeholder="e.g. Invoice INV-2025-0042 amount mismatch"
               className="h-9 rounded-[5px] text-[13px]"
             />
-            <p className="text-[10px] text-muted-foreground">Be specific — the subject becomes the ticket title.</p>
+            <p className="text-[10px] text-muted-foreground">Be specific - the subject becomes the ticket title.</p>
           </div>
 
           {/* Category + Priority */}
@@ -624,7 +624,7 @@ function NewTicketSheet({ open, onClose, onSubmit }: NewTicketSheetProps) {
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={5}
-              placeholder="Describe the issue in detail. Include dates, amounts, references — whatever helps us investigate faster."
+              placeholder="Describe the issue in detail. Include dates, amounts, references - whatever helps us investigate faster."
               className="rounded-[5px] text-[12.5px]"
             />
             <p className="text-[10px] text-muted-foreground">

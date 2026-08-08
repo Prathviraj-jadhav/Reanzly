@@ -110,7 +110,7 @@ export function AddTaskDrawer({ open, onClose, onAdd }: AddTaskDrawerProps) {
       location: form.location.trim(),
       vehicleRef: form.vehicleRef.trim() || undefined,
       contactName: form.contactName.trim() || form.customer.trim(),
-      contactPhone: form.contactPhone.trim() || "—",
+      contactPhone: form.contactPhone.trim() || "-",
       description: form.description.trim(),
       checklist: defaultChecklistForType(form.type),
       parts: [],
@@ -162,7 +162,7 @@ export function AddTaskDrawer({ open, onClose, onAdd }: AddTaskDrawerProps) {
                   <Input
                     value={form.title}
                     onChange={(e) => update("title", e.target.value)}
-                    placeholder="e.g. Roadside clutch repair — MH-12-AB-7890"
+                    placeholder="e.g. Roadside clutch repair - MH-12-AB-7890"
                     className="h-8 rounded-[5px] text-[13px]"
                   />
                 </div>
@@ -326,7 +326,7 @@ export function AddTaskDrawer({ open, onClose, onAdd }: AddTaskDrawerProps) {
   );
 }
 
-/** Default checklist seeded from the task type — keeps the worksheet tab populated. */
+/** Default checklist seeded from the task type - keeps the worksheet tab populated. */
 function defaultChecklistForType(type: TaskType) {
   const map: Record<TaskType, string[]> = {
     Repair: ["Arrive at vehicle location", "Diagnose fault", "Source parts", "Perform repair", "Test repair", "Handover to driver"],

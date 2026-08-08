@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { ArrowDown, ArrowRight } from "lucide-react";
 
 /**
- * MarketingTransformations — "Real shifts, per module."
+ * MarketingTransformations - "Real shifts, per module."
  *
  * Section replaced with REAL_TRANSFORMATIONS: each card surfaces a real
  * module-level outcome (POD turnaround, invoice generation, fuel

@@ -20,7 +20,7 @@
 
    The engine is deterministic given the same input data, so the
    insights stay stable across re-renders (no flapping). It runs
-   on the client using the existing mock data as input — no API
+   on the client using the existing mock data as input - no API
    call needed, no LLM round-trip. This makes it instant and
    free, suitable for the dashboard's hero widget.
    ============================================================ */
@@ -53,7 +53,7 @@ export interface Insight {
   generatedAt: string;
 }
 
-// Stable ID generator (no Date.now / Math.random — keeps insights dedupable).
+// Stable ID generator (no Date.now / Math.random - keeps insights dedupable).
 function makeId(prefix: string, key: string): string {
   return `${prefix}_${key.replace(/[^a-z0-9]/gi, "_").toLowerCase()}`;
 }

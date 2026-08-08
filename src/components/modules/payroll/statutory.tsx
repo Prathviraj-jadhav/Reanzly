@@ -52,9 +52,9 @@ import {
 } from "./_helpers";
 
 const TYPE_LABELS: Record<StatutoryType, { due: string; portal: string; note: string }> = {
-  PF: { due: "15th of following month", portal: "EPFO Unified Portal", note: "EPFO return — employer + employee PF contributions deposited monthly via challan. Due by 15th of following month." },
-  ESI: { due: "15th of following month", portal: "ESIC Employer Portal", note: "ESIC return — 4.75% employer + 1.75% employee. Applicable if any employee earns at most INR 21,000/month. Due by 15th." },
-  TDS: { due: "31st of quarter-end + 1 month", portal: "TRACES / NSDL", note: "TDS Quarterly — Form 24Q. Salary TDS deducted as per Income Tax slabs. Due 31st of quarter-end month + 1." },
+  PF: { due: "15th of following month", portal: "EPFO Unified Portal", note: "EPFO return - employer + employee PF contributions deposited monthly via challan. Due by 15th of following month." },
+  ESI: { due: "15th of following month", portal: "ESIC Employer Portal", note: "ESIC return - 4.75% employer + 1.75% employee. Applicable if any employee earns at most INR 21,000/month. Due by 15th." },
+  TDS: { due: "31st of quarter-end + 1 month", portal: "TRACES / NSDL", note: "TDS Quarterly - Form 24Q. Salary TDS deducted as per Income Tax slabs. Due 31st of quarter-end month + 1." },
   "Professional Tax": { due: "30th of following month", portal: "Maharashtra GST PT Portal", note: "State-specific PT slab. Maharashtra: INR 200/month. Due by 30th of following month." },
 };
 

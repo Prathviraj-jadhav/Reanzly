@@ -128,7 +128,7 @@ export function SLMPlayground({
       );
       if (simRunId) {
         setLastRunId(simRunId);
-        toast.warning("Real LLM unavailable — ran simulation instead.", {
+        toast.warning("Real LLM unavailable - ran simulation instead.", {
           description: "The live SLM endpoint did not respond.",
         });
       } else {

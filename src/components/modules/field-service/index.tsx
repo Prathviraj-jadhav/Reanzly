@@ -20,7 +20,7 @@ export function FieldServiceModule() {
     setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, ...data } : t)));
   }, []);
 
-  // Detail view — route before any list hooks to keep hook order stable.
+  // Detail view - route before any list hooks to keep hook order stable.
   if (
     activeView.module === "field-service" &&
     activeView.view === "detail" &&

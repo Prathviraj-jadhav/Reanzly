@@ -219,7 +219,7 @@ export async function POST(req: NextRequest) {
 }
 
 /* ============================================================
-   /api/integrations/seed  (POST) — populate default connections
+   /api/integrations/seed  (POST) - populate default connections
    ------------------------------------------------------------
    Idempotent: checks for an existing connection per provider before
    inserting. Use this on first run to hydrate the DB with the demo

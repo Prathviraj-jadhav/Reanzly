@@ -490,7 +490,7 @@ export function ChatComposer({
       }
       case "/assign": {
         if (!argStr) {
-          toast.error("Usage: /assign <task> — mention someone with @ to flag it for them");
+          toast.error("Usage: /assign <task> - mention someone with @ to flag it for them");
           return;
         }
         // This posts a formatted action-item message in this conversation only.

@@ -129,7 +129,7 @@ export function MarketingModule() {
           // back to the broker overview. Either way we surface a toast so the
           // user understands what happened.
           navigate("broker-marketplace");
-          toastInfo("Reanzly Marketplace", "Opening broker marketplace — promote your business.");
+          toastInfo("Reanzly Marketplace", "Opening broker marketplace - promote your business.");
         }}
       />
       <NewCampaignWizard

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# Reanzly v2 — Enterprise System Security & Compliance Auditor
+# Reanzly v2 - Enterprise System Security & Compliance Auditor
 # =============================================================================
 
 echo "================================================================="
@@ -49,9 +49,9 @@ fi
 
 echo "================================================================="
 if [ "$AUDIT_PASSED" = true ]; then
-    echo "OVERALL AUDIT: PASSED — System ready for Enterprise Deployment"
+    echo "OVERALL AUDIT: PASSED - System ready for Enterprise Deployment"
     exit 0
 else
-    echo "OVERALL AUDIT: FAILED — Please resolve issues above"
+    echo "OVERALL AUDIT: FAILED - Please resolve issues above"
     exit 1
 fi

@@ -6,7 +6,7 @@ import { useAppStore } from "@/lib/store/app-store";
 import { COMPANY, FOOTER_LINKS } from "./_data";
 
 /**
- * MarketingFooter — sticky footer (gets mt-auto from the parent flex-col).
+ * MarketingFooter - sticky footer (gets mt-auto from the parent flex-col).
  *
  * Four-column grid: brand column (Reanzly wordmark + tagline + Made in India +
  * contact) + Products + Services + Network (directory / brokers / pricing) +
@@ -16,7 +16,7 @@ import { COMPANY, FOOTER_LINKS } from "./_data";
  * / Terms on the left and the "Design and developed by Nexgen Elit" credit on
  * the right.
  *
- * The Nexgen Elit credit is a real external link — everything else is a
+ * The Nexgen Elit credit is a real external link - everything else is a
  * `#` no-op anchor with hover affordance (except the Network column, which
  * links to real in-page section ids).
  */
@@ -93,7 +93,7 @@ export function MarketingFooter() {
             links={FOOTER_LINKS.services}
           />
 
-          {/* Network column — real in-page anchors */}
+          {/* Network column - real in-page anchors */}
           <div>
             <p className="text-xs uppercase tracking-wider text-muted-foreground">
               Network
@@ -120,7 +120,7 @@ export function MarketingFooter() {
           />
         </div>
 
-        {/* Sub-footer — Logistics Partner Directory shortcut */}
+        {/* Sub-footer - Logistics Partner Directory shortcut */}
         <div className="mt-10 h-px w-full bg-border" />
         <div className="mt-5 flex flex-col items-start justify-between gap-2 text-xs text-muted-foreground sm:flex-row sm:items-center">
           <p>
@@ -131,7 +131,7 @@ export function MarketingFooter() {
             >
               Browse the Logistics Partner Directory
             </a>
-            {" "}— SEO-ranked, searchable, one-click booking.
+            {" "}- SEO-ranked, searchable, one-click booking.
           </p>
         </div>
 

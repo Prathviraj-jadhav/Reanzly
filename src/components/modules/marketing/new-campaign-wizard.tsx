@@ -115,7 +115,7 @@ export function NewCampaignWizard({
   // Apply template → pre-fill form + journey, then jump to step 2.
   const applyTemplate = (tpl: CampaignTemplate) => {
     setSelectedTemplateId(tpl.id);
-    setName(tpl.name + " — copy");
+    setName(tpl.name + " - copy");
     setGoal(tpl.goal);
     setChannel(tpl.channel);
     setAudience(tpl.audience);
@@ -161,7 +161,7 @@ export function NewCampaignWizard({
           : new Date().toISOString(),
       endDate: undefined,
       owner: "You",
-      goal: goal.trim() || (selectedTemplate?.goal ?? "—"),
+      goal: goal.trim() || (selectedTemplate?.goal ?? "-"),
       journey: journey,
       audienceMembers: [],
     };
@@ -201,7 +201,7 @@ export function NewCampaignWizard({
               New Campaign
             </SheetTitle>
             <SheetDescription className="text-[12px] text-muted-foreground">
-              Pick a template, configure audience, review journey — then save as draft or schedule.
+              Pick a template, configure audience, review journey - then save as draft or schedule.
             </SheetDescription>
           </div>
           <button

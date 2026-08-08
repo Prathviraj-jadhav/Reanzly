@@ -104,7 +104,7 @@ const FIELD_META: Record<
   { label: string; placeholder?: string; type: "text" | "date" | "textarea" | "number" | "select-rating" }
 > = {
   subject: { label: "Subject", placeholder: "Letter subject line", type: "text" },
-  body: { label: "Body", placeholder: "Letter body — use {tokens} like {ctc}, {joiningDate}", type: "textarea" },
+  body: { label: "Body", placeholder: "Letter body - use {tokens} like {ctc}, {joiningDate}", type: "textarea" },
   effectiveDate: { label: "Effective Date", type: "date" },
   joiningDate: { label: "Joining Date", type: "date" },
   lastWorkingDay: { label: "Last Working Day", type: "date" },
@@ -431,7 +431,7 @@ export function Issuances({
           } else if (action === "send") {
             toast.success("Document sent via email", { description: `${issuance.documentId} → ${issuance.employeeName}` });
           } else if (action === "download") {
-            toast.success("PDF ready", { description: "Opening print preview — choose 'Save as PDF'." });
+            toast.success("PDF ready", { description: "Opening print preview - choose 'Save as PDF'." });
           } else if (action === "esign") {
             toast.success("Sent for e-sign", { description: `${issuance.documentId} → ${issuance.employeeName}` });
           }
@@ -477,7 +477,7 @@ function TemplateGallery({ onPick }: { onPick: (t: IssuanceType) => void }) {
   return (
     <SectionCard
       title="Document Templates"
-      description="Issue any employment-related document — pick a template to pre-fill the drawer."
+      description="Issue any employment-related document - pick a template to pre-fill the drawer."
       icon={<FilePlus2 className="h-4 w-4" />}
       bodyClassName="p-3"
       action={
@@ -895,13 +895,13 @@ function IssueDrawer({
               </div>
               <div className="rounded-[5px] border border-border bg-muted/20 p-3">
                 <p className="mb-2 text-[11px] text-muted-foreground">
-                  Recipient: <span className="font-mono tabular text-foreground">{selectedEmp?.email || "—"}</span>
+                  Recipient: <span className="font-mono tabular text-foreground">{selectedEmp?.email || "-"}</span>
                 </p>
                 <label className="flex items-center gap-2 cursor-pointer">
                   <Checkbox checked={ccManager} onCheckedChange={(v) => setCcManager(Boolean(v))} />
                   <span className="text-[12px] text-foreground">CC Reporting Manager</span>
                   <span className="ml-auto text-[10.5px] text-muted-foreground truncate">
-                    {selectedEmp?.reportingTo || "—"}
+                    {selectedEmp?.reportingTo || "-"}
                   </span>
                 </label>
                 <label className="mt-2 flex items-center gap-2 cursor-pointer">

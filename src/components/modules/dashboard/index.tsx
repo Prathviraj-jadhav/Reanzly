@@ -33,11 +33,11 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
 /**
- * Reduced-motion guard — inlined here (rather than imported from
+ * Reduced-motion guard - inlined here (rather than imported from
  * `@/lib/animations`) so this module doesn't statically pull the entire
  * GSAP library into the dashboard chunk. `@/lib/animations` re-exports
  * `gsap`/`useGSAP` from `gsap-utils.ts`, which imports gsap at module
- * load — so even importing the tiny `prefersReducedMotion` flag would
+ * load - so even importing the tiny `prefersReducedMotion` flag would
  * drag GSAP into the compile graph. GSAP is loaded lazily in the
  * DashboardGrid effect below instead.
  */
@@ -385,7 +385,7 @@ function DashboardGrid({
   const items = layout.map((l) => l.iid);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Widget stagger entrance — plays once on mount. GSAP is lazy-loaded
+  // Widget stagger entrance - plays once on mount. GSAP is lazy-loaded
   // so it doesn't bloat the dashboard chunk's compile graph (the static
   // import was a contributor to the dev server OOM). Scoped to the grid
   // container via gsap.context; cleanup reverts the tweens on unmount.

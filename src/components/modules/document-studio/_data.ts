@@ -1,7 +1,7 @@
 "use client";
 
 // ============================================================
-//   Document Studio — data model & template catalog.
+//   Document Studio - data model & template catalog.
 //
 //   12 sellable / business-grade document templates that any
 //   role can generate, customize, brand, print and download.
@@ -13,7 +13,7 @@
 //     • lineItemsEnabled (Quotation / PO / Invoice / Delivery Note)
 //
 //   The "Created by Reanzly" brand toggle is a per-document and
-//   per-org default — surfaced on every template.
+//   per-org default - surfaced on every template.
 // ============================================================
 
 import type { LucideIcon } from "lucide-react";
@@ -67,7 +67,7 @@ export interface BrandingConfig {
   phone: string;
   email: string;
   website: string;
-  // Logo as monogram (max 3 chars). Studio is monochrome — no image upload.
+  // Logo as monogram (max 3 chars). Studio is monochrome - no image upload.
   monogram: string;
   // Authorized signatory
   signatoryName: string;
@@ -75,7 +75,7 @@ export interface BrandingConfig {
   // Brand toggle: when ON, every generated doc carries the
   // "Created by Reanzly" watermark + footer attribution.
   reanzlyBranded: boolean;
-  // Accent — only "ink" (monochrome) or "muted". No hues allowed.
+  // Accent - only "ink" (monochrome) or "muted". No hues allowed.
   accent: "ink" | "muted";
 }
 
@@ -151,7 +151,7 @@ export interface GeneratedDocument {
   recipientName: string;
   recipientOrg?: string;
   recipientAddress?: string;
-  // Content — a flat key/value map matching the field schema
+  // Content - a flat key/value map matching the field schema
   fields: Record<string, string>;
   // Optional line items (for finance/ops templates)
   lineItems?: LineItemRow[];
@@ -182,7 +182,7 @@ export interface TemplateMeta {
   prefix: string;
   // Default subject line (becomes the doc title)
   defaultSubject: string;
-  // Default body copy — editable in the builder
+  // Default body copy - editable in the builder
   defaultBody: string;
   // Recipient label hint (e.g. "Candidate", "Vendor", "Consignee")
   recipientLabel: string;

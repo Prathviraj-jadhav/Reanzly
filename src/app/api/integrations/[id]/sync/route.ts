@@ -20,7 +20,7 @@ import { ALL_PROVIDERS } from "@/components/modules/integrations/_data";
    ============================================================ */
 
 const RATE_LIMIT_WINDOW = 60_000;
-const RATE_LIMIT_MAX = 60; // sync is heavier — tighter limit
+const RATE_LIMIT_MAX = 60; // sync is heavier - tighter limit
 
 /** Deterministic record count based on provider's typicalRecordsPerSync. */
 function computeRecordCounts(providerId: string): { pulled: number; pushed: number } {
@@ -124,7 +124,7 @@ export async function POST(
 
     // Update the connection's lastSync telemetry.
     const message = isError
-      ? "Sync failed — upstream returned 503 (service unavailable)"
+      ? "Sync failed - upstream returned 503 (service unavailable)"
       : `${pulled} records pulled · ${pushed} pushed · ${durationMs}ms`;
     await db.integrationConnection.update({
       where: { id: conn.id },
@@ -158,7 +158,7 @@ export async function POST(
   }
 }
 
-/** GET — list the last 10 sync logs for a connection. */
+/** GET - list the last 10 sync logs for a connection. */
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },

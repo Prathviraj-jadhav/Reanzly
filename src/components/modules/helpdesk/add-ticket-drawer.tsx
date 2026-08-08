@@ -108,7 +108,7 @@ export function AddTicketDrawer({ open, onClose, onAdd }: AddTicketDrawerProps) 
       team: form.team,
       assignee: "Unassigned",
       requester: form.requester.trim(),
-      requesterEmail: form.requesterEmail.trim() || "—",
+      requesterEmail: form.requesterEmail.trim() || "-",
       category: form.category,
       createdAt: now,
       updatedAt: now,

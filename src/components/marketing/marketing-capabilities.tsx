@@ -7,9 +7,9 @@ import { toast } from "sonner";
 import { ArrowRight } from "lucide-react";
 
 /**
- * MarketingCapabilities — "Real modules, real sub-features."
+ * MarketingCapabilities - "Real modules, real sub-features."
  *
- * Section id="about" — the broad capability matrix. Derived directly from
+ * Section id="about" - the broad capability matrix. Derived directly from
  * REAL_CAPABILITIES, which itself is derived from the actual module
  * router. Every card shows a real module name, the real sub-features it
  * exposes (tabs, drawers, views), and a "Open module" CTA that signs the
@@ -45,7 +45,7 @@ export function MarketingCapabilities() {
             Every card below is a real, working module.
           </h2>
           <p className="mt-4 text-base leading-relaxed text-muted-foreground">
-            Twelve clusters covering the full logistics lifecycle — from
+            Twelve clusters covering the full logistics lifecycle - from
             trip execution to proof of delivery to reconciliation. Click any
             &ldquo;Open module&rdquo; link and you&apos;re inside the live
             module, signed in as a demo owner.

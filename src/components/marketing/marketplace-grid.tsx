@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * MarketplaceGrid — renders the filtered + sorted list of vehicle listings
+ * MarketplaceGrid - renders the filtered + sorted list of vehicle listings
  * as responsive cards, plus a separate "Find Loads" tab that renders posted
  * loads browseable by vehicle owners.
  *
@@ -60,7 +60,7 @@ export function VehicleGrid({
         </p>
         <p className="mt-1 max-w-sm text-[13px] text-muted-foreground">
           Try clearing your filters or widening your date / route range. New
-          vehicle listings are added daily — if you still can&apos;t find what
+          vehicle listings are added daily - if you still can&apos;t find what
           you need, post a load and let owners come to you.
         </p>
         <button
@@ -214,7 +214,7 @@ function VehicleCard({
 }
 
 /* ============================================================
-   LoadsGrid — for the "Find Loads" tab
+   LoadsGrid - for the "Find Loads" tab
    ============================================================ */
 interface LoadsGridProps {
   loads: LoadListing[];
@@ -232,7 +232,7 @@ export function LoadsGrid({ loads, onApply }: LoadsGridProps) {
           No open loads right now
         </p>
         <p className="mt-1 max-w-sm text-[13px] text-muted-foreground">
-          Shippers post loads throughout the day. Check back later — or list
+          Shippers post loads throughout the day. Check back later - or list
           your vehicle so shippers can find you directly.
         </p>
       </div>
@@ -346,7 +346,7 @@ function LoadCard({ load, onApply }: { load: LoadListing; onApply: () => void })
 }
 
 /* ============================================================
-   SavedListingsStrip — compact list of saved listing IDs
+   SavedListingsStrip - compact list of saved listing IDs
    (rendered at the top of the grid when savedIds is non-empty)
    ============================================================ */
 export function SavedListingsStrip({

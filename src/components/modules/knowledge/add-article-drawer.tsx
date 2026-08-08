@@ -168,7 +168,7 @@ export function AddArticleDrawer({ open, onClose, onAdd }: AddArticleDrawerProps
           <div className="space-y-1">
             <SheetTitle className="text-[17px] font-medium tracking-tight">New Knowledge Article</SheetTitle>
             <SheetDescription className="text-[12px] text-muted-foreground">
-              Capture institutional knowledge — SOPs, policies, playbooks, troubleshooting, onboarding.
+              Capture institutional knowledge - SOPs, policies, playbooks, troubleshooting, onboarding.
             </SheetDescription>
           </div>
           <button
@@ -194,7 +194,7 @@ export function AddArticleDrawer({ open, onClose, onAdd }: AddArticleDrawerProps
                   <Input
                     value={form.title}
                     onChange={(e) => update("title", e.target.value)}
-                    placeholder="e.g. Trip dispatch — end-to-end SOP"
+                    placeholder="e.g. Trip dispatch - end-to-end SOP"
                     className="h-8 rounded-[5px] text-[13px]"
                   />
                 </div>

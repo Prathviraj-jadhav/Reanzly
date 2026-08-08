@@ -171,7 +171,7 @@ export function SurveysList({ surveys, onCreate, onBuild }: SurveysListProps) {
       sortValue: (r) => r.closesOn ?? "",
       render: (r) => (
         <span className="tabular text-[12px] text-muted-foreground">
-          {r.closesOn ? formatDate(r.closesOn) : "—"}
+          {r.closesOn ? formatDate(r.closesOn) : "-"}
         </span>
       ),
     },

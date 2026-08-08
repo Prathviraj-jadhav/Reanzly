@@ -8,13 +8,13 @@ import {
 import { Check, ArrowRight, Sparkles } from "lucide-react";
 
 /**
- * MarketingPricing — public pricing / payment-options section.
+ * MarketingPricing - public pricing / payment-options section.
  *
  * Surfaces the three ways a logistics business can pay for Reanzly:
- *   1. SaaS Subscription        — flat monthly fee, full platform.
- *   2. Logistics Partner        — zero flat fee, 7% per booked trip
+ *   1. SaaS Subscription        - flat monthly fee, full platform.
+ *   2. Logistics Partner        - zero flat fee, 7% per booked trip
  *      (the marketplace / commission model). RECOMMENDED.
- *   3. Master Subscription      — SaaS + commission + broker tools, all-in-one.
+ *   3. Master Subscription      - SaaS + commission + broker tools, all-in-one.
  *
  * The tiers are sourced from `SUBSCRIPTION_MODELS` so the marketing copy and
  * the signup wizard / billing panel stay in lockstep. Each tier is rendered
@@ -22,7 +22,7 @@ import { Check, ArrowRight, Sparkles } from "lucide-react";
  * feature bullets (check icons) and a "Start 7-day free trial" CTA that flips
  * the visitor into the signup wizard.
  *
- * Section id="pricing" — placed between the broker CTA and the
+ * Section id="pricing" - placed between the broker CTA and the
  * transformations section on the landing page.
  */
 export function MarketingPricing() {
@@ -51,7 +51,7 @@ export function MarketingPricing() {
           <p className="mt-4 text-base leading-relaxed text-muted-foreground">
             Flat SaaS for fleet owners. Commission for marketplace partners.
             Master for network operators who want it all. Every plan starts
-            with a 7-day free trial — no card required.
+            with a 7-day free trial - no card required.
           </p>
         </div>
 
@@ -143,7 +143,7 @@ function PricingCard({
           ))}
         </ul>
 
-        {/* CTA — pushes to bottom of card */}
+        {/* CTA - pushes to bottom of card */}
         <div className="mt-auto pt-6">
           <button
             type="button"

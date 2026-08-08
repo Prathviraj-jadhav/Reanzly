@@ -445,7 +445,7 @@ export interface VendorDailyVolume {
   onTime: number;
 }
 
-/** 30-day volume trend — synthesised so the demo has a believable
+/** 30-day volume trend - synthesised so the demo has a believable
  *  weekday-cycle pattern (more trips mid-week, fewer on Sundays). */
 function buildVendorDailyVolume(): VendorDailyVolume[] {
   const out: VendorDailyVolume[] = [];
@@ -608,7 +608,7 @@ export interface VendorRFQ {
   expiresAt: string;
   /** The logistics company that issued the RFQ. */
   issuedBy: string;
-  /** Commodity being shipped — drives the vehicle-type + handling. */
+  /** Commodity being shipped - drives the vehicle-type + handling. */
   commodity: string;
   /** Special handling notes (read-only for vendor). */
   notes?: string;
@@ -851,7 +851,7 @@ export interface SupportTicket {
   lastReplyBy?: "Vendor" | "Reanzly Support" | "Account Manager";
   /** Number of messages in the thread (incl. the original). */
   messageCount: number;
-  /** Linked entity ref (optional — invoice #, trip #, POD #). */
+  /** Linked entity ref (optional - invoice #, trip #, POD #). */
   linkedRef?: string;
   /** First message body (read-only after creation). */
   description: string;
@@ -995,7 +995,7 @@ export function computeVendorTicketKpis(tickets: SupportTicket[]): VendorTicketK
   const resolved = tickets.filter((t) => t.status === "Resolved").length;
   const closed = tickets.filter((t) => t.status === "Closed").length;
   const urgentOpen = tickets.filter((t) => t.priority === "Urgent" && t.status !== "Closed" && t.status !== "Resolved").length;
-  // Avg resolution days — only count Resolved + Closed tickets.
+  // Avg resolution days - only count Resolved + Closed tickets.
   const resolvedTickets = tickets.filter((t) => t.status === "Resolved" || t.status === "Closed");
   const avgResolutionDays =
     resolvedTickets.length === 0

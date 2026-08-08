@@ -83,7 +83,7 @@ export function DriverEarnings() {
         </button>
       </header>
 
-      {/* Weekly summary card — the primary paystub */}
+      {/* Weekly summary card - the primary paystub */}
       <section className="overflow-hidden rounded-[6px] border border-border bg-background">
         <div className="flex items-center justify-between border-b border-border bg-accent/30 px-4 py-2.5">
           <div className="flex items-center gap-2">
@@ -279,7 +279,7 @@ export function DriverEarnings() {
           </span>
         </div>
         <div className="space-y-3 p-4">
-          {/* Top row — spent vs reimbursable */}
+          {/* Top row - spent vs reimbursable */}
           <div className="grid grid-cols-2 gap-2">
             <FuelTile
               label="Spent This Week"
@@ -524,7 +524,7 @@ function PayoutRow({ payout }: { payout: PayoutCycle }) {
             <DetailRow label="Net Payable" value={formatINR(payout.net)} />
             <DetailRow
               label="Paid On"
-              value={payout.paidOn ? fmtDateFull(payout.paidOn) : "—"}
+              value={payout.paidOn ? fmtDateFull(payout.paidOn) : "-"}
             />
             {payout.utr && <DetailRow label="UTR / Ref" value={payout.utr} />}
           </dl>

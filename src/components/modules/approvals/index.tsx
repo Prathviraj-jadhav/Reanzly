@@ -15,7 +15,7 @@ export function ApprovalsModule() {
     setRequests((prev) => prev.map((r) => (r.id === id ? { ...r, ...data } : r)));
   }, []);
 
-  // Detail view — route before any list hooks to keep hook order stable.
+  // Detail view - route before any list hooks to keep hook order stable.
   if (
     activeView.module === "approvals" &&
     activeView.view === "detail" &&

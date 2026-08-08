@@ -307,7 +307,7 @@ interface SuperadminState {
   runAgent: (agentId: string, input: string, trigger: AgentRun["trigger"]) => string;
   /** Prepend a fully-built AgentRun (e.g. one produced by the real LLM
    *  endpoint) to the store, bump the agent's run stats, and emit an
-   *  audit entry. Returns nothing — the caller already has the run. */
+   *  audit entry. Returns nothing - the caller already has the run. */
   addAgentRun: (run: AgentRun) => void;
   decideApproval: (approvalId: string, decision: "approved" | "denied", note?: string) => void;
   createApiKey: (input: { label: string; providerId: string; key: string; scopes: string[] }) => string;

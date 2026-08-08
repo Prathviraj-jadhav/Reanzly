@@ -32,7 +32,7 @@ import {
 } from "lucide-react";
 
 /**
- * MarketingDirectory — public Logistics Partner Directory.
+ * MarketingDirectory - public Logistics Partner Directory.
  *
  * IndiaMART / Zomato-style listing of verified transport companies, brokers,
  * warehouses and fleet owners on the Reanzly network. Section id="directory"
@@ -42,14 +42,14 @@ import {
  *  - Section header + subhead.
  *  - Toolbar: search input (name / city / lane / service), category filter
  *    chips, sort dropdown (Rating / Reviews / Newest).
- *  - Responsive card grid (1 / 2 / 3) — each card has logo-initials tile,
+ *  - Responsive card grid (1 / 2 / 3) - each card has logo-initials tile,
  *    name + verified check, star rating + review count, tagline, cities,
  *    service badges, subscription-model badge and a "View profile" button.
  *  - Clicking a card opens a Dialog with the full profile (about, lanes,
  *    cities, services, badges, year established, fleet size, response time)
  *    and a "Request quote" CTA (toast) + "Visit website" link.
  *
- * Strictly monochrome Swiss/Scandinavian — hairline borders, 6px radii,
+ * Strictly monochrome Swiss/Scandinavian - hairline borders, 6px radii,
  * generous whitespace, no hues, no shadows.
  */
 
@@ -325,7 +325,7 @@ function SubscriptionModelBadge({
   model: DirectoryListing["subscriptionModel"];
   label: string;
 }) {
-  // Master tier gets the inverted fill — it's the top plan.
+  // Master tier gets the inverted fill - it's the top plan.
   const isMaster = model === "master";
   const isCommission = model === "commission";
   return (

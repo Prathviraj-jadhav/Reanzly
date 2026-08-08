@@ -98,7 +98,7 @@ export function FinancialServicesModule() {
       hideOnMobile: true,
       render: (a) => (
         <span className="text-[12px] text-muted-foreground tabular">
-          {a.linkedInvoiceIds.length > 0 ? `${a.linkedInvoiceIds.length} invoice${a.linkedInvoiceIds.length === 1 ? "" : "s"}` : "—"}
+          {a.linkedInvoiceIds.length > 0 ? `${a.linkedInvoiceIds.length} invoice${a.linkedInvoiceIds.length === 1 ? "" : "s"}` : "-"}
         </span>
       ),
     },

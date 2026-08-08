@@ -55,7 +55,7 @@ function SheetContent({
   /**
    * Whether to render the default top-right floating X close button.
    * Defaults to `true` (matches shadcn/ui behaviour). Pass `false` when the
-   * sheet's header already renders its own close button — otherwise the user
+   * sheet's header already renders its own close button - otherwise the user
    * sees two X icons stacked on top of each other.
    */
   showCloseButton?: boolean

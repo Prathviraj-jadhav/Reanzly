@@ -8,7 +8,7 @@ import { ArrowRight, Play } from "lucide-react";
 import { REAL_MODULES } from "./real-data";
 
 /**
- * MarketingInsights — "Inside the modules."
+ * MarketingInsights - "Inside the modules."
  *
  * Replaces the previous fake "research desk" articles (which had no real
  * content and "Read more →" links that went nowhere). Each card now
@@ -43,7 +43,7 @@ export function MarketingInsights() {
             Inside the modules.
           </h2>
           <p className="mt-4 text-base leading-relaxed text-muted-foreground">
-            Each card below is a deep dive into a real Reanzly module —
+            Each card below is a deep dive into a real Reanzly module -
             the metric it moves, the screen that moves it, and a one-tap
             &ldquo;Open module&rdquo; CTA so you can see it live.
           </p>

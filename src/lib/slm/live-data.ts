@@ -134,7 +134,7 @@ export async function computeAnomalies(companyId: string): Promise<Anomaly[]> {
       type: "Overdue invoice",
       entity: inv.invoiceNumber,
       severity: "high",
-      detail: `${inv.customer} — ₹${inv.totalAmount.toLocaleString("en-IN")} overdue`,
+      detail: `${inv.customer} - ₹${inv.totalAmount.toLocaleString("en-IN")} overdue`,
     });
   }
   for (const iss of criticalIssues) {

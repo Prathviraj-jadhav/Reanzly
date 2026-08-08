@@ -272,7 +272,7 @@ export const HELPDESK_TICKETS: HelpdeskTicket[] = [
   {
     id: "t-1",
     ticketId: "TKT-2841",
-    subject: "POD dispute for TRP-1042 — consignee refuses to sign",
+    subject: "POD dispute for TRP-1042 - consignee refuses to sign",
     description:
       "Consignee at the Nagpur delivery point is refusing to acknowledge the delivery due to a damaged carton. Driver has captured photographic evidence. Customer is requesting a re-delivery and a credit note for the damaged goods.",
     customer: "Maruti Roadways",
@@ -304,7 +304,7 @@ export const HELPDESK_TICKETS: HelpdeskTicket[] = [
   {
     id: "t-2",
     ticketId: "TKT-2842",
-    subject: "Invoice correction needed for INV-2841 — GST mismatch",
+    subject: "Invoice correction needed for INV-2841 - GST mismatch",
     description:
       "GSTIN on invoice INV-2841 shows 27AABC... instead of 27AAAC... The customer's accounting team is unable to claim ITC. Requesting a corrected invoice with the right GSTIN and a credit note for the original.",
     customer: "Sahyadri Logistics",
@@ -333,7 +333,7 @@ export const HELPDESK_TICKETS: HelpdeskTicket[] = [
   {
     id: "t-3",
     ticketId: "TKT-2843",
-    subject: "Vehicle breakdown on Mumbai-Delhi route — NH48 km 142",
+    subject: "Vehicle breakdown on Mumbai-Delhi route - NH48 km 142",
     description:
       "Truck MH-12-AB-7890 (TRP-2204) has broken down near Manor on NH48. Driver reports clutch failure. Need roadside assistance dispatch and a relay vehicle to ensure on-time delivery.",
     customer: "Reliance Transport Corp",
@@ -358,10 +358,10 @@ export const HELPDESK_TICKETS: HelpdeskTicket[] = [
     ],
     activity: [
       { icon: "flag", label: "Ticket created", detail: "via Phone · routed to Fleet · Urgent", ts: ago(95) },
-      { icon: "user", label: "Assigned to Imran Sheikh", detail: "Urgent SLA — 15 min response", ts: ago(94) },
+      { icon: "user", label: "Assigned to Imran Sheikh", detail: "Urgent SLA - 15 min response", ts: ago(94) },
       { icon: "play", label: "Status → In Progress", detail: "first response sent", ts: ago(80) },
       { icon: "package", label: "Service van dispatched", detail: "Palghar hub → Manor (35 km)", ts: ago(75) },
-      { icon: "truck", label: "Relay vehicle reached", detail: "Bhiwandi depot — TRP-2204 cargo transfer in progress", ts: ago(15) },
+      { icon: "truck", label: "Relay vehicle reached", detail: "Bhiwandi depot - TRP-2204 cargo transfer in progress", ts: ago(15) },
     ],
   },
   {
@@ -399,7 +399,7 @@ export const HELPDESK_TICKETS: HelpdeskTicket[] = [
   {
     id: "t-5",
     ticketId: "TKT-2845",
-    subject: "Delivery delay — TRP-3310 exceeded promised window",
+    subject: "Delivery delay - TRP-3310 exceeded promised window",
     description:
       "Shipment to Coimbatore was promised in 48 hours but is now 72 hours. Customer is seeking a penalty waiver and an explanation for the delay.",
     customer: "South India Textiles Ltd",
@@ -432,7 +432,7 @@ export const HELPDESK_TICKETS: HelpdeskTicket[] = [
   {
     id: "t-6",
     ticketId: "TKT-2846",
-    subject: "Rate dispute on lane Mumbai-Pune — quoted vs invoiced",
+    subject: "Rate dispute on lane Mumbai-Pune - quoted vs invoiced",
     description:
       "Customer was quoted ₹18,500 for a 9-tonne load on the Mumbai-Pune lane but invoice shows ₹22,100. Sales rep confirmed the lower rate verbally. Need reconciliation.",
     customer: "Asha Transport Co",
@@ -463,7 +463,7 @@ export const HELPDESK_TICKETS: HelpdeskTicket[] = [
   {
     id: "t-7",
     ticketId: "TKT-2847",
-    subject: "Cannot access account — OTP not received for last 30 minutes",
+    subject: "Cannot access account - OTP not received for last 30 minutes",
     description:
       "Customer user rashmi@abc.in is unable to log in. The OTP is not arriving on their registered mobile +91-98XXXXXXXX. Need alternate login or OTP re-issue.",
     customer: "ABC Cold Chain",
@@ -480,7 +480,7 @@ export const HELPDESK_TICKETS: HelpdeskTicket[] = [
     updatedAt: ago(18),
     sla: slaFor(ago(18), "High"),
     messages: [
-      { id: "m1", author: "Rashmi Deshpande", role: "Customer", text: "Not receiving OTP for the last 30 minutes. Urgent — need to dispatch shipments.", ts: ago(18) },
+      { id: "m1", author: "Rashmi Deshpande", role: "Customer", text: "Not receiving OTP for the last 30 minutes. Urgent - need to dispatch shipments.", ts: ago(18) },
     ],
     activity: [
       { icon: "flag", label: "Ticket created", detail: "via WhatsApp · routed to IT Support · High", ts: ago(18) },
@@ -489,7 +489,7 @@ export const HELPDESK_TICKETS: HelpdeskTicket[] = [
   {
     id: "t-8",
     ticketId: "TKT-2848",
-    subject: "Tracking not updating for TRP-4408 — last ping 6 hours ago",
+    subject: "Tracking not updating for TRP-4408 - last ping 6 hours ago",
     description:
       "GPS tracking for vehicle KA-01-CD-4521 has stopped updating. Customer cannot see live status. Possible device malfunction or low battery.",
     customer: "Deccan Express Logistics",
@@ -518,7 +518,7 @@ export const HELPDESK_TICKETS: HelpdeskTicket[] = [
   {
     id: "t-9",
     ticketId: "TKT-2849",
-    subject: "Payment failure for invoice INV-2912 — UPI timeout",
+    subject: "Payment failure for invoice INV-2912 - UPI timeout",
     description:
       "Customer attempted to pay INV-2912 via UPI but the transaction timed out at the bank's end. Amount debited but not credited to our account. Customer is asking for confirmation.",
     customer: "Gujarat Agri Logistics",
@@ -550,7 +550,7 @@ export const HELPDESK_TICKETS: HelpdeskTicket[] = [
   {
     id: "t-10",
     ticketId: "TKT-2850",
-    subject: "Documentation error — LR shows wrong consignee PIN",
+    subject: "Documentation error - LR shows wrong consignee PIN",
     description:
       "Lorry receipt LR-8812 shows consignee PIN as 411014 instead of 411001. Customer's billing system rejected the LR. Requesting reissue with the correct PIN.",
     customer: "Maruti Roadways",
@@ -582,7 +582,7 @@ export const HELPDESK_TICKETS: HelpdeskTicket[] = [
   {
     id: "t-11",
     ticketId: "TKT-2851",
-    subject: "Rate card expired — please share revised lane rates",
+    subject: "Rate card expired - please share revised lane rates",
     description:
       "Customer's existing rate card expired last week. They are requesting the revised Mumbai-Hyderabad and Mumbai-Chennai rates for the next quarter.",
     customer: "Sahyadri Logistics",
@@ -608,7 +608,7 @@ export const HELPDESK_TICKETS: HelpdeskTicket[] = [
   {
     id: "t-12",
     ticketId: "TKT-2852",
-    subject: "Damaged consignment claim — 3 cartons of electronics",
+    subject: "Damaged consignment claim - 3 cartons of electronics",
     description:
       "Customer reports 3 cartons of electronics (TRP-5519) arrived damaged. Estimated loss ₹85,000. Requesting insurance claim initiation and inspection.",
     customer: "Reliance Transport Corp",
@@ -670,7 +670,7 @@ export const HELPDESK_TICKETS: HelpdeskTicket[] = [
   {
     id: "t-14",
     ticketId: "TKT-2854",
-    subject: "Driver misbehaviour complaint — TRP-2207",
+    subject: "Driver misbehaviour complaint - TRP-2207",
     description:
       "Customer's consignee reports that the driver was rude and refused to unload at the second floor. Customer wants the driver reprimanded and a written apology.",
     customer: "South India Textiles Ltd",
@@ -701,7 +701,7 @@ export const HELPDESK_TICKETS: HelpdeskTicket[] = [
   {
     id: "t-15",
     ticketId: "TKT-2855",
-    subject: "Vehicle breakdown on Chennai-Bangalore route — NH48 km 220",
+    subject: "Vehicle breakdown on Chennai-Bangalore route - NH48 km 220",
     description:
       "Truck TN-22-EF-9911 (TRP-3315) has a tyre burst near Krishnagiri. Driver is safe. Need a replacement tyre and assistance.",
     customer: "Deccan Express Logistics",
@@ -734,7 +734,7 @@ export const HELPDESK_TICKETS: HelpdeskTicket[] = [
   {
     id: "t-16",
     ticketId: "TKT-2856",
-    subject: "POD not received for TRP-6610 — payment held",
+    subject: "POD not received for TRP-6610 - payment held",
     description:
       "Customer's accounts team is holding payment for TRP-6610 because the POD has not been submitted. Driver completed delivery 3 days ago but did not capture proof.",
     customer: "Asha Transport Co",
@@ -763,7 +763,7 @@ export const HELPDESK_TICKETS: HelpdeskTicket[] = [
   {
     id: "t-17",
     ticketId: "TKT-2857",
-    subject: "Invoice correction — freight amount mismatch INV-3022",
+    subject: "Invoice correction - freight amount mismatch INV-3022",
     description:
       "Invoice INV-3022 shows freight of ₹42,000 but the agreed rate was ₹38,500. Customer wants the invoice reissued with the correct amount.",
     customer: "Gujarat Agri Logistics",
@@ -795,7 +795,7 @@ export const HELPDESK_TICKETS: HelpdeskTicket[] = [
   {
     id: "t-18",
     ticketId: "TKT-2858",
-    subject: "Account access — multiple users unable to login since morning",
+    subject: "Account access - multiple users unable to login since morning",
     description:
       "Multiple users at the customer's org are unable to log in. Browser shows a 502 error. Possible backend issue.",
     customer: "ABC Cold Chain",
@@ -814,7 +814,7 @@ export const HELPDESK_TICKETS: HelpdeskTicket[] = [
     messages: [
       { id: "m1", author: "Rashmi Deshpande", role: "Customer", text: "No one in our office can login. 502 error. Urgent.", ts: ago(45) },
       { id: "m2", author: "Imran Sheikh", role: "Agent", text: "On it. Checking the auth service.", ts: ago(35), internal: true },
-      { id: "m3", author: "Imran Sheikh", role: "Agent", text: "Identified the issue — auth service memory spike. Restarting the cluster. ETA 10 minutes.", ts: ago(20) },
+      { id: "m3", author: "Imran Sheikh", role: "Agent", text: "Identified the issue - auth service memory spike. Restarting the cluster. ETA 10 minutes.", ts: ago(20) },
       { id: "m4", author: "Imran Sheikh", role: "Agent", text: "Service restored. Please retry.", ts: ago(5) },
     ],
     activity: [
@@ -827,7 +827,7 @@ export const HELPDESK_TICKETS: HelpdeskTicket[] = [
   {
     id: "t-19",
     ticketId: "TKT-2859",
-    subject: "e-Way bill expired mid-transit — TRP-7720",
+    subject: "e-Way bill expired mid-transit - TRP-7720",
     description:
       "e-Way bill for TRP-7720 expired at the Karnataka border checkpost. Vehicle held. Need extension or a fresh e-Way bill generated urgently.",
     customer: "Deccan Express Logistics",
@@ -847,7 +847,7 @@ export const HELPDESK_TICKETS: HelpdeskTicket[] = [
     messages: [
       { id: "m1", author: "Sunitha Rao", role: "Customer", text: "e-Way bill expired at Karnataka border. Vehicle held. Urgent extension needed.", ts: ago(60) },
       { id: "m2", author: "Deepa Nair", role: "Agent", text: "On it. Filing EXT-3 for extension via the portal.", ts: ago(45), internal: true },
-      { id: "m3", author: "Deepa Nair", role: "Agent", text: "Extension filed. awaiting GSTN approval — usually 10 minutes.", ts: ago(20) },
+      { id: "m3", author: "Deepa Nair", role: "Agent", text: "Extension filed. awaiting GSTN approval - usually 10 minutes.", ts: ago(20) },
       { id: "m4", author: "Deepa Nair", role: "Agent", text: "Extension approved. Vehicle released. Trip resumed.", ts: ago(8) },
     ],
     activity: [
@@ -860,7 +860,7 @@ export const HELPDESK_TICKETS: HelpdeskTicket[] = [
   {
     id: "t-20",
     ticketId: "TKT-2860",
-    subject: "Tracking shows wrong destination — TRP-8821",
+    subject: "Tracking shows wrong destination - TRP-8821",
     description:
       "Tracking dashboard for TRP-8821 shows destination as Kolkata instead of Cuttack. Customer's consignee is confused. Likely a master data error.",
     customer: "Reliance Transport Corp",
@@ -887,7 +887,7 @@ export const HELPDESK_TICKETS: HelpdeskTicket[] = [
   {
     id: "t-21",
     ticketId: "TKT-2861",
-    subject: "Delivery delay — TRP-9932 missed promised window",
+    subject: "Delivery delay - TRP-9932 missed promised window",
     description:
       "Shipment to Indore promised in 36 hours but delivered in 54 hours. Customer is upset and asking for a service credit.",
     customer: "Maruti Roadways",
@@ -918,7 +918,7 @@ export const HELPDESK_TICKETS: HelpdeskTicket[] = [
   {
     id: "t-22",
     ticketId: "TKT-2862",
-    subject: "Driver license expiry reminder — Ramesh K",
+    subject: "Driver license expiry reminder - Ramesh K",
     description:
       "Driver Ramesh K's license expires in 15 days. Customer wants confirmation that he will not be assigned to interstate trips after the expiry date.",
     customer: "Sahyadri Logistics",
@@ -948,7 +948,7 @@ export const HELPDESK_TICKETS: HelpdeskTicket[] = [
   {
     id: "t-23",
     ticketId: "TKT-2863",
-    subject: "Rate dispute on Bengaluru-Mysore lane — quoted vs billed",
+    subject: "Rate dispute on Bengaluru-Mysore lane - quoted vs billed",
     description:
       "Customer quoted ₹9,800 for a 5-tonne load on Bengaluru-Mysore but billed ₹11,200. The differential is due to a toll surcharge not communicated at quoting time.",
     customer: "Deccan Express Logistics",
@@ -977,7 +977,7 @@ export const HELPDESK_TICKETS: HelpdeskTicket[] = [
   {
     id: "t-24",
     ticketId: "TKT-2864",
-    subject: "Payment failure — NEFT for INV-3140 returned",
+    subject: "Payment failure - NEFT for INV-3140 returned",
     description:
       "Customer's NEFT for INV-3140 was returned by their bank citing account name mismatch. Customer wants the correct beneficiary name confirmed to retry.",
     customer: "Patel Freight Movers",
@@ -1006,7 +1006,7 @@ export const HELPDESK_TICKETS: HelpdeskTicket[] = [
   {
     id: "t-25",
     ticketId: "TKT-2865",
-    subject: "Vehicle breakdown on Kolkata-Asansol route — NH19 km 180",
+    subject: "Vehicle breakdown on Kolkata-Asansol route - NH19 km 180",
     description:
       "Truck WB-23-GH-6655 (TRP-4410) reports engine overheating near Durgapur. Driver pulled over. Needs coolant top-up and a mechanic inspection.",
     customer: "Reliance Transport Corp",

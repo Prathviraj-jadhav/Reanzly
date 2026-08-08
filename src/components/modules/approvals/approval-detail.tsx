@@ -253,7 +253,7 @@ export function ApprovalDetail({ requestId }: ApprovalDetailProps) {
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <StatCard label="Type" value={req.type} icon={<FileText className="h-3.5 w-3.5" />} />
             <StatCard label="Status" value={req.status} icon={<Clock className="h-3.5 w-3.5" />} />
-            <StatCard label="Amount" value={req.amount > 0 ? formatINR(req.amount) : "—"} icon={<FileText className="h-3.5 w-3.5" />} />
+            <StatCard label="Amount" value={req.amount > 0 ? formatINR(req.amount) : "-"} icon={<FileText className="h-3.5 w-3.5" />} />
             <StatCard label="Chain mode" value={req.chainMode} icon={<GitBranch className="h-3.5 w-3.5" />} />
           </div>
 
@@ -265,7 +265,7 @@ export function ApprovalDetail({ requestId }: ApprovalDetailProps) {
               <InfoRow label="Status" value={<StatusBadge variant={statusBadge(req.status).variant}>{req.status}</StatusBadge>} />
               <InfoRow label="Priority" value={req.priority} />
               <InfoRow label="Chain mode" value={req.chainMode} />
-              <InfoRow label="Amount" value={req.amount > 0 ? <span className="tabular">{formatINR(req.amount)}</span> : "—"} mono />
+              <InfoRow label="Amount" value={req.amount > 0 ? <span className="tabular">{formatINR(req.amount)}</span> : "-"} mono />
               <InfoRow label="Requester" value={req.requester} />
               <InfoRow label="Department" value={req.department} />
               <InfoRow label="Submitted" value={<span className="tabular">{formatDateTime(req.submittedAt)}</span>} mono />

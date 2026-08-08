@@ -1,22 +1,22 @@
 /**
- * marketplace-data.ts — Vehicle Rental Marketplace seed data + types.
+ * marketplace-data.ts - Vehicle Rental Marketplace seed data + types.
  *
  * This file is the single source of truth for the public-facing Vehicle
  * Rental Marketplace shown at `marketingView === "marketplace"`. It contains:
  *
  *   • TypeScript types for vehicle listings, owners, routes, pricing, reviews
  *   • Static metadata maps (VEHICLE_TYPE_META, BODY_TYPE_META, AXLE_META,
- *     FUEL_TYPE_META, REGION_LIST, INDIAN_CITIES) — used by the filters
+ *     FUEL_TYPE_META, REGION_LIST, INDIAN_CITIES) - used by the filters
  *     sidebar and the SEO anchor nav.
- *   • 60 deterministic seed listings (VEHICLE_LISTINGS) — Indian truck
+ *   • 60 deterministic seed listings (VEHICLE_LISTINGS) - Indian truck
  *     owners with realistic names, Indian cities, Indian truck types, and
  *     realistic pricing (₹1,500/day Tata Ace → ₹15,000/day Volvo tractor).
- *   • 12 seed loads (LOAD_LISTINGS) — posted by shippers needing capacity,
+ *   • 12 seed loads (LOAD_LISTINGS) - posted by shippers needing capacity,
  *     browseable from the "Find Loads" tab so vehicle owners can pick up
  *     freight.
  *
  * Everything is deterministic (no Math.random) so SSR + client render match
- * and the seed is stable across reloads — important for hydration.
+ * and the seed is stable across reloads - important for hydration.
  */
 
 // ============================================================================
@@ -173,19 +173,19 @@ export const VEHICLE_TYPE_META: Record<
 };
 
 export const BODY_TYPE_META: Record<BodyType, { label: string; description: string }> = {
-  open: { label: "Open", description: "Flatbed or open body — ideal for steel, machinery, construction material" },
-  closed: { label: "Closed", description: "Box body — weather-proof for FMCG, electronics, packaged goods" },
-  container: { label: "Container", description: "20ft / 40ft ISO container — for intermodal & port haulage" },
-  refrigerated: { label: "Refrigerated", description: "Reefer body with temperature control — for pharma & perishables" },
-  tipper: { label: "Tipper", description: "Hydraulic lift — for sand, aggregate, ore, construction debris" },
-  tanker: { label: "Tanker", description: "Liquid / gas carrier — for fuel, water, chemicals" },
+  open: { label: "Open", description: "Flatbed or open body - ideal for steel, machinery, construction material" },
+  closed: { label: "Closed", description: "Box body - weather-proof for FMCG, electronics, packaged goods" },
+  container: { label: "Container", description: "20ft / 40ft ISO container - for intermodal & port haulage" },
+  refrigerated: { label: "Refrigerated", description: "Reefer body with temperature control - for pharma & perishables" },
+  tipper: { label: "Tipper", description: "Hydraulic lift - for sand, aggregate, ore, construction debris" },
+  tanker: { label: "Tanker", description: "Liquid / gas carrier - for fuel, water, chemicals" },
 };
 
 export const AXLE_META: Record<AxleType, { label: string; description: string }> = {
-  "4": { label: "4-tyre (2 axle)", description: "Light commercial — Tata Ace, 407, Bolero Pickup" },
-  "6": { label: "6-tyre (3 axle)", description: "Medium goods — Eicher, Tata LPT 1613, Ashok Leyland 1616" },
-  "10": { label: "10-tyre (5 axle)", description: "Heavy goods — Prima tractor, 40ft container, flatbed, tipper" },
-  "12": { label: "12-tyre (6 axle)", description: "Heavy haulage — Volvo FM 400, multi-axle tractor" },
+  "4": { label: "4-tyre (2 axle)", description: "Light commercial - Tata Ace, 407, Bolero Pickup" },
+  "6": { label: "6-tyre (3 axle)", description: "Medium goods - Eicher, Tata LPT 1613, Ashok Leyland 1616" },
+  "10": { label: "10-tyre (5 axle)", description: "Heavy goods - Prima tractor, 40ft container, flatbed, tipper" },
+  "12": { label: "12-tyre (6 axle)", description: "Heavy haulage - Volvo FM 400, multi-axle tractor" },
 };
 
 export const FUEL_TYPE_META: Record<FuelType, { label: string }> = {
@@ -301,10 +301,10 @@ const LANE_SEEDS: LaneSeed[] = [
 const RTO_PREFIXES = ["MH 02", "MH 04", "DL 01", "DL 02", "KA 01", "KA 03", "TN 22", "TN 07", "WB 23", "AP 09", "GJ 01", "GJ 05", "RJ 14", "UP 32", "MP 09"];
 
 // ============================================================================
-// DETERMINISTIC HELPERS — pseudo-random but stable across reloads
+// DETERMINISTIC HELPERS - pseudo-random but stable across reloads
 // ============================================================================
 
-// Simple seeded PRNG (mulberry32) — used so listings are stable across reloads
+// Simple seeded PRNG (mulberry32) - used so listings are stable across reloads
 function mulberry32(seed: number) {
   return function () {
     seed |= 0;
@@ -337,7 +337,7 @@ function floatBetween(min: number, max: number, decimals = 1): number {
 }
 
 // ============================================================================
-// LISTING BUILDER — produces a deterministic VehicleListing
+// LISTING BUILDER - produces a deterministic VehicleListing
 // ============================================================================
 
 const ALL_FEATURES = ["GPS", "Fastag", "Tarpaulin", "Hydraulic Lift", "Reefer Temp Control", "Reverse Camera", "Anti-lock Brakes", "Speed Governor"];
@@ -407,7 +407,7 @@ function buildListing(index: number): VehicleListing {
     },
   };
 
-  // Route — sometimes owner's home city is the origin, sometimes the lane's origin
+  // Route - sometimes owner's home city is the origin, sometimes the lane's origin
   const useOwnerAsOrigin = rng() > 0.5;
   const route: RouteInfo = {
     origin: useOwnerAsOrigin ? owner.city : laneSeed.origin,
@@ -420,14 +420,14 @@ function buildListing(index: number): VehicleListing {
     region: laneSeed.region,
   };
 
-  // Availability — most listings are available for the rest of the year + on-demand
+  // Availability - most listings are available for the rest of the year + on-demand
   const availability: AvailabilityInfo = {
     fromDate: "2025-02-01",
     toDate: "2025-12-31",
     onDemand: rng() > 0.2,
   };
 
-  // Pricing — base per day, with some variance
+  // Pricing - base per day, with some variance
   const perDay = meta.basePerDay + intBetween(-300, 800);
   const perKm = Math.round(perDay / 80) + intBetween(2, 8); // approx INR/km
   const perTrip = perKm * route.distanceKm;
@@ -447,7 +447,7 @@ function buildListing(index: number): VehicleListing {
   const reviewCount = intBetween(5, 150);
   const totalBookings = owner.totalTrips + intBetween(10, 80);
 
-  // Reviews — generate 2-3 sample reviews
+  // Reviews - generate 2-3 sample reviews
   const reviews: ReviewItem[] = [];
   const reviewCount2 = intBetween(2, 3);
   for (let i = 0; i < reviewCount2; i++) {
@@ -460,7 +460,7 @@ function buildListing(index: number): VehicleListing {
     });
   }
 
-  // Photos — placeholder URLs (the renderer falls back to a colored tile if these fail)
+  // Photos - placeholder URLs (the renderer falls back to a colored tile if these fail)
   const photos = [
     `/placeholder/truck-${vehicleType}.jpg`,
     `/placeholder/truck-${vehicleType}-side.jpg`,
@@ -469,7 +469,7 @@ function buildListing(index: number): VehicleListing {
 
   const postedAt = pick(["2 days ago", "5 days ago", "1 week ago", "2 weeks ago", "3 weeks ago", "1 month ago"]);
 
-  // Featured — mark the first 8 listings as featured (above-the-fold rail)
+  // Featured - mark the first 8 listings as featured (above-the-fold rail)
   const featured = index < 8;
 
   const title = `${meta.label} available for ${route.origin}-${route.destination} route`;
@@ -493,13 +493,13 @@ function buildListing(index: number): VehicleListing {
 }
 
 // ============================================================================
-// VEHICLE_LISTINGS — 60 deterministic listings
+// VEHICLE_LISTINGS - 60 deterministic listings
 // ============================================================================
 
 export const VEHICLE_LISTINGS: VehicleListing[] = Array.from({ length: 60 }, (_, i) => buildListing(i));
 
 // ============================================================================
-// LOAD_LISTINGS — 12 loads posted by shippers (vehicle owners browse these)
+// LOAD_LISTINGS - 12 loads posted by shippers (vehicle owners browse these)
 // ============================================================================
 
 interface LoadSeed {
@@ -515,17 +515,17 @@ interface LoadSeed {
 }
 
 const LOAD_SEEDS: LoadSeed[] = [
-  { shipper: "Tata Steel BSL", origin: "Mumbai", destination: "Pune", weightTonnes: 18, vehicleTypeRequired: "eicher-pro-3015", bodyTypeRequired: "open", budget: 18000, distanceKm: 148, description: "Coils — needs tarpaulin. Loading dock available at Bhandup." },
+  { shipper: "Tata Steel BSL", origin: "Mumbai", destination: "Pune", weightTonnes: 18, vehicleTypeRequired: "eicher-pro-3015", bodyTypeRequired: "open", budget: 18000, distanceKm: 148, description: "Coils - needs tarpaulin. Loading dock available at Bhandup." },
   { shipper: "Reliance Retail", origin: "Ahmedabad", destination: "Surat", weightTonnes: 7, vehicleTypeRequired: "container-20ft", bodyTypeRequired: "container", budget: 22000, distanceKm: 262, description: "FMCG pallets. 6 pallets, 1.2T each. Forklift at both ends." },
-  { shipper: "Sun Pharma", origin: "Hyderabad", destination: "Bangalore", weightTonnes: 6, vehicleTypeRequired: "refrigerated-truck", bodyTypeRequired: "refrigerated", budget: 38000, distanceKm: 575, description: "Pharma — needs 2-8°C reefer. Temperature logger mandatory." },
+  { shipper: "Sun Pharma", origin: "Hyderabad", destination: "Bangalore", weightTonnes: 6, vehicleTypeRequired: "refrigerated-truck", bodyTypeRequired: "refrigerated", budget: 38000, distanceKm: 575, description: "Pharma - needs 2-8°C reefer. Temperature logger mandatory." },
   { shipper: "Adani Cement", origin: "Nagpur", destination: "Bhopal", weightTonnes: 24, vehicleTypeRequired: "tipper", bodyTypeRequired: "tipper", budget: 32000, distanceKm: 380, description: "Cement in bulk. Tipper with hydraulic lift required." },
   { shipper: "Amazon India", origin: "Delhi", destination: "Jaipur", weightTonnes: 4, vehicleTypeRequired: "container-20ft", bodyTypeRequired: "container", budget: 15000, distanceKm: 281, description: "E-commerce parcels. Closed container with seal. Pickup at 6 AM." },
-  { shipper: "ITC Foods", origin: "Kolkata", destination: "Patna", weightTonnes: 14, vehicleTypeRequired: "tata-lpt-1613", bodyTypeRequired: "closed", budget: 28000, distanceKm: 583, description: "Packaged foods — closed body. 16 pallets." },
-  { shipper: "BigBasket", origin: "Bangalore", destination: "Chennai", weightTonnes: 8, vehicleTypeRequired: "container-20ft", bodyTypeRequired: "container", budget: 20000, distanceKm: 346, description: "Groceries — needs GPS tracking. 7 AM pickup." },
-  { shipper: "Asian Paints", origin: "Mumbai", destination: "Ahmedabad", weightTonnes: 12, vehicleTypeRequired: "ashok-leyland-1616", bodyTypeRequired: "closed", budget: 30000, distanceKm: 525, description: "Paint drums — closed body, no leaks tolerance. Hazmat-aware driver." },
+  { shipper: "ITC Foods", origin: "Kolkata", destination: "Patna", weightTonnes: 14, vehicleTypeRequired: "tata-lpt-1613", bodyTypeRequired: "closed", budget: 28000, distanceKm: 583, description: "Packaged foods - closed body. 16 pallets." },
+  { shipper: "BigBasket", origin: "Bangalore", destination: "Chennai", weightTonnes: 8, vehicleTypeRequired: "container-20ft", bodyTypeRequired: "container", budget: 20000, distanceKm: 346, description: "Groceries - needs GPS tracking. 7 AM pickup." },
+  { shipper: "Asian Paints", origin: "Mumbai", destination: "Ahmedabad", weightTonnes: 12, vehicleTypeRequired: "ashok-leyland-1616", bodyTypeRequired: "closed", budget: 30000, distanceKm: 525, description: "Paint drums - closed body, no leaks tolerance. Hazmat-aware driver." },
   { shipper: "Birla Cement", origin: "Indore", destination: "Surat", weightTonnes: 22, vehicleTypeRequired: "tipper", bodyTypeRequired: "tipper", budget: 34000, distanceKm: 410, description: "Cement clinker. Tipper with high-sided body. 4-day round trip." },
   { shipper: "Flipkart", origin: "Pune", destination: "Hyderabad", weightTonnes: 6, vehicleTypeRequired: "container-20ft", bodyTypeRequired: "container", budget: 26000, distanceKm: 560, description: "Parcel hub-to-hub. Secured container with tamper-evident seal." },
-  { shipper: "Mother Dairy", origin: "Delhi", destination: "Lucknow", weightTonnes: 8, vehicleTypeRequired: "refrigerated-truck", bodyTypeRequired: "refrigerated", budget: 36000, distanceKm: 555, description: "Dairy — 4°C reefer. Continuous temperature log required." },
+  { shipper: "Mother Dairy", origin: "Delhi", destination: "Lucknow", weightTonnes: 8, vehicleTypeRequired: "refrigerated-truck", bodyTypeRequired: "refrigerated", budget: 36000, distanceKm: 555, description: "Dairy - 4°C reefer. Continuous temperature log required." },
   { shipper: "UltraTech Cement", origin: "Nagpur", destination: "Hyderabad", weightTonnes: 26, vehicleTypeRequired: "tipper", bodyTypeRequired: "tipper", budget: 44000, distanceKm: 504, description: "Bulk cement. Tipper + tarpaulin cover. Multi-trip booking." },
 ];
 
@@ -546,7 +546,7 @@ export const LOAD_LISTINGS: LoadListing[] = LOAD_SEEDS.map((s, i) => ({
 }));
 
 // ============================================================================
-// AGGREGATE STATS — for the hero strip
+// AGGREGATE STATS - for the hero strip
 // ============================================================================
 
 export const MARKETPLACE_STATS = {

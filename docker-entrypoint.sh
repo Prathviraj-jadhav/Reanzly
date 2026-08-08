@@ -16,13 +16,13 @@ if [ -n "${DATABASE_URL:-}" ]; then
   # node_modules/.bin/prisma is provided by the @prisma/client install
   if [ -f node_modules/.bin/prisma ]; then
     node_modules/.bin/prisma db push --accept-data-loss || {
-      echo "[reanzly] WARNING: prisma db push failed — continuing anyway (DB may already be initialised)"
+      echo "[reanzly] WARNING: prisma db push failed - continuing anyway (DB may already be initialised)"
     }
   else
-    echo "[reanzly] prisma CLI not found — skipping schema push"
+    echo "[reanzly] prisma CLI not found - skipping schema push"
   fi
 else
-  echo "[reanzly] DATABASE_URL not set — skipping schema push"
+  echo "[reanzly] DATABASE_URL not set - skipping schema push"
 fi
 
 # --- 2. Chat service (Socket.IO on :3003) -------------------------------------

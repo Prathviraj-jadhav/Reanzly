@@ -253,7 +253,7 @@ export function DriverProfile() {
         <StatCard label="This Week" value={formatINR(s.earnings.week)} sub={`${s.earnings.tripsCompletedWeek} trips`} />
       </section>
 
-      {/* Performance scorecard — compact preview + tap-to-expand */}
+      {/* Performance scorecard - compact preview + tap-to-expand */}
       <section className="overflow-hidden rounded-[6px] border border-border bg-background">
         <div className="flex items-center justify-between border-b border-border bg-accent/30 px-4 py-2.5">
           <div className="flex items-center gap-2">

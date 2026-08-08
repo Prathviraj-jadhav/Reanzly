@@ -205,7 +205,7 @@ export function AddInvoiceDrawer({ open, onClose, onAdd }: AddInvoiceDrawerProps
 
   // ===== Customer selection handler =====
   // Auto-selects the customer's primary Billing contact as the default
-  // assignee (Task 15-d) — finance user can refine in the Assign To panel.
+  // assignee (Task 15-d) - finance user can refine in the Assign To panel.
   const selectCustomer = (customerId: string) => {
     const c = CUSTOMERS.find((x) => x.id === customerId);
     if (!c) {
@@ -454,7 +454,7 @@ function Step1Customer({
   const isInterState =
     !!form.customerState && form.customerState !== SUPPLIER_STATE;
 
-  // Contacts for the selected customer — used by the Assign To picker.
+  // Contacts for the selected customer - used by the Assign To picker.
   const customerContacts = form.customerName
     ? contactsForCustomer(form.customerName)
     : [];
@@ -522,7 +522,7 @@ function Step1Customer({
         </div>
       </div>
 
-      {/* Assign To — Task 15-d: assign invoice to specific customer contacts */}
+      {/* Assign To - Task 15-d: assign invoice to specific customer contacts */}
       {form.customerId && (
         <div className="rounded-[6px] border border-border bg-card p-4">
           <div className="mb-3 flex items-center justify-between">

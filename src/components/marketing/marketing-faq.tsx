@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/accordion";
 
 /**
- * MarketingFAQ — "Questions you're probably already thinking."
+ * MarketingFAQ - "Questions you're probably already thinking."
  *
  * Eight FAQs in a single-collapsible Accordion. Hairline borders between
  * items. Constrained to max-w-3xl and centred. Closes with a "Still have

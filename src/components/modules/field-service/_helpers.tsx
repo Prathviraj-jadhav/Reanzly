@@ -227,7 +227,7 @@ export const FIELD_TASKS: FieldTask[] = [
   {
     id: "ft-1",
     taskId: "FS-4001",
-    title: "Roadside clutch repair — MH-12-AB-7890",
+    title: "Roadside clutch repair - MH-12-AB-7890",
     type: "Repair",
     customer: "Reliance Transport Corp",
     customerCode: "CR-0210",
@@ -254,7 +254,7 @@ export const FIELD_TASKS: FieldTask[] = [
     ],
     parts: [
       { id: "p1", name: "Clutch slave cylinder", partNo: "CLT-SC-5512", qty: 1, unitCost: 2850 },
-      { id: "p2", name: "Brake fluid (DOT 4) — 500ml", partNo: "BRK-FL-D4-500", qty: 1, unitCost: 320 },
+      { id: "p2", name: "Brake fluid (DOT 4) - 500ml", partNo: "BRK-FL-D4-500", qty: 1, unitCost: 320 },
     ],
     timeEntries: [
       { id: "t1", label: "Travel to site", start: ago(80), end: ago(60), minutes: 20 },
@@ -269,7 +269,7 @@ export const FIELD_TASKS: FieldTask[] = [
   {
     id: "ft-2",
     taskId: "FS-4002",
-    title: "On-site vehicle inspection — KA-01-CD-4521",
+    title: "On-site vehicle inspection - KA-01-CD-4521",
     type: "Inspection",
     customer: "Deccan Express Logistics",
     customerCode: "CR-0177",
@@ -309,7 +309,7 @@ export const FIELD_TASKS: FieldTask[] = [
   {
     id: "ft-3",
     taskId: "FS-4003",
-    title: "Vehicle survey — pre-purchase condition assessment",
+    title: "Vehicle survey - pre-purchase condition assessment",
     type: "Survey",
     customer: "Maruti Roadways",
     customerCode: "CR-0142",
@@ -340,7 +340,7 @@ export const FIELD_TASKS: FieldTask[] = [
   {
     id: "ft-4",
     taskId: "FS-4004",
-    title: "GPS tracker installation — TN-22-EF-9911",
+    title: "GPS tracker installation - TN-22-EF-9911",
     type: "Installation",
     customer: "Deccan Express Logistics",
     customerCode: "CR-0177",
@@ -381,7 +381,7 @@ export const FIELD_TASKS: FieldTask[] = [
   {
     id: "ft-5",
     taskId: "FS-4005",
-    title: "Breakdown support — engine overheating WB-23-GH-6655",
+    title: "Breakdown support - engine overheating WB-23-GH-6655",
     type: "Repair",
     customer: "Reliance Transport Corp",
     customerCode: "CR-0210",
@@ -407,7 +407,7 @@ export const FIELD_TASKS: FieldTask[] = [
       { id: "c7", label: "Engine idle test", done: false },
     ],
     parts: [
-      { id: "p1", name: "Coolant (green) — 5L", partNo: "CLT-GR-5L", qty: 2, unitCost: 680 },
+      { id: "p1", name: "Coolant (green) - 5L", partNo: "CLT-GR-5L", qty: 2, unitCost: 680 },
       { id: "p2", name: "Thermostat assembly", partNo: "THR-ASSY-5510", qty: 1, unitCost: 1850 },
     ],
     timeEntries: [
@@ -420,7 +420,7 @@ export const FIELD_TASKS: FieldTask[] = [
   {
     id: "ft-6",
     taskId: "FS-4006",
-    title: "Preventive maintenance — GJ-01-KL-3344",
+    title: "Preventive maintenance - GJ-01-KL-3344",
     type: "Maintenance",
     customer: "Gujarat Agri Logistics",
     customerCode: "CR-0245",
@@ -444,11 +444,11 @@ export const FIELD_TASKS: FieldTask[] = [
       { id: "c7", label: "Final test drive", done: false },
     ],
     parts: [
-      { id: "p1", name: "Engine oil 15W-40 — 12L", partNo: "OIL-15W40-12L", qty: 1, unitCost: 3600 },
+      { id: "p1", name: "Engine oil 15W-40 - 12L", partNo: "OIL-15W40-12L", qty: 1, unitCost: 3600 },
       { id: "p2", name: "Oil filter", partNo: "FLT-OIL-2210", qty: 1, unitCost: 480 },
       { id: "p3", name: "Fuel filter", partNo: "FLT-FL-3300", qty: 1, unitCost: 720 },
       { id: "p4", name: "Air filter", partNo: "FLT-AIR-4400", qty: 1, unitCost: 950 },
-      { id: "p5", name: "Gearbox oil — 8L", partNo: "OIL-GB-8L", qty: 1, unitCost: 2400 },
+      { id: "p5", name: "Gearbox oil - 8L", partNo: "OIL-GB-8L", qty: 1, unitCost: 2400 },
     ],
     timeEntries: [],
     signatureCaptured: false,
@@ -458,7 +458,7 @@ export const FIELD_TASKS: FieldTask[] = [
   {
     id: "ft-7",
     taskId: "FS-4007",
-    title: "Body repair survey — accident damage MH-14-PQ-8899",
+    title: "Body repair survey - accident damage MH-14-PQ-8899",
     type: "Survey",
     customer: "Asha Transport Co",
     customerCode: "CR-0118",
@@ -494,7 +494,7 @@ export const FIELD_TASKS: FieldTask[] = [
   {
     id: "ft-8",
     taskId: "FS-4008",
-    title: "Tyre replacement + alignment — KA-05-RS-2211",
+    title: "Tyre replacement + alignment - KA-05-RS-2211",
     type: "Repair",
     customer: "Deccan Express Logistics",
     customerCode: "CR-0177",
@@ -532,7 +532,7 @@ export const FIELD_TASKS: FieldTask[] = [
   {
     id: "ft-9",
     taskId: "FS-4009",
-    title: "AC system repair — TN-07-UV-4455",
+    title: "AC system repair - TN-07-UV-4455",
     type: "Repair",
     customer: "South India Textiles Ltd",
     customerCode: "CR-0333",
@@ -554,7 +554,7 @@ export const FIELD_TASKS: FieldTask[] = [
       { id: "c5", label: "Test cooling performance", done: false },
     ],
     parts: [
-      { id: "p1", name: "Refrigerant R134a — 1kg", partNo: "REF-R134A-1KG", qty: 1, unitCost: 1200 },
+      { id: "p1", name: "Refrigerant R134a - 1kg", partNo: "REF-R134A-1KG", qty: 1, unitCost: 1200 },
     ],
     timeEntries: [],
     signatureCaptured: false,
@@ -564,7 +564,7 @@ export const FIELD_TASKS: FieldTask[] = [
   {
     id: "ft-10",
     taskId: "FS-4010",
-    title: "On-site battery replacement — MH-12-AB-1234",
+    title: "On-site battery replacement - MH-12-AB-1234",
     type: "Repair",
     customer: "Maruti Roadways",
     customerCode: "CR-0142",
@@ -602,7 +602,7 @@ export const FIELD_TASKS: FieldTask[] = [
   {
     id: "ft-11",
     taskId: "FS-4011",
-    title: "Fleet inspection drive — 6 vehicles at Hosur hub",
+    title: "Fleet inspection drive - 6 vehicles at Hosur hub",
     type: "Inspection",
     customer: "Deccan Express Logistics",
     customerCode: "CR-0177",
@@ -617,7 +617,7 @@ export const FIELD_TASKS: FieldTask[] = [
     description: "Fleet-wide quarterly inspection. 6 vehicles: 4 trucks + 2 pickups. Check safety compliance + record defects.",
     checklist: [
       { id: "c1", label: "Verify RC + insurance for all 6", done: false },
-      { id: "c2", label: "Brake test — each vehicle", done: false },
+      { id: "c2", label: "Brake test - each vehicle", done: false },
       { id: "c3", label: "Tyre audit", done: false },
       { id: "c4", label: "Light + electrical check", done: false },
       { id: "c5", label: "Suspension check", done: false },
@@ -632,7 +632,7 @@ export const FIELD_TASKS: FieldTask[] = [
   {
     id: "ft-12",
     taskId: "FS-4012",
-    title: "Fastag device installation — DL-1L-AB-7788",
+    title: "Fastag device installation - DL-1L-AB-7788",
     type: "Installation",
     customer: "Patel Freight Movers",
     customerCode: "CR-0156",
@@ -669,7 +669,7 @@ export const FIELD_TASKS: FieldTask[] = [
   {
     id: "ft-13",
     taskId: "FS-4013",
-    title: "Brake system overhaul — GJ-01-KL-5566",
+    title: "Brake system overhaul - GJ-01-KL-5566",
     type: "Maintenance",
     customer: "Gujarat Agri Logistics",
     customerCode: "CR-0245",
@@ -693,7 +693,7 @@ export const FIELD_TASKS: FieldTask[] = [
     ],
     parts: [
       { id: "p1", name: "Brake pad set (front)", partNo: "BRK-PAD-F-2210", qty: 1, unitCost: 3200 },
-      { id: "p2", name: "Brake fluid DOT 4 — 1L", partNo: "BRK-FL-D4-1L", qty: 1, unitCost: 540 },
+      { id: "p2", name: "Brake fluid DOT 4 - 1L", partNo: "BRK-FL-D4-1L", qty: 1, unitCost: 540 },
       { id: "p3", name: "Caliper seal kit", partNo: "CAL-SK-3300", qty: 2, unitCost: 680 },
     ],
     timeEntries: [
@@ -708,7 +708,7 @@ export const FIELD_TASKS: FieldTask[] = [
   {
     id: "ft-14",
     taskId: "FS-4014",
-    title: "Customer site survey — new cold storage setup",
+    title: "Customer site survey - new cold storage setup",
     type: "Survey",
     customer: "ABC Cold Chain",
     customerCode: "CR-0201",
@@ -737,7 +737,7 @@ export const FIELD_TASKS: FieldTask[] = [
   {
     id: "ft-15",
     taskId: "FS-4015",
-    title: "Reefer unit service — TN-22-EF-9911",
+    title: "Reefer unit service - TN-22-EF-9911",
     type: "Maintenance",
     customer: "Deccan Express Logistics",
     customerCode: "CR-0177",
@@ -760,7 +760,7 @@ export const FIELD_TASKS: FieldTask[] = [
       { id: "c6", label: "Performance test", done: true, ts: ago(4200) },
     ],
     parts: [
-      { id: "p1", name: "Compressor oil — 4L", partNo: "OIL-CMP-4L", qty: 1, unitCost: 2200 },
+      { id: "p1", name: "Compressor oil - 4L", partNo: "OIL-CMP-4L", qty: 1, unitCost: 2200 },
       { id: "p2", name: "Reefer filter", partNo: "FLT-RF-1100", qty: 1, unitCost: 850 },
     ],
     timeEntries: [
@@ -776,7 +776,7 @@ export const FIELD_TASKS: FieldTask[] = [
   {
     id: "ft-16",
     taskId: "FS-4016",
-    title: "Vehicle wrap installation — MH-01-XY-1100",
+    title: "Vehicle wrap installation - MH-01-XY-1100",
     type: "Installation",
     customer: "Reliance Transport Corp",
     customerCode: "CR-0210",
@@ -808,7 +808,7 @@ export const FIELD_TASKS: FieldTask[] = [
   {
     id: "ft-17",
     taskId: "FS-4017",
-    title: "Speed limiter calibration — KA-05-RS-9988",
+    title: "Speed limiter calibration - KA-05-RS-9988",
     type: "Maintenance",
     customer: "South India Textiles Ltd",
     customerCode: "CR-0333",
@@ -842,7 +842,7 @@ export const FIELD_TASKS: FieldTask[] = [
   {
     id: "ft-18",
     taskId: "FS-4018",
-    title: "Annual safety inspection — 12 vehicles",
+    title: "Annual safety inspection - 12 vehicles",
     type: "Inspection",
     customer: "Maruti Roadways",
     customerCode: "CR-0142",
@@ -871,7 +871,7 @@ export const FIELD_TASKS: FieldTask[] = [
   {
     id: "ft-19",
     taskId: "FS-4019",
-    title: "Clutch replacement — GJ-01-KL-7788",
+    title: "Clutch replacement - GJ-01-KL-7788",
     type: "Repair",
     customer: "Gujarat Agri Logistics",
     customerCode: "CR-0245",
@@ -912,7 +912,7 @@ export const FIELD_TASKS: FieldTask[] = [
   {
     id: "ft-20",
     taskId: "FS-4020",
-    title: "Customer cancelled — survey deferred",
+    title: "Customer cancelled - survey deferred",
     type: "Survey",
     customer: "Sahyadri Logistics",
     customerCode: "CR-0089",

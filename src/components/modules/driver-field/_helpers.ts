@@ -312,7 +312,7 @@ export const PAYOUT_HISTORY: PayoutCycle[] = [
   },
 ];
 
-// 8-week earnings bar chart (gross + incentive) — newest first.
+// 8-week earnings bar chart (gross + incentive) - newest first.
 export const WEEKLY_EARNINGS_BARS: {
   label: string;
   gross: number;
@@ -361,7 +361,7 @@ export const INCENTIVE_BREAKDOWN: IncentiveBreakdownItem[] = [
   },
 ];
 
-// Fuel reimbursement tracker — current week.
+// Fuel reimbursement tracker - current week.
 export interface FuelReimbursementSummary {
   spent: number;          // total fuel expense logged this week
   reimbursable: number;   // company-policy reimbursable amount
@@ -526,7 +526,7 @@ export const SUPPORT_FAQ: SupportFaqItem[] = [
   {
     id: "fuel",
     question: "Is fuel reimbursed?",
-    answer: "Yes — log every fuel entry. Approved amounts are added to your weekly payout.",
+    answer: "Yes - log every fuel entry. Approved amounts are added to your weekly payout.",
   },
 ];
 
@@ -551,7 +551,7 @@ function daysAgoISO(n: number): string {
 }
 
 export function fmtDateShort(iso: string): string {
-  if (!iso) return "—";
+  if (!iso) return "-";
   return new Date(iso).toLocaleDateString("en-IN", {
     day: "2-digit",
     month: "short",
@@ -559,7 +559,7 @@ export function fmtDateShort(iso: string): string {
 }
 
 export function fmtDateFull(iso: string): string {
-  if (!iso) return "—";
+  if (!iso) return "-";
   return new Date(iso).toLocaleDateString("en-IN", {
     day: "2-digit",
     month: "short",

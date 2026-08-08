@@ -27,10 +27,10 @@ import { cn } from "@/lib/utils";
  * Driver performance scorecard.
  *
  * Used in two contexts:
- *  1. Inline on the Home screen (compact variant — single big score + 4 KPIs).
- *  2. Inside the Profile tab (full variant — adds 30-day trend + achievements).
+ *  1. Inline on the Home screen (compact variant - single big score + 4 KPIs).
+ *  2. Inside the Profile tab (full variant - adds 30-day trend + achievements).
  *
- * Strictly monochrome — no green/red for good/bad; uses solid/muted/outline
+ * Strictly monochrome - no green/red for good/bad; uses solid/muted/outline
  * density to distinguish earned vs locked achievements.
  */
 export function DriverPerformance({ variant = "full" }: { variant?: "compact" | "full" }) {
@@ -52,7 +52,7 @@ export function DriverPerformance({ variant = "full" }: { variant?: "compact" | 
         </p>
       </header>
 
-      {/* Overall safety score — big number + progress */}
+      {/* Overall safety score - big number + progress */}
       <section className="overflow-hidden rounded-[6px] border border-border bg-background">
         <div className="flex items-center justify-between border-b border-border bg-accent/30 px-4 py-2.5">
           <div className="flex items-center gap-2">
@@ -124,7 +124,7 @@ export function DriverPerformance({ variant = "full" }: { variant?: "compact" | 
         />
       </section>
 
-      {/* 30-day score trend — CSS-width bars */}
+      {/* 30-day score trend - CSS-width bars */}
       <section className="rounded-[6px] border border-border bg-background">
         <div className="flex items-center justify-between border-b border-border bg-accent/30 px-4 py-2.5">
           <div className="flex items-center gap-2">
@@ -327,7 +327,7 @@ function CompactScorecard({
 }
 
 function ScoreTier({ score }: { score: number }) {
-  // Monochrome tier — density reflects quality, no green/red.
+  // Monochrome tier - density reflects quality, no green/red.
   let tier: string;
   let tone: string;
   if (score >= 90) {

@@ -31,7 +31,7 @@ import {
    scheduled sync, and the current live sync status.
 
    The sheet also exposes a "Sync Now" button that calls
-   `triggerSync` — the button shows a spinner while the
+   `triggerSync` - the button shows a spinner while the
    pending event is in-flight.
    ============================================================ */
 

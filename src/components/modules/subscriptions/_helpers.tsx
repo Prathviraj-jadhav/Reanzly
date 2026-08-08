@@ -277,7 +277,7 @@ function buildActivity(contractIdx: number, status: ContractStatus): ContractAct
       id: `act-${contractIdx}-expired`,
       ts: daysAgo(10),
       action: "Contract expired",
-      detail: "Term ended — pending renewal decision.",
+      detail: "Term ended - pending renewal decision.",
       by: OWNERS[contractIdx % OWNERS.length],
     });
   }

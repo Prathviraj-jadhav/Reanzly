@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * ListYourVehicleSheet — slide-in Sheet (right, max-w-xl) with a stub form
+ * ListYourVehicleSheet - slide-in Sheet (right, max-w-xl) with a stub form
  * for vehicle owners to list their vehicle for rent on the Reanzly
  * Marketplace.
  *
@@ -12,19 +12,19 @@
  * features, document verification) without us having to wire a real backend.
  *
  * Form sections:
- *   1. Owner info — name, phone, email, city
- *   2. Vehicle spec — type (select), make, model, year, registration,
+ *   1. Owner info - name, phone, email, city
+ *   2. Vehicle spec - type (select), make, model, year, registration,
  *      capacity (tonnes), body type (select), axle (select), fuel type (select)
- *   3. Route & availability — origin, destination, preferred lanes,
+ *   3. Route & availability - origin, destination, preferred lanes,
  *      availability from/to dates, on-demand toggle
- *   4. Pricing — per day, per km, with-driver extra
- *   5. Features — checkbox grid (GPS, Fastag, Tarpaulin, Hydraulic Lift,
+ *   4. Pricing - per day, per km, with-driver extra
+ *   5. Features - checkbox grid (GPS, Fastag, Tarpaulin, Hydraulic Lift,
  *      Reefer Temp Control, Reverse Camera, Anti-lock Brakes, Speed Governor)
- *   6. Documents — checkbox grid (RC, Insurance, Fitness, National Permit)
+ *   6. Documents - checkbox grid (RC, Insurance, Fitness, National Permit)
  *      with "verified" note that Reanzly will verify each before publishing
  *
  * Accessibility:
- *   • SheetTitle is visible (not sr-only) — gives the sheet a clear heading.
+ *   • SheetTitle is visible (not sr-only) - gives the sheet a clear heading.
  *   • All inputs have explicit <label> elements.
  *   • Touch targets ≥40px (h-10 inputs, h-10 buttons).
  *   • Manual close X in the header (showCloseButton={false} on SheetContent).
@@ -406,7 +406,7 @@ export function ListYourVehicleSheet({ open, onOpenChange }: ListYourVehicleShee
 }
 
 /* ============================================================
-   FormSection — section with icon + title + required marker
+   FormSection - section with icon + title + required marker
    ============================================================ */
 function FormSection({
   icon, title, required, children,
@@ -429,7 +429,7 @@ function FormSection({
 }
 
 /* ============================================================
-   Field — labelled input wrapper
+   Field - labelled input wrapper
    ============================================================ */
 function Field({
   label, required, children,

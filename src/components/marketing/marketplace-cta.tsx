@@ -1,20 +1,20 @@
 "use client";
 
 /**
- * MarketplaceCTA — bottom call-to-action band for the Vehicle Rental
+ * MarketplaceCTA - bottom call-to-action band for the Vehicle Rental
  * Marketplace.
  *
  * Two primary CTAs for the two marketplace audiences:
- *   1. "List your vehicle" — for vehicle owners with idle capacity
+ *   1. "List your vehicle" - for vehicle owners with idle capacity
  *      → opens the ListYourVehicleSheet
- *   2. "Post a load" — for shippers needing capacity
+ *   2. "Post a load" - for shippers needing capacity
  *      → opens the PostLoadSheet
  *
  * Plus a tertiary "Create a free account" CTA that flips marketingView
  * to "auth" with signup mode (so the visitor lands on the signup wizard).
  *
  * The band is inverted (bg-foreground text-background) so it stands apart
- * from the white catalogue above it. Monochrome — no hues.
+ * from the white catalogue above it. Monochrome - no hues.
  */
 
 import { ArrowRight, Truck, Package, UserPlus } from "lucide-react";
@@ -36,7 +36,7 @@ export function MarketplaceCTA({
     >
       <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
         <div className="grid grid-cols-1 gap-10 lg:grid-cols-[1.2fr_1fr] lg:items-center">
-          {/* Left — copy */}
+          {/* Left - copy */}
           <div>
             <span className="inline-flex items-center rounded-full border border-background/30 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-background/80">
               For vehicle owners &amp; shippers
@@ -45,7 +45,7 @@ export function MarketplaceCTA({
               id="marketplace-cta-title"
               className="mt-4 text-[28px] font-medium leading-tight tracking-tight sm:text-[36px]"
             >
-              Put your fleet to work — or find the right vehicle in minutes.
+              Put your fleet to work - or find the right vehicle in minutes.
             </h2>
             <p className="mt-4 max-w-xl text-[14px] leading-relaxed text-background/70">
               List your truck, trailer, or tempo traveller and reach verified
@@ -62,7 +62,7 @@ export function MarketplaceCTA({
             </dl>
           </div>
 
-          {/* Right — action stack */}
+          {/* Right - action stack */}
           <div className="flex flex-col gap-3">
             <button
               type="button"

@@ -65,13 +65,13 @@ export async function POST(
     });
 
     if (connections.length === 0) {
-      // No connection — log as orphan but acknowledge so provider doesn't retry.
-      console.warn(`[webhook] Orphan payload for ${providerId} — no connection.`);
+      // No connection - log as orphan but acknowledge so provider doesn't retry.
+      console.warn(`[webhook] Orphan payload for ${providerId} - no connection.`);
       return NextResponse.json({ received: true, orphan: true });
     }
 
     // Persist one webhook log per matching connection (in multi-tenant,
-    // we'd route by an identifier in the payload — for now, log to first).
+    // we'd route by an identifier in the payload - for now, log to first).
     const conn = connections[0];
     await db.integrationWebhookLog.create({
       data: {

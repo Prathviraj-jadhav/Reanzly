@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# Reanzly v2 — Production Automated Deployment & Healthcheck Script
+# Reanzly v2 - Production Automated Deployment & Healthcheck Script
 # =============================================================================
 
 set -e

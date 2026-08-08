@@ -83,7 +83,7 @@ export function InvoiceDesigner({
   const [tplDesc, setTplDesc] = useState("");
 
   // Reset the local config whenever the drawer re-opens or the invoice
-  // changes — so two invoices don't bleed settings into each other.
+  // changes - so two invoices don't bleed settings into each other.
   useEffect(() => {
     if (!open) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -176,7 +176,7 @@ export function InvoiceDesigner({
           </button>
         </SheetHeader>
 
-        {/* Body — split: controls | preview */}
+        {/* Body - split: controls | preview */}
         <div className="flex-1 overflow-hidden">
           <div className="grid h-full grid-cols-1 lg:grid-cols-[1fr_1fr]">
             {/* Controls pane (scrollable) */}
@@ -338,7 +338,7 @@ export function InvoiceDesigner({
                     />
                     <ToggleRow
                       label="Watermark"
-                      hint="Overlaid text — e.g. DRAFT, PAID, COPY"
+                      hint="Overlaid text - e.g. DRAFT, PAID, COPY"
                       checked={config.watermark}
                       onChange={(v) => update("watermark", v)}
                     />
@@ -385,7 +385,7 @@ export function InvoiceDesigner({
                   <Textarea
                     value={config.footerMessage}
                     onChange={(e) => update("footerMessage", e.target.value)}
-                    placeholder="Custom footer line — terms, thank-you note, jurisdiction…"
+                    placeholder="Custom footer line - terms, thank-you note, jurisdiction…"
                     className="min-h-[64px] rounded-[5px] text-[12px]"
                   />
                 </DesignerSection>

@@ -1,5 +1,5 @@
 # =============================================================================
-# Reanzly v2 — AES-256 Encrypted Enterprise Backup Script (PowerShell)
+# Reanzly v2 - AES-256 Encrypted Enterprise Backup Script (PowerShell)
 # =============================================================================
 
 $BackupDir = "db\backups\encrypted"

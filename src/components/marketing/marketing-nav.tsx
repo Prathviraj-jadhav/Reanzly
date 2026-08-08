@@ -13,7 +13,7 @@ import {
 import { Menu } from "lucide-react";
 
 /**
- * MarketingNav — sticky top navigation for the company landing site.
+ * MarketingNav - sticky top navigation for the company landing site.
  *
  * Monochrome Swiss aesthetic: backdrop-blur over page background, hairline
  * bottom border, generous whitespace. Desktop shows the RZ wordmark on the

@@ -7,10 +7,10 @@ import { toast } from "sonner";
 import { ArrowRight } from "lucide-react";
 
 /**
- * MarketingServices — "Platform services you can open right now."
+ * MarketingServices - "Platform services you can open right now."
  *
  * Section id="services". Eight cards in a responsive 1/2/4 grid. Each
- * card maps to a REAL working module in the app — clicking the "Open
+ * card maps to a REAL working module in the app - clicking the "Open
  * module" link signs the visitor in as a demo Owner and routes them
  * straight into that module.
  *
@@ -46,7 +46,7 @@ export function MarketingServices() {
           </h2>
           <p className="mt-4 text-base leading-relaxed text-muted-foreground">
             Every service below is a real module running in the platform.
-            Click &ldquo;Open module&rdquo; and explore it live — no signup
+            Click &ldquo;Open module&rdquo; and explore it live - no signup
             required.
           </p>
         </div>

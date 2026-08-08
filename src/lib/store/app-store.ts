@@ -77,7 +77,7 @@ export type ModuleId =
   | "subscriptions"
   | "surveys"
   | "marketing"
-  // Phase 10 — Ecosystem (app store, partner programme, financial services):
+  // Phase 10 - Ecosystem (app store, partner programme, financial services):
   | "app-store"
   | "partner-programme"
   | "financial-services";
@@ -443,7 +443,7 @@ interface AppState {
   // real, working modules before committing.
   demoEnter: (moduleId: ModuleId) => void;
 
-  // === App Store — module provisioning toggle ===
+  // === App Store - module provisioning toggle ===
   // Installs/uninstalls a module for the current org by adding/removing it
   // from authUser.selectedModules. Demo/quick-login sessions have
   // selectedModules === undefined (== "everything unlocked"); toggling there

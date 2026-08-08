@@ -533,7 +533,7 @@ function YardDrawer({ open, record, onClose, onSave }: DrawerProps) {
               </Select>
             </div>
             <div>
-              <FieldLabel hint="optional — required at gate-in">Driver Name</FieldLabel>
+              <FieldLabel hint="optional - required at gate-in">Driver Name</FieldLabel>
               <Select value={driver} onValueChange={setDriver} disabled={isView}>
                 <SelectTrigger className="h-8 w-full rounded-[5px] text-[13px]">
                   <SelectValue placeholder="Assign at gate-in" />
