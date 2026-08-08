@@ -404,7 +404,6 @@ interface AppState {
   setCompanySwitchOpen: (v: boolean) => void;
 
   currentRole: RoleArchetype;
-  setRole: (roleId: string) => void;
 
   tourOpen: boolean;
   setTourOpen: (v: boolean) => void;
@@ -741,10 +740,6 @@ export const useAppStore = create<AppState>()(
       setCompanySwitchOpen: (v) => set({ companySwitchOpen: v }),
 
       currentRole: ROLE_ARCHETYPES[0],
-      setRole: (roleId) => {
-        const role = ROLE_ARCHETYPES.find((r) => r.id === roleId);
-        if (role) set({ currentRole: role });
-      },
 
       tourOpen: false,
       setTourOpen: (v) => set({ tourOpen: v }),

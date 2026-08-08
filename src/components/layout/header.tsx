@@ -26,7 +26,7 @@ import { ROLE_ARCHETYPES } from "@/lib/mock-data";
 import { AutosaveIndicator } from "@/components/shared/autosave-indicator";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { searchPlaceholders } from "@/lib/content/savage-placeholders";
-import { toastSuccess, toastInfo } from "@/lib/toast";
+import { toastInfo } from "@/lib/toast";
 
 // Savage search placeholders - rotates every 3.2s with a smart-aleck ops buddy voice.
 // Falls back to the first item on the server so SSR markup is stable.
@@ -291,9 +291,39 @@ export function Header() {
   const {
     toggleSidebar, setCommandOpen, setNotifOpen, notifications,
     companySwitchOpen, setCompanySwitchOpen, activeCompany,
-    currentRole, setRole, navigate, setTourOpen,
+    currentRole, navigate, setTourOpen,
     toggleMobileSidebar, logout, setAnnounceOpen, authUser,
   } = useAppStore();
+  const [switchingRole, setSwitchingRole] = useState<string | null>(null);
+
+  // Real session switch, replacing what used to be a client-only setRole()
+  // that just relabelled the sidebar - real API calls still ran as whoever
+  // was actually logged in. Seeded demo users use their role id as their
+  // real User.id, so this is a genuine login as that role's account, then
+  // a full reload so every piece of role-dependent state (sidebar, RBAC-
+  // gated API calls, dashboard data, chat identity) re-hydrates from the
+  // new real session rather than partially updating client state by hand.
+  const switchDemoRole = async (roleId: string) => {
+    if (roleId === currentRole.id || switchingRole) return;
+    setSwitchingRole(roleId);
+    try {
+      const res = await fetch("/api/auth/switch-role", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ roleId }),
+      });
+      if (!res.ok) {
+        const { error } = await res.json().catch(() => ({ error: "Could not switch role." }));
+        toastInfo("Could not switch role", error);
+        setSwitchingRole(null);
+        return;
+      }
+      window.location.reload();
+    } catch {
+      toastInfo("Could not switch role", "Network error - try again.");
+      setSwitchingRole(null);
+    }
+  };
   // The signed-in identity - the real name typed at signup for self-serve
   // accounts, falling back to the role archetype's demo persona name for
   // quick-login / "Open live demo" sessions (authUser.name === role.name
@@ -566,17 +596,17 @@ export function Header() {
             {ROLE_ARCHETYPES.map((r) => (
               <DropdownMenuItem
                 key={r.id}
-                onClick={() => {
-                  if (currentRole.id !== r.id) {
-                    setRole(r.id);
-                    toastSuccess("Role switched", `Now viewing as ${r.name}`);
-                  }
-                }}
+                onClick={() => void switchDemoRole(r.id)}
+                disabled={!!switchingRole}
                 className="flex flex-col items-start gap-0.5 py-1.5 text-[13px]"
               >
                 <div className="flex w-full items-center justify-between">
                   <span className="font-medium">{r.name}</span>
-                  {currentRole.id === r.id && <Check className="h-3.5 w-3.5" />}
+                  {switchingRole === r.id ? (
+                    <span className="text-[11px] text-muted-foreground">Switching…</span>
+                  ) : (
+                    currentRole.id === r.id && <Check className="h-3.5 w-3.5" />
+                  )}
                 </div>
                 <span className="text-[11px] text-muted-foreground line-clamp-1">{r.description}</span>
               </DropdownMenuItem>
