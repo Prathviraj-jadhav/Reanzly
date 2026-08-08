@@ -583,6 +583,22 @@ export function ChatComposer({
 
   const isPickerOpen = !!picker && (picker.kind === "mention" ? mentionList.length > 0 : picker.kind === "channel" ? channelList.length > 0 : slashList.length > 0);
 
+  // Real conversations get DB-generated cuids, never the old mock-data id
+  // "c4" this used to check - that condition was permanently dead, so the
+  // Rean-specific placeholder never showed. Detect it by real participant
+  // membership instead. For a direct DM, `conversation.name` is stored as
+  // "Me & Them" (see /api/chat/conversations) so the composer showed both
+  // names back at the user instead of just who they're actually messaging -
+  // resolve the other participant's display name instead.
+  const isReanConversation = conversation.participants.includes("rean");
+  const otherParticipantName =
+    conversation.type === "direct"
+      ? chatEntities.find((e) => e.id === conversation.participants.find((p) => p !== currentUserId))?.name
+      : undefined;
+  const composerPlaceholder = isReanConversation
+    ? "Ask Rean anything about your operations…"
+    : `Message ${otherParticipantName ?? conversation.name}`;
+
   return (
     <div className="shrink-0 border-t border-border bg-background p-2">
       {/* Reply target indicator */}
@@ -732,11 +748,7 @@ export function ChatComposer({
             onChange={handleChange}
             onSelect={handleSelect}
             onKeyDown={handleKeyDown}
-            placeholder={
-              conversation.id === "c4"
-                ? "Ask Rean anything about your operations…"
-                : `Message ${conversation.name}`
-            }
+            placeholder={composerPlaceholder}
             rows={1}
             className={cn(
               "w-full resize-none bg-transparent px-2.5 pt-2 text-[13px] outline-none placeholder:text-muted-foreground",

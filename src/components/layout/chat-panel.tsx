@@ -285,7 +285,10 @@ function CompactConvRow({
   currentUserId: string;
   messages: import("@/lib/types").ChatMessage[];
 }) {
-  const isRean = conv.id === "c4";
+  // Real conversations get DB-generated cuids, never the old mock-data id
+  // "c4" this used to check - detect the Rean DM by real participant
+  // membership instead, or it never gets its Sparkles icon.
+  const isRean = conv.participants.includes("rean");
   const isChannel = conv.type === "channel";
   const displayName = conversationDisplayName(conv, currentUserId, entities);
   const otherId = conv.participants.find((p) => p !== currentUserId);
@@ -371,7 +374,10 @@ function CompactConversation({
   onChannelClick: (channelId: string, name: string) => void;
   onForward: (messageId: string) => void;
 }) {
-  const isRean = conv.id === "c4";
+  // Real conversations get DB-generated cuids, never the old mock-data id
+  // "c4" this used to check - detect the Rean DM by real participant
+  // membership instead, or it never gets its Sparkles icon.
+  const isRean = conv.participants.includes("rean");
   const isChannel = conv.type === "channel";
   const allMessages = useChatStore((s) => s.messages);
   const displayName =

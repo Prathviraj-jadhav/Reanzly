@@ -56,7 +56,9 @@ export function formatScheduledFor(iso: string) {
  * every conv.* access below is guarded rather than done via an early return.
  */
 export function useChatCall(conv: Conversation | null, currentUserId: string, entities: ChatEntity[]) {
-  const isRean = conv?.id === "c4";
+  // Real conversations get DB-generated cuids, not the old mock-data id
+  // "c4" this used to check - detect by real participant membership.
+  const isRean = !!conv?.participants.includes("rean");
   const callState = useCallStore();
 
   const otherEntity = React.useMemo(() => {

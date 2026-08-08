@@ -148,7 +148,9 @@ export function ChatConversation({
     );
   }
 
-  const isRean = conv.id === "c4";
+  // Real conversations get DB-generated cuids, not the old mock-data id
+  // "c4" this used to check - detect by real participant membership.
+  const isRean = conv.participants.includes("rean");
   const isChannel = conv.type === "channel";
   const displayName =
     conv.type === "direct"

@@ -197,7 +197,9 @@ function ConversationRow({
   // timestamp, so its last element is the most recent top-level message.
   const convMsgs = selectConvMessages(messages, conv.id);
   const last = convMsgs[convMsgs.length - 1];
-  const isRean = conv.id === "c4";
+  // Real conversations get DB-generated cuids, not the old mock-data id
+  // "c4" this used to check - detect by real participant membership.
+  const isRean = conv.participants.includes("rean");
   const isChannel = conv.type === "channel";
   const displayName = conversationDisplayName(conv, currentUserId, entities);
 
