@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { SectionCard } from "@/components/shared/section-card";
 import { StatusBadge } from "@/components/shared/status-badge";
 import {
@@ -17,11 +18,6 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import {
-  VENDOR_TRIPS,
-  VENDOR_INVOICES,
-  VENDOR_PODS,
-  VENDOR_PROFILE,
-  computeVendorKpis,
   KpiTile,
   formatINR,
   formatINRCompact,
@@ -41,17 +37,42 @@ import {
    in-transit, delivered last 30d, outstanding invoices, PODs
    pending) plus two recent-lists: 5 most recent shipments and
    5 most recent invoices. Read-only - no edit/create buttons.
+   Backed by GET /api/vendor-portal/overview (real Trip/Invoice/
+   Pod/Customer data scoped to the logged-in customer).
    ============================================================ */
+
+interface OverviewData {
+  kpis: {
+    activeShipments: number; inTransit: number; delivered30d: number;
+    outstandingInvoices: number; podsPending: number; totalInvoicesValueINR: number;
+    outstandingBalanceINR: number; creditUtilizationPct: number;
+  };
+  recentTrips: { id: string; tripId: string; lrNumber: string; origin: string; destination: string; status: string; driverName: string; expectedDelivery: string }[];
+  recentInvoices: { id: string; invoiceNumber: string; totalAmount: number; dueDate: string; status: string; paymentStatus: string }[];
+  pendingPods: { id: string; podNumber: string; origin: string; destination: string; status: string; capturedDate: string }[];
+  counts: { trips: number; pods: number; invoices: number };
+  profile: { companyName: string; creditLimitINR: number; paymentTerms: string; accountManager: string };
+}
 
 interface VendorOverviewProps {
   onNavigate?: (view: VendorSubView) => void;
 }
 
 export function VendorOverview({ onNavigate }: VendorOverviewProps) {
-  const kpis = computeVendorKpis();
-  const recentTrips = VENDOR_TRIPS.slice(0, 5);
-  const recentInvoices = VENDOR_INVOICES.slice(0, 5);
-  const recentPodsPending = VENDOR_PODS.filter((p) => p.status === "Pending").length;
+  const [data, setData] = useState<OverviewData | null>(null);
+
+  useEffect(() => {
+    fetch("/api/vendor-portal/overview")
+      .then((r) => (r.ok ? r.json() : null))
+      .then(setData)
+      .catch(() => setData(null));
+  }, []);
+
+  if (!data) {
+    return <div className="px-4 py-10 text-center text-[13px] text-muted-foreground">Loading overview…</div>;
+  }
+
+  const { kpis, recentTrips, recentInvoices, pendingPods, counts, profile } = data;
 
   return (
     <div className="flex flex-col gap-5">
@@ -96,7 +117,7 @@ export function VendorOverview({ onNavigate }: VendorOverviewProps) {
           <StatCell label="Active shipments" value={String(kpis.activeShipments)} hint={`${kpis.inTransit} in transit`} />
           <StatCell label="Delivered (30d)" value={String(kpis.delivered30d)} hint="last 30 days" />
           <StatCell label="Outstanding invoices" value={String(kpis.outstandingInvoices)} hint={formatINRCompact(kpis.outstandingBalanceINR)} />
-          <StatCell label="PODs pending" value={String(recentPodsPending)} hint="awaiting capture" />
+          <StatCell label="PODs pending" value={String(kpis.podsPending)} hint="awaiting capture" />
         </div>
       </div>
 
@@ -111,10 +132,10 @@ export function VendorOverview({ onNavigate }: VendorOverviewProps) {
 
       {/* Quick actions strip - read-only navigation, no create/edit */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-        <QuickAction icon={Truck} label="My Shipments" hint={`${VENDOR_TRIPS.length} trips`} onClick={() => onNavigate?.("shipments")} />
+        <QuickAction icon={Truck} label="My Shipments" hint={`${counts.trips} trips`} onClick={() => onNavigate?.("shipments")} />
         <QuickAction icon={MapPin} label="Live Tracking" hint={`${kpis.inTransit} in transit`} onClick={() => onNavigate?.("tracking")} />
         <QuickAction icon={FileText} label="Invoices" hint={`${kpis.outstandingInvoices} outstanding`} onClick={() => onNavigate?.("invoices")} />
-        <QuickAction icon={ClipboardCheck} label="PODs" hint={`${VENDOR_PODS.length} total`} onClick={() => onNavigate?.("pods")} />
+        <QuickAction icon={ClipboardCheck} label="PODs" hint={`${counts.pods} total`} onClick={() => onNavigate?.("pods")} />
         <QuickAction icon={CircleDollarSign} label="Ledger" hint={formatINRCompact(kpis.outstandingBalanceINR)} onClick={() => onNavigate?.("ledger")} />
       </div>
 
@@ -138,6 +159,9 @@ export function VendorOverview({ onNavigate }: VendorOverviewProps) {
           flush
         >
           <ol className="divide-y divide-border">
+            {recentTrips.length === 0 && (
+              <li className="py-6 text-center text-[12px] text-muted-foreground">No shipments yet.</li>
+            )}
             {recentTrips.map((t) => {
               const b = tripStatusBadge(t.status);
               return (
@@ -196,6 +220,9 @@ export function VendorOverview({ onNavigate }: VendorOverviewProps) {
           flush
         >
           <ol className="divide-y divide-border">
+            {recentInvoices.length === 0 && (
+              <li className="py-6 text-center text-[12px] text-muted-foreground">No invoices yet.</li>
+            )}
             {recentInvoices.map((inv) => {
               const b = invoiceStatusBadge(inv.status);
               const pb = paymentStatusBadge(inv.paymentStatus);
@@ -243,12 +270,12 @@ export function VendorOverview({ onNavigate }: VendorOverviewProps) {
           className="lg:col-span-2"
         >
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            <SummaryTile label="Credit limit" value={formatINRCompact(VENDOR_PROFILE.creditLimitINR)} hint="approved limit" />
+            <SummaryTile label="Credit limit" value={formatINRCompact(profile.creditLimitINR)} hint="approved limit" />
             <SummaryTile label="Outstanding" value={formatINRCompact(kpis.outstandingBalanceINR)} hint="unpaid balance" />
             <SummaryTile label="Credit used" value={`${kpis.creditUtilizationPct}%`} hint="of approved limit" />
-            <SummaryTile label="Payment terms" value={VENDOR_PROFILE.paymentTerms} hint="commercial terms" />
-            <SummaryTile label="Total invoices" value={formatINRCompact(kpis.totalInvoicesValueINR)} hint={`${VENDOR_INVOICES.length} invoices`} />
-            <SummaryTile label="Account manager" value={VENDOR_PROFILE.accountManager} hint="your Reanzly SPOC" />
+            <SummaryTile label="Payment terms" value={profile.paymentTerms || "-"} hint="commercial terms" />
+            <SummaryTile label="Total invoices" value={formatINRCompact(kpis.totalInvoicesValueINR)} hint={`${counts.invoices} invoices`} />
+            <SummaryTile label="Account manager" value={profile.accountManager || "-"} hint="your Reanzly SPOC" />
           </div>
         </SectionCard>
 
@@ -268,8 +295,8 @@ export function VendorOverview({ onNavigate }: VendorOverviewProps) {
           }
         >
           <ol className="space-y-3">
-            {VENDOR_PODS.filter((p) => p.status !== "Delivered").slice(0, 4).map((p) => {
-              const b = podStatusBadge(p.status);
+            {pendingPods.map((p) => {
+              const b = podStatusBadge(p.status as any);
               return (
                 <li key={p.id} className="flex items-start gap-2.5">
                   <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-[4px] border border-border bg-background text-muted-foreground">
@@ -294,7 +321,7 @@ export function VendorOverview({ onNavigate }: VendorOverviewProps) {
                 </li>
               );
             })}
-            {VENDOR_PODS.filter((p) => p.status !== "Delivered").length === 0 && (
+            {pendingPods.length === 0 && (
               <li className="py-6 text-center text-[12px] text-muted-foreground">
                 All PODs cleared. Nice work.
               </li>

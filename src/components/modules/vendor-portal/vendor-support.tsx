@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/shared/page-header";
 import { SectionCard } from "@/components/shared/section-card";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -41,14 +41,9 @@ import {
   User,
 } from "lucide-react";
 import {
-  VENDOR_TICKETS,
-  VENDOR_PROFILE,
-  computeVendorTicketKpis,
   relativeTime,
   ticketStatusBadge,
   ticketPriorityBadge,
-  daysAgo,
-  type SupportTicket,
   type TicketPriority,
   type TicketStatus,
   type TicketCategory,
@@ -58,13 +53,10 @@ import { toastSuccess, toastInfo } from "@/lib/toast";
 /* ============================================================
    VendorSupport - the vendor's support-ticket workspace.
    ------------------------------------------------------------
-   Read-only list of support tickets raised by the vendor
-   against Reanzly. Vendors can raise NEW tickets (Subject /
-   Priority / Category / Description) via a Sheet drawer with
-   showCloseButton={false}. Existing tickets are read-only
-   from the vendor's perspective (replies come from Reanzly
-   staff). Row click opens a detail sheet with the message
-   thread + linked reference.
+   Backed by GET/POST /api/vendor-portal/tickets (real
+   SupportTicket rows) and POST .../[id]/messages (real
+   TicketMessage replies) - the message thread shown in the
+   detail sheet is the real thread, not a synthesized one.
    ============================================================ */
 
 const PRIORITY_OPTIONS: TicketPriority[] = ["Low", "Medium", "High", "Urgent"];
@@ -78,19 +70,57 @@ const CATEGORY_OPTIONS: TicketCategory[] = [
   "Other",
 ];
 
+interface TicketMessageDTO { id: string; fromName: string; fromRole: string; body: string; createdAt: string }
+interface PortalTicket {
+  id: string; ticketNumber: string; subject: string; category: string; priority: string; status: string;
+  createdAt: string; lastReplyAt?: string; lastReplyBy?: string; messageCount: number; linkedRef?: string;
+  description: string; messages: TicketMessageDTO[];
+}
+
 export function VendorSupport() {
-  const [tickets, setTickets] = useState<SupportTicket[]>(VENDOR_TICKETS);
-  const [viewing, setViewing] = useState<SupportTicket | null>(null);
+  const [tickets, setTickets] = useState<PortalTicket[]>([]);
+  const [accountManager, setAccountManager] = useState("");
+  const [loaded, setLoaded] = useState(false);
+  const [viewing, setViewing] = useState<PortalTicket | null>(null);
   const [creating, setCreating] = useState(false);
 
-  const kpis = useMemo(() => computeVendorTicketKpis(tickets), [tickets]);
+  useEffect(() => {
+    Promise.all([
+      fetch("/api/vendor-portal/tickets").then((r) => (r.ok ? r.json() : { tickets: [] })),
+      fetch("/api/vendor-portal/profile").then((r) => (r.ok ? r.json() : { profile: null })),
+    ])
+      .then(([t, p]) => {
+        setTickets(t.tickets ?? []);
+        setAccountManager(p.profile?.accountManager ?? "");
+        setLoaded(true);
+      })
+      .catch(() => setLoaded(true));
+  }, []);
 
-  const columns: Column<SupportTicket>[] = [
+  const kpis = useMemo(() => {
+    const total = tickets.length;
+    const open = tickets.filter((t) => t.status === "Open").length;
+    const awaitingReply = tickets.filter((t) => t.status === "Awaiting Reply").length;
+    const inProgress = tickets.filter((t) => t.status === "In Progress").length;
+    const resolved = tickets.filter((t) => t.status === "Resolved").length;
+    const closed = tickets.filter((t) => t.status === "Closed").length;
+    const urgentOpen = tickets.filter((t) => t.priority === "Urgent" && t.status !== "Closed" && t.status !== "Resolved").length;
+    const resolvedTickets = tickets.filter((t) => (t.status === "Resolved" || t.status === "Closed") && t.lastReplyAt);
+    const avgResolutionDays = resolvedTickets.length
+      ? Math.round(
+          resolvedTickets.reduce((s, t) => s + (new Date(t.lastReplyAt!).getTime() - new Date(t.createdAt).getTime()) / 86400000, 0) /
+            resolvedTickets.length,
+        )
+      : 0;
+    return { total, open, awaitingReply, inProgress, resolved, closed, urgentOpen, avgResolutionDays };
+  }, [tickets]);
+
+  const columns: Column<PortalTicket>[] = [
     {
-      key: "id",
+      key: "ticketNumber",
       header: "Ticket #",
       sortable: true,
-      sortValue: (r) => r.id,
+      sortValue: (r) => r.ticketNumber,
       sticky: true,
       render: (r) => (
         <button
@@ -100,7 +130,7 @@ export function VendorSupport() {
           }}
           className="tabular text-[12.5px] font-medium text-foreground hover:underline underline-offset-4"
         >
-          {r.id}
+          {r.ticketNumber}
         </button>
       ),
     },
@@ -136,7 +166,7 @@ export function VendorSupport() {
       sortValue: (r) => r.priority,
       hideOnMobile: true,
       render: (r) => {
-        const b = ticketPriorityBadge(r.priority);
+        const b = ticketPriorityBadge(r.priority as TicketPriority);
         return (
           <StatusBadge variant={b.variant} pulse={b.pulse}>
             {r.priority === "Urgent" && <Flame className="h-2.5 w-2.5" />}
@@ -151,7 +181,7 @@ export function VendorSupport() {
       sortable: true,
       sortValue: (r) => r.status,
       render: (r) => {
-        const b = ticketStatusBadge(r.status);
+        const b = ticketStatusBadge(r.status as TicketStatus);
         return <StatusBadge variant={b.variant} pulse={b.pulse}>{r.status}</StatusBadge>;
       },
     },
@@ -250,18 +280,22 @@ export function VendorSupport() {
         flush
         bodyClassName="p-0"
       >
-        <DataTable
-          data={tickets}
-          columns={columns}
-          searchKeys={["id", "subject", "category", "linkedRef"]}
-          searchPlaceholder="Search ticket #, subject, ref..."
-          onRowClick={(r) => setViewing(r)}
-          pageSize={10}
-          initialSort={{ key: "createdAt", dir: "desc" }}
-          stickyFirstColumn
-          emptyTitle="No tickets"
-          emptyDescription="You haven't raised any support tickets yet."
-        />
+        {!loaded ? (
+          <div className="px-4 py-10 text-center text-[13px] text-muted-foreground">Loading tickets…</div>
+        ) : (
+          <DataTable
+            data={tickets}
+            columns={columns}
+            searchKeys={["ticketNumber", "subject", "category", "linkedRef"]}
+            searchPlaceholder="Search ticket #, subject, ref..."
+            onRowClick={(r) => setViewing(r)}
+            pageSize={10}
+            initialSort={{ key: "createdAt", dir: "desc" }}
+            stickyFirstColumn
+            emptyTitle="No tickets"
+            emptyDescription="You haven't raised any support tickets yet."
+          />
+        )}
       </SectionCard>
 
       {/* SLA + read-only note */}
@@ -275,41 +309,67 @@ export function VendorSupport() {
         <div className="flex items-center gap-3 rounded-[5px] border border-border bg-muted/30 px-3 py-2.5 text-[11px] text-muted-foreground">
           <Lock className="h-3.5 w-3.5 shrink-0" />
           <span>
-            Replies from Reanzly staff are read-only. Your account manager is <span className="font-medium text-foreground">{VENDOR_PROFILE.accountManager}</span>.
+            Replies from Reanzly staff are read-only. Your account manager is <span className="font-medium text-foreground">{accountManager || "-"}</span>.
           </span>
         </div>
       </div>
 
       {/* Detail sheet */}
-      <TicketDetailSheet key={viewing?.id ?? "closed"} ticket={viewing} onClose={() => setViewing(null)} onAddReply={(t) => {
-        setTickets((prev) => prev.map((x) => x.id === t.id ? { ...x, messageCount: x.messageCount + 1, lastReplyAt: new Date().toISOString(), lastReplyBy: "Vendor", status: "Awaiting Reply" as TicketStatus } : x));
-        setViewing(null);
-        toastInfo("Reply sent", `${t.id} · Support will respond within the SLA window.`);
-      }} />
+      <TicketDetailSheet
+        key={`ticket-${viewing?.id ?? "closed"}`}
+        ticket={viewing}
+        onClose={() => setViewing(null)}
+        onAddReply={async (t, body) => {
+          const res = await fetch(`/api/vendor-portal/tickets/${t.id}/messages`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ body }),
+          });
+          if (!res.ok) {
+            toastInfo("Reply not sent", "Could not send your reply.");
+            return;
+          }
+          const { message } = await res.json();
+          setTickets((prev) =>
+            prev.map((x) =>
+              x.id === t.id
+                ? {
+                    ...x,
+                    messages: [...x.messages, message],
+                    messageCount: x.messageCount + 1,
+                    lastReplyAt: message.createdAt,
+                    lastReplyBy: message.fromName,
+                    status: x.status === "Resolved" || x.status === "Closed" ? "Open" : "Awaiting Reply",
+                  }
+                : x,
+            ),
+          );
+          setViewing(null);
+          toastInfo("Reply sent", `${t.ticketNumber} · Support will respond within the SLA window.`);
+        }}
+      />
 
       {/* New ticket sheet */}
       <NewTicketSheet
-        key={creating ? "open" : "closed"}
+        key={`new-ticket-${creating ? "open" : "closed"}`}
         open={creating}
         onClose={() => setCreating(false)}
-        onSubmit={(payload) => {
-          const newId = `TKT-${String(5301 + tickets.length).padStart(5, "0")}`;
-          const row: SupportTicket = {
-            id: newId,
-            subject: payload.subject,
-            category: payload.category,
-            priority: payload.priority,
-            status: "Open",
-            createdAt: daysAgo(0),
-            messageCount: 1,
-            linkedRef: payload.linkedRef?.trim() || undefined,
-            description: payload.description,
-          };
-          setTickets((prev) => [row, ...prev]);
+        onSubmit={async (payload) => {
+          const res = await fetch("/api/vendor-portal/tickets", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          if (!res.ok) {
+            toastInfo("Ticket not raised", "Could not raise the ticket.");
+            return;
+          }
+          const { ticket } = await res.json();
+          setTickets((prev) => [ticket, ...prev]);
           setCreating(false);
           toastSuccess(
             "Ticket raised",
-            `${newId} · ${payload.category} · ${payload.priority} priority. Your account manager will respond within SLA.`,
+            `${ticket.ticketNumber} · ${payload.category} · ${payload.priority} priority. Your account manager will respond within SLA.`,
           );
         }}
       />
@@ -322,41 +382,26 @@ export function VendorSupport() {
    ============================================================ */
 
 interface TicketDetailSheetProps {
-  ticket: SupportTicket | null;
+  ticket: PortalTicket | null;
   onClose: () => void;
-  onAddReply: (ticket: SupportTicket) => void;
+  onAddReply: (ticket: PortalTicket, body: string) => void | Promise<void>;
 }
 
 function TicketDetailSheet({ ticket, onClose, onAddReply }: TicketDetailSheetProps) {
   const open = ticket !== null;
-  const b = ticket ? ticketStatusBadge(ticket.status) : null;
-  const pb = ticket ? ticketPriorityBadge(ticket.priority) : null;
+  const b = ticket ? ticketStatusBadge(ticket.status as TicketStatus) : null;
+  const pb = ticket ? ticketPriorityBadge(ticket.priority as TicketPriority) : null;
   // The parent remounts this sheet via `key={ticket?.id}` whenever a different
   // ticket is opened, so this useState initialiser re-runs cleanly each open.
   const [reply, setReply] = useState("");
 
   const handleSendReply = () => {
     if (!ticket || !reply.trim()) return;
-    onAddReply(ticket);
+    onAddReply(ticket, reply.trim());
     setReply("");
   };
 
-  // Synthesise a message thread from the ticket metadata so the detail
-  // view shows a believable conversation without a separate dataset.
-  const thread: { from: "Vendor" | "Reanzly Support" | "Account Manager"; body: string; at: string }[] = ticket
-    ? [
-        { from: "Vendor", body: ticket.description, at: ticket.createdAt },
-        ...(ticket.lastReplyBy === "Reanzly Support"
-          ? [{ from: "Reanzly Support" as const, body: "Thanks for raising this. We're looking into it and will revert within the SLA window.", at: ticket.lastReplyAt ?? ticket.createdAt }]
-          : []),
-        ...(ticket.lastReplyBy === "Account Manager"
-          ? [{ from: "Account Manager" as const, body: "Acknowledged. I've routed this to the operations team. Will keep you posted.", at: ticket.lastReplyAt ?? ticket.createdAt }]
-          : []),
-        ...(ticket.messageCount > 2 && ticket.lastReplyBy === "Vendor"
-          ? [{ from: "Vendor" as const, body: "Following up - any update on this?", at: ticket.lastReplyAt ?? ticket.createdAt }]
-          : []),
-      ]
-    : [];
+  const thread = ticket ? ticket.messages : [];
 
   return (
     <Sheet open={open} onOpenChange={(o) => !o && onClose()}>
@@ -366,7 +411,7 @@ function TicketDetailSheet({ ticket, onClose, onAddReply }: TicketDetailSheetPro
             <SheetHeader className="flex flex-row items-start justify-between gap-3 border-b border-border p-4">
               <div className="flex min-w-0 flex-col gap-1.5">
                 <SheetTitle className="text-[16px] font-medium leading-snug tracking-tight text-foreground">
-                  <span className="tabular">{ticket.id}</span>
+                  <span className="tabular">{ticket.ticketNumber}</span>
                 </SheetTitle>
                 <SheetDescription className="text-[12px] text-muted-foreground">
                   {ticket.subject}
@@ -416,10 +461,10 @@ function TicketDetailSheet({ ticket, onClose, onAddReply }: TicketDetailSheetPro
                 bodyClassName="p-0"
               >
                 <ol className="divide-y divide-border">
-                  {thread.map((m, i) => {
-                    const isVendor = m.from === "Vendor";
+                  {thread.map((m) => {
+                    const isVendor = m.fromRole === "customer";
                     return (
-                      <li key={i} className="flex flex-col gap-1 px-4 py-3">
+                      <li key={m.id} className="flex flex-col gap-1 px-4 py-3">
                         <div className="flex items-center justify-between gap-2">
                           <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-foreground">
                             <span
@@ -428,11 +473,11 @@ function TicketDetailSheet({ ticket, onClose, onAddReply }: TicketDetailSheetPro
                                 (isVendor ? "bg-foreground text-background" : "border border-border bg-background text-muted-foreground")
                               }
                             >
-                              {m.from[0]}
+                              {m.fromName[0]}
                             </span>
-                            {m.from}
+                            {m.fromName}
                           </span>
-                          <span className="tabular text-[10px] text-muted-foreground">{relativeTime(m.at)}</span>
+                          <span className="tabular text-[10px] text-muted-foreground">{relativeTime(m.createdAt)}</span>
                         </div>
                         <p className="text-[12px] leading-relaxed text-foreground" style={{ paddingLeft: 26 }}>
                           {m.body}
@@ -499,7 +544,7 @@ interface NewTicketPayload {
 interface NewTicketSheetProps {
   open: boolean;
   onClose: () => void;
-  onSubmit: (payload: NewTicketPayload) => void;
+  onSubmit: (payload: NewTicketPayload) => void | Promise<void>;
 }
 
 function NewTicketSheet({ open, onClose, onSubmit }: NewTicketSheetProps) {

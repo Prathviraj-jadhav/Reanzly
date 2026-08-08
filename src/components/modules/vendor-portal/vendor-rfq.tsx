@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/shared/page-header";
 import { SectionCard } from "@/components/shared/section-card";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -43,14 +43,12 @@ import {
   AlertCircle,
 } from "lucide-react";
 import {
-  VENDOR_RFQS,
   computeVendorRFQKpis,
   formatINR,
   formatINRCompact,
   formatDate,
   relativeTime,
   rfqStatusBadge,
-  daysAhead,
   type VendorRFQ,
   type VehicleType,
 } from "./_helpers";
@@ -78,9 +76,20 @@ const VEHICLE_TYPES: VehicleType[] = [
 ];
 
 export function VendorRFQ() {
-  const [rfqs, setRfqs] = useState<VendorRFQ[]>(VENDOR_RFQS);
+  const [rfqs, setRfqs] = useState<VendorRFQ[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const [viewing, setViewing] = useState<VendorRFQ | null>(null);
   const [quoting, setQuoting] = useState<VendorRFQ | null>(null);
+
+  useEffect(() => {
+    fetch("/api/vendor-portal/rfqs")
+      .then((r) => (r.ok ? r.json() : { rfqs: [] }))
+      .then(({ rfqs }) => {
+        setRfqs(rfqs ?? []);
+        setLoaded(true);
+      })
+      .catch(() => setLoaded(true));
+  }, []);
 
   const kpis = useMemo(() => computeVendorRFQKpis(rfqs), [rfqs]);
 
@@ -243,19 +252,23 @@ export function VendorRFQ() {
         flush
         bodyClassName="p-0"
       >
-        <DataTable
-          data={rfqs}
-          columns={columns}
-          rowActions={rowActions}
-          searchKeys={["id", "lane", "origin", "destination", "vehicleType", "commodity"]}
-          searchPlaceholder="Search RFQ #, lane, vehicle, commodity..."
-          onRowClick={(r) => setViewing(r)}
-          pageSize={10}
-          initialSort={{ key: "requiredDate", dir: "asc" }}
-          stickyFirstColumn
-          emptyTitle="No RFQs"
-          emptyDescription="New RFQs from the logistics company will appear here."
-        />
+        {!loaded ? (
+          <div className="px-4 py-10 text-center text-[13px] text-muted-foreground">Loading RFQs…</div>
+        ) : (
+          <DataTable
+            data={rfqs}
+            columns={columns}
+            rowActions={rowActions}
+            searchKeys={["id", "lane", "origin", "destination", "vehicleType", "commodity"]}
+            searchPlaceholder="Search RFQ #, lane, vehicle, commodity..."
+            onRowClick={(r) => setViewing(r)}
+            pageSize={10}
+            initialSort={{ key: "requiredDate", dir: "asc" }}
+            stickyFirstColumn
+            emptyTitle="No RFQs"
+            emptyDescription="New RFQs from the logistics company will appear here."
+          />
+        )}
       </SectionCard>
 
       {/* Legend + read-only note */}
@@ -275,26 +288,30 @@ export function VendorRFQ() {
       </div>
 
       {/* Detail sheet (read-only) */}
-      <RFQDetailSheet key={viewing?.id ?? "closed"} rfq={viewing} onClose={() => setViewing(null)} onSubmitQuote={(r) => { setViewing(null); setQuoting(r); }} />
+      <RFQDetailSheet key={`view-${viewing?.id ?? "closed"}`} rfq={viewing} onClose={() => setViewing(null)} onSubmitQuote={(r) => { setViewing(null); setQuoting(r); }} />
 
       {/* Submit-quote sheet (vendor enters rate) */}
       <SubmitQuoteSheet
-        key={quoting?.id ?? "closed"}
+        key={`quote-${quoting?.id ?? "closed"}`}
         rfq={quoting}
         onClose={() => setQuoting(null)}
-        onSubmit={(rfq, ratePerKm, validityDays, terms) => {
+        onSubmit={async (rfq, ratePerKm, validityDays, terms) => {
+          const notes = (rfq.notes ? rfq.notes + " | " : "") + (terms ? `Vendor note: ${terms}` : "");
+          const res = await fetch(`/api/vendor-portal/rfqs/${rfq.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ratePerKm, validityDays, notes: terms ? notes : undefined }),
+          });
+          if (!res.ok) {
+            const { error } = await res.json().catch(() => ({ error: "Could not submit quote." }));
+            toastInfo("Quote not submitted", error || "Could not submit quote.");
+            return;
+          }
+          const { rfq: updated } = await res.json();
           setRfqs((prev) =>
             prev.map((r) =>
               r.id === rfq.id
-                ? {
-                    ...r,
-                    quotedRatePerKm: ratePerKm,
-                    validityDays,
-                    status: "Quoted" as const,
-                    quotedAt: new Date().toISOString(),
-                    expiresAt: daysAhead(validityDays),
-                    notes: (r.notes ? r.notes + " | " : "") + (terms ? `Vendor note: ${terms}` : ""),
-                  }
+                ? { ...r, ...updated, notes: terms ? notes : r.notes }
                 : r,
             ),
           );
@@ -448,7 +465,7 @@ function RFQDetailSheet({ rfq, onClose, onSubmitQuote }: RFQDetailSheetProps) {
 interface SubmitQuoteSheetProps {
   rfq: VendorRFQ | null;
   onClose: () => void;
-  onSubmit: (rfq: VendorRFQ, ratePerKm: number, validityDays: number, terms?: string) => void;
+  onSubmit: (rfq: VendorRFQ, ratePerKm: number, validityDays: number, terms?: string) => void | Promise<void>;
 }
 
 function SubmitQuoteSheet({ rfq, onClose, onSubmit }: SubmitQuoteSheetProps) {

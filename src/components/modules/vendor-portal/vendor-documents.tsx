@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { DataTable, type Column } from "@/components/shared/data-table";
 import { StatusBadge, docStatusBadge } from "@/components/shared/status-badge";
 import { SectionCard } from "@/components/shared/section-card";
@@ -11,59 +11,74 @@ import {
   Download,
   Eye,
   FileCheck2,
-  Building2,
   Calendar,
 } from "lucide-react";
 import {
-  VENDOR_DOCS,
   formatDate,
   type VendorSubView,
 } from "./_helpers";
 import { toastInfo } from "@/lib/toast";
-import type { DocumentRecord } from "@/lib/types";
 
 /* ============================================================
    VendorDocuments - read-only document library for the vendor.
    ------------------------------------------------------------
-   Filter by type (LR, Invoice, POD, eWay Bill, Statement).
-   Each row has a Download / View button (toast on click).
+   Backed by GET /api/vendor-portal/documents (real Document rows
+   with entityType "Customer" and entityId = the customer's name -
+   see that route's comment on why there's no FK for this case).
+   Filter by category (LR, Invoice, POD, eWay Bill, Statement).
    ============================================================ */
+
+interface PortalDocument {
+  id: string; name: string; type: string; issueDate: string;
+  expiryDate?: string; status: string; uploadDate: string;
+}
 
 interface VendorDocumentsProps {
   onNavigate?: (view: VendorSubView) => void;
 }
 
-// Map the shared mock document types to vendor-facing categories.
-function docCategory(d: DocumentRecord): string {
+function docCategory(d: PortalDocument): string {
   const t = d.type.toLowerCase();
-  if (t.includes("gst") || t.includes("pan")) return "Statement";
-  if (t.includes("fitness") || t.includes("permit") || t.includes("insurance") || t.includes("puc") || t.includes("tax")) return "LR";
-  if (t.includes("license") || t.includes("medical")) return "POD";
-  return "eWay Bill";
+  if (t.includes("statement") || t.includes("compliance") || t.includes("gst") || t.includes("pan")) return "Statement";
+  if (t.includes("pod")) return "POD";
+  if (t.includes("eway") || t.includes("e-way")) return "eWay Bill";
+  return "LR";
 }
 
 export function VendorDocuments(_props: VendorDocumentsProps) {
   void _props;
+  const [docs, setDocs] = useState<PortalDocument[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const [filter, setFilter] = useState<string>("All");
 
+  useEffect(() => {
+    fetch("/api/vendor-portal/documents")
+      .then((r) => (r.ok ? r.json() : { documents: [] }))
+      .then(({ documents }) => {
+        setDocs(documents ?? []);
+        setLoaded(true);
+      })
+      .catch(() => setLoaded(true));
+  }, []);
+
   const filtered = useMemo(() => {
-    if (filter === "All") return VENDOR_DOCS;
-    return VENDOR_DOCS.filter((d) => docCategory(d) === filter);
-  }, [filter]);
+    if (filter === "All") return docs;
+    return docs.filter((d) => docCategory(d) === filter);
+  }, [filter, docs]);
 
   const categoryOptions: FilterChipOption[] = useMemo(() => {
     const counts: Record<string, number> = {};
-    VENDOR_DOCS.forEach((d) => {
+    docs.forEach((d) => {
       const c = docCategory(d);
       counts[c] = (counts[c] ?? 0) + 1;
     });
     return [
-      { label: "All", value: "All", count: VENDOR_DOCS.length },
+      { label: "All", value: "All", count: docs.length },
       ...Object.entries(counts).map(([k, v]) => ({ label: k, value: k, count: v })),
     ];
-  }, []);
+  }, [docs]);
 
-  const columns: Column<DocumentRecord>[] = [
+  const columns: Column<PortalDocument>[] = [
     {
       key: "name",
       header: "Document Name",
@@ -93,26 +108,13 @@ export function VendorDocuments(_props: VendorDocumentsProps) {
       render: (r) => <span className="text-[12px] text-muted-foreground">{r.type}</span>,
     },
     {
-      key: "entityName",
-      header: "Linked To",
-      sortable: true,
-      sortValue: (r) => r.entityName,
-      hideOnMobile: true,
-      render: (r) => (
-        <span className="inline-flex items-center gap-1.5 text-[12px] text-muted-foreground">
-          <Building2 className="h-3 w-3" />
-          {r.entityName}
-        </span>
-      ),
-    },
-    {
       key: "issueDate",
       header: "Issue Date",
       sortable: true,
       sortValue: (r) => r.issueDate,
       hideOnMobile: true,
       render: (r) => (
-        <span className="tabular text-[12px] text-muted-foreground">{formatDate(r.issueDate)}</span>
+        <span className="tabular text-[12px] text-muted-foreground">{r.issueDate ? formatDate(r.issueDate) : "-"}</span>
       ),
     },
     {
@@ -205,15 +207,19 @@ export function VendorDocuments(_props: VendorDocumentsProps) {
         flush
         bodyClassName="p-0"
       >
-        <DataTable
-          data={filtered}
-          columns={columns}
-          searchKeys={["name", "type", "entityName"]}
-          searchPlaceholder="Search documents, types, entities..."
-          pageSize={10}
-          emptyTitle="No documents"
-          emptyDescription="Documents will appear here once they're shared with you."
-        />
+        {!loaded ? (
+          <div className="px-4 py-10 text-center text-[13px] text-muted-foreground">Loading documents…</div>
+        ) : (
+          <DataTable
+            data={filtered}
+            columns={columns}
+            searchKeys={["name", "type"]}
+            searchPlaceholder="Search documents, types..."
+            pageSize={10}
+            emptyTitle="No documents"
+            emptyDescription="Documents will appear here once they're shared with you."
+          />
+        )}
       </SectionCard>
 
       {/* Footer note */}

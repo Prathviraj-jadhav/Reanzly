@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { DataTable, type Column } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { SectionCard } from "@/components/shared/section-card";
@@ -25,7 +25,6 @@ import {
   AlertCircle,
 } from "lucide-react";
 import {
-  VENDOR_PODS,
   formatDate,
   formatDateTime,
   relativeTime,
@@ -38,13 +37,26 @@ import { toastInfo } from "@/lib/toast";
 /* ============================================================
    VendorPODs - read-only DataTable of the vendor's PODs.
    ------------------------------------------------------------
-   Columns: POD #, Trip, Vehicle, Captured Date, Status,
-   Consignee Signature, Damages. Row click opens a read-only
-   detail with photos, signatures, GPS coords.
+   Backed by GET /api/vendor-portal/pods (real Pod rows joined
+   through Trip.customerId, reading the real capture fields -
+   signature/photos/GPS/condition - instead of the old mock's
+   fabricated versions of those same fields).
    ============================================================ */
 
 export function VendorPODs() {
+  const [pods, setPods] = useState<VendorPOD[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const [selected, setSelected] = useState<VendorPOD | null>(null);
+
+  useEffect(() => {
+    fetch("/api/vendor-portal/pods")
+      .then((r) => (r.ok ? r.json() : { pods: [] }))
+      .then(({ pods }) => {
+        setPods(pods ?? []);
+        setLoaded(true);
+      })
+      .catch(() => setLoaded(true));
+  }, []);
 
   const columns: Column<VendorPOD>[] = [
     {
@@ -157,22 +169,26 @@ export function VendorPODs() {
 
       {/* Table */}
       <SectionCard
-        title={`PODs (${VENDOR_PODS.length})`}
+        title={`PODs (${pods.length})`}
         description="Read-only - filtered to your vendor account."
         icon={<ClipboardCheck className="h-4 w-4" />}
         flush
         bodyClassName="p-0"
       >
-        <DataTable
-          data={VENDOR_PODS}
-          columns={columns}
-          searchKeys={["podNumber", "tripRef", "vehicleName", "origin", "destination", "consignee"]}
-          searchPlaceholder="Search PODs, trips, vehicles..."
-          onRowClick={(r) => setSelected(r)}
-          pageSize={10}
-          emptyTitle="No PODs"
-          emptyDescription="PODs will appear here once deliveries are captured."
-        />
+        {!loaded ? (
+          <div className="px-4 py-10 text-center text-[13px] text-muted-foreground">Loading PODs…</div>
+        ) : (
+          <DataTable
+            data={pods}
+            columns={columns}
+            searchKeys={["podNumber", "tripRef", "vehicleName", "origin", "destination", "consignee"]}
+            searchPlaceholder="Search PODs, trips, vehicles..."
+            onRowClick={(r) => setSelected(r)}
+            pageSize={10}
+            emptyTitle="No PODs"
+            emptyDescription="PODs will appear here once deliveries are captured."
+          />
+        )}
       </SectionCard>
 
       <PODDetailSheet pod={selected} onClose={() => setSelected(null)} />
@@ -246,10 +262,16 @@ function PODDetailSheet({ pod, onClose }: PODDetailSheetProps) {
               </InfoSection>
 
               {/* GPS coordinates */}
-              <InfoSection title="GPS coordinates" action={<Btn variant="ghost" size="sm" icon={<Navigation className="h-3 w-3" />} onClick={() => toastInfo("GPS pin", `${pod.gps.lat.toFixed(4)}, ${pod.gps.lng.toFixed(4)}`)}>View on map</Btn>}>
-                <InfoRow label="Latitude" value={pod.gps.lat.toFixed(6)} mono />
-                <InfoRow label="Longitude" value={pod.gps.lng.toFixed(6)} mono />
-              </InfoSection>
+              {pod.gps ? (
+                <InfoSection title="GPS coordinates" action={<Btn variant="ghost" size="sm" icon={<Navigation className="h-3 w-3" />} onClick={() => toastInfo("GPS pin", `${pod.gps!.lat.toFixed(4)}, ${pod.gps!.lng.toFixed(4)}`)}>View on map</Btn>}>
+                  <InfoRow label="Latitude" value={pod.gps.lat.toFixed(6)} mono />
+                  <InfoRow label="Longitude" value={pod.gps.lng.toFixed(6)} mono />
+                </InfoSection>
+              ) : (
+                <InfoSection title="GPS coordinates">
+                  <div className="py-2 text-center text-[12px] text-muted-foreground">No GPS coordinates captured for this POD.</div>
+                </InfoSection>
+              )}
 
               {/* Consignee signature */}
               <SectionCard

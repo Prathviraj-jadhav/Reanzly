@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { SectionCard } from "@/components/shared/section-card";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Btn } from "@/components/shared/btn";
@@ -18,9 +19,6 @@ import {
   ArrowRight,
 } from "lucide-react";
 import {
-  VENDOR_TRIPS,
-  vehicleByName,
-  driverByName,
   formatDate,
   relativeTime,
   tripStatusBadge,
@@ -31,9 +29,11 @@ import { toastInfo } from "@/lib/toast";
 /* ============================================================
    VendorTracking - simplified live tracking.
    ------------------------------------------------------------
-   A card grid showing only this vendor's in-transit shipments
-   with live status: Vehicle, Driver, Last location, Speed, ETA.
-   If no trips are in transit, shows the next-up planned trip.
+   Backed by GET /api/vendor-portal/tracking (real in-transit
+   Trip rows joined with the latest real DriverLocationPing per
+   driver). Trips whose driver hasn't sent a GPS ping yet show
+   blank location/speed/battery fields rather than fabricated
+   ones - an honest partial result.
    ============================================================ */
 
 interface VendorTrackingProps {
@@ -55,55 +55,28 @@ interface LiveTrip {
   etaIso: string;
   progressPct: number;
   status: string;
-  gps: { lat: number; lng: number };
+  gps?: { lat: number; lng: number };
   signal: "Live" | "Stale" | "Offline";
-  batteryPct: number;
-}
-
-// Build a synthesized live view from the vendor's in-transit trips.
-function buildLiveTrips(): LiveTrip[] {
-  // Take trips that are Active / In Transit (or Planned as next-up).
-  const inTransit = VENDOR_TRIPS.filter((t) => t.status === "Active" || t.status === "In Transit");
-  const planned = VENDOR_TRIPS.filter((t) => t.status === "Planned");
-  const pool = [...inTransit, ...planned].slice(0, 4);
-
-  const LOCATIONS = [
-    "NH-48 near Lonavala, Maharashtra",
-    "Mumbai-Pune Expressway, near Talegaon",
-    "Outskirts of Nashik, NH-60",
-    "Approaching Pune bypass, NH-48",
-  ];
-  const SIGNALS: LiveTrip["signal"][] = ["Live", "Live", "Stale", "Live"];
-
-  return pool.map((t, i) => {
-    const v = vehicleByName(t.vehicleName);
-    const d = driverByName(t.driverName);
-    const speed = t.status === "Planned" ? 0 : 38 + (i * 13) % 32;
-    return {
-      tripId: t.tripId,
-      lrNumber: t.lrNumber,
-      origin: t.origin,
-      destination: t.destination,
-      vehicleName: t.vehicleName,
-      vehiclePlate: v?.licensePlate ?? "MH 12 AB 7896",
-      driverName: t.driverName,
-      driverPhone: d?.contact ?? "+91 98200 14582",
-      lastLocation: t.status === "Planned" ? "At origin hub, awaiting dispatch" : LOCATIONS[i % LOCATIONS.length],
-      lastUpdate: t.status === "Planned" ? t.createdDate : new Date(Date.now() - (i + 1) * 4 * 60000).toISOString(),
-      speedKph: speed,
-      etaIso: t.expectedDelivery,
-      progressPct: t.status === "Planned" ? 0 : 28 + (i * 19) % 55,
-      status: t.status,
-      gps: { lat: 18.93 + (i * 0.04), lng: 73.25 + (i * 0.06) },
-      signal: SIGNALS[i % SIGNALS.length],
-      batteryPct: 78 - (i * 11) % 38,
-    };
-  });
+  batteryPct?: number;
 }
 
 export function VendorTracking({ onNavigate }: VendorTrackingProps) {
-  const live = buildLiveTrips();
+  const [live, setLive] = useState<LiveTrip[]>([]);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/vendor-portal/tracking")
+      .then((r) => (r.ok ? r.json() : { liveTrips: [] }))
+      .then(({ liveTrips }) => {
+        setLive(liveTrips ?? []);
+        setLoaded(true);
+      })
+      .catch(() => setLoaded(true));
+  }, []);
+
   const inTransitCount = live.filter((l) => l.status === "Active" || l.status === "In Transit").length;
+  const withSpeed = live.filter((l) => l.speedKph > 0);
+  const avgSpeed = withSpeed.length ? Math.round(withSpeed.reduce((s, l) => s + l.speedKph, 0) / withSpeed.length) : 0;
 
   return (
     <div className="flex flex-col gap-4 pb-8">
@@ -119,7 +92,7 @@ export function VendorTracking({ onNavigate }: VendorTrackingProps) {
               Live Tracking
             </h1>
             <p className="mt-1 text-[13px] text-muted-foreground">
-              Your in-transit shipments with live GPS, speed, and ETA. Updates every 30 seconds.
+              Your in-transit shipments with live GPS, speed, and ETA from each driver's device.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -131,34 +104,40 @@ export function VendorTracking({ onNavigate }: VendorTrackingProps) {
         </div>
       </div>
 
-      {/* Live status strip */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <StatusTile label="In transit" value={String(inTransitCount)} icon={<Truck className="h-3.5 w-3.5" />} hint="live GPS" />
-        <StatusTile label="Avg speed" value={`${Math.round(live.reduce((s, l) => s + l.speedKph, 0) / Math.max(live.length, 1))} km/h`} icon={<Gauge className="h-3.5 w-3.5" />} hint="across live trips" />
-        <StatusTile label="Devices online" value={`${live.filter((l) => l.signal === "Live").length}/${live.length}`} icon={<Radio className="h-3.5 w-3.5" />} hint="GPS trackers" />
-        <StatusTile label="Avg ETA" value={live[0] ? formatDate(live[0].etaIso) : "-"} icon={<Clock className="h-3.5 w-3.5" />} hint="nearest arrival" />
-      </div>
-
-      {/* Live trip cards */}
-      {live.length === 0 ? (
-        <SectionCard title="No live trips" description="Nothing in transit right now." icon={<AlertCircle className="h-4 w-4" />}>
-          <div className="py-6 text-center text-[12px] text-muted-foreground">
-            When your shipments are dispatched, their live location, speed, and ETA will appear here.
-          </div>
-        </SectionCard>
+      {!loaded ? (
+        <div className="px-4 py-10 text-center text-[13px] text-muted-foreground">Loading live tracking…</div>
       ) : (
-        <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-          {live.map((t) => (
-            <LiveTripCard key={t.tripId} trip={t} onView={() => toastInfo("Trip detail", `${t.tripId} - opens the shipments view`)} />
-          ))}
-        </div>
+        <>
+          {/* Live status strip */}
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <StatusTile label="In transit" value={String(inTransitCount)} icon={<Truck className="h-3.5 w-3.5" />} hint="live GPS" />
+            <StatusTile label="Avg speed" value={`${avgSpeed} km/h`} icon={<Gauge className="h-3.5 w-3.5" />} hint="across live trips" />
+            <StatusTile label="Devices online" value={`${live.filter((l) => l.signal === "Live").length}/${live.length}`} icon={<Radio className="h-3.5 w-3.5" />} hint="GPS trackers" />
+            <StatusTile label="Nearest ETA" value={live[0] ? formatDate(live[0].etaIso) : "-"} icon={<Clock className="h-3.5 w-3.5" />} hint="soonest arrival" />
+          </div>
+
+          {/* Live trip cards */}
+          {live.length === 0 ? (
+            <SectionCard title="No live trips" description="Nothing in transit right now." icon={<AlertCircle className="h-4 w-4" />}>
+              <div className="py-6 text-center text-[12px] text-muted-foreground">
+                When your shipments are dispatched, their live location, speed, and ETA will appear here.
+              </div>
+            </SectionCard>
+          ) : (
+            <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+              {live.map((t) => (
+                <LiveTripCard key={t.tripId} trip={t} onView={() => toastInfo("Trip detail", `${t.tripId} - opens the shipments view`)} />
+              ))}
+            </div>
+          )}
+        </>
       )}
 
       {/* Footer note */}
       <div className="flex items-center gap-3 rounded-[5px] border border-border bg-muted/30 px-3 py-2.5 text-[11px] text-muted-foreground">
         <Navigation className="h-3.5 w-3.5 shrink-0" />
         <span>
-          GPS positions update every 30 seconds when the vehicle is on a national highway. In low-coverage zones, the last known position is shown with a stale indicator.
+          GPS positions come from each driver's field-app location pings. A trip whose driver hasn't sent one yet shows as Offline with no location.
         </span>
       </div>
     </div>
@@ -200,9 +179,10 @@ function LiveTripCard({ trip, onView }: { trip: LiveTrip; onView: () => void }) 
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Last location</p>
-            <p className="mt-0.5 text-[12.5px] text-foreground">{trip.lastLocation}</p>
+            <p className="mt-0.5 text-[12.5px] text-foreground">{trip.lastLocation || "No location reported yet"}</p>
             <p className="mt-0.5 text-[10px] text-muted-foreground tabular">
-              {relativeTime(trip.lastUpdate)} · {trip.gps.lat.toFixed(4)}, {trip.gps.lng.toFixed(4)}
+              {trip.lastUpdate ? relativeTime(trip.lastUpdate) : "-"}
+              {trip.gps ? ` · ${trip.gps.lat.toFixed(4)}, ${trip.gps.lng.toFixed(4)}` : ""}
             </p>
           </div>
         </div>
@@ -210,7 +190,7 @@ function LiveTripCard({ trip, onView }: { trip: LiveTrip; onView: () => void }) 
         {/* Speed + ETA */}
         <div className="grid grid-cols-3 gap-2">
           <MiniStat label="Speed" value={`${trip.speedKph}`} unit="km/h" icon={<Gauge className="h-3 w-3" />} />
-          <MiniStat label="ETA" value={formatDate(trip.etaIso).split(" ")[0]} unit="" icon={<Clock className="h-3 w-3" />} />
+          <MiniStat label="ETA" value={trip.etaIso ? formatDate(trip.etaIso).split(" ")[0] : "-"} unit="" icon={<Clock className="h-3 w-3" />} />
           <MiniStat label="Progress" value={`${trip.progressPct}`} unit="%" icon={<Navigation className="h-3 w-3" />} />
         </div>
 
@@ -239,7 +219,7 @@ function LiveTripCard({ trip, onView }: { trip: LiveTrip; onView: () => void }) 
             </div>
             <div className="min-w-0">
               <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Vehicle</p>
-              <p className="truncate text-[12px] text-foreground tabular">{trip.vehiclePlate}</p>
+              <p className="truncate text-[12px] text-foreground tabular">{trip.vehiclePlate || trip.vehicleName}</p>
             </div>
           </div>
         </div>
@@ -248,11 +228,11 @@ function LiveTripCard({ trip, onView }: { trip: LiveTrip; onView: () => void }) 
         <div className="flex items-center justify-between border-t border-border pt-2 text-[10px] text-muted-foreground">
           <span className="inline-flex items-center gap-1.5">
             <Wifi className="h-3 w-3" />
-            {isLive ? "GPS lock · 4G" : trip.signal === "Stale" ? "GPS stale · 2G" : "No signal"}
+            {isLive ? "GPS lock" : trip.signal === "Stale" ? "GPS stale" : "No signal"}
           </span>
           <span className="inline-flex items-center gap-1.5">
             <Battery className="h-3 w-3" />
-            {trip.batteryPct}% tracker
+            {trip.batteryPct != null ? `${trip.batteryPct}% tracker` : "-"}
           </span>
         </div>
 

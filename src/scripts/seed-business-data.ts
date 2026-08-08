@@ -121,6 +121,21 @@ async function main() {
         paymentTerms: pick(["Net 30", "Net 45", "Net 60"], i),
         creditLimit: 500000 + i * 100000,
         outstandingBalance: i % 3 === 0 ? 50000 + i * 15000 : 0,
+        // The first seeded customer is linked to the "customer" demo role's
+        // real User row, so logging into the Vendor Portal as that role
+        // resolves to a real Customer with real trips/invoices, instead of
+        // the portal hardcoding a single unlinked demo id.
+        ...(i === 0
+          ? {
+              userId: "customer",
+              designation: "Head of Logistics",
+              pan: gstin(i).slice(2, 12),
+              legalEntity: "Pvt Ltd",
+              state: pick(CITIES, i + 2),
+              pincode: `${110000 + i}`,
+              accountManager: "Vikram Deshmukh",
+            }
+          : {}),
       },
     });
     customers.push(c);

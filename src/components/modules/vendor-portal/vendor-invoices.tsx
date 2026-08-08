@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { DataTable, type Column } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { SectionCard } from "@/components/shared/section-card";
@@ -15,7 +15,6 @@ import {
 } from "@/components/ui/sheet";
 import {
   FileText,
-  Calendar,
   Building2,
   Lock,
   Download,
@@ -23,7 +22,6 @@ import {
   Receipt,
 } from "lucide-react";
 import {
-  VENDOR_INVOICES,
   formatINR,
   formatDate,
   relativeTime,
@@ -36,14 +34,28 @@ import { toastInfo, toastSuccess } from "@/lib/toast";
 /* ============================================================
    VendorInvoices - read-only DataTable of the vendor's invoices.
    ------------------------------------------------------------
-   Columns: Invoice #, Date, Customer, Amount, Tax, Total,
-   Status, Payment Status, Due Date. Row click opens a read-only
-   detail sheet with line items, totals, payment history, and a
-   "Download PDF" button (window.print() or toast).
+   Backed by GET /api/vendor-portal/invoices (real Invoice rows
+   scoped to the logged-in customer, same DTO as /api/invoices).
+   Line items are an illustrative percentage breakdown, not real
+   stored data - this app has no line-item model for Invoice
+   anywhere (not even the main Invoices module), so this stays
+   clearly labeled as an estimate rather than claiming to be real.
    ============================================================ */
 
 export function VendorInvoices() {
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const [selected, setSelected] = useState<Invoice | null>(null);
+
+  useEffect(() => {
+    fetch("/api/vendor-portal/invoices")
+      .then((r) => (r.ok ? r.json() : { invoices: [] }))
+      .then(({ invoices }) => {
+        setInvoices(invoices ?? []);
+        setLoaded(true);
+      })
+      .catch(() => setLoaded(true));
+  }, []);
 
   const columns: Column<Invoice>[] = [
     {
@@ -154,7 +166,7 @@ export function VendorInvoices() {
               Invoices
             </h1>
             <p className="mt-1 text-[13px] text-muted-foreground">
-              All invoices raised against your account. Click any row for line items, totals, payment history and PDF download.
+              All invoices raised against your account. Click any row for totals, an estimated charge breakdown, and PDF download.
             </p>
           </div>
         </div>
@@ -162,22 +174,26 @@ export function VendorInvoices() {
 
       {/* Table */}
       <SectionCard
-        title={`Invoices (${VENDOR_INVOICES.length})`}
+        title={`Invoices (${invoices.length})`}
         description="Read-only - filtered to your vendor account."
         icon={<FileText className="h-4 w-4" />}
         flush
         bodyClassName="p-0"
       >
-        <DataTable
-          data={VENDOR_INVOICES}
-          columns={columns}
-          searchKeys={["invoiceNumber", "customer", "tripRef"]}
-          searchPlaceholder="Search invoices, customers, trips..."
-          onRowClick={(r) => setSelected(r)}
-          pageSize={10}
-          emptyTitle="No invoices"
-          emptyDescription="You don't have any invoices yet."
-        />
+        {!loaded ? (
+          <div className="px-4 py-10 text-center text-[13px] text-muted-foreground">Loading invoices…</div>
+        ) : (
+          <DataTable
+            data={invoices}
+            columns={columns}
+            searchKeys={["invoiceNumber", "customer", "tripRef"]}
+            searchPlaceholder="Search invoices, customers, trips..."
+            onRowClick={(r) => setSelected(r)}
+            pageSize={10}
+            emptyTitle="No invoices"
+            emptyDescription="You don't have any invoices yet."
+          />
+        )}
       </SectionCard>
 
       <InvoiceDetailSheet invoice={selected} onClose={() => setSelected(null)} />
@@ -201,7 +217,6 @@ function InvoiceDetailSheet({ invoice, onClose }: InvoiceDetailSheetProps) {
 
   const downloadPdf = () => {
     if (!invoice) return;
-    // Try the print path first; some sandboxed environments block it.
     try {
       window.print();
     } catch {
@@ -211,7 +226,8 @@ function InvoiceDetailSheet({ invoice, onClose }: InvoiceDetailSheetProps) {
     toastSuccess("PDF download started", `${invoice.invoiceNumber} · ${formatINR(invoice.totalAmount)}`);
   };
 
-  // Synthesized line items for the detail sheet (read-only demo).
+  // Illustrative charge breakdown (this app has no real Invoice line-item
+  // model to read from - see file header comment).
   const lineItems = invoice
     ? [
         { desc: "Freight charges", qty: 1, rate: Math.round(invoice.amount * 0.78), total: Math.round(invoice.amount * 0.78) },
@@ -219,14 +235,6 @@ function InvoiceDetailSheet({ invoice, onClose }: InvoiceDetailSheetProps) {
         { desc: "Detention/halt charges", qty: 1, rate: Math.round(invoice.amount * 0.06), total: Math.round(invoice.amount * 0.06) },
         { desc: "Fuel surcharge", qty: 1, rate: Math.round(invoice.amount * 0.04), total: Math.round(invoice.amount * 0.04) },
       ]
-    : [];
-
-  const paymentHistory = invoice
-    ? invoice.paymentStatus === "Paid"
-      ? [{ date: invoice.dueDate, ref: "PAY-2025-09-21", mode: "RTGS", amount: invoice.totalAmount }]
-      : invoice.paymentStatus === "Partially Paid"
-        ? [{ date: invoice.dueDate, ref: "PAY-2025-09-21", mode: "RTGS", amount: Math.round(invoice.totalAmount * 0.5) }]
-        : []
     : [];
 
   return (
@@ -265,8 +273,8 @@ function InvoiceDetailSheet({ invoice, onClose }: InvoiceDetailSheetProps) {
 
               {/* Line items */}
               <SectionCard
-                title="Line items"
-                description="Itemised freight + accessory charges."
+                title="Estimated charge breakdown"
+                description="Freight + accessory charges, estimated from the invoice total."
                 icon={<Receipt className="h-4 w-4" />}
                 flush
                 bodyClassName="p-0"
@@ -309,15 +317,16 @@ function InvoiceDetailSheet({ invoice, onClose }: InvoiceDetailSheetProps) {
                 <InfoRow label="Total" value={formatINR(invoice.totalAmount)} mono hint="GST inclusive" />
               </InfoSection>
 
-              {/* Payment history */}
-              <InfoSection title="Payment history">
-                {paymentHistory.length === 0 ? (
-                  <div className="py-3 text-center text-[12px] text-muted-foreground">No payments recorded yet.</div>
-                ) : (
-                  paymentHistory.map((p, i) => (
-                    <PayRow key={i} date={p.date} ref={p.ref} mode={p.mode} amount={p.amount} />
-                  ))
-                )}
+              {/* Payment status - see the Ledger tab for actual payment
+                  transactions; this app doesn't yet link a specific payment
+                  to a specific invoice, so a per-invoice history isn't
+                  fabricated here. */}
+              <InfoSection title="Payment">
+                <InfoRow
+                  label="Status"
+                  value={invoice.paymentStatus}
+                  hint={invoice.paymentStatus === "Paid" ? "see the Ledger tab for the payment entry" : "not yet paid"}
+                />
               </InfoSection>
 
               {/* Footer actions - download PDF + print */}
@@ -338,22 +347,5 @@ function InvoiceDetailSheet({ invoice, onClose }: InvoiceDetailSheetProps) {
         )}
       </SheetContent>
     </Sheet>
-  );
-}
-
-function PayRow({ date, ref, mode, amount }: { date: string; ref: string; mode: string; amount: number }) {
-  return (
-    <div className="flex items-start justify-between gap-4 py-2">
-      <div className="flex flex-col gap-0.5">
-        <span className="inline-flex items-center gap-1.5 text-[12px] text-muted-foreground">
-          <Calendar className="h-3 w-3" />
-          {formatDate(date)}
-        </span>
-        <span className="text-[10px] text-muted-foreground tabular">
-          {ref} · {mode}
-        </span>
-      </div>
-      <span className="tabular text-[13px] font-medium text-foreground">{formatINR(amount)}</span>
-    </div>
   );
 }

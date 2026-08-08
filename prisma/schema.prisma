@@ -98,6 +98,7 @@ model User {
   company      Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   auditLogs    AuditLog[] @relation("AuditActor")
   sessions     Session[]
+  customer     Customer?
 }
 
 // Real, server-verified, revocable login sessions - an opaque random token
@@ -211,16 +212,27 @@ model Customer {
   companyId       String
   companyName     String
   contactPerson   String?
+  designation     String?
   phone           String?
   email           String?
   gstin           String?
+  pan             String?
+  legalEntity     String?
   city            String?
+  state           String?
+  pincode         String?
   billingAddress  String?
   status          String   @default("Active")
   paymentTerms    String?
   creditLimit     Int      @default(0)
   outstandingBalance Int   @default(0)
   accountManager  String?
+  // Links this Customer to the real User who logs into the Vendor Portal
+  // (src/components/layout/vendor-shell.tsx) as this company's self-service
+  // contact - lets a real session resolve "which customer am I" instead of
+  // the portal hardcoding a single demo customer for every viewer.
+  userId          String?  @unique
+  user            User?    @relation(fields: [userId], references: [id])
   // CRM "Account" fields - the CRM module's Accounts tab is the same real
   // Customer record as the Customers module (both are now CRM-cluster
   // tabs), just presented with a CRM-flavoured column set. These fields
@@ -1801,5 +1813,99 @@ model PurchaseOrder {
 
   @@unique([companyId, poNumber])
   @@index([companyId, status])
+}
+
+// ===== VENDOR PORTAL (customer self-service) =====
+// The Vendor Portal's Overview/Analytics/Shipments/Tracking/Invoices/PODs/
+// Documents/Profile tabs are all real projections of Trip/Invoice/Pod/
+// Document/Customer, scoped via Customer.userId - no new models needed for
+// those. Ledger, RFQ and Support genuinely have no existing model to reuse:
+
+// Non-invoice ledger movements (payments, credit/debit notes, opening
+// balance). Invoice-type ledger rows are NOT duplicated here - the ledger
+// API composes real Invoice rows (as debit entries) with these rows, sorted
+// by date, to compute a running balance - matching the "don't duplicate
+// data that already exists in another real table" precedent elsewhere in
+// this schema (e.g. Pod.consignmentNumber only denormalizes when there's no
+// resolvable LR, PurchaseOrder has no separate line-item table).
+model LedgerEntry {
+  id          String   @id @default(cuid())
+  companyId   String
+  customerId  String
+  invoiceId   String?
+  type        String   // Payment | CreditNote | DebitNote | OpeningBalance
+  description String
+  // Rupees, not paise - Invoice/Customer (the two real models the ledger
+  // composes these rows alongside) store their amounts directly in rupees
+  // too, so this matches rather than following the Expense/PurchaseOrder
+  // paise convention used elsewhere in this schema.
+  debit       Int      @default(0)
+  credit      Int      @default(0)
+  date        DateTime @default(now())
+  reference   String?
+  createdAt   DateTime @default(now())
+
+  @@index([companyId, customerId, date])
+}
+
+// A freight rate request the logistics company issues to a customer's lane,
+// which the customer (via the Vendor Portal) can quote back on.
+model Rfq {
+  id              String    @id @default(cuid())
+  companyId       String
+  customerId      String
+  lane            String
+  origin          String
+  destination     String
+  vehicleType     String
+  weightKg        Float
+  packages        Int
+  distanceKm      Float?
+  commodity       String
+  requiredDate    DateTime
+  receivedAt      DateTime  @default(now())
+  expiresAt       DateTime?
+  status          String    @default("Pending") // Pending | Quoted | Won | Lost | Expired
+  quotedRatePerKm Float?
+  validityDays    Int?
+  quotedAt        DateTime?
+  notes           String?
+  issuedBy        String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([companyId, customerId, status])
+}
+
+model SupportTicket {
+  id           String   @id @default(cuid())
+  companyId    String
+  customerId   String
+  ticketNumber String
+  subject      String
+  category     String
+  priority     String   @default("Medium") // Low | Medium | High | Urgent
+  status       String   @default("Open") // Open | Awaiting Reply | In Progress | Resolved | Closed
+  linkedRef    String?
+  description  String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  messages     TicketMessage[]
+
+  @@unique([companyId, ticketNumber])
+  @@index([companyId, customerId, status])
+}
+
+model TicketMessage {
+  id        String        @id @default(cuid())
+  ticketId  String
+  ticket    SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  fromName  String
+  fromRole  String        // customer | staff
+  body      String
+  createdAt DateTime      @default(now())
+
+  @@index([ticketId])
 }
 

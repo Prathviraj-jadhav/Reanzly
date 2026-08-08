@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/lib/store/app-store";
 import { AlertBanner } from "@/components/layout/alert-banner";
@@ -17,7 +17,7 @@ import { VendorProfile } from "@/components/modules/vendor-portal/vendor-profile
 import { VendorAnalytics } from "@/components/modules/vendor-portal/vendor-analytics";
 import { VendorRFQ } from "@/components/modules/vendor-portal/vendor-rfq";
 import { VendorSupport } from "@/components/modules/vendor-portal/vendor-support";
-import { VENDOR_PROFILE, type VendorSubView } from "@/components/modules/vendor-portal/_helpers";
+import { type VendorSubView } from "@/components/modules/vendor-portal/_helpers";
 import {
   LayoutDashboard,
   Truck,
@@ -103,6 +103,14 @@ export function VendorShell() {
   const [navCollapsed, setNavCollapsed] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [profile, setProfile] = useState<{ vendorId: string; companyName: string; contactPerson: string } | null>(null);
+
+  useEffect(() => {
+    fetch("/api/vendor-portal/profile")
+      .then((r) => (r.ok ? r.json() : { profile: null }))
+      .then(({ profile }) => setProfile(profile))
+      .catch(() => {});
+  }, []);
 
   function selectSubView(id: VendorSubView) {
     setActive(id);
@@ -116,10 +124,10 @@ export function VendorShell() {
   const safeActive = SUB_NAV.some((i) => i.id === active) ? active : "overview";
   const activeLabel = SUB_NAV.find((i) => i.id === safeActive)?.label ?? safeActive;
 
-  // Vendor display name (fall back to authUser.email or vendor contact).
-  const vendorName = authUser?.name ?? VENDOR_PROFILE.contactPerson;
-  const vendorOrg = authUser?.orgName ?? VENDOR_PROFILE.companyName;
-  const vendorCode = VENDOR_PROFILE.vendorId;
+  // Vendor display name (fall back to authUser.email or the real Customer profile).
+  const vendorName = authUser?.name ?? profile?.contactPerson ?? "Vendor";
+  const vendorOrg = authUser?.orgName ?? profile?.companyName ?? "-";
+  const vendorCode = profile?.vendorId ?? "-";
   const initials = vendorName
     .split(/\s+/)
     .map((p) => p[0])
@@ -448,7 +456,7 @@ export function VendorShell() {
               </span>
             </div>
             <span className="hidden shrink-0 rounded-[3px] border border-border bg-background px-2 py-0.5 text-[10px] font-medium text-muted-foreground sm:inline">
-              {VENDOR_PROFILE.companyName}
+              {vendorOrg}
             </span>
           </div>
 

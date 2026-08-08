@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { DataTable, type Column } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { SectionCard } from "@/components/shared/section-card";
@@ -27,16 +27,12 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import {
-  VENDOR_TRIPS,
   formatINR,
   formatDate,
   formatDateTime,
   relativeTime,
   tripStatusBadge,
   paymentStatusBadge,
-  vehicleByName,
-  driverByName,
-  type Trip,
   type VendorSubView,
 } from "./_helpers";
 import { toastInfo } from "@/lib/toast";
@@ -44,20 +40,40 @@ import { toastInfo } from "@/lib/toast";
 /* ============================================================
    VendorShipments - read-only DataTable of the vendor's trips.
    ------------------------------------------------------------
-   Columns: Trip ID, LR Number, Origin, Destination, Vehicle,
-   Driver, Status, Expected Delivery, Actual Delivery.
-   Row click opens a read-only detail sheet with route, vehicle,
-   driver, POD status, documents. NO edit/create buttons.
+   Backed by GET /api/vendor-portal/shipments (real Trip rows
+   scoped to the logged-in customer, including inlined real
+   Vehicle/Driver detail fields for the sheet below).
    ============================================================ */
+
+interface PortalTrip {
+  id: string; tripId: string; lrNumber: string; consignor: string; consignee: string;
+  origin: string; destination: string; vehicleName: string; driverName: string;
+  status: string; createdDate: string; expectedDelivery: string; freightAmount: number;
+  paymentStatus: string; orderMode: string; eWayBill?: string; distanceKm: number;
+  vehicleDetail?: { licensePlate: string; type: string; ownership: string; make: string; model: string };
+  driverDetail?: { phone: string; licenseNumber: string; rating: number; tripsCompleted: number; onTimeRate: number };
+}
 
 interface VendorShipmentsProps {
   onNavigate?: (view: VendorSubView) => void;
 }
 
 export function VendorShipments({ onNavigate }: VendorShipmentsProps) {
-  const [selected, setSelected] = useState<Trip | null>(null);
+  const [trips, setTrips] = useState<PortalTrip[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  const [selected, setSelected] = useState<PortalTrip | null>(null);
 
-  const columns: Column<Trip>[] = [
+  useEffect(() => {
+    fetch("/api/vendor-portal/shipments")
+      .then((r) => (r.ok ? r.json() : { trips: [] }))
+      .then(({ trips }) => {
+        setTrips(trips ?? []);
+        setLoaded(true);
+      })
+      .catch(() => setLoaded(true));
+  }, []);
+
+  const columns: Column<PortalTrip>[] = [
     {
       key: "tripId",
       header: "Trip ID",
@@ -159,10 +175,11 @@ export function VendorShipments({ onNavigate }: VendorShipmentsProps) {
       sortable: false,
       hideOnMobile: true,
       render: (r) => {
+        // Trip has no real "actual delivery" column yet (only Pod.deliveryDate,
+        // which the PODs tab already surfaces) - shown as "-" rather than
+        // fabricated, matching what's actually queryable today.
         if (r.status !== "Delivered") return <span className="text-[12px] text-muted-foreground">-</span>;
-        // Synthesize an actual delivery close to expected for the demo.
-        const actual = new Date(new Date(r.expectedDelivery).getTime() + 3 * 3600000).toISOString();
-        return <span className="tabular text-[12px] text-foreground">{formatDate(actual)}</span>;
+        return <span className="text-[12px] text-muted-foreground">See POD</span>;
       },
     },
   ];
@@ -195,22 +212,26 @@ export function VendorShipments({ onNavigate }: VendorShipmentsProps) {
 
       {/* Table */}
       <SectionCard
-        title={`Shipments (${VENDOR_TRIPS.length})`}
+        title={`Shipments (${trips.length})`}
         description="Read-only - filtered to your vendor account."
         icon={<Truck className="h-4 w-4" />}
         flush
         bodyClassName="p-0"
       >
-        <DataTable
-          data={VENDOR_TRIPS}
-          columns={columns}
-          searchKeys={["tripId", "lrNumber", "origin", "destination", "vehicleName", "driverName"]}
-          searchPlaceholder="Search trips, LR, lanes, drivers..."
-          onRowClick={(r) => setSelected(r)}
-          pageSize={10}
-          emptyTitle="No shipments"
-          emptyDescription="You don't have any trips yet."
-        />
+        {!loaded ? (
+          <div className="px-4 py-10 text-center text-[13px] text-muted-foreground">Loading shipments…</div>
+        ) : (
+          <DataTable
+            data={trips}
+            columns={columns}
+            searchKeys={["tripId", "lrNumber", "origin", "destination", "vehicleName", "driverName"]}
+            searchPlaceholder="Search trips, LR, lanes, drivers..."
+            onRowClick={(r) => setSelected(r)}
+            pageSize={10}
+            emptyTitle="No shipments"
+            emptyDescription="You don't have any trips yet."
+          />
+        )}
       </SectionCard>
 
       {/* Read-only detail sheet */}
@@ -224,15 +245,13 @@ export function VendorShipments({ onNavigate }: VendorShipmentsProps) {
    ============================================================ */
 
 interface TripDetailSheetProps {
-  trip: Trip | null;
+  trip: PortalTrip | null;
   onClose: () => void;
   onNavigate?: (view: VendorSubView) => void;
 }
 
 function TripDetailSheet({ trip, onClose, onNavigate }: TripDetailSheetProps) {
   const open = trip !== null;
-  const vehicle = trip ? vehicleByName(trip.vehicleName) : undefined;
-  const driver = trip ? driverByName(trip.driverName) : undefined;
   const b = trip ? tripStatusBadge(trip.status) : null;
   const pb = trip ? paymentStatusBadge(trip.paymentStatus) : null;
 
@@ -275,20 +294,20 @@ function TripDetailSheet({ trip, onClose, onNavigate }: TripDetailSheetProps) {
                 <InfoRow label="Expected delivery" value={formatDate(trip.expectedDelivery)} mono />
                 <InfoRow
                   label="Actual delivery"
-                  value={trip.status === "Delivered" ? formatDate(new Date(new Date(trip.expectedDelivery).getTime() + 3 * 3600000).toISOString()) : "Pending"}
+                  value={trip.status === "Delivered" ? "See POD tab" : "Pending"}
                   mono
-                  hint={trip.status === "Delivered" ? "delivered on time" : "awaiting delivery"}
+                  hint={trip.status === "Delivered" ? "delivery timestamp is on the POD" : "awaiting delivery"}
                 />
               </InfoSection>
 
               {/* Vehicle */}
-              <InfoSection title="Vehicle" action={<Btn variant="ghost" size="sm" icon={<Gauge className="h-3 w-3" />} onClick={() => toastInfo("Vehicle detail", vehicle ? `${vehicle.make} ${vehicle.model} · ${vehicle.licensePlate}` : trip.vehicleName)}>View</Btn>}>
+              <InfoSection title="Vehicle" action={<Btn variant="ghost" size="sm" icon={<Gauge className="h-3 w-3" />} onClick={() => toastInfo("Vehicle detail", trip.vehicleDetail ? `${trip.vehicleDetail.make} ${trip.vehicleDetail.model} · ${trip.vehicleDetail.licensePlate}` : trip.vehicleName)}>View</Btn>}>
                 <InfoRow label="Vehicle" value={trip.vehicleName} />
-                {vehicle && (
+                {trip.vehicleDetail && (
                   <>
-                    <InfoRow label="License plate" value={vehicle.licensePlate} mono />
-                    <InfoRow label="Type" value={vehicle.type} />
-                    <InfoRow label="Ownership" value={vehicle.ownership} />
+                    <InfoRow label="License plate" value={trip.vehicleDetail.licensePlate} mono />
+                    <InfoRow label="Type" value={trip.vehicleDetail.type} />
+                    <InfoRow label="Ownership" value={trip.vehicleDetail.ownership} />
                   </>
                 )}
               </InfoSection>
@@ -296,11 +315,11 @@ function TripDetailSheet({ trip, onClose, onNavigate }: TripDetailSheetProps) {
               {/* Driver */}
               <InfoSection title="Driver">
                 <InfoRow label="Driver" value={trip.driverName} />
-                {driver && (
+                {trip.driverDetail && (
                   <>
-                    <InfoRow label="Contact" value={driver.contact} mono />
-                    <InfoRow label="License" value={driver.licenseNumber} mono />
-                    <InfoRow label="Rating" value={`${driver.rating} / 5`} mono hint={`${driver.tripsCompleted} trips · ${driver.onTimeRate}% on-time`} />
+                    <InfoRow label="Contact" value={trip.driverDetail.phone} mono />
+                    <InfoRow label="License" value={trip.driverDetail.licenseNumber} mono />
+                    <InfoRow label="Rating" value={`${trip.driverDetail.rating} / 5`} mono hint={`${trip.driverDetail.tripsCompleted} trips · ${trip.driverDetail.onTimeRate}% on-time`} />
                   </>
                 )}
               </InfoSection>

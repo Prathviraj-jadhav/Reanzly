@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/shared/page-header";
 import { SectionCard, ProgressMeter } from "@/components/shared/section-card";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -19,13 +19,18 @@ import {
   Route as RouteIcon,
   Gauge,
 } from "lucide-react";
-import {
-  VENDOR_DAILY_VOLUME,
-  VENDOR_LANE_PERFORMANCE,
-  VENDOR_TOP_DESTINATIONS,
-  computeVendorAnalytics,
-  type VendorLanePerformance,
-} from "./_helpers";
+
+interface DailyVolume { date: string; label: string; trips: number; onTime: number }
+interface LanePerformance {
+  id: string; lane: string; origin: string; destination: string;
+  trips: number; onTimePct: number; avgTransitDays: number;
+}
+interface TopDestination { destination: string; trips: number; sharePct: number }
+interface AnalyticsSummary {
+  totalTrips30d: number; onTimePct30d: number; avgTransitDays: number;
+  damageRatePct: number; exceptionRatePct: number; topLane: string;
+  trendDirection: "up" | "down" | "flat"; trendDeltaPct: number;
+}
 
 /* ============================================================
    VendorAnalytics - read-only shipment analytics dashboard.
@@ -41,14 +46,40 @@ import {
    Read-only - no edit/create surfaces.
    ============================================================ */
 
+const EMPTY_SUMMARY: AnalyticsSummary = {
+  totalTrips30d: 0, onTimePct30d: 0, avgTransitDays: 0,
+  damageRatePct: 0, exceptionRatePct: 0, topLane: "-",
+  trendDirection: "flat", trendDeltaPct: 0,
+};
+
 export function VendorAnalytics() {
-  const summary = useMemo(() => computeVendorAnalytics(), []);
+  const [dailyVolume, setDailyVolume] = useState<DailyVolume[]>([]);
+  const [lanePerformance, setLanePerformance] = useState<LanePerformance[]>([]);
+  const [topDestinations, setTopDestinations] = useState<TopDestination[]>([]);
+  const [summary, setSummary] = useState<AnalyticsSummary>(EMPTY_SUMMARY);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/vendor-portal/analytics")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data) {
+          setDailyVolume(data.dailyVolume ?? []);
+          setLanePerformance(data.lanePerformance ?? []);
+          setTopDestinations(data.topDestinations ?? []);
+          setSummary(data.summary ?? EMPTY_SUMMARY);
+        }
+        setLoaded(true);
+      })
+      .catch(() => setLoaded(true));
+  }, []);
+
   const maxTrips = useMemo(
-    () => Math.max(...VENDOR_DAILY_VOLUME.map((d) => d.trips), 1),
-    [],
+    () => Math.max(...dailyVolume.map((d) => d.trips), 1),
+    [dailyVolume],
   );
 
-  const laneColumns: Column<VendorLanePerformance>[] = [
+  const laneColumns: Column<LanePerformance>[] = [
     {
       key: "lane",
       header: "Lane",
@@ -156,6 +187,10 @@ export function VendorAnalytics() {
         }
       />
 
+      {!loaded ? (
+        <div className="px-4 py-10 text-center text-[13px] text-muted-foreground">Loading analytics…</div>
+      ) : (
+      <>
       {/* KPI strip */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         <KpiTile
@@ -218,10 +253,10 @@ export function VendorAnalytics() {
             day: total (full bar, bg-foreground) with on-time as a darker
             overlay (bg-muted-foreground) at the bottom. */}
         <div className="flex items-end gap-px overflow-x-auto pb-2" style={{ minHeight: 160 }}>
-          {VENDOR_DAILY_VOLUME.map((d, i) => {
+          {dailyVolume.map((d, i) => {
             const totalPct = (d.trips / maxTrips) * 100;
             const onTimePct = d.trips === 0 ? 0 : (d.onTime / d.trips) * 100;
-            const isToday = i === VENDOR_DAILY_VOLUME.length - 1;
+            const isToday = i === dailyVolume.length - 1;
             return (
               <div
                 key={d.date}
@@ -280,7 +315,7 @@ export function VendorAnalytics() {
           className="lg:col-span-2"
         >
           <DataTable
-            data={VENDOR_LANE_PERFORMANCE}
+            data={lanePerformance}
             columns={laneColumns}
             searchKeys={["lane", "origin", "destination"]}
             searchPlaceholder="Search lanes..."
@@ -298,7 +333,7 @@ export function VendorAnalytics() {
           icon={<MapPin className="h-4 w-4" />}
         >
           <ol className="flex flex-col gap-3">
-            {VENDOR_TOP_DESTINATIONS.map((d, i) => (
+            {topDestinations.map((d, i) => (
               <li key={d.destination} className="flex flex-col gap-1.5">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex min-w-0 items-center gap-2">
@@ -339,7 +374,7 @@ export function VendorAnalytics() {
             <MetricCell label="Target" value="90%" />
           </div>
           <p className="mt-3 text-[11px] text-muted-foreground">
-            Computed from {VENDOR_DAILY_VOLUME.reduce((s, d) => s + d.trips, 0)} trips over the last 30 days. The
+            Computed from {dailyVolume.reduce((s, d) => s + d.trips, 0)} trips over the last 30 days. The
             vertical tick on the meter marks the 90% on-time target.
           </p>
         </SectionCard>
@@ -372,6 +407,8 @@ export function VendorAnalytics() {
           </div>
         </SectionCard>
       </div>
+      </>
+      )}
 
       {/* Footer note */}
       <div className="flex items-center gap-3 rounded-[5px] border border-border bg-muted/30 px-3 py-2.5 text-[11px] text-muted-foreground">
