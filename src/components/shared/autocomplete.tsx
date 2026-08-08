@@ -78,13 +78,6 @@ export function Autocomplete({
     setQuery("");
   };
 
-  // Close popover & reset query when trigger loses focus without selection.
-  const handleTriggerBlur = () => {
-    if (!open) return;
-    // Give cmdk a tick to fire onSelect before we close.
-    setTimeout(() => setOpen(false), 120);
-  };
-
   return (
     <Popover open={open} onOpenChange={(o) => { setOpen(o); if (!o) setQuery(""); }}>
       <PopoverTrigger asChild>
@@ -92,7 +85,6 @@ export function Autocomplete({
           type="button"
           disabled={disabled}
           onClick={() => setOpen((o) => !o)}
-          onBlur={handleTriggerBlur}
           className={cn(
             "flex h-8 w-full items-center justify-between gap-2 rounded-[5px] border border-border bg-background px-3 text-[13px] text-left transition-colors",
             "hover:border-foreground/30 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring",

@@ -190,6 +190,7 @@ export function DataTable<T extends { id: string }>({
     () => columns.filter((c) => !hiddenColumns.has(c.key)),
     [columns, hiddenColumns],
   );
+  const hasHideableColumns = useMemo(() => columns.some((c) => c.hideable), [columns]);
 
   /* ----- derived: filtered + sorted (Doherty threshold - instant) ----- */
   const filtered = useMemo(() => {
@@ -480,30 +481,31 @@ export function DataTable<T extends { id: string }>({
             </BtnGroupItem>
           </BtnGroup>
 
-          {/* Columns dropdown - always visible (Hick's Law: let users hide noise) */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button className="flex h-7 items-center gap-1.5 rounded-[2px] border border-border px-2.5 text-[12px] font-medium text-foreground hover:bg-accent transition-colors duration-100 tap">
-                <Columns3 className="h-3.5 w-3.5 text-muted-foreground" />
-                Columns
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                Toggle columns
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {/*
-                Hick's Law - only columns explicitly marked `hideable: true`
-                surface in the dropdown. Essential identifier / status columns
-                stay pinned and out of the user's way.
-              */}
-              {columns.filter((c) => c.hideable).length === 0 ? (
-                <div className="px-2 py-1.5 text-[12px] text-muted-foreground">
-                  No hideable columns
-                </div>
-              ) : (
-                columns
+          {/* Columns dropdown - only shown when at least one column is
+              actually toggleable. A table with no `hideable` columns used
+              to still render this button, opening a dropdown that only
+              ever said "No hideable columns" - a dead control on ~106 of
+              this app's ~116 tables. Hiding it when there's nothing to
+              toggle matches the UI to what the table can actually do. */}
+          {hasHideableColumns && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="flex h-7 items-center gap-1.5 rounded-[2px] border border-border px-2.5 text-[12px] font-medium text-foreground hover:bg-accent transition-colors duration-100 tap">
+                  <Columns3 className="h-3.5 w-3.5 text-muted-foreground" />
+                  Columns
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                  Toggle columns
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {/*
+                  Hick's Law - only columns explicitly marked `hideable: true`
+                  surface in the dropdown. Essential identifier / status columns
+                  stay pinned and out of the user's way.
+                */}
+                {columns
                   .filter((c) => c.hideable)
                   .map((col) => (
                     <DropdownMenuCheckboxItem
@@ -514,10 +516,10 @@ export function DataTable<T extends { id: string }>({
                     >
                       {col.header}
                     </DropdownMenuCheckboxItem>
-                  ))
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
+                  ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
 
           <div className="font-mono text-[10px] text-[var(--rz-text-dim)] tabular">
             {loading ? (
