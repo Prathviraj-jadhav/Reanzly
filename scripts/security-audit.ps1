@@ -45,7 +45,7 @@ if ((Test-Path ".github/workflows/ci-cd.yml") -and (Select-String -Path ".github
 
 Write-Host "=================================================================" -ForegroundColor Cyan
 if ($AuditPassed) {
-    Write-Host "OVERALL AUDIT: PASSED — Enterprise Security Setup Ready" -ForegroundColor Green
+    Write-Host "OVERALL AUDIT: PASSED - Enterprise Security Setup Ready" -ForegroundColor Green
 } else {
-    Write-Host "OVERALL AUDIT: FAILED — Please review failed checks" -ForegroundColor Red
+    Write-Host "OVERALL AUDIT: FAILED - Please review failed checks" -ForegroundColor Red
 }

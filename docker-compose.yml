@@ -14,7 +14,7 @@ services:
     container_name: reanzly
     restart: unless-stopped
     ports:
-      - "80:80"      # Caddy gateway (HTTP) — front with an ALB / TLS in prod
+      - "80:81"      # Caddy gateway (HTTP) — front with an ALB / TLS in prod
       - "3000:3000"  # Next.js standalone (direct, for debugging)
       - "3003:3003"  # Socket.IO chat service (direct, for debugging)
     environment:
@@ -31,7 +31,7 @@ services:
       # Persist uploaded photos / object storage
       - reanzly-storage:/app/storage
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:80/api/health"]
+      test: ["CMD", "wget", "-qO-", "http://localhost:81/api/health"]
       interval: 30s
       timeout: 5s
       retries: 3

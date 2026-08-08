@@ -88,10 +88,10 @@ RUN chmod +x ./docker-entrypoint.sh
 
 USER reanzly
 
-EXPOSE 80 3000 3003
+EXPOSE 81 3000 3003
 
-# Healthcheck hits the Next.js health endpoint through Caddy on :80
+# Healthcheck hits the Next.js health endpoint through Caddy on :81
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-    CMD wget -qO- http://localhost:80/api/health || exit 1
+    CMD wget -qO- http://localhost:81/api/health || exit 1
 
 ENTRYPOINT ["./docker-entrypoint.sh"]
