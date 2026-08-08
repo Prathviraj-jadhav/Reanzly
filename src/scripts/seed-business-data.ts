@@ -60,7 +60,7 @@ async function main() {
   }
 
   console.log("[seed-business-data] seeding vehicles...");
-  const vehicles = [];
+  const vehicles: Awaited<ReturnType<typeof db.vehicle.create>>[] = [];
   for (let i = 0; i < 20; i++) {
     const [make, model] = VEHICLE_MAKES[i % VEHICLE_MAKES.length];
     const v = await db.vehicle.create({
@@ -84,7 +84,7 @@ async function main() {
   }
 
   console.log("[seed-business-data] seeding drivers...");
-  const drivers = [];
+  const drivers: Awaited<ReturnType<typeof db.driver.create>>[] = [];
   for (let i = 0; i < 15; i++) {
     const d = await db.driver.create({
       data: {
@@ -106,7 +106,7 @@ async function main() {
   }
 
   console.log("[seed-business-data] seeding customers...");
-  const customers = [];
+  const customers: Awaited<ReturnType<typeof db.customer.create>>[] = [];
   for (let i = 0; i < 10; i++) {
     const c = await db.customer.create({
       data: {
@@ -142,7 +142,7 @@ async function main() {
   }
 
   console.log("[seed-business-data] seeding trips...");
-  const trips = [];
+  const trips: Awaited<ReturnType<typeof db.trip.create>>[] = [];
   for (let i = 0; i < 25; i++) {
     const vehicle = vehicles[i % vehicles.length];
     const driver = drivers[i % drivers.length];

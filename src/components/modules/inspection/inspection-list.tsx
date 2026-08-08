@@ -42,8 +42,8 @@ interface InspectionListProps {
   inspections: Inspection[];
   onCreate: () => void;
   onOpenFormBuilder: () => void;
-  onUpdate?: (id: string, data: Partial<Inspection>) => void;
-  onAdd?: (inspection: Inspection) => void;
+  onUpdate?: (id: string, data: Partial<Inspection>) => Promise<boolean>;
+  onAdd?: (inspection: Inspection) => Promise<boolean>;
 }
 
 const DATE_RANGE_PRESETS = [
@@ -64,9 +64,7 @@ export function InspectionList({ inspections, onCreate, onOpenFormBuilder, onUpd
   const [dateRange, setDateRange] = useState<string>("all");
 
   const handleUpdate = (id: string, data: Partial<Inspection>) => {
-    if (onUpdate) {
-      onUpdate(id, data);
-    }
+    return onUpdate ? onUpdate(id, data) : Promise.resolve(false);
   };
 
   const uniqueVehicles = useMemo(

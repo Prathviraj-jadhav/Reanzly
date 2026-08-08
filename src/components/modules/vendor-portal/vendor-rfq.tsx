@@ -95,10 +95,10 @@ export function VendorRFQ() {
 
   const columns: Column<VendorRFQ>[] = [
     {
-      key: "id",
+      key: "rfqNumber",
       header: "RFQ #",
       sortable: true,
-      sortValue: (r) => r.id,
+      sortValue: (r) => r.rfqNumber,
       sticky: true,
       render: (r) => (
         <button
@@ -108,7 +108,7 @@ export function VendorRFQ() {
           }}
           className="tabular text-[12.5px] font-medium text-foreground hover:underline underline-offset-4"
         >
-          {r.id}
+          {r.rfqNumber}
         </button>
       ),
     },
@@ -259,7 +259,7 @@ export function VendorRFQ() {
             data={rfqs}
             columns={columns}
             rowActions={rowActions}
-            searchKeys={["id", "lane", "origin", "destination", "vehicleType", "commodity"]}
+            searchKeys={["rfqNumber", "lane", "origin", "destination", "vehicleType", "commodity"]}
             searchPlaceholder="Search RFQ #, lane, vehicle, commodity..."
             onRowClick={(r) => setViewing(r)}
             pageSize={10}
@@ -318,7 +318,7 @@ export function VendorRFQ() {
           setQuoting(null);
           toastSuccess(
             "Quote submitted",
-            `${rfq.id} · ${formatINR(ratePerKm)}/km · valid ${validityDays} days. The logistics company will respond shortly.`,
+            `${rfq.rfqNumber} · ${formatINR(ratePerKm)}/km · valid ${validityDays} days. The logistics company will respond shortly.`,
           );
         }}
       />
@@ -349,7 +349,7 @@ function RFQDetailSheet({ rfq, onClose, onSubmitQuote }: RFQDetailSheetProps) {
             <SheetHeader className="flex flex-row items-start justify-between gap-3 border-b border-border p-4">
               <div className="flex min-w-0 flex-col gap-1.5">
                 <SheetTitle className="text-[16px] font-medium leading-snug tracking-tight text-foreground">
-                  <span className="tabular">{rfq.id}</span>
+                  <span className="tabular">{rfq.rfqNumber}</span>
                 </SheetTitle>
                 <SheetDescription className="text-[12px] text-muted-foreground">
                   Received {relativeTime(rfq.receivedAt)} · Required by {formatDate(rfq.requiredDate)}
@@ -496,7 +496,7 @@ function SubmitQuoteSheet({ rfq, onClose, onSubmit }: SubmitQuoteSheetProps) {
                   {rfq.status === "Quoted" ? "Revise quote" : "Submit quote"}
                 </SheetTitle>
                 <SheetDescription className="text-[12px] text-muted-foreground">
-                  <span className="tabular">{rfq.id}</span> · {rfq.origin} → {rfq.destination} · {rfq.vehicleType}
+                  <span className="tabular">{rfq.rfqNumber}</span> · {rfq.origin} → {rfq.destination} · {rfq.vehicleType}
                 </SheetDescription>
               </div>
               <SheetClose asChild>

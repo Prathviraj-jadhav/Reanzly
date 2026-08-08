@@ -1854,6 +1854,7 @@ model Rfq {
   id              String    @id @default(cuid())
   companyId       String
   customerId      String
+  rfqNumber       String
   lane            String
   origin          String
   destination     String
@@ -1874,6 +1875,7 @@ model Rfq {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
+  @@unique([companyId, rfqNumber])
   @@index([companyId, customerId, status])
 }
 

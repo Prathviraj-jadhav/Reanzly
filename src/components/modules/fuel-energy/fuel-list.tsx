@@ -51,8 +51,8 @@ interface FuelListProps {
   onCreate: () => void;
   onOpenAnalytics: () => void;
   onOpenAnomalies: () => void;
-  onUpdate?: (id: string, data: Partial<FuelEntry>) => void;
-  onAdd?: (fuelEntry: FuelEntry) => void;
+  onUpdate?: (id: string, data: Partial<FuelEntry>) => Promise<boolean>;
+  onAdd?: (fuelEntry: FuelEntry) => Promise<boolean>;
 }
 
 const DATE_RANGE_PRESETS = [
@@ -73,9 +73,7 @@ export function FuelList({ fuelEntries, onCreate, onOpenAnalytics, onOpenAnomali
   const [dateRange, setDateRange] = useState<string>("all");
 
   const handleUpdate = (id: string, data: Partial<FuelEntry>) => {
-    if (onUpdate) {
-      onUpdate(id, data);
-    }
+    return onUpdate ? onUpdate(id, data) : Promise.resolve(false);
   };
 
   const uniqueVehicles = useMemo(

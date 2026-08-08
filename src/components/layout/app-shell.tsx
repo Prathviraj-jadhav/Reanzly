@@ -47,7 +47,6 @@ export function AppShell() {
   // session must not grant access without an actual live server session.
   useEffect(() => {
     restoreSession();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   // useSyncExternalStore gives us a client-only mounted flag without
   // triggering the set-state-in-effect lint rule. Server snapshot returns

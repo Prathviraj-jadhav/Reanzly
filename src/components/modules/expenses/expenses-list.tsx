@@ -43,8 +43,8 @@ interface ExpensesListProps {
   expenses: Expense[];
   onCreate: () => void;
   onOpenAnalytics: () => void;
-  onUpdate?: (id: string, data: Partial<Expense>) => void;
-  onAdd?: (expense: Expense) => void;
+  onUpdate?: (id: string, data: Partial<Expense>) => Promise<boolean>;
+  onAdd?: (expense: Expense) => Promise<boolean>;
 }
 
 const DATE_RANGE_PRESETS = [
@@ -68,9 +68,7 @@ export function ExpensesList({ expenses, onCreate, onOpenAnalytics, onUpdate, on
   const [dateRange, setDateRange] = useState<string>("all");
 
   const handleUpdate = (id: string, data: Partial<Expense>) => {
-    if (onUpdate) {
-      onUpdate(id, data);
-    }
+    return onUpdate ? onUpdate(id, data) : Promise.resolve(false);
   };
 
   const uniqueVehicles = useMemo(

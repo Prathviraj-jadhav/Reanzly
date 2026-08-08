@@ -43,6 +43,7 @@ export function SLMOverviewTab({
   const brains = useSuperadminStore((s) => s.brains);
   const agentRuns = useSuperadminStore((s) => s.agentRuns);
   const pendingApprovals = useSuperadminStore((s) => s.pendingApprovals);
+  const decideApproval = useSuperadminStore((s) => s.decideApproval);
   const [runningAgentId, setRunningAgentId] = useState<string | null>(null);
   const [isOptimizing, setIsOptimizing] = useState(false);
 

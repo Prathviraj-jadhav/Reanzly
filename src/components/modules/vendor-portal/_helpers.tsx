@@ -202,6 +202,7 @@ export type VehicleType = "32ft Container" | "20ft Container" | "Open Body" | "T
 
 export interface VendorRFQ {
   id: string;
+  rfqNumber: string;
   lane: string;
   origin: string;
   destination: string;

@@ -44,8 +44,8 @@ import { RaiseToReanzlyDialog } from "./raise-to-reanzly-dialog";
 interface IssuesListProps {
   issues: Issue[];
   onCreate: () => void;
-  onUpdate?: (id: string, data: Partial<Issue>) => void;
-  onAdd?: (issue: Issue) => void;
+  onUpdate?: (id: string, data: Partial<Issue>) => Promise<boolean>;
+  onAdd?: (issue: Issue) => Promise<boolean>;
 }
 
 const DATE_RANGE_PRESETS = [
@@ -112,9 +112,7 @@ export function IssuesList({ issues, onCreate, onUpdate, onAdd }: IssuesListProp
   }, [isSafetyOfficer, isFleetManager, onCreate]);
 
   const handleUpdate = (id: string, data: Partial<Issue>) => {
-    if (onUpdate) {
-      onUpdate(id, data);
-    }
+    return onUpdate ? onUpdate(id, data) : Promise.resolve(false);
   };
 
   const uniqueVehicles = useMemo(

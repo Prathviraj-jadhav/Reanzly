@@ -81,7 +81,7 @@ export function DocumentsList({ onCreate, documents, onUpdate: onUpdateReal }: D
   }, []);
 
   const handleUpdate = (id: string, data: Partial<DocumentRecord>) => {
-    onUpdateReal(id, data);
+    return onUpdateReal(id, data);
   };
 
   const filtered = useMemo(() => {

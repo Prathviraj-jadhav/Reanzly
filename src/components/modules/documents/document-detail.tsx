@@ -69,7 +69,7 @@ export function DocumentDetail({ documentId, documents, onUpdate: onUpdateReal }
   }, []);
 
   const handleUpdate = (id: string, data: Partial<DocumentRecord>) => {
-    onUpdateReal(id, data);
+    return onUpdateReal(id, data);
   };
 
   if (!doc) {

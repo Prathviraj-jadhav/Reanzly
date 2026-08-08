@@ -22,7 +22,6 @@ export function IncomingCallOverlay() {
     if (!connected) return;
     const detach = call.attachSocketListeners();
     return detach;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [connected]);
 
   if (call.status !== "incoming-ringing" || !call.incoming) return null;

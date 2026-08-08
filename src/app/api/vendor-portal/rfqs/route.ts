@@ -25,6 +25,7 @@ export async function GET() {
   return NextResponse.json({
     rfqs: rfqs.map((r) => ({
       id: r.id,
+      rfqNumber: r.rfqNumber,
       lane: r.lane,
       origin: r.origin,
       destination: r.destination,

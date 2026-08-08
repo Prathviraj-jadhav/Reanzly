@@ -51,8 +51,8 @@ const VENDOR_TYPE_ICON: Record<string, React.ComponentType<{ className?: string 
 interface VendorsListProps {
   vendors: Vendor[];
   onCreate: () => void;
-  onUpdate: (id: string, data: Partial<Vendor>) => void;
-  onAdd: (v: Vendor) => void;
+  onUpdate: (id: string, data: Partial<Vendor>) => Promise<boolean>;
+  onAdd: (v: Vendor) => Promise<boolean>;
 }
 
 export function VendorsList({ vendors, onCreate, onUpdate, onAdd }: VendorsListProps) {

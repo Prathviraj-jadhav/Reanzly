@@ -39,8 +39,8 @@ import { AddCustomerDrawer } from "./add-customer-drawer";
 interface CustomersListProps {
   customers: Customer[];
   onCreate: () => void;
-  onUpdate: (id: string, data: Partial<Customer>) => void;
-  onAdd: (c: Customer) => void;
+  onUpdate: (id: string, data: Partial<Customer>) => Promise<boolean>;
+  onAdd: (c: Customer) => Promise<boolean>;
 }
 
 export function CustomersList({ customers, onCreate, onUpdate, onAdd }: CustomersListProps) {

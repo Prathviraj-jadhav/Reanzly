@@ -49,8 +49,8 @@ interface MaintenanceListProps {
   workOrders: WorkOrder[];
   onCreate: () => void;
   onOpenParts: () => void;
-  onUpdate?: (id: string, data: Partial<WorkOrder>) => void;
-  onAdd?: (workOrder: WorkOrder) => void;
+  onUpdate?: (id: string, data: Partial<WorkOrder>) => Promise<boolean>;
+  onAdd?: (workOrder: WorkOrder) => Promise<boolean>;
 }
 
 const DATE_RANGE_PRESETS = [
@@ -72,9 +72,7 @@ export function MaintenanceList({ workOrders, onCreate, onOpenParts, onUpdate, o
   const [dateRange, setDateRange] = useState<string>("all");
 
   const handleUpdate = (id: string, data: Partial<WorkOrder>) => {
-    if (onUpdate) {
-      onUpdate(id, data);
-    }
+    return onUpdate ? onUpdate(id, data) : Promise.resolve(false);
   };
 
   const uniqueVehicles = useMemo(
