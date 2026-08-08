@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
+import { requireModuleAccess } from "@/lib/permissions";
 
 // CRM "Accounts" is the same real Customer record the Customers module
 // uses (both are CRM-cluster tabs now) - just presented with the CRM
@@ -51,6 +52,8 @@ async function withComputedFields(customers: Awaited<ReturnType<typeof db.custom
 export async function GET() {
   const sessionUser = await getSessionUser();
   if (!sessionUser) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  const denied = requireModuleAccess(sessionUser, "crm");
+  if (denied) return denied;
   const customers = await db.customer.findMany({
     where: { companyId: sessionUser.companyId },
     orderBy: { createdAt: "desc" },
@@ -61,6 +64,8 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const sessionUser = await getSessionUser();
   if (!sessionUser) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  const denied = requireModuleAccess(sessionUser, "crm");
+  if (denied) return denied;
 
   const body = await req.json();
   const name = String(body.name || "").trim();

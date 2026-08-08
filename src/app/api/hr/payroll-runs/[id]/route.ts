@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
+import { requireModuleAccess } from "@/lib/permissions";
 
 const INCLUDE = { _count: { select: { payslips: true } } } as const;
 type Row = Awaited<ReturnType<typeof db.payrollRun.findFirst<{ include: typeof INCLUDE }>>>;
@@ -22,6 +23,8 @@ function toDTO(r: NonNullable<Row>) {
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const sessionUser = await getSessionUser();
   if (!sessionUser) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  const denied = requireModuleAccess(sessionUser, "hr");
+  if (denied) return denied;
   const { id } = await params;
 
   const existing = await db.payrollRun.findUnique({ where: { id } });

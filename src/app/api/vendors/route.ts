@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
+import { requireModuleAccess } from "@/lib/permissions";
 
 // Real CRUD for the Vendors module, replacing pure client-side state
 // seeded from src/lib/mock-data.ts's VENDORS array.
@@ -30,6 +31,8 @@ export async function GET() {
   if (!sessionUser) {
     return NextResponse.json({ error: "Not signed in." }, { status: 401 });
   }
+  const denied = requireModuleAccess(sessionUser, "vendors");
+  if (denied) return denied;
   const vendors = await db.vendor.findMany({
     where: { companyId: sessionUser.companyId },
     orderBy: { createdAt: "desc" },
@@ -42,6 +45,8 @@ export async function POST(req: NextRequest) {
   if (!sessionUser) {
     return NextResponse.json({ error: "Not signed in." }, { status: 401 });
   }
+  const denied = requireModuleAccess(sessionUser, "vendors");
+  if (denied) return denied;
 
   const body = await req.json();
   const companyName = String(body.companyName || "").trim();

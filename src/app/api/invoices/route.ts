@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
+import { requireModuleAccess } from "@/lib/permissions";
 
 // Real CRUD for the Invoices module, replacing pure client-side state
 // seeded from src/lib/mock-data.ts's INVOICES array. tripRef is resolved
@@ -35,6 +36,8 @@ export async function GET() {
   if (!sessionUser) {
     return NextResponse.json({ error: "Not signed in." }, { status: 401 });
   }
+  const denied = requireModuleAccess(sessionUser, "invoice");
+  if (denied) return denied;
   const invoices = await db.invoice.findMany({
     where: { companyId: sessionUser.companyId },
     include: { trip: { select: { tripId: true } } },
@@ -48,6 +51,8 @@ export async function POST(req: NextRequest) {
   if (!sessionUser) {
     return NextResponse.json({ error: "Not signed in." }, { status: 401 });
   }
+  const denied = requireModuleAccess(sessionUser, "invoice");
+  if (denied) return denied;
 
   const body = await req.json();
   const customer = String(body.customer || "").trim();

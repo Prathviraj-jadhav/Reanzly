@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
+import { requireModuleAccess } from "@/lib/permissions";
 
 export async function GET() {
   const sessionUser = await getSessionUser();
   if (!sessionUser) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  const denied = requireModuleAccess(sessionUser, "settings");
+  if (denied) return denied;
 
   const plans = await db.plan.findMany({ orderBy: { priceMonthly: "asc" } });
   return NextResponse.json({

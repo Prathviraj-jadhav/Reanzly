@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
+import { requireModuleAccess } from "@/lib/permissions";
 
 function toDTO(s: Awaited<ReturnType<typeof db.subscription.findFirstOrThrow<{ include: { plan: true } }>>>) {
   return {
@@ -27,6 +28,8 @@ function toDTO(s: Awaited<ReturnType<typeof db.subscription.findFirstOrThrow<{ i
 export async function GET() {
   const sessionUser = await getSessionUser();
   if (!sessionUser) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  const denied = requireModuleAccess(sessionUser, "settings");
+  if (denied) return denied;
 
   const sub = await db.subscription.findUnique({
     where: { companyId: sessionUser.companyId },
@@ -44,6 +47,8 @@ export async function GET() {
 export async function PATCH(req: NextRequest) {
   const sessionUser = await getSessionUser();
   if (!sessionUser) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  const denied = requireModuleAccess(sessionUser, "settings");
+  if (denied) return denied;
 
   const body = await req.json();
   const existing = await db.subscription.findUnique({ where: { companyId: sessionUser.companyId } });

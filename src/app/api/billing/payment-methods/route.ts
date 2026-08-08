@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
+import { requireModuleAccess } from "@/lib/permissions";
 
 // Real, persisted "card on file" records - deliberately store ONLY the
 // safe display attributes (brand/last 4/expiry/holder name), never a full
@@ -28,6 +29,8 @@ function toDTO(m: Awaited<ReturnType<typeof db.paymentMethod.findFirstOrThrow>>)
 export async function GET() {
   const sessionUser = await getSessionUser();
   if (!sessionUser) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  const denied = requireModuleAccess(sessionUser, "settings");
+  if (denied) return denied;
   const methods = await db.paymentMethod.findMany({
     where: { companyId: sessionUser.companyId },
     orderBy: [{ isDefault: "desc" }, { createdAt: "desc" }],
@@ -38,6 +41,8 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const sessionUser = await getSessionUser();
   if (!sessionUser) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  const denied = requireModuleAccess(sessionUser, "settings");
+  if (denied) return denied;
 
   const body = await req.json();
   const last4 = String(body.last4 || "");

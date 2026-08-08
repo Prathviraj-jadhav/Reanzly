@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
+import { requireModuleAccess } from "@/lib/permissions";
 
 async function withComputedFields(customers: Awaited<ReturnType<typeof db.customer.findMany>>) {
   const ids = customers.map((c) => c.id);
@@ -33,6 +34,8 @@ async function withComputedFields(customers: Awaited<ReturnType<typeof db.custom
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const sessionUser = await getSessionUser();
   if (!sessionUser) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  const denied = requireModuleAccess(sessionUser, "crm");
+  if (denied) return denied;
   const { id } = await params;
 
   const existing = await db.customer.findUnique({ where: { id } });

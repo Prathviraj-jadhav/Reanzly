@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
+import { requireModuleAccess } from "@/lib/permissions";
 
 function toDTO(c: Awaited<ReturnType<typeof db.candidate.findFirstOrThrow>>) {
   return {
@@ -23,6 +24,8 @@ function toDTO(c: Awaited<ReturnType<typeof db.candidate.findFirstOrThrow>>) {
 export async function POST(req: NextRequest) {
   const sessionUser = await getSessionUser();
   if (!sessionUser) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  const denied = requireModuleAccess(sessionUser, "hr");
+  if (denied) return denied;
 
   const body = await req.json();
   const name = String(body.name || "").trim();

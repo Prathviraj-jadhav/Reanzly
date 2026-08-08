@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
+import { requireModuleAccess } from "@/lib/permissions";
 
 const EDITABLE_FIELDS = ["type", "inspector", "result", "odometer"] as const;
 const INCLUDE = { vehicle: { select: { name: true } }, driver: { select: { name: true } } } as const;
@@ -8,6 +9,8 @@ const INCLUDE = { vehicle: { select: { name: true } }, driver: { select: { name:
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const sessionUser = await getSessionUser();
   if (!sessionUser) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  const denied = requireModuleAccess(sessionUser, "inspection");
+  if (denied) return denied;
   const { id } = await params;
 
   const existing = await db.inspection.findUnique({ where: { id } });
@@ -51,6 +54,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const sessionUser = await getSessionUser();
   if (!sessionUser) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  const denied = requireModuleAccess(sessionUser, "inspection");
+  if (denied) return denied;
   const { id } = await params;
 
   const existing = await db.inspection.findUnique({ where: { id } });

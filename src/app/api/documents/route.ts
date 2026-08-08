@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
+import { requireModuleAccess } from "@/lib/permissions";
 
 // Real CRUD for the Documents module. Vehicle/Driver entities resolve via
 // real relations; Customer/Vendor/Company have no FK on this model, so their
@@ -31,6 +32,8 @@ const INCLUDE = { vehicle: { select: { name: true } }, driver: { select: { name:
 export async function GET() {
   const sessionUser = await getSessionUser();
   if (!sessionUser) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  const denied = requireModuleAccess(sessionUser, "documents");
+  if (denied) return denied;
   const documents = await db.document.findMany({
     where: { companyId: sessionUser.companyId },
     include: INCLUDE,
@@ -42,6 +45,8 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const sessionUser = await getSessionUser();
   if (!sessionUser) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  const denied = requireModuleAccess(sessionUser, "documents");
+  if (denied) return denied;
 
   const body = await req.json();
   const name = String(body.name || "").trim();

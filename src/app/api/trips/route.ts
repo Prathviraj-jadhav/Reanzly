@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
+import { requireModuleAccess } from "@/lib/permissions";
 
 // Real CRUD for the Trips module, replacing pure client-side state seeded
 // from src/lib/mock-data.ts's TRIPS array. vehicleName/driverName/customer
@@ -54,6 +55,8 @@ export async function GET() {
   if (!sessionUser) {
     return NextResponse.json({ error: "Not signed in." }, { status: 401 });
   }
+  const denied = requireModuleAccess(sessionUser, "trips");
+  if (denied) return denied;
   const trips = await db.trip.findMany({
     where: { companyId: sessionUser.companyId },
     include: TRIP_INCLUDE,
@@ -67,6 +70,8 @@ export async function POST(req: NextRequest) {
   if (!sessionUser) {
     return NextResponse.json({ error: "Not signed in." }, { status: 401 });
   }
+  const denied = requireModuleAccess(sessionUser, "trips");
+  if (denied) return denied;
 
   const body = await req.json();
   const origin = String(body.origin || "").trim();

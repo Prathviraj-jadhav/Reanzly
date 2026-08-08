@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
+import { requireModuleAccess } from "@/lib/permissions";
 
 // Real CRUD for CRM Leads, replacing the Zustand+localStorage `reanzly-crm`
 // store's leads slice. DTO field names match the frontend's Lead interface
@@ -35,6 +36,8 @@ function toDTO(l: {
 export async function GET() {
   const sessionUser = await getSessionUser();
   if (!sessionUser) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  const denied = requireModuleAccess(sessionUser, "crm");
+  if (denied) return denied;
   const leads = await db.lead.findMany({
     where: { companyId: sessionUser.companyId },
     orderBy: { createdAt: "desc" },
@@ -45,6 +48,8 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const sessionUser = await getSessionUser();
   if (!sessionUser) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  const denied = requireModuleAccess(sessionUser, "crm");
+  if (denied) return denied;
 
   const body = await req.json();
   const name = String(body.name || "").trim();

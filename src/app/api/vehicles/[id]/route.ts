@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
+import { requireModuleAccess } from "@/lib/permissions";
 
 const EDITABLE_FIELDS = [
   "name", "make", "model", "year", "vin", "licensePlate", "status", "type",
@@ -13,6 +14,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (!sessionUser) {
     return NextResponse.json({ error: "Not signed in." }, { status: 401 });
   }
+  const denied = requireModuleAccess(sessionUser, "vehicles");
+  if (denied) return denied;
   const { id } = await params;
 
   const existing = await db.vehicle.findUnique({ where: { id } });
@@ -77,6 +80,8 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   if (!sessionUser) {
     return NextResponse.json({ error: "Not signed in." }, { status: 401 });
   }
+  const denied = requireModuleAccess(sessionUser, "vehicles");
+  if (denied) return denied;
   const { id } = await params;
 
   const existing = await db.vehicle.findUnique({ where: { id } });

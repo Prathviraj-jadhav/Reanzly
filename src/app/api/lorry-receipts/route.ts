@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
+import { requireModuleAccess } from "@/lib/permissions";
 
 // Real CRUD for the Lorry Receipts module. `freight` is stored in paise
 // (schema comment) while the UI works in whole rupees - converted at the
@@ -39,6 +40,8 @@ const INCLUDE = { trip: { select: { tripId: true } } } as const;
 export async function GET() {
   const sessionUser = await getSessionUser();
   if (!sessionUser) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  const denied = requireModuleAccess(sessionUser, "lorry-receipts");
+  if (denied) return denied;
   const lrs = await db.lorryReceipt.findMany({
     where: { companyId: sessionUser.companyId },
     include: INCLUDE,
@@ -50,6 +53,8 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const sessionUser = await getSessionUser();
   if (!sessionUser) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  const denied = requireModuleAccess(sessionUser, "lorry-receipts");
+  if (denied) return denied;
 
   const body = await req.json();
   const origin = String(body.origin || "").trim();

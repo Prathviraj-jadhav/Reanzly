@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
+import { requireModuleAccess } from "@/lib/permissions";
 
 function toDTO(i: {
   id: string; inspectionId: string; type: string; inspector: string; date: Date;
@@ -25,6 +26,8 @@ const INCLUDE = { vehicle: { select: { name: true } }, driver: { select: { name:
 export async function GET() {
   const sessionUser = await getSessionUser();
   if (!sessionUser) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  const denied = requireModuleAccess(sessionUser, "inspection");
+  if (denied) return denied;
   const inspections = await db.inspection.findMany({
     where: { companyId: sessionUser.companyId },
     include: INCLUDE,
@@ -36,6 +39,8 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const sessionUser = await getSessionUser();
   if (!sessionUser) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  const denied = requireModuleAccess(sessionUser, "inspection");
+  if (denied) return denied;
 
   const body = await req.json();
   const vehicleName = String(body.vehicle || "").trim();

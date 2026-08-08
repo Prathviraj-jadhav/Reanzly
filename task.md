@@ -657,7 +657,7 @@ behavior across the other user roles.
       Also fixed two more instances of the "aliased module id silently
       drops from For Your Role" bug in `role-features.ts`
       (`"financial-ops"` in `owner` and `accountant`'s `featuredModules`).
-- [ ] **Found: role/permission enforcement is client-side only, not
+- [x] **Found: role/permission enforcement is client-side only, not
       server-side** - every API route (`/api/invoices`, `/api/crm/deals`,
       etc.) checks `getSessionUser()` exists and scopes by `companyId`, but
       none check the session user's role against `ROLE_ARCHETYPES[role]
@@ -666,12 +666,31 @@ behavior across the other user roles.
       still gets a real `200` from `GET /api/invoices` and
       `/api/crm/deals` - any authenticated user in a company can read/
       write any module's data by calling the API directly, bypassing the
-      sidebar's role gating entirely. Systemic across all ~25 converted
-      modules' routes. User decision: leave the existing routes as-is for
-      now; only the 4 new POD/Services/Quality/Purchase routes (task
-      below) get real server-side permission checks from the start. The
-      existing gap is a known, deliberately-deferred item, not silently
-      ignored.
+      sidebar's role gating entirely.
+      **Retrofitted** (2026-08-08, user's explicit priority pick): added
+      `requireModuleAccess(sessionUser, moduleId)` from `src/lib/
+      permissions.ts` (same helper built for the POD/Services/Quality/
+      Purchase routes) to every `getSessionUser()` guard across 60 route
+      files spanning billing, crm, customers, documents, drivers, expenses,
+      fuel-entries, hr, inspections, invoices, issues, lorry-receipts,
+      payroll, reminders, trips, vehicles, vendors, work-orders. Applied
+      via a scripted batch pass (verified 1:1 guard-to-check count per
+      file, zero new `tsc` errors) then confirmed live: fleet-manager now
+      gets a real `403` from `/api/invoices` and `/api/crm/deals` (was
+      `200`), owner's `"*"` wildcard still reaches everything, driver still
+      reaches `/api/trips` (has it) but not `/api/vendors` (doesn't).
+      **Deliberately excluded, two separate pre-existing gaps, not
+      silently ignored:**
+      - `/api/broker/*` (12 files) - doesn't use `getSessionUser()` at all;
+        resolves identity via `getDefaultBrokerProfileId()` instead (an
+        older, single-tenant-style pattern from the earlier broker-network
+        build). Needs its own real per-session auth before a permission
+        check on top of it would mean anything.
+      - `/api/integrations/*` (4 files) - takes `companyId` as a client-
+        supplied query param instead of deriving it from the session at
+        all, a real tenant-isolation gap (not just a missing role check).
+      Both need their own dedicated real-auth pass, not a bolt-on
+      permission check.
 - [x] **Built real DB-first schema + CRUD for POD, Services, Quality,
       Purchase** - all 4 previously mock/missing-model modules now have
       real Prisma models (`Pod` extended to match the full

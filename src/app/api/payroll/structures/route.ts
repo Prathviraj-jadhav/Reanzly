@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
+import { requireModuleAccess } from "@/lib/permissions";
 
 const INCLUDE = { _count: { select: { employees: true } } } as const;
 type Row = Awaited<ReturnType<typeof db.salaryStructure.findFirst<{ include: typeof INCLUDE }>>>;
@@ -29,6 +30,8 @@ function toDTO(s: NonNullable<Row>) {
 export async function GET() {
   const sessionUser = await getSessionUser();
   if (!sessionUser) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  const denied = requireModuleAccess(sessionUser, "payroll");
+  if (denied) return denied;
   const structures = await db.salaryStructure.findMany({
     where: { companyId: sessionUser.companyId },
     include: INCLUDE,
@@ -40,6 +43,8 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const sessionUser = await getSessionUser();
   if (!sessionUser) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  const denied = requireModuleAccess(sessionUser, "payroll");
+  if (denied) return denied;
 
   const body = await req.json();
   const name = String(body.name || "").trim();

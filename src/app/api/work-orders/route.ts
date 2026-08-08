@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
+import { requireModuleAccess } from "@/lib/permissions";
 
 // Real CRUD for the Maintenance module, replacing pure client-side state
 // seeded from src/lib/mock-data.ts's WORK_ORDERS array. `vehicle` is a
@@ -33,6 +34,8 @@ function toDTO(w: {
 export async function GET() {
   const sessionUser = await getSessionUser();
   if (!sessionUser) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  const denied = requireModuleAccess(sessionUser, "maintenance");
+  if (denied) return denied;
   const workOrders = await db.workOrder.findMany({
     where: { companyId: sessionUser.companyId },
     include: { vehicle: { select: { name: true } } },
@@ -44,6 +47,8 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const sessionUser = await getSessionUser();
   if (!sessionUser) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  const denied = requireModuleAccess(sessionUser, "maintenance");
+  if (denied) return denied;
 
   const body = await req.json();
   const title = String(body.title || "").trim();

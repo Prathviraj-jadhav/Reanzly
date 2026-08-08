@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
+import { requireModuleAccess } from "@/lib/permissions";
 
 const DEAL_INCLUDE = {
   customer: { select: { companyName: true } },
@@ -25,6 +26,8 @@ function toDTO(d: NonNullable<DealWithRelations>) {
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const sessionUser = await getSessionUser();
   if (!sessionUser) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  const denied = requireModuleAccess(sessionUser, "crm");
+  if (denied) return denied;
   const { id } = await params;
 
   const existing = await db.deal.findUnique({ where: { id } });
@@ -57,6 +60,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const sessionUser = await getSessionUser();
   if (!sessionUser) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  const denied = requireModuleAccess(sessionUser, "crm");
+  if (denied) return denied;
   const { id } = await params;
 
   const existing = await db.deal.findUnique({ where: { id } });

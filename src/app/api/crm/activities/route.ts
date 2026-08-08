@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
+import { requireModuleAccess } from "@/lib/permissions";
 
 const ACTIVITY_INCLUDE = {
   lead: { select: { name: true } },
@@ -36,6 +37,8 @@ function toDTO(a: NonNullable<ActivityWithRelations>) {
 export async function GET() {
   const sessionUser = await getSessionUser();
   if (!sessionUser) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  const denied = requireModuleAccess(sessionUser, "crm");
+  if (denied) return denied;
   const activities = await db.crmActivity.findMany({
     where: { companyId: sessionUser.companyId },
     include: ACTIVITY_INCLUDE,
@@ -47,6 +50,8 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const sessionUser = await getSessionUser();
   if (!sessionUser) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  const denied = requireModuleAccess(sessionUser, "crm");
+  if (denied) return denied;
 
   const body = await req.json();
   const title = String(body.title || "").trim();

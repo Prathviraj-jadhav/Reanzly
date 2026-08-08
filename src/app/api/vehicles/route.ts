@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
+import { requireModuleAccess } from "@/lib/permissions";
 
 // Real CRUD for the Vehicles module, replacing what was previously pure
 // client-side state seeded from src/lib/mock-data.ts's VEHICLES array
@@ -51,6 +52,8 @@ export async function GET() {
   if (!sessionUser) {
     return NextResponse.json({ error: "Not signed in." }, { status: 401 });
   }
+  const denied = requireModuleAccess(sessionUser, "vehicles");
+  if (denied) return denied;
   const vehicles = await db.vehicle.findMany({
     where: { companyId: sessionUser.companyId },
     orderBy: { createdAt: "desc" },
@@ -63,6 +66,8 @@ export async function POST(req: NextRequest) {
   if (!sessionUser) {
     return NextResponse.json({ error: "Not signed in." }, { status: 401 });
   }
+  const denied = requireModuleAccess(sessionUser, "vehicles");
+  if (denied) return denied;
 
   const body = await req.json();
   const name = String(body.name || "").trim();

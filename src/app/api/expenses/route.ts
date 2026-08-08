@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
+import { requireModuleAccess } from "@/lib/permissions";
 
 // Real CRUD for the Expenses module. The DB stores `amount` in paise
 // (Expense.amount, schema comment: "// paise") while the UI works in whole
@@ -31,6 +32,8 @@ const INCLUDE = { vehicle: { select: { name: true } }, trip: { select: { tripId:
 export async function GET() {
   const sessionUser = await getSessionUser();
   if (!sessionUser) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  const denied = requireModuleAccess(sessionUser, "expenses");
+  if (denied) return denied;
   const expenses = await db.expense.findMany({
     where: { companyId: sessionUser.companyId },
     include: INCLUDE,
@@ -42,6 +45,8 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const sessionUser = await getSessionUser();
   if (!sessionUser) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  const denied = requireModuleAccess(sessionUser, "expenses");
+  if (denied) return denied;
 
   const body = await req.json();
   const category = String(body.category || "").trim();

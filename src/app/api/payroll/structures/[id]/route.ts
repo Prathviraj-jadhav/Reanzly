@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
+import { requireModuleAccess } from "@/lib/permissions";
 
 const INCLUDE = { _count: { select: { employees: true } } } as const;
 type Row = Awaited<ReturnType<typeof db.salaryStructure.findFirst<{ include: typeof INCLUDE }>>>;
@@ -21,6 +22,8 @@ const PAISE_FIELDS = new Set(["ctcAnnual", "specialAllowance", "conveyance", "me
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const sessionUser = await getSessionUser();
   if (!sessionUser) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  const denied = requireModuleAccess(sessionUser, "payroll");
+  if (denied) return denied;
   const { id } = await params;
 
   const existing = await db.salaryStructure.findUnique({ where: { id } });

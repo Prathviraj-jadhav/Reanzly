@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
+import { requireModuleAccess } from "@/lib/permissions";
 
 // Real CRUD for HR Employees, replacing the Zustand+localStorage
 // `reanzly-hr` store's employees slice. `documents`/`assetsAssigned` are
@@ -60,6 +61,8 @@ function toDTO(e: EmployeeRow) {
 export async function GET() {
   const sessionUser = await getSessionUser();
   if (!sessionUser) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  const denied = requireModuleAccess(sessionUser, "hr");
+  if (denied) return denied;
   const employees = await db.employee.findMany({
     where: { companyId: sessionUser.companyId },
     orderBy: { createdAt: "desc" },
@@ -70,6 +73,8 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const sessionUser = await getSessionUser();
   if (!sessionUser) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  const denied = requireModuleAccess(sessionUser, "hr");
+  if (denied) return denied;
 
   const body = await req.json();
   const name = String(body.name || "").trim();

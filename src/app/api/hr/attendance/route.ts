@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
+import { requireModuleAccess } from "@/lib/permissions";
 
 const INCLUDE = { employee: { select: { code: true, name: true, designation: true } } } as const;
 type Row = Awaited<ReturnType<typeof db.attendanceRecord.findFirst<{ include: typeof INCLUDE }>>>;
@@ -26,6 +27,8 @@ function toDTO(r: NonNullable<Row>) {
 export async function GET(req: NextRequest) {
   const sessionUser = await getSessionUser();
   if (!sessionUser) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  const denied = requireModuleAccess(sessionUser, "hr");
+  if (denied) return denied;
   const month = req.nextUrl.searchParams.get("month"); // YYYY-MM, optional filter
   const where: Record<string, unknown> = { companyId: sessionUser.companyId };
   if (month) {
@@ -44,6 +47,8 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const sessionUser = await getSessionUser();
   if (!sessionUser) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  const denied = requireModuleAccess(sessionUser, "hr");
+  if (denied) return denied;
 
   const body = await req.json();
   const empId = String(body.empId || "");

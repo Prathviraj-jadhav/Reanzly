@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
+import { requireModuleAccess } from "@/lib/permissions";
 
 const CONTACT_INCLUDE = { customer: { select: { companyName: true } } } as const;
 type ContactWithRelations = Awaited<ReturnType<typeof db.crmContact.findFirst<{ include: typeof CONTACT_INCLUDE }>>>;
@@ -25,6 +26,8 @@ function toDTO(c: NonNullable<ContactWithRelations>) {
 export async function GET() {
   const sessionUser = await getSessionUser();
   if (!sessionUser) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  const denied = requireModuleAccess(sessionUser, "crm");
+  if (denied) return denied;
   const contacts = await db.crmContact.findMany({
     where: { companyId: sessionUser.companyId },
     include: CONTACT_INCLUDE,
@@ -36,6 +39,8 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const sessionUser = await getSessionUser();
   if (!sessionUser) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  const denied = requireModuleAccess(sessionUser, "crm");
+  if (denied) return denied;
 
   const body = await req.json();
   const name = String(body.name || "").trim();

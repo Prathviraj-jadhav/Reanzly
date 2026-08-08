@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
+import { requireModuleAccess } from "@/lib/permissions";
 
 // Real CRUD for the Drivers & Staff module, replacing what was previously
 // pure client-side state seeded from src/lib/mock-data.ts's DRIVERS array.
@@ -35,6 +36,8 @@ export async function GET() {
   if (!sessionUser) {
     return NextResponse.json({ error: "Not signed in." }, { status: 401 });
   }
+  const denied = requireModuleAccess(sessionUser, "drivers-staff");
+  if (denied) return denied;
   const drivers = await db.driver.findMany({
     where: { companyId: sessionUser.companyId },
     orderBy: { createdAt: "desc" },
@@ -47,6 +50,8 @@ export async function POST(req: NextRequest) {
   if (!sessionUser) {
     return NextResponse.json({ error: "Not signed in." }, { status: 401 });
   }
+  const denied = requireModuleAccess(sessionUser, "drivers-staff");
+  if (denied) return denied;
 
   const body = await req.json();
   const name = String(body.name || "").trim();
