@@ -1189,6 +1189,64 @@ nobody had wired it up.
       PATCH. Zero console errors, zero new TypeScript errors (30
       pre-existing/unrelated errors unchanged before and after).
 
+## Broker + Integrations real-auth retrofit (2026-08-09)
+
+- [x] **`/api/broker/*` (12 routes) had zero real auth.** Every route operated
+      on a single global "default" BrokerProfile via `getDefaultBrokerProfile()`
+      — no session check, no per-broker scoping, `[id]` PATCH/DELETE routes
+      didn't even verify the row belonged to the caller. Fixed properly, not
+      just patched: added `BrokerProfile.userId` (unique, links to the real
+      "broker" demo User — Faisal Ahmed — mirroring the `Customer.userId`
+      pattern from the Vendor Portal work), added `getSessionBrokerProfile()`/
+      `requireBrokerProfile()` to `src/lib/broker.ts` replacing the old
+      global-default lookup, added `getSessionUser()` + `requireModuleAccess()`
+      (against `broker-console`/`broker-marketplace`/`broker-settlements`,
+      matching the sidebar's 3-tab split) to all 12 routes, and added
+      ownership checks (`existing.brokerProfileId !== profile.id`) to every
+      `[id]` route that was missing one. Backfilled the seeded demo profile's
+      `userId` link.
+- [x] **`/api/integrations/*` (3 of 4 routes) trusted a client-supplied
+      `companyId` with zero session verification** — any caller could read,
+      create, edit, or delete another tenant's integration connections
+      (including provider labels and sync status) by passing a different
+      `companyId` query param or body field. Fixed: added
+      `getSessionUser()` + `requireModuleAccess(sessionUser, "integrations")`
+      to all 4 handlers in `route.ts` and the ownership-checked `[id]`
+      routes; a client-supplied `companyId` is now silently ignored and
+      replaced with the verified session's own `companyId`, except a
+      superadmin session may explicitly request the `PLATFORM` scope.
+      `webhook/[providerId]/route.ts` deliberately left public — it's the
+      receiver external providers call, authenticated by provider signature,
+      not user session.
+- [x] **Found and fixed a real bug while verifying the above**: `PUT
+      /api/integrations` (and, it turned out, `POST` too) threw
+      `TypeError: ... is not a function` / `is not iterable` on
+      `ALL_PROVIDERS`/`SEED_CONNECTIONS`. Root cause: `_data.ts` and
+      `logistics-providers.ts` (pure data/types, zero React APIs) were both
+      marked `"use client"`, which broke array access when imported into a
+      server-only Route Handler under Turbopack's client/server boundary —
+      `.find()` and spread threw, though the arrays otherwise round-tripped
+      as JSON so paths that only re-serialized them (e.g. the connections
+      GET) didn't notice. Removed the unneeded directive from both files.
+      Verified: `PUT` now inserts 17 real seed connections; `POST` with a
+      valid provider succeeds (201) instead of 500.
+      Note: the Integrations module's own frontend (`index.tsx`) isn't wired
+      to this API at all yet (still fully local-mock-driven, confirmed via
+      network trace) — this pass makes the backend correct and secure for
+      whenever that wiring happens, with zero live-UI risk today.
+- [x] **Verified live, end-to-end, via direct authenticated fetch calls**
+      (both frontends are backend-only right now, so this is the right
+      verification method): unauthenticated calls → 401 on both broker and
+      integrations; a role with no `broker-console`/`integrations`
+      permission (driver) → 403; the real linked broker session
+      (`faisal.ahmed@reanzly.in`) → 200 with real profile + 9 enquiries + 5
+      sub-brokers + 5 settlements + 7 ledger entries + 10 lane rates; a
+      client-supplied `companyId` for a different tenant was silently
+      overridden and the created connection landed under the session's real
+      `companyId` instead; PATCH/sync/DELETE on that connection all
+      succeeded and respected ownership. Zero new TypeScript errors, zero
+      new ESLint errors.
+
 ## Sequencing reminder
 
 Agreed order with the user: **Stage 1 (SLM) → Stage 2 (Chat) → Stage 3 (Calling)**,

@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { cacheInvalidate } from "@/lib/cache";
-import { safeParseJson, toJsonString } from "@/lib/broker";
+import { getSessionUser } from "@/lib/auth";
+import { requireModuleAccess } from "@/lib/permissions";
+import { getSessionBrokerProfile, requireBrokerProfile, safeParseJson, toJsonString } from "@/lib/broker";
 
 // ===== Sub-Broker Detail API =====
 // PATCH  - update sub-broker status / markup / coverage / settlement cycle /
@@ -17,8 +19,24 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const sessionUser = await getSessionUser();
+  if (!sessionUser) {
+    return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  }
+  const denied = requireModuleAccess(sessionUser, "broker-console");
+  if (denied) return denied;
+
   try {
+    const profile = await getSessionBrokerProfile(sessionUser);
+    const notLinked = requireBrokerProfile(profile);
+    if (notLinked) return notLinked;
+
     const { id } = await params;
+
+    const existing = await db.subBroker.findUnique({ where: { id } });
+    if (!existing || existing.brokerProfileId !== profile!.id) {
+      return NextResponse.json({ error: "Sub-broker not found." }, { status: 404 });
+    }
 
     let body: Record<string, unknown>;
     try {
@@ -80,8 +98,24 @@ export async function DELETE(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const sessionUser = await getSessionUser();
+  if (!sessionUser) {
+    return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  }
+  const denied = requireModuleAccess(sessionUser, "broker-console");
+  if (denied) return denied;
+
   try {
+    const profile = await getSessionBrokerProfile(sessionUser);
+    const notLinked = requireBrokerProfile(profile);
+    if (notLinked) return notLinked;
+
     const { id } = await params;
+
+    const existing = await db.subBroker.findUnique({ where: { id } });
+    if (!existing || existing.brokerProfileId !== profile!.id) {
+      return NextResponse.json({ error: "Sub-broker not found." }, { status: 404 });
+    }
 
     await db.subBroker.delete({ where: { id } });
 

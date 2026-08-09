@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { getSessionUser } from "@/lib/auth";
+import { requireModuleAccess } from "@/lib/permissions";
 import { getClientIP, rateLimit, sanitize } from "@/lib/security";
 import { ALL_PROVIDERS, CATEGORY_META, SEED_CONNECTIONS } from "@/components/modules/integrations/_data";
 import { LOGISTICS_SEED_CONNECTIONS } from "@/components/modules/integrations/logistics-providers";
@@ -8,9 +10,18 @@ import { LOGISTICS_SEED_CONNECTIONS } from "@/components/modules/integrations/lo
    /api/integrations  (GET, POST)
    ------------------------------------------------------------
    List and create integration connections for the current tenant.
-   Tenant isolation via `companyId` query param. For Reanzly internal
-   team scope, use "PLATFORM".
+   Tenant isolation is derived from the verified session, never trusted
+   from a client-supplied companyId - only a superadmin session may pass
+   companyId=PLATFORM to reach the Reanzly-internal scope; every other
+   session is pinned to its own sessionUser.companyId regardless of what
+   the request asks for.
    ============================================================ */
+
+/** Resolve the real, session-verified companyId to scope this request to. */
+function resolveScopedCompanyId(sessionUser: { companyId: string; role: string }, requested: string): string {
+  if (requested === "PLATFORM" && sessionUser.role === "superadmin") return "PLATFORM";
+  return sessionUser.companyId;
+}
 
 const RATE_LIMIT_WINDOW = 60_000;
 const RATE_LIMIT_MAX = 200;
@@ -91,6 +102,13 @@ function toPublic(conn: {
 }
 
 export async function GET(req: NextRequest) {
+  const sessionUser = await getSessionUser();
+  if (!sessionUser) {
+    return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  }
+  const denied = requireModuleAccess(sessionUser, "integrations");
+  if (denied) return denied;
+
   try {
     const ip = getClientIP(req);
     const rl = rateLimit(ip, { limit: RATE_LIMIT_MAX, window: RATE_LIMIT_WINDOW });
@@ -102,7 +120,8 @@ export async function GET(req: NextRequest) {
     }
 
     const { searchParams } = new URL(req.url);
-    const companyId = sanitize(searchParams.get("companyId") || "PLATFORM", 64);
+    const requested = sanitize(searchParams.get("companyId") || "", 64);
+    const companyId = resolveScopedCompanyId(sessionUser, requested);
     const category = searchParams.get("category");
     const providerId = searchParams.get("providerId");
     const status = searchParams.get("status");
@@ -136,6 +155,13 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const sessionUser = await getSessionUser();
+  if (!sessionUser) {
+    return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  }
+  const denied = requireModuleAccess(sessionUser, "integrations");
+  if (denied) return denied;
+
   try {
     const ip = getClientIP(req);
     const rl = rateLimit(ip, { limit: RATE_LIMIT_MAX, window: RATE_LIMIT_WINDOW });
@@ -147,7 +173,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const companyId = sanitize(body.companyId || "PLATFORM", 64);
+    const companyId = resolveScopedCompanyId(sessionUser, sanitize(body.companyId || "", 64));
     const providerId = sanitize(body.providerId || "", 64);
     const label = body.label ? sanitize(body.label, 80) : null;
     const mode = body.mode === "test" ? "test" : "live";
@@ -226,6 +252,13 @@ export async function POST(req: NextRequest) {
    connections shown in the UI seed state.
    ============================================================ */
 export async function PUT(req: NextRequest) {
+  const sessionUser = await getSessionUser();
+  if (!sessionUser) {
+    return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  }
+  const denied = requireModuleAccess(sessionUser, "integrations");
+  if (denied) return denied;
+
   try {
     const ip = getClientIP(req);
     const rl = rateLimit(ip, { limit: 30, window: RATE_LIMIT_WINDOW });
@@ -237,7 +270,7 @@ export async function PUT(req: NextRequest) {
     }
 
     const body = await req.json().catch(() => ({}));
-    const companyId = sanitize(body.companyId || "PLATFORM", 64);
+    const companyId = resolveScopedCompanyId(sessionUser, sanitize(body.companyId || "", 64));
 
     const allSeeds = [...SEED_CONNECTIONS, ...LOGISTICS_SEED_CONNECTIONS];
     let inserted = 0;

@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { cacheInvalidate } from "@/lib/cache";
+import { getSessionUser } from "@/lib/auth";
+import { requireModuleAccess } from "@/lib/permissions";
+import { getSessionBrokerProfile, requireBrokerProfile } from "@/lib/broker";
 
 // ===== Settlement Cycle Detail API =====
 // PATCH - advance a settlement cycle through its lifecycle
@@ -15,7 +18,18 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const sessionUser = await getSessionUser();
+  if (!sessionUser) {
+    return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  }
+  const denied = requireModuleAccess(sessionUser, "broker-settlements");
+  if (denied) return denied;
+
   try {
+    const profile = await getSessionBrokerProfile(sessionUser);
+    const notLinked = requireBrokerProfile(profile);
+    if (notLinked) return notLinked;
+
     const { id } = await params;
 
     let body: Record<string, unknown>;
@@ -28,7 +42,7 @@ export async function PATCH(
     // First read the existing row so we can recompute derived totals when the
     // commission/tds/gross inputs change.
     const existing = await db.settlementCycle.findUnique({ where: { id } });
-    if (!existing) {
+    if (!existing || existing.brokerProfileId !== profile!.id) {
       return NextResponse.json({ error: "Settlement cycle not found." }, { status: 404 });
     }
 

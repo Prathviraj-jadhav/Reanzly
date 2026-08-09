@@ -1,33 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { cacheWrap, cacheInvalidate, CACHE_TTL } from "@/lib/cache";
-import { getDefaultBrokerProfile, safeParseJson, toJsonString } from "@/lib/broker";
+import { cacheInvalidate } from "@/lib/cache";
+import { getSessionUser } from "@/lib/auth";
+import { requireModuleAccess } from "@/lib/permissions";
+import { getSessionBrokerProfile, requireBrokerProfile, safeParseJson, toJsonString } from "@/lib/broker";
 
 // ===== Broker Profile API =====
-// GET  - return the active broker profile (the demo RZB-000001 profile, or
-//        the first profile by createdAt if no demo profile exists yet).
+// GET  - return this session's own broker profile.
 // PATCH - update commercial settings: markup, settlement cycle, GST treatment,
 //         coverage lanes.
-//
-// For now there is no per-user broker auth, so all routes operate on the
-// single default profile. When broker auth lands, swap getDefaultBrokerProfile
-// to resolve the profile from the session.
 
 const ALLOWED_SETTLEMENT_CYCLES = new Set(["Weekly", "Fortnightly", "Monthly"]);
 const ALLOWED_GST_TREATMENTS = new Set(["Forward Charge", "Reverse Charge"]);
 
 export async function GET() {
-  try {
-    const profile = await cacheWrap(
-      "broker:profile",
-      { ...CACHE_TTL.detail, tags: ["broker:profile", "broker:dashboard"] },
-      async () => {
-        const p = await getDefaultBrokerProfile();
-        if (!p) return null;
-        return p;
-      }
-    );
+  const sessionUser = await getSessionUser();
+  if (!sessionUser) {
+    return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  }
+  const denied = requireModuleAccess(sessionUser, "broker-console");
+  if (denied) return denied;
 
+  try {
+    const profile = await getSessionBrokerProfile(sessionUser);
     if (!profile) {
       // Empty state - frontend hook will fall back to seed data.
       return NextResponse.json({}, { status: 200 });
@@ -43,11 +38,17 @@ export async function GET() {
 }
 
 export async function PATCH(req: NextRequest) {
+  const sessionUser = await getSessionUser();
+  if (!sessionUser) {
+    return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  }
+  const denied = requireModuleAccess(sessionUser, "broker-console");
+  if (denied) return denied;
+
   try {
-    const profile = await getDefaultBrokerProfile();
-    if (!profile) {
-      return NextResponse.json({ error: "Broker profile not found." }, { status: 404 });
-    }
+    const profile = await getSessionBrokerProfile(sessionUser);
+    const notLinked = requireBrokerProfile(profile);
+    if (notLinked) return notLinked;
 
     let body: Record<string, unknown>;
     try {
@@ -96,7 +97,7 @@ export async function PATCH(req: NextRequest) {
     if (typeof body.phone === "string") data.phone = body.phone;
 
     const updated = await db.brokerProfile.update({
-      where: { id: profile.id },
+      where: { id: profile!.id },
       data,
     });
 

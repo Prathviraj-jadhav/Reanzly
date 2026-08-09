@@ -1,30 +1,29 @@
 // ===== Broker request helpers =====
-// Until broker auth (session) is wired, all broker API routes operate on a
-// single "default" BrokerProfile - the demo RZB-000001 seeded by
-// src/scripts/seed-broker.ts. When real auth lands, swap getDefaultBrokerProfile
-// to read the session and resolve the BrokerProfile from the authenticated user.
-//
-// Returns null when the broker tables are empty (fresh DB before seeding) so
-// route handlers can return an empty-array response that the frontend hook
-// (useBrokerApi) will fall back to seed data from.
+// Resolves the real BrokerProfile a Broker Portal session represents, via
+// BrokerProfile.userId (mirrors src/lib/vendor-portal.ts's Customer.userId
+// pattern). This replaced the earlier getDefaultBrokerProfile(), which
+// operated on a single global "default" profile with no real auth at all -
+// every broker route trusted whichever BrokerProfile row came back first,
+// so any caller could read or write any broker's data.
 
+import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import type { SessionUser } from "@/lib/auth";
 
-export async function getDefaultBrokerProfile() {
-  // Prefer the seeded demo broker; fall back to the first profile by createdAt.
-  const seeded = await db.brokerProfile.findUnique({
-    where: { brokerCode: "RZB-000001" },
-  });
-  if (seeded) return seeded;
-  return db.brokerProfile.findFirst({
-    orderBy: { createdAt: "asc" },
-  });
+/** Resolves the real BrokerProfile linked to this session's User, or null. */
+export async function getSessionBrokerProfile(sessionUser: SessionUser) {
+  return db.brokerProfile.findUnique({ where: { userId: sessionUser.id } });
 }
 
-/** Returns the brokerProfileId or null if no profile exists. */
-export async function getDefaultBrokerProfileId(): Promise<string | null> {
-  const profile = await getDefaultBrokerProfile();
-  return profile?.id ?? null;
+/** Returns a 404 NextResponse if this session has no linked BrokerProfile, else null. */
+export function requireBrokerProfile(profile: unknown): NextResponse | null {
+  if (!profile) {
+    return NextResponse.json(
+      { error: "No broker account is linked to this login." },
+      { status: 404 },
+    );
+  }
+  return null;
 }
 
 /** Parse a JSON string field safely. Returns the fallback on parse failure. */

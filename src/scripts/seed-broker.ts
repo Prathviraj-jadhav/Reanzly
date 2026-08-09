@@ -103,6 +103,10 @@ async function main() {
   if (!profile) {
     profile = await db.brokerProfile.create({
       data: {
+        // Links this seeded profile to the real "broker" demo User (Faisal
+        // Ahmed) so logging in as that role resolves to a real BrokerProfile
+        // via session, instead of every route trusting a global default.
+        userId: "broker",
         brokerCode: "RZB-000001",
         companyName: "Reanzly Broker Network OPC Pvt Ltd",
         contactName: "Faisal Ahmed",
@@ -132,6 +136,10 @@ async function main() {
     });
     console.log(`[seed-broker] created BrokerProfile ${profile.brokerCode} (${profile.id})`);
   } else {
+    if (!profile.userId) {
+      profile = await db.brokerProfile.update({ where: { id: profile.id }, data: { userId: "broker" } });
+      console.log(`[seed-broker] backfilled userId on existing BrokerProfile ${profile.brokerCode}`);
+    }
     console.log(`[seed-broker] BrokerProfile already exists (${profile.brokerCode})`);
   }
 

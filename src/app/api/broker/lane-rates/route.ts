@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { cacheWrap, CACHE_TTL } from "@/lib/cache";
+import { getSessionUser } from "@/lib/auth";
+import { requireModuleAccess } from "@/lib/permissions";
 import { safeParseJson } from "@/lib/broker";
 
 // ===== Lane Rate Card API =====
@@ -12,6 +14,13 @@ import { safeParseJson } from "@/lib/broker";
 // individual brokers. The seed script is the only writer for now.
 
 export async function GET() {
+  const sessionUser = await getSessionUser();
+  if (!sessionUser) {
+    return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  }
+  const denied = requireModuleAccess(sessionUser, "broker-marketplace");
+  if (denied) return denied;
+
   try {
     const rows = await cacheWrap(
       "broker:lane-rates:active",

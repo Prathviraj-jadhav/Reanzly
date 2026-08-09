@@ -1,7 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { getSessionUser } from "@/lib/auth";
+import { requireModuleAccess } from "@/lib/permissions";
 import { getClientIP, rateLimit } from "@/lib/security";
 import { ALL_PROVIDERS } from "@/components/modules/integrations/_data";
+
+/** True if this session may act on a connection scoped to `companyId`. */
+function canAccessCompany(sessionUser: { companyId: string; role: string }, companyId: string): boolean {
+  return sessionUser.role === "superadmin" || sessionUser.companyId === companyId;
+}
 
 /* ============================================================
    /api/integrations/[id]/sync  (POST)
@@ -36,6 +43,13 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const sessionUser = await getSessionUser();
+  if (!sessionUser) {
+    return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  }
+  const denied = requireModuleAccess(sessionUser, "integrations");
+  if (denied) return denied;
+
   try {
     const ip = getClientIP(req);
     const rl = rateLimit(ip, { limit: RATE_LIMIT_MAX, window: RATE_LIMIT_WINDOW });
@@ -54,7 +68,7 @@ export async function POST(
         : "manual";
 
     const conn = await db.integrationConnection.findUnique({ where: { id } });
-    if (!conn) {
+    if (!conn || !canAccessCompany(sessionUser, conn.companyId)) {
       return NextResponse.json(
         { error: "Connection not found" },
         { status: 404 },
@@ -163,6 +177,13 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const sessionUser = await getSessionUser();
+  if (!sessionUser) {
+    return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  }
+  const denied = requireModuleAccess(sessionUser, "integrations");
+  if (denied) return denied;
+
   try {
     const ip = getClientIP(req);
     const rl = rateLimit(ip, { limit: 120, window: RATE_LIMIT_WINDOW });
@@ -175,7 +196,7 @@ export async function GET(
 
     const { id } = await params;
     const conn = await db.integrationConnection.findUnique({ where: { id } });
-    if (!conn) {
+    if (!conn || !canAccessCompany(sessionUser, conn.companyId)) {
       return NextResponse.json(
         { error: "Connection not found" },
         { status: 404 },

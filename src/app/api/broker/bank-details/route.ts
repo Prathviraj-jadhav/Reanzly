@@ -1,18 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { cacheInvalidate } from "@/lib/cache";
-import { getDefaultBrokerProfile } from "@/lib/broker";
+import { getSessionUser } from "@/lib/auth";
+import { requireModuleAccess } from "@/lib/permissions";
+import { getSessionBrokerProfile, requireBrokerProfile } from "@/lib/broker";
 
 // ===== Broker Bank Details API =====
-// GET   - return the bank details stored on the broker profile (NACH-registered
-//         account, IFSC, UMR, next payout).
+// GET   - return the bank details stored on this session's own broker profile
+//         (NACH-registered account, IFSC, UMR, next payout).
 // PATCH - update bank details (bank name, branch, account name/number, IFSC,
 //         NACH UMR, next payout date/amount). Used by the Bank Details page
 //         when the broker edits their NACH-registered account.
 
 export async function GET() {
+  const sessionUser = await getSessionUser();
+  if (!sessionUser) {
+    return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  }
+  const denied = requireModuleAccess(sessionUser, "broker-settlements");
+  if (denied) return denied;
+
   try {
-    const profile = await getDefaultBrokerProfile();
+    const profile = await getSessionBrokerProfile(sessionUser);
     if (!profile) {
       return NextResponse.json({}, { status: 200 });
     }
@@ -35,11 +44,17 @@ export async function GET() {
 }
 
 export async function PATCH(req: NextRequest) {
+  const sessionUser = await getSessionUser();
+  if (!sessionUser) {
+    return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  }
+  const denied = requireModuleAccess(sessionUser, "broker-settlements");
+  if (denied) return denied;
+
   try {
-    const profile = await getDefaultBrokerProfile();
-    if (!profile) {
-      return NextResponse.json({ error: "Broker profile not found." }, { status: 404 });
-    }
+    const profile = await getSessionBrokerProfile(sessionUser);
+    const notLinked = requireBrokerProfile(profile);
+    if (notLinked) return notLinked;
 
     let body: Record<string, unknown>;
     try {
@@ -63,7 +78,7 @@ export async function PATCH(req: NextRequest) {
     }
 
     const updated = await db.brokerProfile.update({
-      where: { id: profile.id },
+      where: { id: profile!.id },
       data,
     });
 

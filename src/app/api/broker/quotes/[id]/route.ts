@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { cacheInvalidate } from "@/lib/cache";
+import { getSessionUser } from "@/lib/auth";
+import { requireModuleAccess } from "@/lib/permissions";
+import { getSessionBrokerProfile, requireBrokerProfile } from "@/lib/broker";
 
 // ===== Broker Quote Detail API =====
 // PATCH - update quote status (Pending -> Accepted/Rejected/Expired). Used when
@@ -13,8 +16,24 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const sessionUser = await getSessionUser();
+  if (!sessionUser) {
+    return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  }
+  const denied = requireModuleAccess(sessionUser, "broker-marketplace");
+  if (denied) return denied;
+
   try {
+    const profile = await getSessionBrokerProfile(sessionUser);
+    const notLinked = requireBrokerProfile(profile);
+    if (notLinked) return notLinked;
+
     const { id } = await params;
+
+    const existing = await db.brokerQuote.findUnique({ where: { id } });
+    if (!existing || existing.brokerProfileId !== profile!.id) {
+      return NextResponse.json({ error: "Quote not found." }, { status: 404 });
+    }
 
     let body: Record<string, unknown>;
     try {

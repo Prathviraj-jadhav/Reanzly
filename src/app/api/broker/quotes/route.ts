@@ -1,20 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { cacheInvalidate } from "@/lib/cache";
-import { getDefaultBrokerProfileId } from "@/lib/broker";
+import { getSessionUser } from "@/lib/auth";
+import { requireModuleAccess } from "@/lib/permissions";
+import { getSessionBrokerProfile, requireBrokerProfile } from "@/lib/broker";
 
 // ===== Broker Quotes API =====
-// GET  - list all quotes the broker has sent on marketplace loads, newest first.
+// GET  - list all quotes this session's own broker profile has sent on
+//        marketplace loads, newest first.
 // POST - create a new quote on a marketplace load (the broker sees the base
 //        rate + applies their markup to produce a quoted rate).
 
 export async function GET() {
+  const sessionUser = await getSessionUser();
+  if (!sessionUser) {
+    return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  }
+  const denied = requireModuleAccess(sessionUser, "broker-marketplace");
+  if (denied) return denied;
+
   try {
-    const brokerProfileId = await getDefaultBrokerProfileId();
-    if (!brokerProfileId) return NextResponse.json([]);
+    const profile = await getSessionBrokerProfile(sessionUser);
+    if (!profile) return NextResponse.json([]);
 
     const rows = await db.brokerQuote.findMany({
-      where: { brokerProfileId },
+      where: { brokerProfileId: profile.id },
       orderBy: { quotedAt: "desc" },
     });
 
@@ -26,11 +36,18 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  const sessionUser = await getSessionUser();
+  if (!sessionUser) {
+    return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  }
+  const denied = requireModuleAccess(sessionUser, "broker-marketplace");
+  if (denied) return denied;
+
   try {
-    const brokerProfileId = await getDefaultBrokerProfileId();
-    if (!brokerProfileId) {
-      return NextResponse.json({ error: "Broker profile not found." }, { status: 404 });
-    }
+    const profile = await getSessionBrokerProfile(sessionUser);
+    const notLinked = requireBrokerProfile(profile);
+    if (notLinked) return notLinked;
+    const brokerProfileId = profile!.id;
 
     let body: Record<string, unknown>;
     try {

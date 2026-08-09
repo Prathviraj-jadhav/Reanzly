@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { cacheInvalidate } from "@/lib/cache";
-import { getDefaultBrokerProfileId, safeParseJson, toJsonString } from "@/lib/broker";
+import { getSessionUser } from "@/lib/auth";
+import { requireModuleAccess } from "@/lib/permissions";
+import { getSessionBrokerProfile, requireBrokerProfile, safeParseJson, toJsonString } from "@/lib/broker";
 
 // ===== Sub-Brokers API =====
-// GET  - list all sub-brokers onboarded under this broker profile.
+// GET  - list all sub-brokers onboarded under this session's own broker profile.
 // POST - onboard a new sub-broker. Generates the next RZSB-XXX broker code.
 
 const ALLOWED_SETTLEMENT_CYCLES = new Set(["Weekly", "Fortnightly", "Monthly"]);
@@ -12,12 +14,19 @@ const ALLOWED_GST_TREATMENTS = new Set(["Forward Charge", "Reverse Charge"]);
 const ALLOWED_STATUSES = new Set(["Active", "Pending", "Suspended"]);
 
 export async function GET() {
+  const sessionUser = await getSessionUser();
+  if (!sessionUser) {
+    return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  }
+  const denied = requireModuleAccess(sessionUser, "broker-console");
+  if (denied) return denied;
+
   try {
-    const brokerProfileId = await getDefaultBrokerProfileId();
-    if (!brokerProfileId) return NextResponse.json([]);
+    const profile = await getSessionBrokerProfile(sessionUser);
+    if (!profile) return NextResponse.json([]);
 
     const rows = await db.subBroker.findMany({
-      where: { brokerProfileId },
+      where: { brokerProfileId: profile.id },
       orderBy: { onboardedAt: "desc" },
     });
 
@@ -34,11 +43,18 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  const sessionUser = await getSessionUser();
+  if (!sessionUser) {
+    return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  }
+  const denied = requireModuleAccess(sessionUser, "broker-console");
+  if (denied) return denied;
+
   try {
-    const brokerProfileId = await getDefaultBrokerProfileId();
-    if (!brokerProfileId) {
-      return NextResponse.json({ error: "Broker profile not found." }, { status: 404 });
-    }
+    const profile = await getSessionBrokerProfile(sessionUser);
+    const notLinked = requireBrokerProfile(profile);
+    if (notLinked) return notLinked;
+    const brokerProfileId = profile!.id;
 
     let body: Record<string, unknown>;
     try {

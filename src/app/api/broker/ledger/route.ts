@@ -1,22 +1,31 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { getDefaultBrokerProfileId } from "@/lib/broker";
+import { getSessionUser } from "@/lib/auth";
+import { requireModuleAccess } from "@/lib/permissions";
+import { getSessionBrokerProfile } from "@/lib/broker";
 
 // ===== Broker Ledger API =====
-// GET - return all ledger entries (commission credits + payout debits) for the
-//       broker profile, oldest first so the runningBalanceINR column reads
-//       chronologically.
+// GET - return all ledger entries (commission credits + payout debits) for
+//       this session's own broker profile, oldest first so the
+//       runningBalanceINR column reads chronologically.
 //
 // Read-only. Ledger entries are written by the settlement cycle lifecycle
 // (commission credit on approve, payout debit on Paid via NACH).
 
 export async function GET() {
+  const sessionUser = await getSessionUser();
+  if (!sessionUser) {
+    return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  }
+  const denied = requireModuleAccess(sessionUser, "broker-settlements");
+  if (denied) return denied;
+
   try {
-    const brokerProfileId = await getDefaultBrokerProfileId();
-    if (!brokerProfileId) return NextResponse.json([]);
+    const profile = await getSessionBrokerProfile(sessionUser);
+    if (!profile) return NextResponse.json([]);
 
     const rows = await db.brokerLedgerEntry.findMany({
-      where: { brokerProfileId },
+      where: { brokerProfileId: profile.id },
       orderBy: { date: "asc" },
     });
 
