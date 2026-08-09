@@ -70,7 +70,11 @@ jobs:
   cd-deploy-enterprise-live:
     name: Continuous Deployment (CD)
     needs: devsecops-ci-audit
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    # Skips once DEPLOY_MODE is switched to the self-hosted-runner path below -
+    # until then this SSH path runs exactly as it always has.
+    if: |
+      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') &&
+      vars.DEPLOY_MODE != 'self-hosted-runner'
     runs-on: ubuntu-latest
 
     steps:
@@ -158,4 +162,75 @@ jobs:
             echo "::warning title=Deploy failed::SSH deploy script failed - see job summary for details."
           else
             echo "### :white_check_mark: Deployed successfully" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  cd-deploy-self-hosted-runner:
+    name: Continuous Deployment (CD) - Self-Hosted Runner
+    needs: devsecops-ci-audit
+    # Inactive (and won't even queue) until a self-hosted runner is registered
+    # on the deploy server AND the repo variable DEPLOY_MODE is set to
+    # "self-hosted-runner" (Settings > Secrets and variables > Actions >
+    # Variables). See docs/deploy-self-hosted-runner.md for the one-time
+    # server setup this depends on.
+    #
+    # Why this exists: the SSH-based job above needs GitHub's runner IPs to
+    # reach the deploy server's SSH port inbound, which has been unreachable
+    # in practice. A self-hosted runner flips the direction - the runner
+    # (installed on the server itself) opens an outbound connection to
+    # GitHub, so no inbound port needs to be open at all.
+    if: |
+      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') &&
+      vars.DEPLOY_MODE == 'self-hosted-runner'
+    runs-on: [self-hosted]
+    # Fails fast instead of queuing for hours if the runner service is
+    # offline - a clear red X within minutes beats a silently stuck job.
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Sync code to app directory
+        run: |
+          set -e
+          APP_DIR="/opt/reanzly"
+          mkdir -p "$APP_DIR"
+          # Mirror the checked-out tree into the real app directory, leaving
+          # the live DB, its WAL/SHM files, and .env untouched.
+          rsync -a --delete \
+            --exclude ".git" \
+            --exclude "node_modules" \
+            --exclude "db/custom.db" \
+            --exclude "db/custom.db-wal" \
+            --exclude "db/custom.db-shm" \
+            --exclude ".env" \
+            ./ "$APP_DIR/"
+
+      - name: Write production environment file
+        run: |
+          cat << 'EOF' > /opt/reanzly/.env
+          NODE_ENV=production
+          PORT=3000
+          CHAT_SERVICE_PORT=3003
+          DATABASE_URL=${{ secrets.DATABASE_URL || 'file:/app/db/custom.db' }}
+          NEXTAUTH_URL=${{ secrets.NEXTAUTH_URL || 'https://reanzly.com' }}
+          NEXTAUTH_SECRET=${{ secrets.NEXTAUTH_SECRET }}
+          STORAGE_DRIVER=local
+          STORAGE_LOCAL_PATH=/app/storage
+          EOF
+
+      - name: Run production deploy script
+        working-directory: /opt/reanzly
+        run: |
+          chmod +x scripts/deploy-prod.sh scripts/backup-encrypt.sh scripts/security-audit.sh
+          ./scripts/deploy-prod.sh
+
+      - name: Deployment Summary
+        if: always()
+        run: |
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "### :white_check_mark: Deployed successfully via self-hosted runner" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "### :warning: Self-hosted deploy failed" >> "$GITHUB_STEP_SUMMARY"
+            echo "Check the step logs above. If the job never started, the runner service on the deploy server is likely offline." >> "$GITHUB_STEP_SUMMARY"
           fi
