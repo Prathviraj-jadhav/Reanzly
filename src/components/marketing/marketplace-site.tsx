@@ -60,13 +60,65 @@ import { MarketplaceLoadsSection } from "./marketplace-loads-section";
 import { MarketingFooter } from "./marketing-footer";
 import { ListYourVehicleSheet } from "./marketplace-list-vehicle-sheet";
 import { PostLoadSheet } from "./marketplace-post-load-sheet";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 
 const PRICE_MAX_DEFAULT = 16000;
 const SAVED_STORAGE_KEY = "reanzly-marketplace-saved-v1";
 
 type MarketplaceTab = "vehicles" | "loads";
 
-export function MarketplaceSite() {
+export function MarketplaceSite({ isPortal = false }: { isPortal?: boolean }) {
+  const [biddingLoad, setBiddingLoad] = useState<any | null>(null);
+  const [bidRate, setBidRate] = useState("");
+  const [bidNotes, setBidNotes] = useState("");
+  const [submittingBid, setSubmittingBid] = useState(false);
+
+  async function handleBidSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!bidRate || submittingBid) return;
+    setSubmittingBid(true);
+
+    try {
+      const res = await fetch("/api/vendor-portal/rfqs/submit-load", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          origin: biddingLoad.origin,
+          destination: biddingLoad.destination,
+          vehicleType: biddingLoad.vehicleType,
+          weight: biddingLoad.weight,
+          ratePerKm: bidRate,
+          validityDays: 7,
+          notes: bidNotes,
+          shipper: biddingLoad.shipper,
+          budget: biddingLoad.budget,
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Failed to submit quote");
+      }
+
+      toast.success("Bid submitted successfully!", {
+        description: `Your bid of ₹${bidRate}/km has been logged. Verify it under RFQ / Quotes.`,
+      });
+      setBiddingLoad(null);
+      setBidRate("");
+      setBidNotes("");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to submit quote");
+    } finally {
+      setSubmittingBid(false);
+    }
+  }
+
   // ---- Tab state (Browse Vehicles vs Find Loads) ----
   const [tab, setTab] = useState<MarketplaceTab>("vehicles");
 
@@ -338,6 +390,7 @@ export function MarketplaceSite() {
         onTabChange={setTab}
         onListVehicle={() => setListVehicleOpen(true)}
         onPostLoad={() => setPostLoadOpen(true)}
+        isPortal={isPortal}
       />
 
       <main className="flex-1">
@@ -398,26 +451,91 @@ export function MarketplaceSite() {
           <MarketplaceLoadsSection
             loads={LOAD_LISTINGS}
             onApply={(load) => {
-              toast.success("Load applied", {
-                description: `Your application for ${load.origin} → ${load.destination} (₹${load.budget.toLocaleString("en-IN")}) has been sent to ${load.shipper}.`,
-              });
+              if (isPortal) {
+                setBiddingLoad(load);
+              } else {
+                toast.success("Load applied", {
+                  description: `Your application for ${load.origin} → ${load.destination} (₹${load.budget.toLocaleString("en-IN")}) has been sent to ${load.shipper}.`,
+                });
+              }
             }}
             onPostLoad={() => setPostLoadOpen(true)}
             onBrowseVehicles={() => setTab("vehicles")}
           />
         )}
 
-        <MarketplaceCTA
-          onListVehicle={() => setListVehicleOpen(true)}
-          onPostLoad={() => setPostLoadOpen(true)}
-          onSignUp={() => {
-            useAppStore.getState().setAuthMode("signup");
-            useAppStore.getState().setMarketingView("auth");
-          }}
-        />
+        {!isPortal && (
+          <MarketplaceCTA
+            onListVehicle={() => setListVehicleOpen(true)}
+            onPostLoad={() => setPostLoadOpen(true)}
+            onSignUp={() => {
+              useAppStore.getState().setAuthMode("signup");
+              useAppStore.getState().setMarketingView("auth");
+            }}
+          />
+        )}
       </main>
 
-      <MarketingFooter />
+      {!isPortal && <MarketingFooter />}
+
+      {/* Live bidding modal dialog for vendors */}
+      {biddingLoad && (
+        <Dialog open onOpenChange={(open) => !open && setBiddingLoad(null)}>
+          <DialogContent className="rounded-[6px] border-border bg-background p-5 shadow-lg sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="text-[16px] font-semibold text-foreground">
+                Submit Bid for {biddingLoad.shipper}
+              </DialogTitle>
+              <DialogDescription className="text-[12px] text-muted-foreground">
+                Lane: {biddingLoad.origin} → {biddingLoad.destination} · Budget: ₹{biddingLoad.budget.toLocaleString("en-IN")}
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleBidSubmit} className="mt-4 flex flex-col gap-4">
+              <div>
+                <label className="mb-1 block text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                  Your Bid Rate (₹ / km) *
+                </label>
+                <input
+                  type="number"
+                  required
+                  value={bidRate}
+                  onChange={(e) => setBidRate(e.target.value)}
+                  placeholder="e.g. 14"
+                  className="focus-ring h-10 w-full rounded-[5px] border border-border bg-background px-3 text-[13px] text-foreground"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                  Notes / Fleet Details
+                </label>
+                <textarea
+                  value={bidNotes}
+                  onChange={(e) => setBidNotes(e.target.value)}
+                  placeholder="Mention vehicle number, driver availability..."
+                  rows={3}
+                  className="focus-ring w-full rounded-[5px] border border-border bg-background p-2.5 text-[13px] text-foreground"
+                />
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setBiddingLoad(null)}
+                  className="h-10 flex-1 rounded-[6px] border border-border text-[13px] font-medium text-foreground hover:bg-accent"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingBid}
+                  className="inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-[6px] bg-foreground text-[13px] font-medium uppercase tracking-wider text-background hover:bg-foreground/90 disabled:opacity-50"
+                >
+                  {submittingBid ? "Submitting..." : "Submit Bid"}
+                </button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {/* Listing detail dialog (state-driven, deep-linkable) */}
       {selectedListing && (

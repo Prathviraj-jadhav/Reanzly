@@ -328,13 +328,13 @@ export function MarketplaceHero({
         </form>
 
         {/* Stats strip */}
-        <dl className="mx-auto mt-10 grid max-w-4xl grid-cols-2 gap-px overflow-hidden rounded-[6px] border border-border bg-border sm:grid-cols-3 lg:grid-cols-6">
-          <StatCell icon={<Truck className="h-3 w-3" />} label="Vehicles" value={`${MARKETPLACE_STATS.totalListings}+`} />
-          <StatCell icon={<ShieldCheck className="h-3 w-3" />} label="Verified owners" value={`${MARKETPLACE_STATS.verifiedOwners}+`} />
-          <StatCell icon={<MapPin className="h-3 w-3" />} label="Cities" value={`${MARKETPLACE_STATS.citiesCovered}`} />
-          <StatCell icon={<Users className="h-3 w-3" />} label="Total bookings" value={`${(MARKETPLACE_STATS.totalBookings / 1000).toFixed(1)}K+`} />
-          <StatCell icon={<RouteIcon className="h-3 w-3" />} label="Vehicle types" value={`${MARKETPLACE_STATS.vehicleTypes}`} />
-          <StatCell icon={<Package className="h-3 w-3" />} label="Open loads" value={`${MARKETPLACE_STATS.openLoads}`} />
+        <dl className="mx-auto mt-10 grid max-w-4xl grid-cols-2 gap-px overflow-hidden rounded-[8px] border border-border bg-border/40 backdrop-blur-sm sm:grid-cols-3 lg:grid-cols-6 shadow-sm">
+          <StatCell icon={<Truck className="h-3.5 w-3.5" />} label="Vehicles" value={`${MARKETPLACE_STATS.totalListings}+`} />
+          <StatCell icon={<ShieldCheck className="h-3.5 w-3.5" />} label="Verified owners" value={`${MARKETPLACE_STATS.verifiedOwners}+`} />
+          <StatCell icon={<MapPin className="h-3.5 w-3.5" />} label="Cities" value={`${MARKETPLACE_STATS.citiesCovered}`} />
+          <StatCell icon={<Users className="h-3.5 w-3.5" />} label="Total bookings" value={`${(MARKETPLACE_STATS.totalBookings / 1000).toFixed(1)}K+`} />
+          <StatCell icon={<RouteIcon className="h-3.5 w-3.5" />} label="Vehicle types" value={`${MARKETPLACE_STATS.vehicleTypes}`} />
+          <StatCell icon={<Package className="h-3.5 w-3.5" />} label="Open loads" value={`${MARKETPLACE_STATS.openLoads}`} />
         </dl>
       </div>
 
@@ -464,12 +464,12 @@ function FieldInput({
    ============================================================ */
 function StatCell({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
-    <div className="flex flex-col items-center justify-center bg-background px-3 py-4">
-      <dt className="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-        {icon}
+    <div className="flex flex-col items-center justify-center bg-card/30 backdrop-blur-sm px-3 py-4 transition-all duration-300 hover:bg-card/65 group hover:scale-[1.02]">
+      <dt className="flex items-center gap-1 text-[9px] font-medium uppercase tracking-wider text-muted-foreground group-hover:text-foreground transition-colors">
+        <span className="text-muted-foreground group-hover:text-foreground transition-colors">{icon}</span>
         {label}
       </dt>
-      <dd className="mt-1 text-[22px] font-medium tabular tracking-tight text-foreground">
+      <dd className="mt-1 text-[21px] font-bold tabular tracking-tight text-foreground">
         {value}
       </dd>
     </div>
@@ -487,29 +487,30 @@ function FeaturedTile({
 }) {
   const meta = VEHICLE_TYPE_META[listing.vehicle.type];
   return (
-    <article className="group flex flex-col gap-3 rounded-[6px] border border-border bg-background p-4 transition-colors hover:border-foreground/30">
+    <article className="group flex flex-col gap-3.5 rounded-[8px] border border-border bg-background p-3.5 transition-all duration-300 hover:border-foreground/45 hover:shadow-[0_8px_30px_rgb(0,0,0,0.05)] dark:hover:shadow-[0_8px_30px_rgb(0,0,0,0.25)] hover:scale-[1.01]">
       {/* Photo placeholder */}
-      <div className="relative flex h-28 items-center justify-center overflow-hidden rounded-[5px] border border-border bg-muted/40">
-        <Truck className="h-10 w-10 text-foreground/30" aria-hidden />
-        <span className="absolute bottom-1.5 left-1.5 rounded-[3px] border border-border bg-background/80 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wider text-muted-foreground backdrop-blur-sm">
+      <div className="relative flex h-28 items-center justify-center overflow-hidden rounded-[6px] border border-border bg-gradient-to-br from-neutral-50 to-neutral-100 dark:from-neutral-900/40 dark:to-neutral-950/60">
+        <Truck className="h-10 w-10 text-foreground/20 transition-transform duration-300 group-hover:scale-110" aria-hidden />
+        <span className="absolute bottom-2 left-2 rounded-[4px] border border-border bg-background/90 px-1.5 py-0.5 text-[9px] font-mono font-medium uppercase tracking-wider text-muted-foreground backdrop-blur-sm shadow-sm">
           {meta.label}
         </span>
         {listing.owner.verified && (
-          <span className="absolute right-1.5 top-1.5 inline-flex items-center gap-0.5 rounded-[3px] border border-foreground/30 bg-foreground/5 px-1 py-0 text-[9px] font-medium uppercase tracking-wider text-foreground">
-            <ShieldCheck className="h-2.5 w-2.5" /> Verified
+          <span className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-[4px] border border-foreground/15 bg-background/90 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-foreground backdrop-blur-sm shadow-sm">
+            <span className="h-1.5 w-1.5 rounded-full bg-foreground" />
+            Verified
           </span>
         )}
       </div>
 
       {/* Title + route */}
       <div>
-        <h3 className="truncate text-[14px] font-semibold text-foreground">
+        <h3 className="truncate text-[14px] font-semibold tracking-tight text-foreground group-hover:text-foreground/95 transition-colors">
           {listing.title}
         </h3>
         <p className="mt-0.5 flex items-center gap-1 text-[12px] text-muted-foreground">
           <MapPin className="h-3 w-3" />
-          {listing.route.origin} → {listing.route.destination}
-          <span className="text-muted-foreground/60">· {listing.route.distanceKm} km</span>
+          <span className="truncate">{listing.route.origin} → {listing.route.destination}</span>
+          <span className="text-muted-foreground/60 shrink-0">· {listing.route.distanceKm} km</span>
         </p>
       </div>
 
@@ -526,14 +527,14 @@ function FeaturedTile({
       </div>
 
       {/* Badges */}
-      <div className="flex flex-wrap items-center gap-1">
-        <span className="rounded-[3px] border border-border bg-muted/20 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wider text-muted-foreground">
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span className="rounded-[4px] border border-border bg-muted/20 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wider text-muted-foreground">
           {listing.vehicle.bodyType}
         </span>
-        <span className="rounded-[3px] border border-border bg-muted/20 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wider text-muted-foreground">
+        <span className="rounded-[4px] border border-border bg-muted/20 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wider text-muted-foreground">
           {listing.vehicle.axle}-tyre
         </span>
-        <span className="rounded-[3px] border border-border bg-muted/20 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wider text-muted-foreground">
+        <span className="rounded-[4px] border border-border bg-muted/20 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wider text-muted-foreground">
           {listing.vehicle.capacityTonnes}T
         </span>
       </div>
@@ -541,17 +542,17 @@ function FeaturedTile({
       {/* Price + CTA */}
       <div className="mt-auto flex items-center justify-between gap-2 border-t border-border pt-2.5">
         <div>
-          <p className="text-[15px] font-semibold tabular text-foreground">
+          <p className="text-[15px] font-bold tabular text-foreground">
             ₹{listing.pricing.perDay.toLocaleString("en-IN")}
           </p>
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+          <p className="text-[9px] uppercase tracking-wider text-muted-foreground">
             per day
           </p>
         </div>
         <button
           type="button"
           onClick={onView}
-          className="tap flex h-8 items-center justify-center rounded-[5px] border border-border px-3 text-[12px] font-medium text-foreground transition-colors hover:bg-accent"
+          className="tap flex h-8 items-center justify-center rounded-[5px] border border-border bg-background px-3 text-[12px] font-medium text-foreground transition-all hover:bg-foreground hover:text-background hover:border-foreground"
         >
           View details
         </button>

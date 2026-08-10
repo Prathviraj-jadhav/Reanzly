@@ -65,7 +65,8 @@ export type VendorSubView =
   | "profile"
   | "analytics"
   | "rfq"
-  | "support";
+  | "support"
+  | "marketplace";
 
 // ===== Formatters =====
 export function formatINR(n: number): string {

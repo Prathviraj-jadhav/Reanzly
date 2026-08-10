@@ -142,12 +142,12 @@ export function MarketplaceDetailDialog({
         {/* Tabs */}
         <div className="flex flex-col gap-4 p-5">
           <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)}>
-            <TabsList className="grid w-full grid-cols-5 rounded-[5px] border border-border bg-background p-0.5">
-              <TabsTrigger value="overview" className="rounded-[4px] text-[11px] font-medium uppercase tracking-wider">Overview</TabsTrigger>
-              <TabsTrigger value="specs" className="rounded-[4px] text-[11px] font-medium uppercase tracking-wider">Specs</TabsTrigger>
-              <TabsTrigger value="owner" className="rounded-[4px] text-[11px] font-medium uppercase tracking-wider">Owner</TabsTrigger>
-              <TabsTrigger value="reviews" className="rounded-[4px] text-[11px] font-medium uppercase tracking-wider">Reviews</TabsTrigger>
-              <TabsTrigger value="book" className="rounded-[4px] text-[11px] font-medium uppercase tracking-wider">Book</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-5 rounded-[6px] border border-border bg-muted/40 p-1 shadow-inner backdrop-blur-sm">
+              <TabsTrigger value="overview" className="rounded-[4px] text-[11px] font-bold uppercase tracking-wider transition-all data-[state=active]:bg-foreground data-[state=active]:text-background">Overview</TabsTrigger>
+              <TabsTrigger value="specs" className="rounded-[4px] text-[11px] font-bold uppercase tracking-wider transition-all data-[state=active]:bg-foreground data-[state=active]:text-background">Specs</TabsTrigger>
+              <TabsTrigger value="owner" className="rounded-[4px] text-[11px] font-bold uppercase tracking-wider transition-all data-[state=active]:bg-foreground data-[state=active]:text-background">Owner</TabsTrigger>
+              <TabsTrigger value="reviews" className="rounded-[4px] text-[11px] font-bold uppercase tracking-wider transition-all data-[state=active]:bg-foreground data-[state=active]:text-background">Reviews</TabsTrigger>
+              <TabsTrigger value="book" className="rounded-[4px] text-[11px] font-bold uppercase tracking-wider transition-all data-[state=active]:bg-foreground data-[state=active]:text-background">Book</TabsTrigger>
             </TabsList>
 
             {/* Overview */}

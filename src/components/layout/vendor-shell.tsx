@@ -18,6 +18,7 @@ import { VendorAnalytics } from "@/components/modules/vendor-portal/vendor-analy
 import { VendorRFQ } from "@/components/modules/vendor-portal/vendor-rfq";
 import { VendorSupport } from "@/components/modules/vendor-portal/vendor-support";
 import { type VendorSubView } from "@/components/modules/vendor-portal/_helpers";
+import { MarketplaceSite } from "@/components/marketing/marketplace-site";
 import {
   LayoutDashboard,
   Truck,
@@ -38,6 +39,7 @@ import {
   BarChart3,
   Send,
   LifeBuoy,
+  Store,
   type LucideIcon,
 } from "lucide-react";
 
@@ -84,6 +86,7 @@ const SUB_NAV: SubNavItem[] = [
   { id: "pods", label: "PODs", description: "Proof of delivery", icon: ClipboardCheck, group: "Operations" },
   { id: "analytics", label: "Analytics", description: "Shipment performance", icon: BarChart3, group: "Operations" },
   { id: "rfq", label: "RFQ / Quotes", description: "Respond to freight RFQs", icon: Send, group: "Operations" },
+  { id: "marketplace", label: "Marketplace", description: "Rent trucks & browse loads", icon: Store, group: "Operations" },
   // Finance
   { id: "invoices", label: "Invoices", description: "Your invoices + payments", icon: FileText, group: "Finance" },
   { id: "ledger", label: "Ledger", description: "Account statement", icon: BookText, group: "Finance" },
@@ -497,6 +500,7 @@ export function VendorShell() {
                 {safeActive === "analytics" && <VendorAnalytics />}
                 {safeActive === "rfq" && <VendorRFQ />}
                 {safeActive === "support" && <VendorSupport />}
+                {safeActive === "marketplace" && <MarketplaceSite isPortal={true} />}
               </ErrorBoundary>
             </div>
             <VendorFooter />

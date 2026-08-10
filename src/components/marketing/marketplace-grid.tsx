@@ -286,17 +286,26 @@ function LoadCard({ load, onApply }: { load: LoadListing; onApply: () => void })
       </div>
 
       {/* Route map-style indicator */}
-      <div className="flex items-center gap-2.5 rounded-[6px] border border-border/80 bg-neutral-50/50 dark:bg-neutral-900/30 px-3 py-2.5 text-[12.5px]">
-        <div className="flex flex-1 items-center gap-2 truncate">
-          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-foreground" />
-          <span className="font-semibold text-foreground truncate">{load.origin}</span>
-          <span className="text-muted-foreground/35 select-none font-light">────</span>
-          <span className="h-1.5 w-1.5 shrink-0 rounded-full border border-foreground bg-background" />
-          <span className="font-semibold text-foreground truncate">{load.destination}</span>
+      <div className="flex items-center justify-between gap-4 rounded-[6px] border border-border bg-neutral-50/50 dark:bg-neutral-900/20 px-3 py-2.5 text-[12.5px] shadow-sm">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          <span className="h-2 w-2 shrink-0 rounded-full bg-foreground" />
+          <span className="truncate font-semibold text-foreground" title={load.origin}>
+            {load.origin}
+          </span>
+          
+          <div className="flex flex-1 items-center justify-center px-1">
+            <div className="relative w-full border-t border-dashed border-muted-foreground/30 flex items-center justify-center">
+              <span className="absolute -top-2 rounded-[3px] border border-border bg-background px-1.5 py-0.2 text-[8.5px] font-mono text-muted-foreground">
+                {load.distanceKm} km
+              </span>
+            </div>
+          </div>
+
+          <span className="h-2 w-2 shrink-0 rounded-full border border-foreground bg-background" />
+          <span className="truncate font-semibold text-foreground" title={load.destination}>
+            {load.destination}
+          </span>
         </div>
-        <span className="shrink-0 font-mono text-[10.5px] bg-muted/40 px-1.5 py-0.2 rounded text-muted-foreground">
-          {load.distanceKm} km
-        </span>
       </div>
 
       {/* Requirements */}

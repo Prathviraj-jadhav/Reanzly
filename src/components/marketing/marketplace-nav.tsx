@@ -39,13 +39,15 @@ export interface MarketplaceNavProps {
   onTabChange: (t: "vehicles" | "loads") => void;
   onListVehicle: () => void;
   onPostLoad: () => void;
+  isPortal?: boolean;
 }
 
 export function MarketplaceNav({
-  tab, onTabChange, onListVehicle, onPostLoad,
+  tab, onTabChange, onListVehicle, onPostLoad, isPortal = false,
 }: MarketplaceNavProps) {
   const setMarketingView = useAppStore((s) => s.setMarketingView);
   const setAuthMode = useAppStore((s) => s.setAuthMode);
+  const setPortal = useAppStore((s) => s.setPortal);
   const [mobileOpen, setMobileOpen] = useState(false);
 
   function goHome() {
@@ -55,6 +57,7 @@ export function MarketplaceNav({
   }
   function goSignIn() {
     setMobileOpen(false);
+    setPortal("vendor");
     setAuthMode("signin");
     setMarketingView("auth");
   }
@@ -65,6 +68,59 @@ export function MarketplaceNav({
   function goPostLoad() {
     setMobileOpen(false);
     onPostLoad();
+  }
+
+  if (isPortal) {
+    return (
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-border bg-card/30 p-3 sm:p-4 backdrop-blur-md rounded-[8px] border">
+        {/* Tab switcher */}
+        <div className="flex items-center gap-1 rounded-[6px] border border-border bg-background p-0.5">
+          <TabButton
+            active={tab === "vehicles"}
+            onClick={() => onTabChange("vehicles")}
+            icon={<Truck className="h-3 w-3" />}
+            label="Browse Vehicles"
+          />
+          <TabButton
+            active={tab === "loads"}
+            onClick={() => onTabChange("loads")}
+            icon={<Package className="h-3 w-3" />}
+            label="Find Loads"
+          />
+        </div>
+
+        {/* Info stats */}
+        <span className="hidden items-center gap-1.5 text-[11px] uppercase tracking-wider text-muted-foreground md:flex">
+          <span className="relative flex h-1.5 w-1.5">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-foreground opacity-75"></span>
+            <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-foreground"></span>
+          </span>
+          <span>
+            {MARKETPLACE_STATS.totalListings}+ vehicles · {MARKETPLACE_STATS.openLoads} loads · {MARKETPLACE_STATS.citiesCovered} cities
+          </span>
+        </span>
+
+        {/* CTAs */}
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={goListVehicle}
+            className="tap inline-flex h-9 items-center gap-1.5 rounded-[6px] border border-border bg-background px-3 text-[12px] font-medium text-foreground transition-colors hover:bg-accent"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            List Vehicle
+          </button>
+          <button
+            type="button"
+            onClick={goPostLoad}
+            className="tap inline-flex h-9 items-center gap-1.5 rounded-[6px] bg-foreground px-3 text-[12px] font-medium uppercase tracking-wider text-background transition-colors hover:bg-foreground/90"
+          >
+            <FileText className="h-3.5 w-3.5" />
+            Post Load
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (
