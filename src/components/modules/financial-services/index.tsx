@@ -6,22 +6,15 @@ import { KpiCard } from "@/components/shared/kpi-card";
 import { DataTable, type Column } from "@/components/shared/data-table";
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
-import {
-  useFinancialServicesStore,
-  type FinancingApplication,
-  type FinancingProductType,
-} from "@/lib/store/financial-services-store";
 import { FINANCING_OFFERS, type FinancingOffer } from "./_data";
 import {
   formatINR,
   formatDate,
-  eligibleInvoices,
-  availableCreditLine,
-  workingCapitalEligible,
-  fuelCardEligible,
   financingStatusBadge,
   ADVANCE_RATE,
+  type FinancingProductType,
 } from "./_helpers";
+import { useFinancialServicesData, type FinancingApplicationDTO } from "./use-financial-services-data";
 import { ApplyFinancingDrawer } from "./apply-financing-drawer";
 import {
   FileText,
@@ -37,14 +30,15 @@ import { toast } from "sonner";
 
 /* ============================================================
    Financial Services module
-   Embedded fintech surfaced against the org's OWN invoice book -
-   invoice discounting / working capital / fuel card offers with
-   illustrative eligibility math.
+   Embedded fintech surfaced against the org's OWN real invoice
+   book and fleet - invoice discounting / working capital / fuel
+   card offers with illustrative eligibility math computed from
+   real Invoice/Vehicle data (src/lib/financial-services-engine.ts),
+   and a real, persisted applications ledger.
 
-   DEMO ONLY - see the disclaimer banner below. Nothing on this
-   page moves real money, calls a real bureau, or makes a real
-   credit decision. All numbers are computed client-side from
-   the mock INVOICES / VEHICLES data.
+   DEMO ONLY for the underwriting/disbursal decision itself - see
+   the disclaimer banner below. Nothing on this page moves real
+   money, calls a real bureau, or makes a real credit decision.
    ============================================================ */
 
 const OFFER_ICONS: Record<FinancingOffer["icon"], ReactNode> = {
@@ -54,9 +48,7 @@ const OFFER_ICONS: Record<FinancingOffer["icon"], ReactNode> = {
 };
 
 export function FinancialServicesModule() {
-  const applications = useFinancialServicesStore((s) => s.applications);
-  const hasHydrated = useFinancialServicesStore((s) => s.hasHydrated);
-  const withdrawApplication = useFinancialServicesStore((s) => s.withdrawApplication);
+  const { eligibility, applications, loaded, withdrawApplication, applyForFinancing } = useFinancialServicesData();
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [presetProduct, setPresetProduct] = useState<FinancingProductType | undefined>(undefined);
@@ -66,19 +58,17 @@ export function FinancialServicesModule() {
     setDrawerOpen(true);
   };
 
-  const eligible = eligibleInvoices();
-  const creditLine = availableCreditLine();
   const outstandingAdvances = applications
     .filter((a) => a.status === "approved" || a.status === "disbursed")
     .reduce((s, a) => s + a.requestedAmount, 0);
 
   const eligibleByProduct: Record<FinancingProductType, number> = {
-    "Invoice Discounting": creditLine,
-    "Working Capital Loan": workingCapitalEligible(),
-    "Fuel Card Credit Line": fuelCardEligible(),
+    "Invoice Discounting": eligibility.availableCreditLine,
+    "Working Capital Loan": eligibility.workingCapitalEligible,
+    "Fuel Card Credit Line": eligibility.fuelCardEligible,
   };
 
-  const columns: Column<FinancingApplication>[] = [
+  const columns: Column<FinancingApplicationDTO>[] = [
     {
       key: "applicationNumber",
       header: "Application",
@@ -148,15 +138,15 @@ export function FinancialServicesModule() {
   const rowActions = [
     {
       label: "View",
-      onClick: (a: FinancingApplication) =>
+      onClick: (a: FinancingApplicationDTO) =>
         toast(a.applicationNumber, {
           description: `${a.productType} · ${formatINR(a.requestedAmount)} · ${financingStatusBadge(a.status).label}`,
         }),
     },
     {
       label: "Withdraw",
-      onClick: (a: FinancingApplication) => {
-        const ok = withdrawApplication(a.id);
+      onClick: async (a: FinancingApplicationDTO) => {
+        const ok = await withdrawApplication(a.id);
         if (ok) {
           toast("Application withdrawn", { description: a.applicationNumber });
         } else {
@@ -174,7 +164,7 @@ export function FinancialServicesModule() {
         description="Invoice financing and working-capital offers, computed from your own invoice history."
         meta={[
           { label: "Applications", value: applications.length },
-          { label: "Eligible Invoices", value: eligible.length },
+          { label: "Eligible Invoices", value: eligibility.eligibleInvoices.length },
         ]}
         actions={
           <Btn variant="primary" icon={<Plus className="h-3.5 w-3.5" />} onClick={() => openApply()}>
@@ -187,8 +177,9 @@ export function FinancialServicesModule() {
       <div className="flex items-start gap-2.5 rounded-[6px] border border-dashed border-border bg-muted/30 px-3.5 py-2.5">
         <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
         <p className="text-[12px] leading-relaxed text-muted-foreground">
-          <span className="font-medium text-foreground">Demo environment.</span> Offers, eligibility, and applications
-          on this page are illustrative only. No real credit decision is made and no real funds are disbursed.
+          <span className="font-medium text-foreground">Demo environment.</span> Eligibility is computed from your real
+          invoice and fleet data, and applications are really saved - but no real credit decision is made and no real
+          funds are disbursed.
         </p>
       </div>
 
@@ -196,17 +187,18 @@ export function FinancialServicesModule() {
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <KpiCard
           label="Available Credit Line"
-          value={formatINR(creditLine)}
+          value={loaded ? formatINR(eligibility.availableCreditLine) : "…"}
           icon={<Wallet className="h-4 w-4" />}
         />
         <KpiCard
           label="Outstanding Advances"
-          value={formatINR(outstandingAdvances)}
+          value={loaded ? formatINR(outstandingAdvances) : "…"}
           icon={<Landmark className="h-4 w-4" />}
         />
         <KpiCard
           label="Avg. Processing Time"
-          value="48 hrs"
+          value={loaded ? (eligibility.avgProcessingHours !== null ? `${Math.round(eligibility.avgProcessingHours)} hrs` : "-") : "…"}
+          progressLabel={eligibility.avgProcessingHours === null ? "no resolved applications yet" : undefined}
           icon={<Clock3 className="h-4 w-4" />}
         />
       </div>
@@ -230,9 +222,9 @@ export function FinancialServicesModule() {
       <div className="rounded-[6px] border border-border bg-card overflow-hidden">
         <div className="border-b border-border px-4 py-3">
           <h2 className="text-[13px] font-medium text-foreground">Application History</h2>
-          <p className="text-[11px] text-muted-foreground">Demo applications submitted against this organisation.</p>
+          <p className="text-[11px] text-muted-foreground">Real applications submitted against this organisation.</p>
         </div>
-        {!hasHydrated ? (
+        {!loaded ? (
           <div className="px-4 py-10 text-center text-[13px] text-muted-foreground">Loading applications…</div>
         ) : (
           <DataTable
@@ -252,11 +244,17 @@ export function FinancialServicesModule() {
       </div>
 
       <p className="text-[11px] text-muted-foreground">
-        Illustrative only - eligibility is computed from your unpaid, overdue, and partially paid invoices at an
+        Eligibility is computed from your real unpaid, overdue, and partially paid invoices at an
         {" "}{Math.round(ADVANCE_RATE * 100)}% advance rate. No real bank, NBFC, or payment rail is connected in this demo.
       </p>
 
-      <ApplyFinancingDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} initialProduct={presetProduct} />
+      <ApplyFinancingDrawer
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        initialProduct={presetProduct}
+        eligibleInvoices={eligibility.eligibleInvoices}
+        onSubmit={applyForFinancing}
+      />
     </div>
   );
 }

@@ -2074,3 +2074,33 @@ model CustomReport {
   @@index([companyId])
 }
 
+// ===== FINANCIAL SERVICES =====
+// Embedded-fintech demo module (invoice discounting / working capital /
+// fuel card offers against the org's own real invoice/fleet data). The
+// eligibility math already read real Invoice/Vehicle fields once this
+// model existed to persist against - only the applications ledger itself
+// was fake (a Zustand store persisted to browser localStorage, not shared
+// across users/devices, not company-scoped, lost if localStorage was
+// cleared). This module intentionally stays illustrative for the actual
+// underwriting/disbursal decision (no real bureau or payment rail is
+// wired in, per the standing no-third-party-integrations constraint) -
+// only the record-keeping itself needed to become real.
+
+model FinancingApplication {
+  id                String    @id @default(cuid())
+  companyId         String
+  applicationNumber String    @unique
+  productType       String    // Invoice Discounting | Working Capital Loan | Fuel Card Credit Line
+  linkedInvoiceIds  String    @default("[]") // JSON array of real Invoice ids
+  requestedAmount   Int       // rupees, matching Invoice.totalAmount's convention
+  tenureMonths      Int
+  status            String    @default("submitted") // draft | submitted | under_review | approved | disbursed | rejected
+  notes             String?
+  createdBy         String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  resolvedAt        DateTime? // set once status reaches approved | disbursed | rejected - powers a real avg-processing-time KPI
+
+  @@index([companyId])
+}
+

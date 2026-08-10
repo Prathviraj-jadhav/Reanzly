@@ -1613,6 +1613,67 @@ nobody had wired it up.
       `runCount` 9 → 10, 16 real rows returned using saved filters). Zero
       new TypeScript/ESLint errors across the full touched set.
 
+## Financial Services module converted from mock/localStorage to real DB data (2026-08-11)
+
+- [x] **The last of the four modules from this pass - eligibility math and
+      the applications ledger both rebuilt on real data.** This module
+      (embedded invoice-discounting / working-capital / fuel-card
+      financing offers, built earlier this session) was already carefully
+      framed as an illustrative demo - and stays that way for the
+      underwriting/disbursal decision itself, per the standing no-third-
+      party-integrations constraint - but underneath the honest framing,
+      every number was fake: eligibility math read from `mock-data.ts`'s
+      shared `INVOICES`/`VEHICLES` arrays instead of this company's real
+      `Invoice`/`Vehicle` rows, and the entire applications ledger was a
+      Zustand store persisted to **browser localStorage** - not shared
+      across users or devices, not scoped to a company, gone if
+      localStorage was ever cleared.
+      Added a `FinancingApplication` Prisma model and a new
+      `src/lib/financial-services-engine.ts` with real eligibility
+      queries: `availableCreditLine` (80% of real unpaid/overdue/
+      partially-paid `Invoice` rows), `workingCapitalEligible` (15% of
+      real trailing invoiced revenue), `fuelCardEligible` (real active-
+      vehicle count × per-vehicle limit), and a real **Avg. Processing
+      Time** KPI computed from the actual `resolvedAt - createdAt` gap
+      across applications that have reached a resolved status - honestly
+      showing "-" when no application has resolved yet, replacing the
+      hardcoded `"48 hrs"` string that was never connected to anything.
+      Added 3 real API routes under `src/app/api/financial-services/`:
+      `eligibility` (the aggregation above), and full `applications`
+      CRUD (list/create/withdraw), with server-generated sequential
+      `RZ-FIN-#####` application numbers scoped per company. Removed
+      `src/lib/store/financial-services-store.ts` entirely and rewired
+      `index.tsx`/`apply-financing-drawer.tsx` onto a new
+      `use-financial-services-data.ts` fetch hook. The invoice picker in
+      the "Apply for Financing" drawer now lists real eligible invoices
+      with real customer names, due dates, and amounts instead of the
+      shared mock invoice book.
+      Added `src/scripts/seed-financial-services.ts` (idempotent) seeding
+      5 real applications, including one real Invoice Discounting
+      application linked to actual `Invoice` rows for this tenant, so the
+      module isn't empty on first load.
+      Verified live as the owner role: KPIs computed correctly from real
+      data (Available Credit Line ₹7,52,746, Eligible Invoices 11,
+      **Avg. Processing Time 128 hrs - independently hand-verified against
+      the 3 seeded resolved applications' real timestamps and it matched
+      exactly**), submitted a real application through the full UI flow
+      (selected a real invoice, used the real "80%" suggested-amount
+      button, submitted - got a new row `RZ-FIN-00006` with the correct
+      next sequential number and real session-user authorship), and
+      confirmed Withdraw for real via the API (status → `rejected`, notes
+      → "Withdrawn by applicant.", real timestamp). Zero new
+      TypeScript/ESLint errors.
+
+      **Flagged, not fixed (out of scope for this conversion):** the
+      module survey found `financial-services` (and `partner-programme`)
+      aren't listed in *any* role's permissions except `owner`'s wildcard
+      `"*"` - not even `finance-manager` or `accountant`, who'd be the
+      obvious owners of this module. This looks like an oversight from
+      whichever earlier session added the Ecosystem sidebar section.
+      Leaving this for the existing in-progress "Audit role-based access
+      across all 17 seeded roles" task rather than touching RBAC as a
+      side effect of a data-conversion pass.
+
 ## Sequencing reminder
 
 Agreed order with the user: **Stage 1 (SLM) → Stage 2 (Chat) → Stage 3 (Calling)**,

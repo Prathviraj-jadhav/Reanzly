@@ -22,19 +22,26 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  useFinancialServicesStore,
-  FINANCING_PRODUCT_TYPES,
-  type FinancingProductType,
-} from "@/lib/store/financial-services-store";
 import { offerFor } from "./_data";
-import { eligibleInvoices, formatINR, formatDate, ADVANCE_RATE, FieldLabel } from "./_helpers";
+import {
+  formatINR, formatDate, ADVANCE_RATE, FieldLabel,
+  FINANCING_PRODUCT_TYPES, type FinancingProductType,
+} from "./_helpers";
+import type { EligibleInvoice, FinancingApplicationDTO } from "./use-financial-services-data";
 
 interface ApplyFinancingDrawerProps {
   open: boolean;
   onClose: () => void;
   /** Pre-selects a product when opened from an offer card's "Apply" CTA. */
   initialProduct?: FinancingProductType;
+  eligibleInvoices: EligibleInvoice[];
+  onSubmit: (payload: {
+    productType: FinancingProductType;
+    linkedInvoiceIds: string[];
+    requestedAmount: number;
+    tenureMonths: number;
+    notes?: string;
+  }) => Promise<FinancingApplicationDTO | null>;
 }
 
 interface FormState {
@@ -56,11 +63,10 @@ function emptyForm(product?: FinancingProductType): FormState {
   };
 }
 
-export function ApplyFinancingDrawer({ open, onClose, initialProduct }: ApplyFinancingDrawerProps) {
-  const applyForFinancing = useFinancialServicesStore((s) => s.applyForFinancing);
+export function ApplyFinancingDrawer({ open, onClose, initialProduct, eligibleInvoices, onSubmit }: ApplyFinancingDrawerProps) {
   const [form, setForm] = useState<FormState>(() => emptyForm(initialProduct));
+  const [submitting, setSubmitting] = useState(false);
 
-  const invoices = useMemo(() => eligibleInvoices(), []);
   const offer = offerFor(form.productType);
   const isInvoiceDiscounting = form.productType === "Invoice Discounting";
 
@@ -76,7 +82,10 @@ export function ApplyFinancingDrawer({ open, onClose, initialProduct }: ApplyFin
   const update = <K extends keyof FormState>(k: K, v: FormState[K]) =>
     setForm((s) => ({ ...s, [k]: v }));
 
-  const selectedInvoices = invoices.filter((inv) => form.linkedInvoiceIds.includes(inv.id));
+  const selectedInvoices = useMemo(
+    () => eligibleInvoices.filter((inv) => form.linkedInvoiceIds.includes(inv.id)),
+    [eligibleInvoices, form.linkedInvoiceIds],
+  );
   const selectedOutstanding = selectedInvoices.reduce((s, inv) => s + inv.totalAmount, 0);
   const suggestedAmount = isInvoiceDiscounting
     ? Math.round(selectedOutstanding * ADVANCE_RATE)
@@ -101,7 +110,7 @@ export function ApplyFinancingDrawer({ open, onClose, initialProduct }: ApplyFin
     }));
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (isInvoiceDiscounting && form.linkedInvoiceIds.length === 0) {
       toast("Select at least one invoice to finance against");
       return;
@@ -117,16 +126,19 @@ export function ApplyFinancingDrawer({ open, onClose, initialProduct }: ApplyFin
       return;
     }
 
-    applyForFinancing({
+    setSubmitting(true);
+    const created = await onSubmit({
       productType: form.productType,
       linkedInvoiceIds: form.linkedInvoiceIds,
       requestedAmount: amount,
       tenureMonths: tenure,
       notes: form.notes.trim() || undefined,
     });
+    setSubmitting(false);
+    if (!created) return;
 
     toast.success("Application submitted for review", {
-      description: `${offer.title} · ${formatINR(amount)} · demo application, no funds move`,
+      description: `${offer.title} · ${formatINR(amount)} · saved for real, no funds move`,
     });
     setForm(emptyForm());
     onClose();
@@ -139,7 +151,7 @@ export function ApplyFinancingDrawer({ open, onClose, initialProduct }: ApplyFin
           <div className="space-y-1">
             <SheetTitle className="text-[17px] font-medium tracking-tight">Apply for Financing</SheetTitle>
             <SheetDescription className="text-[12px] text-muted-foreground">
-              Demo application - illustrative eligibility only, no real credit decision or disbursal.
+              Real eligibility from your invoice data, illustrative underwriting only - no real credit decision or disbursal.
             </SheetDescription>
           </div>
           <button
@@ -186,13 +198,13 @@ export function ApplyFinancingDrawer({ open, onClose, initialProduct }: ApplyFin
               flush
               bodyClassName="p-0"
             >
-              {invoices.length === 0 ? (
+              {eligibleInvoices.length === 0 ? (
                 <div className="px-4 py-6 text-center text-[12px] text-muted-foreground">
                   No outstanding invoices eligible for financing right now.
                 </div>
               ) : (
                 <div className="max-h-64 divide-y divide-border overflow-y-auto scrollbar-thin">
-                  {invoices.map((inv) => {
+                  {eligibleInvoices.map((inv) => {
                     const checked = form.linkedInvoiceIds.includes(inv.id);
                     return (
                       <label
@@ -278,8 +290,8 @@ export function ApplyFinancingDrawer({ open, onClose, initialProduct }: ApplyFin
         {/* Footer */}
         <div className="flex items-center justify-between gap-2 border-t border-border px-5 py-3">
           <Btn variant="ghost" onClick={onClose}>Cancel</Btn>
-          <Btn variant="primary" icon={<Check className="h-3.5 w-3.5" />} onClick={handleSubmit}>
-            Submit Application
+          <Btn variant="primary" icon={<Check className="h-3.5 w-3.5" />} onClick={handleSubmit} disabled={submitting}>
+            {submitting ? "Submitting…" : "Submit Application"}
           </Btn>
         </div>
       </SheetContent>

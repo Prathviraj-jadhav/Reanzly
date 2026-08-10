@@ -1,4 +1,4 @@
-import type { FinancingProductType } from "@/lib/store/financial-services-store";
+import type { FinancingProductType } from "./_helpers";
 
 /* ============================================================
    _data.ts - static financing product/offer definitions.
