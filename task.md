@@ -1247,6 +1247,65 @@ nobody had wired it up.
       succeeded and respected ownership. Zero new TypeScript errors, zero
       new ESLint errors.
 
+## Dashboard module converted from mock data to real DB aggregation (2026-08-10)
+
+- [x] **Every KPI/list/chart widget on the Dashboard rewired off mock-data.ts
+      onto one real aggregation endpoint.** The Dashboard is the first
+      screen every role sees, and its 89 widget render functions
+      (~3,500 lines across `widget-registry.tsx`) all computed their
+      numbers from `KPI_STATS` and other mock arrays, plus a
+      `scopeFactor()`/`scopedCount()`/`scopedSlice()` helper that faked the
+      branch/group/location filter by multiplying real-looking numbers by
+      an arbitrary 0.55-0.72 factor - the filter dropdowns visibly changed
+      numbers, but none of it reflected real data.
+      Built one new `GET /api/dashboard/stats` route that aggregates real
+      Trip/Vehicle/Invoice/Issue/Inspection/FuelEntry/WorkOrder/Expense/
+      Reminder/Document/Employee/AttendanceRecord/LeaveRequest/PayrollRun/
+      HrPosition/Candidate/Customer/BrokerEnquiry/SupportTicket rows
+      (all real models built earlier this session) into one payload,
+      scoped by the real session's `companyId`. The `location` filter is
+      now real (not faked) for the metrics with a genuine location link
+      (`Vehicle.location`, `Employee.branchName`) - other metrics show
+      their real unscoped total rather than pretending to filter.
+      Added `DashboardStatsProvider`/`useDashboardStats()` (React context,
+      one fetch shared by every widget on a rendered dashboard instead of
+      each widget computing its own slice of mock data) and rewired all 89
+      render functions to read from it, preserving each widget's exact
+      visual structure - only the data source changed.
+      **Honestly flagged instead of faked** where no real backing model
+      exists yet (each has a code comment explaining why): parts/SKU
+      inventory (2 widgets, warehouse-manager/mechanic), a GST/TDS/bank
+      ledger (4 widgets, accountant), platform uptime telemetry and the
+      helpdesk-adjacent "Pending Approvals" KPI (2 widgets, superadmin -
+      the latter is real but lives in a separate SLM-approvals subsystem),
+      a driver-training model (1 widget), and an audit-schedule model (1
+      widget) - roughly 10 of 89 widgets. The weather widget stays
+      honestly unintegrated (would need a third-party API key, out of
+      scope per the standing "don't touch third-party integrations"
+      constraint) rather than showing fabricated temperature readings.
+      Rean's own recommendation/anomaly widgets (`REAN_RECOMMENDATIONS`/
+      `REAN_ANOMALIES`) were deliberately left untouched - they're a
+      separate subsystem already tracked under "make Rean dynamic," not
+      part of this pass.
+      Caught and fixed two real bugs during the conversion itself: a
+      React `react-hooks/set-state-in-effect` lint violation in the new
+      stats-fetching hook (fixed by deriving `loaded` from a `forLocation`
+      comparison instead of a synchronous `setState` at the top of the
+      effect), and a progress-meter percentage that could read "175%"
+      for the DSO widget at low values (missing an upper clamp).
+      Verified live across 4 roles (owner, accountant, mechanic, and a
+      fresh incognito-equivalent tab to rule out stale state): every real
+      number matched what the same session's other real modules already
+      showed (10 active trips, ₹16.3L period revenue, 3 overdue invoices
+      totaling ₹12.3L, 20 vehicles at 25% active, 0 fuel spend for a
+      tenant with no FuelEntry rows - correctly zero, not fabricated), all
+      flagged placeholders rendered as an honest "—" instead of a number,
+      and the empty-state copy read correctly ("No parts/inventory module
+      yet.", "No payables-aging module yet."). Zero console errors on a
+      genuinely fresh tab. Zero new TypeScript errors, zero new ESLint
+      errors (fixed the one real lint error the conversion introduced,
+      described above).
+
 ## Sequencing reminder
 
 Agreed order with the user: **Stage 1 (SLM) → Stage 2 (Chat) → Stage 3 (Calling)**,

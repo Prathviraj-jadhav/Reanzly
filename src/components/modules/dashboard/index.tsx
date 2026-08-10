@@ -26,6 +26,7 @@ import {
 import { SortableWidget } from "./widget-card";
 import { WidgetLibraryDialog } from "./widget-library-dialog";
 import { ManageView, DashboardSelector } from "./manage-view";
+import { DashboardStatsProvider } from "./stats-context";
 import {
   Plus, LayoutGrid, Eye, Sparkles, Search, ChevronDown, Share2, Filter, MessageSquare,
 } from "lucide-react";
@@ -309,16 +310,18 @@ export function DashboardModule() {
           onGoToTrips={() => navigate("trips")}
         />
       ) : (
-        <DashboardGrid
-          key={visibleActive.id}
-          layout={visibleActive.layout}
-          editMode={editMode && canEdit && view === "my"}
-          readOnly={view === "shared" || !canEdit}
-          sensors={sensors}
-          onDragEnd={handleDragEnd}
-          onRemove={(iid) => removeWidget(iid)}
-          onResize={(iid, size) => resizeWidget(iid, size)}
-        />
+        <DashboardStatsProvider location={visibleActive.filter.location}>
+          <DashboardGrid
+            key={visibleActive.id}
+            layout={visibleActive.layout}
+            editMode={editMode && canEdit && view === "my"}
+            readOnly={view === "shared" || !canEdit}
+            sensors={sensors}
+            onDragEnd={handleDragEnd}
+            onRemove={(iid) => removeWidget(iid)}
+            onResize={(iid, size) => resizeWidget(iid, size)}
+          />
+        </DashboardStatsProvider>
       )}
 
       {/* ===== Edit-mode hint ===== */}

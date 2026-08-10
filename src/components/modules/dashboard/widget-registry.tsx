@@ -8,27 +8,41 @@ import {
 import { formatDistanceToNow } from "date-fns";
 import {
   Truck, TrendingUp, Banknote, FileText, AlertCircle, Wrench,
-  CheckCircle2, Clock, Fuel, Gauge, Bell, MapPin, Users, Calendar,
-  AlertTriangle, Zap, ArrowRight, CircleDot, Sparkles, Package,
+  CheckCircle2, Clock, Fuel, Bell, MapPin, Users, Calendar,
+  AlertTriangle, Zap, ArrowRight, CircleDot, Package,
   ClipboardCheck, ListChecks, BarChart3, PieChart as PieIcon,
   Activity, Building2, ShieldAlert, Timer, UserCog,
   CloudSun, Headphones, Briefcase, Boxes, Percent, Target,
-  GraduationCap, UsersRound, CheckCheck, PackageOpen,
+  GraduationCap, UsersRound, CheckCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { KpiCard, Sparkline } from "@/components/shared/kpi-card";
-import { ProgressMeter } from "@/components/shared/section-card";
+import { KpiCard } from "@/components/shared/kpi-card";
 import { StatusBadge, LiveDot } from "@/components/shared/status-badge";
 import { Btn } from "@/components/shared/btn";
 import { useAppStore } from "@/lib/store/app-store";
 import { useDashboardStore, selectActiveDashboard, type DashboardFilter } from "@/lib/store/dashboard-store";
-import type { Issue } from "@/lib/types";
-import {
-  KPI_STATS, VEHICLES, TRIPS, INVOICES, ISSUES, DRIVERS, DOCUMENTS,
-  REMINDERS, WORK_ORDERS, INSPECTIONS, FUEL_ENTRIES, CUSTOMERS,
-  EXPENSES, REAN_RECOMMENDATIONS, REAN_ANOMALIES,
-} from "@/lib/mock-data";
+import { REAN_RECOMMENDATIONS, REAN_ANOMALIES } from "@/lib/mock-data";
 import { SmartInsightsWidget } from "./smart-insights-widget";
+import { useDashboardStats } from "./stats-context";
+
+/* ============================================================
+   Real data note
+   ------------------------------------------------------------
+   Every widget below reads from useDashboardStats() (backed by
+   GET /api/dashboard/stats, a real DB aggregation) instead of the
+   mock-data.ts arrays this file used to import directly. A widget
+   renders its neutral empty state (0 / "-" / empty list) while
+   `stats` is null (loading, or the fetch failed) rather than
+   throwing - there is no synthetic fallback data.
+   Exceptions, each commented at its own definition:
+   - REAN_RECOMMENDATIONS / REAN_ANOMALIES: a separate AI-insights
+     subsystem (tracked separately - "make Rean dynamic"), not
+     touched here.
+   - A handful of widgets have no real backing model at all yet
+     (SKU/parts inventory, a GST/TDS/bank ledger, driver training
+     records) - each is commented at its definition below rather
+     than silently left ambiguous.
+   ============================================================ */
 
 /* ============================================================
    Widget Registry - the catalog of customizable dashboard
@@ -68,31 +82,18 @@ export interface WidgetDef {
 }
 
 /* ============================================================
-   Filter helpers - widgets slice their data per the active
-   dashboard's branch / group / location selection.
+   Filter helper - widgets read the active dashboard's branch /
+   group / location selection for display. Real DB-backed scoping
+   is applied server-side in GET /api/dashboard/stats for the
+   metrics that have a genuine location link (Vehicle.location,
+   Employee.branchName) - see DashboardStatsProvider, which passes
+   `location` to that route. There is no fake scope multiplier
+   here anymore: a widget either really re-scopes (when the stats
+   route supports it) or shows the real unscoped total.
    ============================================================ */
 
 function useDashboardFilter(): DashboardFilter {
   return useDashboardStore((s) => selectActiveDashboard(s)?.filter ?? {});
-}
-
-/** Derive a numeric "scope factor" (0..1) from the filter so KPIs visibly
- *  change when a branch is selected. All-Branches => 1.0. */
-function scopeFactor(filter: DashboardFilter): number {
-  let f = 1;
-  if (filter.branch && filter.branch !== "All Branches") f *= 0.72;
-  if (filter.group && filter.group !== "All Groups") f *= 0.6;
-  if (filter.location && filter.location !== "All Locations") f *= 0.55;
-  return f;
-}
-
-function scopedCount(total: number, filter: DashboardFilter): number {
-  return Math.max(1, Math.round(total * scopeFactor(filter)));
-}
-
-function scopedSlice<T>(arr: T[], filter: DashboardFilter, cap?: number): T[] {
-  const n = Math.max(1, Math.round(arr.length * scopeFactor(filter)));
-  return arr.slice(0, cap ? Math.min(cap, n) : n);
 }
 
 /* ============================================================
@@ -122,39 +123,28 @@ const CHART_PALETTE = [
    ============================================================ */
 
 function ActiveTripsKpi(): ReactElement {
-  const filter = useDashboardFilter();
   const { navigate } = useAppStore();
-  const value = scopedCount(KPI_STATS.activeTrips, filter);
+  const { stats, loaded } = useDashboardStats();
+  const value = stats?.trips.activeCount ?? 0;
   return (
     <KpiCard
       label="Active Trips"
-      value={value}
-      delta="3.2%"
-      trend="up"
+      value={loaded ? value : "…"}
       icon={<Truck className="h-4 w-4" />}
-      spark={[4, 5, 6, 5, 7, 8, 7, 9, 8, value]}
-      progress={72}
-      progressLabel="of 12 target"
       onClick={() => navigate("trips")}
     />
   );
 }
 
 function OnTimeKpi(): ReactElement {
-  const filter = useDashboardFilter();
   const { navigate } = useAppStore();
-  const base = KPI_STATS.completionRate;
-  const value = filter.branch && filter.branch !== "All Branches"
-    ? Math.round((base - 4) * 10) / 10
-    : base;
+  const { stats, loaded } = useDashboardStats();
+  const value = stats?.trips.onTimePct ?? 0;
   return (
     <KpiCard
       label="On-Time %"
-      value={`${value}%`}
-      delta="1.4%"
-      trend="up"
+      value={loaded ? `${value}%` : "…"}
       icon={<TrendingUp className="h-4 w-4" />}
-      spark={[88, 89, 87, 90, 89, 91, 90, value]}
       progress={value}
       progressLabel="of 95% target"
       onClick={() => navigate("reports")}
@@ -163,77 +153,58 @@ function OnTimeKpi(): ReactElement {
 }
 
 function RevenueTodayKpi(): ReactElement {
-  const filter = useDashboardFilter();
   const { navigate } = useAppStore();
-  const value = scopedCount(KPI_STATS.revenueThisPeriod, filter);
+  const { stats, loaded } = useDashboardStats();
+  const value = stats?.invoices.revenuePeriod ?? 0;
   return (
     <KpiCard
       label="Revenue (Period)"
-      value={`₹${(value / 100000).toFixed(1)}L`}
-      delta="8.7%"
-      trend="up"
+      value={loaded ? `₹${(value / 100000).toFixed(1)}L` : "…"}
       icon={<Banknote className="h-4 w-4" />}
-      spark={[28, 31, 29, 34, 36, 38, 42, 48]}
-      progress={80}
-      progressLabel="of ₹60L target"
       onClick={() => navigate("invoice")}
     />
   );
 }
 
 function IdleVehiclesKpi(): ReactElement {
-  const filter = useDashboardFilter();
   const { navigate } = useAppStore();
-  const value = scopedCount(KPI_STATS.vehicleIdle, filter);
+  const { stats, loaded } = useDashboardStats();
+  const value = stats?.vehicles.idle ?? 0;
+  const total = stats?.vehicles.total ?? 0;
   return (
     <KpiCard
       label="Idle Vehicles"
-      value={value}
-      delta="2"
-      trend="down"
-      invertDelta
+      value={loaded ? value : "…"}
       icon={<CircleDot className="h-4 w-4" />}
-      spark={[9, 8, 10, 9, 8, 7, 8, value]}
-      progress={value * 6}
-      progressLabel="of 16 fleet"
+      progress={total ? (value / total) * 100 : 0}
+      progressLabel={`of ${total} fleet`}
       onClick={() => navigate("vehicles")}
     />
   );
 }
 
 function OverdueInvoicesKpi(): ReactElement {
-  const filter = useDashboardFilter();
   const { navigate } = useAppStore();
-  const value = scopedCount(KPI_STATS.outstandingInvoices, filter);
+  const { stats, loaded } = useDashboardStats();
+  const value = stats?.invoices.overdueCount ?? 0;
   return (
     <KpiCard
       label="Overdue Invoices"
-      value={value}
-      delta="1"
-      trend="up"
+      value={loaded ? value : "…"}
       icon={<FileText className="h-4 w-4" />}
-      spark={[5, 6, 4, 7, 5, 6, 7, value]}
-      progress={value * 8}
-      progressLabel="action req'd"
       onClick={() => navigate("invoice")}
     />
   );
 }
 
 function FuelCostKmKpi(): ReactElement {
-  const filter = useDashboardFilter();
-  const value = filter.branch && filter.branch !== "All Branches"
-    ? Math.round((KPI_STATS.costPerKm + 1.2) * 10) / 10
-    : KPI_STATS.costPerKm;
+  const { stats, loaded } = useDashboardStats();
+  const value = stats?.fuel.costPerKm ?? 0;
   return (
     <KpiCard
       label="Fuel Cost / km"
-      value={`₹${value}`}
-      delta="0.4"
-      trend="up"
-      invertDelta
+      value={loaded ? `₹${value}` : "…"}
       icon={<Fuel className="h-4 w-4" />}
-      spark={[13.8, 14.1, 14.0, 14.3, 14.5, 14.6, 14.7, value]}
       progress={Math.min(100, (value / 20) * 100)}
       progressLabel="of ₹20 budget"
     />
@@ -241,39 +212,27 @@ function FuelCostKmKpi(): ReactElement {
 }
 
 function OpenIssuesKpi(): ReactElement {
-  const filter = useDashboardFilter();
   const { navigate } = useAppStore();
-  const value = scopedCount(KPI_STATS.openIssues, filter);
+  const { stats, loaded } = useDashboardStats();
+  const value = stats?.issues.openCount ?? 0;
   return (
     <KpiCard
       label="Open Issues"
-      value={value}
-      delta="3"
-      trend="down"
-      invertDelta
+      value={loaded ? value : "…"}
       icon={<AlertCircle className="h-4 w-4" />}
-      spark={[12, 10, 11, 9, 8, 9, 7, value]}
-      progress={Math.max(0, 100 - value * 6)}
-      progressLabel="resolution health"
       onClick={() => navigate("issues")}
     />
   );
 }
 
 function InspectionFailRateKpi(): ReactElement {
-  const filter = useDashboardFilter();
-  const fails = INSPECTIONS.filter((i) => i.result === "Fail").length;
-  const total = scopedSlice(INSPECTIONS, filter).length || 1;
-  const rate = Math.round((fails / total) * 1000) / 10;
+  const { stats, loaded } = useDashboardStats();
+  const rate = stats?.inspections.failRate ?? 0;
   return (
     <KpiCard
       label="Inspection Fail Rate"
-      value={`${rate}%`}
-      delta="0.8%"
-      trend="down"
-      invertDelta
+      value={loaded ? `${rate}%` : "…"}
       icon={<ClipboardCheck className="h-4 w-4" />}
-      spark={[8.2, 7.9, 8.4, 8.1, 7.8, 7.6, 7.4, rate]}
       progress={Math.max(0, 100 - rate * 6)}
       progressLabel="vs 5% target"
     />
@@ -281,19 +240,14 @@ function InspectionFailRateKpi(): ReactElement {
 }
 
 function ComplianceScoreKpi(): ReactElement {
-  const filter = useDashboardFilter();
-  const base = KPI_STATS.complianceRate;
-  const value = filter.group && filter.group !== "All Groups"
-    ? Math.round((base - 2.5) * 10) / 10
-    : base;
+  const { stats, loaded } = useDashboardStats();
+  const total = (stats?.documents.validCount ?? 0) + (stats?.documents.expiringSoonCount ?? 0) + (stats?.documents.expiredCount ?? 0);
+  const value = total ? Math.round(((stats?.documents.validCount ?? 0) / total) * 1000) / 10 : 0;
   return (
     <KpiCard
       label="Compliance Score"
-      value={`${value}%`}
-      delta="0.6%"
-      trend="up"
+      value={loaded ? `${value}%` : "…"}
       icon={<ShieldAlert className="h-4 w-4" />}
-      spark={[92, 93, 92.5, 93.5, 94, 93.8, 94.1, value]}
       progress={value}
       progressLabel="of 98% target"
     />
@@ -301,20 +255,13 @@ function ComplianceScoreKpi(): ReactElement {
 }
 
 function EtaVarianceKpi(): ReactElement {
-  const filter = useDashboardFilter();
-  const base = 1.8;
-  const value = filter.branch && filter.branch !== "All Branches"
-    ? Math.round((base + 0.6) * 10) / 10
-    : base;
+  const { stats, loaded } = useDashboardStats();
+  const value = stats?.trips.etaVarianceHrs ?? 0;
   return (
     <KpiCard
       label="Avg ETA Variance"
-      value={`${value}h`}
-      delta="0.3h"
-      trend="down"
-      invertDelta
+      value={loaded ? `${value}h` : "…"}
       icon={<Timer className="h-4 w-4" />}
-      spark={[2.4, 2.2, 2.1, 2.0, 1.9, 1.8, 1.85, value]}
       progress={Math.max(0, 100 - value * 22)}
       progressLabel="vs 1h target"
     />
@@ -350,29 +297,35 @@ function ListRow({
 }
 
 function TodayPrioritiesList(): ReactElement {
-  const filter = useDashboardFilter();
   const { navigate } = useAppStore();
+  const { stats, loaded } = useDashboardStats();
   const items = useMemo(() => {
-    const overdueInv = INVOICES.find((i) => i.status === "Overdue");
-    return [
-      { id: "p1", title: overdueInv ? `Chase ${overdueInv.invoiceNumber}` : "Review overdue invoices",
-        detail: overdueInv ? `${overdueInv.customer}` : "All clear",
-        severity: "high" as const, cta: "Send reminder", to: "invoice" as const },
-      { id: "p2", title: "Service Tata LPT 1613 before long-haul",
-        detail: "Brake pad wear at 87% - 1,420 km trip tomorrow",
-        severity: "medium" as const, cta: "Create work order", to: "maintenance" as const },
-      { id: "p3", title: "Consolidate 3 empty return loads",
-        detail: "Bengaluru → Pune deadhead. 2 inquiries open.",
-        severity: "high" as const, cta: "Open matching", to: "operations-hub" as const },
-      { id: "p4", title: "Renew 3 expiring permits",
-        detail: "Mumbai HQ · National Permit expiring",
-        severity: "medium" as const, cta: "Renew", to: "documents" as const },
-    ];
-  }, []);
-  const visible = scopedSlice(items, filter, 4);
+    if (!stats) return [];
+    const out: { id: string; title: string; detail: string; severity: "high" | "medium"; cta: string; to: Parameters<typeof navigate>[0] }[] = [];
+    if (stats.invoices.overdueCount > 0) {
+      out.push({ id: "p-inv", title: `${stats.invoices.overdueCount} overdue invoice${stats.invoices.overdueCount > 1 ? "s" : ""}`,
+        detail: `₹${(stats.invoices.outstandingAmount / 100000).toFixed(1)}L outstanding`, severity: "high", cta: "Review", to: "invoice" });
+    }
+    if (stats.trips.delayedShipments.length > 0) {
+      out.push({ id: "p-trip", title: `${stats.trips.delayedShipments.length} delayed shipment${stats.trips.delayedShipments.length > 1 ? "s" : ""}`,
+        detail: stats.trips.delayedShipments[0]?.tripId ?? "", severity: "high", cta: "Open matching", to: "operations-hub" });
+    }
+    if (stats.documents.expiringSoonCount > 0) {
+      out.push({ id: "p-doc", title: `${stats.documents.expiringSoonCount} document${stats.documents.expiringSoonCount > 1 ? "s" : ""} expiring soon`,
+        detail: "Compliance documents", severity: "medium", cta: "Renew", to: "documents" });
+    }
+    if (stats.workOrders.openCount > 0) {
+      out.push({ id: "p-wo", title: `${stats.workOrders.openCount} open work order${stats.workOrders.openCount > 1 ? "s" : ""}`,
+        detail: "Maintenance queue", severity: "medium", cta: "Create work order", to: "maintenance" });
+    }
+    return out.slice(0, 4);
+  }, [stats]);
+  if (loaded && items.length === 0) {
+    return <div className="py-4 text-center text-[11px] text-muted-foreground">Nothing needs attention right now.</div>;
+  }
   return (
     <div className="flex flex-col gap-2">
-      {visible.map((p) => (
+      {items.map((p) => (
         <div key={p.id} className="rounded-[5px] border border-border p-2.5 hover:border-foreground/30 transition-colors">
           <div className="flex items-start gap-2">
             <span className={cn("mt-1 flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-[2px] text-[9px] font-bold",
@@ -393,13 +346,9 @@ function TodayPrioritiesList(): ReactElement {
 }
 
 function RecentActivitiesList(): ReactElement {
-  const filter = useDashboardFilter();
   const { navigateDetail } = useAppStore();
-  const recent = useMemo(
-    () => [...TRIPS].sort((a, b) => +new Date(b.createdDate) - +new Date(a.createdDate)).slice(0, 8),
-    [],
-  );
-  const visible = scopedSlice(recent, filter, 6);
+  const { stats } = useDashboardStats();
+  const visible = stats?.trips.recentActivities.slice(0, 6) ?? [];
   return (
     <div className="divide-y divide-border">
       {visible.map((t, i) => (
@@ -407,7 +356,7 @@ function RecentActivitiesList(): ReactElement {
           key={t.id}
           index={i}
           primary={t.tripId}
-          secondary={`${t.origin} → ${t.destination} · ${t.driverName}`}
+          secondary={`${t.origin} → ${t.destination}`}
           right={
             <div className="flex flex-col items-end">
               <StatusBadge variant={t.status === "Active" || t.status === "In Transit" ? "solid" : "muted"}
@@ -423,13 +372,9 @@ function RecentActivitiesList(): ReactElement {
 }
 
 function CriticalFaultsList(): ReactElement {
-  const filter = useDashboardFilter();
   const { navigateDetail } = useAppStore();
-  const critical = useMemo(
-    () => ISSUES.filter((i) => i.severity === "Critical" || i.severity === "High").slice(0, 8),
-    [],
-  );
-  const visible = scopedSlice(critical, filter, 6);
+  const { stats } = useDashboardStats();
+  const visible = stats?.issues.criticalHigh.slice(0, 6) ?? [];
   return (
     <div className="divide-y divide-border">
       {visible.map((iss, i) => (
@@ -437,7 +382,7 @@ function CriticalFaultsList(): ReactElement {
           key={iss.id}
           index={i}
           primary={iss.title}
-          secondary={`${iss.vehicle ?? "-"} · ${iss.assignee}`}
+          secondary={`${iss.vehicle} · ${iss.assignee}`}
           right={
             <StatusBadge variant={iss.severity === "Critical" ? "solid" : "outline"} pulse={iss.severity === "Critical"}>
               {iss.severity}
@@ -451,13 +396,9 @@ function CriticalFaultsList(): ReactElement {
 }
 
 function OverdueInspectionsList(): ReactElement {
-  const filter = useDashboardFilter();
   const { navigateDetail } = useAppStore();
-  const overdue = useMemo(
-    () => INSPECTIONS.filter((i) => i.result === "Fail" || i.result === "Conditional").slice(0, 8),
-    [],
-  );
-  const visible = scopedSlice(overdue, filter, 6);
+  const { stats } = useDashboardStats();
+  const visible = stats?.inspections.overdue.slice(0, 6) ?? [];
   return (
     <div className="divide-y divide-border">
       {visible.map((ins, i) => (
@@ -475,13 +416,9 @@ function OverdueInspectionsList(): ReactElement {
 }
 
 function ServiceRemindersList(): ReactElement {
-  const filter = useDashboardFilter();
   const { navigate } = useAppStore();
-  const upcoming = useMemo(
-    () => [...REMINDERS].sort((a, b) => a.daysRemaining - b.daysRemaining).slice(0, 8),
-    [],
-  );
-  const visible = scopedSlice(upcoming, filter, 6);
+  const { stats } = useDashboardStats();
+  const visible = stats?.reminders.upcoming.slice(0, 6) ?? [];
   return (
     <div className="divide-y divide-border">
       {visible.map((r, i) => (
@@ -489,7 +426,7 @@ function ServiceRemindersList(): ReactElement {
           key={r.id}
           index={i}
           primary={r.name}
-          secondary={`${r.entity} · ${r.type}`}
+          secondary={`${r.entity} · ${r.category}`}
           right={
             <div className="flex flex-col items-end">
               <StatusBadge variant={r.status === "Overdue" ? "solid" : r.status === "Due Soon" ? "outline" : "muted"}
@@ -505,28 +442,19 @@ function ServiceRemindersList(): ReactElement {
 }
 
 function OnboardingTasksList(): ReactElement {
-  const filter = useDashboardFilter();
   const { navigate } = useAppStore();
-  const tasks = useMemo(
-    () => [...DRIVERS].filter((d) => d.status === "Active").slice(0, 10),
-    [],
-  );
-  const visible = scopedSlice(tasks, filter, 6);
+  const { stats } = useDashboardStats();
+  const visible = stats?.hr.pendingOnboarding.slice(0, 6) ?? [];
   return (
     <div className="divide-y divide-border">
-      {visible.map((d, i) => (
+      {visible.map((c, i) => (
         <ListRow
-          key={d.id}
+          key={c.id}
           index={i}
-          primary={d.name}
-          secondary={`${d.role} · ${d.department}`}
-          right={
-            <div className="flex flex-col items-end">
-              <StatusBadge variant="outline">{d.status}</StatusBadge>
-              <span className="mt-1 text-[9px]">{d.tripsCompleted} trips</span>
-            </div>
-          }
-          onClick={() => navigate("drivers-staff")}
+          primary={c.name}
+          secondary={c.position}
+          right={<StatusBadge variant="outline">{c.stage}</StatusBadge>}
+          onClick={() => navigate("hr")}
         />
       ))}
     </div>
@@ -534,13 +462,9 @@ function OnboardingTasksList(): ReactElement {
 }
 
 function WorkOrderUpdatesList(): ReactElement {
-  const filter = useDashboardFilter();
   const { navigateDetail } = useAppStore();
-  const recent = useMemo(
-    () => [...WORK_ORDERS].sort((a, b) => +new Date(b.createdDate) - +new Date(a.createdDate)).slice(0, 8),
-    [],
-  );
-  const visible = scopedSlice(recent, filter, 6);
+  const { stats } = useDashboardStats();
+  const visible = stats?.workOrders.recentUpdates.slice(0, 6) ?? [];
   return (
     <div className="divide-y divide-border">
       {visible.map((wo, i) => (
@@ -548,7 +472,7 @@ function WorkOrderUpdatesList(): ReactElement {
           key={wo.id}
           index={i}
           primary={`${wo.workOrderId} · ${wo.title}`}
-          secondary={`${wo.vehicle} · ${wo.technician ?? "-"}`}
+          secondary={`${wo.vehicle} · ${wo.technician}`}
           right={
             <StatusBadge variant={wo.status === "Open" ? "solid" : wo.status === "In Progress" ? "outline" : "muted"}>
               {wo.status}
@@ -562,16 +486,8 @@ function WorkOrderUpdatesList(): ReactElement {
 }
 
 function TopRepairReasonsList(): ReactElement {
-  const filter = useDashboardFilter();
-  const counts = useMemo(() => {
-    const map = new Map<string, number>();
-    ISSUES.forEach((i) => map.set(i.title, (map.get(i.title) || 0) + 1));
-    return Array.from(map.entries())
-      .map(([reason, count]) => ({ reason, count }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 6);
-  }, []);
-  const visible = scopedSlice(counts, filter, 6);
+  const { stats } = useDashboardStats();
+  const visible = stats?.issues.recurringDefects ?? [];
   const max = Math.max(...visible.map((r) => r.count), 1);
   return (
     <div className="flex flex-col gap-2.5">
@@ -592,13 +508,8 @@ function TopRepairReasonsList(): ReactElement {
 }
 
 function CategoryCodesList(): ReactElement {
-  const filter = useDashboardFilter();
-  const counts = useMemo(() => {
-    const map = new Map<string, number>();
-    EXPENSES.forEach((e) => map.set(e.category, (map.get(e.category) || 0) + 1));
-    return Array.from(map.entries()).map(([category, count]) => ({ category, count })).sort((a, b) => b.count - a.count);
-  }, []);
-  const visible = scopedSlice(counts, filter, 8);
+  const { stats } = useDashboardStats();
+  const visible = stats?.expenses.categoryCounts.slice(0, 8) ?? [];
   return (
     <div className="flex flex-col gap-1.5 max-h-[200px] overflow-y-auto scrollbar-thin">
       {visible.map((c, i) => (
@@ -615,13 +526,8 @@ function CategoryCodesList(): ReactElement {
 }
 
 function SystemCodesList(): ReactElement {
-  const filter = useDashboardFilter();
-  const groups = useMemo(() => {
-    const map = new Map<string, number>();
-    VEHICLES.forEach((v) => map.set(v.type, (map.get(v.type) || 0) + 1));
-    return Array.from(map.entries()).map(([type, count]) => ({ type, count })).sort((a, b) => b.count - a.count);
-  }, []);
-  const visible = scopedSlice(groups, filter, 8);
+  const { stats } = useDashboardStats();
+  const visible = stats?.vehicles.systemCodesByType.slice(0, 8) ?? [];
   return (
     <div className="flex flex-col gap-1.5 max-h-[200px] overflow-y-auto scrollbar-thin">
       {visible.map((g) => (
@@ -650,37 +556,35 @@ function ChartFrame({ children, footer }: { children: ReactNode; footer?: ReactN
   );
 }
 
+/** Cost per km has no stored history (only the current period's real
+ *  ratio) - shown as a single real bar rather than a fabricated 12-month
+ *  line, since there is no real month-by-month cost/km series to plot yet. */
 function CostPerKmTrendChart(): ReactElement {
-  const data = useMemo(
-    () => Array.from({ length: 12 }, (_, i) => ({
-      m: `M${i + 1}`,
-      cost: Math.round((13.8 + Math.sin(i / 2) * 0.8 + i * 0.12) * 10) / 10,
-    })),
-    [],
-  );
+  const { stats } = useDashboardStats();
+  const value = stats?.fuel.costPerKm ?? 0;
+  const data = [{ label: "This period", cost: value }];
   return (
-    <ChartFrame footer="₹/km · last 12 months · target ₹14.0">
+    <ChartFrame footer="₹/km · current period · target ₹14.0">
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={data} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
+        <BarChart data={data} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
           <CartesianGrid strokeDasharray="2 2" stroke={GRID_STROKE} vertical={false} />
-          <XAxis dataKey="m" tick={AXIS_TICK_STYLE} axisLine={false} tickLine={false} />
-          <YAxis tick={AXIS_TICK_STYLE} axisLine={false} tickLine={false} domain={[12, 16]} />
-          <Tooltip contentStyle={CHART_TOOLTIP_STYLE} labelStyle={{ color: "var(--muted-foreground)" }} />
-          <Line type="monotone" dataKey="cost" stroke={FOREGROUND_STROKE} strokeWidth={1.5} dot={false} />
-        </LineChart>
+          <XAxis dataKey="label" tick={AXIS_TICK_STYLE} axisLine={false} tickLine={false} />
+          <YAxis tick={AXIS_TICK_STYLE} axisLine={false} tickLine={false} />
+          <Tooltip contentStyle={CHART_TOOLTIP_STYLE} cursor={{ fill: ACCENT_STROKE }} />
+          <Bar dataKey="cost" fill={FOREGROUND_STROKE} radius={[2, 2, 0, 0]} barSize={48} />
+        </BarChart>
       </ResponsiveContainer>
     </ChartFrame>
   );
 }
 
 function FleetUtilizationChart(): ReactElement {
-  const filter = useDashboardFilter();
-  const slice = scopedSlice(VEHICLES, filter);
+  const { stats } = useDashboardStats();
   const data = [
-    { name: "Active", value: slice.filter((v) => v.status === "Active").length },
-    { name: "Idle", value: slice.filter((v) => v.status === "Idle").length },
-    { name: "Maint.", value: slice.filter((v) => v.status === "In Maintenance").length },
-    { name: "Offline", value: slice.filter((v) => v.status === "Offline").length },
+    { name: "Active", value: stats?.vehicles.active ?? 0 },
+    { name: "Idle", value: stats?.vehicles.idle ?? 0 },
+    { name: "Maint.", value: stats?.vehicles.maintenance ?? 0 },
+    { name: "Offline", value: stats?.vehicles.offline ?? 0 },
   ];
   const total = data.reduce((s, d) => s + d.value, 0) || 1;
   return (
@@ -712,14 +616,8 @@ function FleetUtilizationChart(): ReactElement {
 }
 
 function ReceivablesAgingChart(): ReactElement {
-  const filter = useDashboardFilter();
-  const slice = scopedSlice(INVOICES, filter);
-  const buckets = [
-    { name: "0–30", count: slice.filter((_, i) => i % 4 === 0).length, pct: 42 },
-    { name: "31–60", count: slice.filter((_, i) => i % 4 === 1).length, pct: 27 },
-    { name: "61–90", count: slice.filter((_, i) => i % 4 === 2).length, pct: 19 },
-    { name: "90+", count: slice.filter((_, i) => i % 4 === 3).length, pct: 12 },
-  ];
+  const { stats } = useDashboardStats();
+  const buckets = stats?.invoices.agingBuckets ?? [];
   return (
     <ChartFrame footer="Outstanding invoices · aging buckets">
       <ResponsiveContainer width="100%" height="100%">
@@ -736,22 +634,8 @@ function ReceivablesAgingChart(): ReactElement {
 }
 
 function RouteProfitabilityChart(): ReactElement {
-  const filter = useDashboardFilter();
-  const routes = useMemo(() => {
-    const map = new Map<string, { trips: number; revenue: number }>();
-    TRIPS.forEach((t) => {
-      const key = `${t.origin} → ${t.destination}`;
-      const cur = map.get(key) ?? { trips: 0, revenue: 0 };
-      cur.trips += 1;
-      cur.revenue += t.freightAmount;
-      map.set(key, cur);
-    });
-    return Array.from(map.entries())
-      .map(([route, v]) => ({ route, ...v, margin: Math.round((v.revenue * 0.18) / 1000) }))
-      .sort((a, b) => b.revenue - a.revenue)
-      .slice(0, 8);
-  }, []);
-  const visible = scopedSlice(routes, filter, 8);
+  const { stats } = useDashboardStats();
+  const visible = stats?.trips.routeProfitability ?? [];
   return (
     <ChartFrame footer="Top routes by revenue · estimated margin in ₹k">
       <ResponsiveContainer width="100%" height="100%">
@@ -770,41 +654,35 @@ function RouteProfitabilityChart(): ReactElement {
   );
 }
 
+/** No stored weekly fuel-spend history exists yet - shows the real total
+ *  spend for the current data set as a single bar rather than a fabricated
+ *  8-week line. */
 function FuelCostTrendChart(): ReactElement {
-  const data = useMemo(
-    () => Array.from({ length: 8 }, (_, i) => ({
-      week: `W${i + 1}`,
-      cost: Math.round(140000 + Math.sin(i) * 18000 + i * 4200),
-    })),
-    [],
-  );
+  const { stats } = useDashboardStats();
+  const data = [{ label: "Total fuel spend", cost: stats?.fuel.totalCost ?? 0 }];
   return (
-    <ChartFrame footer="₹ fuel spend · last 8 weeks">
+    <ChartFrame footer="₹ fuel spend · all recorded fuel entries">
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={data} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
+        <BarChart data={data} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
           <CartesianGrid strokeDasharray="2 2" stroke={GRID_STROKE} vertical={false} />
-          <XAxis dataKey="week" tick={AXIS_TICK_STYLE} axisLine={false} tickLine={false} />
+          <XAxis dataKey="label" tick={AXIS_TICK_STYLE} axisLine={false} tickLine={false} />
           <YAxis tick={AXIS_TICK_STYLE} axisLine={false} tickLine={false}
             tickFormatter={(v: number) => `${v / 1000}k`} />
-          <Tooltip contentStyle={CHART_TOOLTIP_STYLE} labelStyle={{ color: "var(--muted-foreground)" }} />
-          <Line type="monotone" dataKey="cost" stroke={FOREGROUND_STROKE} strokeWidth={1.5} dot={false} />
-        </LineChart>
+          <Tooltip contentStyle={CHART_TOOLTIP_STYLE} cursor={{ fill: ACCENT_STROKE }} />
+          <Bar dataKey="cost" fill={FOREGROUND_STROKE} radius={[2, 2, 0, 0]} barSize={48} />
+        </BarChart>
       </ResponsiveContainer>
     </ChartFrame>
   );
 }
 
 function InspectionPassFailChart(): ReactElement {
-  const filter = useDashboardFilter();
-  const slice = scopedSlice(INSPECTIONS, filter);
-  const data = [
-    { name: "Pass", value: slice.filter((i) => i.result === "Pass").length },
-    { name: "Fail", value: slice.filter((i) => i.result === "Fail").length },
-    { name: "Conditional", value: slice.filter((i) => i.result === "Conditional").length },
-  ];
+  const { stats } = useDashboardStats();
+  const data = (stats?.inspections.passFail ?? []).map((p) => ({ name: p.result, value: p.count }));
   const total = data.reduce((s, d) => s + d.value, 0) || 1;
+  const passCount = data.find((d) => d.name === "Pass")?.value ?? 0;
   return (
-    <ChartFrame footer={`${total} inspections · ${Math.round((data[0].value / total) * 100)}% pass rate`}>
+    <ChartFrame footer={`${total} inspections · ${Math.round((passCount / total) * 100)}% pass rate`}>
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
           <CartesianGrid strokeDasharray="2 2" stroke={GRID_STROKE} vertical={false} />
@@ -821,13 +699,8 @@ function InspectionPassFailChart(): ReactElement {
 }
 
 function IssuesByCategoryChart(): ReactElement {
-  const filter = useDashboardFilter();
-  const data = useMemo(() => {
-    const map = new Map<string, number>();
-    ISSUES.forEach((i) => map.set(i.source, (map.get(i.source) || 0) + 1));
-    return Array.from(map.entries()).map(([source, count]) => ({ source, count }));
-  }, []);
-  const visible = scopedSlice(data, filter, 6);
+  const { stats } = useDashboardStats();
+  const visible = stats?.issues.bySource ?? [];
   return (
     <ChartFrame footer="Issues by source (Manual / Inspection / Rean / Fault Code)">
       <ResponsiveContainer width="100%" height="100%">
@@ -905,29 +778,23 @@ function ReanAnomaliesWidget(): ReactElement {
 }
 
 function ComplianceExpiryCalendarWidget(): ReactElement {
-  const filter = useDashboardFilter();
   const { navigateDetail } = useAppStore();
-  const docs = useMemo(
-    () => [...DOCUMENTS].filter((d) => d.status !== "Valid")
-      .sort((a, b) => +new Date(a.expiryDate ?? 0) - +new Date(b.expiryDate ?? 0))
-      .slice(0, 12),
-    [],
-  );
-  const visible = scopedSlice(docs, filter, 8);
+  const { stats } = useDashboardStats();
+  const visible = stats?.documents.expiryCalendar.slice(0, 8) ?? [];
   return (
     <div className="flex flex-col gap-3">
       <div className="grid grid-cols-3 gap-2">
         <div className="rounded-[5px] border border-border p-2">
           <div className="text-[9px] uppercase tracking-wider text-muted-foreground">Expired</div>
-          <div className="text-[18px] font-medium tabular">{DOCUMENTS.filter((d) => d.status === "Expired").length}</div>
+          <div className="text-[18px] font-medium tabular">{stats?.documents.expiredCount ?? 0}</div>
         </div>
         <div className="rounded-[5px] border border-border p-2">
           <div className="text-[9px] uppercase tracking-wider text-muted-foreground">Expiring</div>
-          <div className="text-[18px] font-medium tabular">{DOCUMENTS.filter((d) => d.status === "Expiring Soon").length}</div>
+          <div className="text-[18px] font-medium tabular">{stats?.documents.expiringSoonCount ?? 0}</div>
         </div>
         <div className="rounded-[5px] border border-border p-2">
           <div className="text-[9px] uppercase tracking-wider text-muted-foreground">Valid</div>
-          <div className="text-[18px] font-medium tabular">{DOCUMENTS.filter((d) => d.status === "Valid").length}</div>
+          <div className="text-[18px] font-medium tabular">{stats?.documents.validCount ?? 0}</div>
         </div>
       </div>
       <div className="divide-y divide-border rounded-[5px] border border-border max-h-[180px] overflow-y-auto scrollbar-thin">
@@ -935,7 +802,7 @@ function ComplianceExpiryCalendarWidget(): ReactElement {
           <button key={d.id} onClick={() => navigateDetail("documents", d.id)}
             className="flex w-full items-center justify-between gap-2 px-2.5 py-1.5 text-left hover:bg-accent/30 transition-colors">
             <div className="min-w-0">
-              <div className="truncate text-[11px] font-medium">{d.entityName}</div>
+              <div className="truncate text-[11px] font-medium">{d.name}</div>
               <div className="truncate text-[9px] text-muted-foreground">{d.type}</div>
             </div>
             <StatusBadge variant={d.status === "Expired" ? "solid" : "outline"} pulse={d.status === "Expiring Soon"}>
@@ -949,14 +816,10 @@ function ComplianceExpiryCalendarWidget(): ReactElement {
 }
 
 function CustomerPnlSnapshotWidget(): ReactElement {
-  const filter = useDashboardFilter();
-  const data = useMemo(
-    () => [...CUSTOMERS].sort((a, b) => b.totalRevenue - a.totalRevenue).slice(0, 6),
-    [],
-  );
-  const visible = scopedSlice(data, filter, 6);
-  const totalRev = visible.reduce((s, c) => s + c.totalRevenue, 0);
-  const totalOut = visible.reduce((s, c) => s + c.outstandingBalance, 0);
+  const { stats } = useDashboardStats();
+  const visible = stats?.customers.pnl ?? [];
+  const totalRev = visible.reduce((s, c) => s + c.revenue, 0);
+  const totalOut = visible.reduce((s, c) => s + c.outstanding, 0);
   return (
     <div className="flex flex-col gap-3">
       <div className="grid grid-cols-2 gap-2">
@@ -970,21 +833,18 @@ function CustomerPnlSnapshotWidget(): ReactElement {
         </div>
       </div>
       <div className="divide-y divide-border rounded-[5px] border border-border max-h-[160px] overflow-y-auto scrollbar-thin">
-        {visible.map((c) => {
-          const margin = Math.round((c.totalRevenue * 0.16) / 1000);
-          return (
-            <div key={c.id} className="flex items-center justify-between gap-2 px-2.5 py-1.5">
-              <div className="min-w-0">
-                <div className="truncate text-[11px] font-medium">{c.companyName}</div>
-                <div className="truncate text-[9px] text-muted-foreground">{c.paymentTerms} · {c.city}</div>
-              </div>
-              <div className="text-right shrink-0">
-                <div className="text-[11px] tabular font-medium">₹{(c.totalRevenue / 100000).toFixed(1)}L</div>
-                <div className="text-[9px] tabular text-muted-foreground">+{margin}k margin</div>
-              </div>
+        {visible.map((c) => (
+          <div key={c.id} className="flex items-center justify-between gap-2 px-2.5 py-1.5">
+            <div className="min-w-0">
+              <div className="truncate text-[11px] font-medium">{c.companyName}</div>
+              <div className="truncate text-[9px] text-muted-foreground">{c.paymentTerms} · {c.city}</div>
             </div>
-          );
-        })}
+            <div className="text-right shrink-0">
+              <div className="text-[11px] tabular font-medium">₹{(c.revenue / 100000).toFixed(1)}L</div>
+              <div className="text-[9px] tabular text-muted-foreground">₹{Math.round(c.outstanding / 1000)}k due</div>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -1000,79 +860,57 @@ function CustomerPnlSnapshotWidget(): ReactElement {
 /* ---- mechanic (6) ---- */
 
 function OpenWorkOrdersKpi(): ReactElement {
-  const filter = useDashboardFilter();
   const { navigate } = useAppStore();
-  const value = scopedCount(WORK_ORDERS.filter((w) => w.status === "Open" || w.status === "In Progress").length, filter);
+  const { stats, loaded } = useDashboardStats();
+  const value = stats?.workOrders.openCount ?? 0;
   return (
     <KpiCard
       label="Open Work Orders"
-      value={value}
-      delta="2"
-      trend="up"
+      value={loaded ? value : "…"}
       icon={<Wrench className="h-4 w-4" />}
-      spark={[6, 7, 5, 8, 9, 8, 9, value]}
-      progress={Math.min(100, value * 8)}
-      progressLabel="of 12 cap"
       onClick={() => navigate("maintenance")}
     />
   );
 }
 
+/** No real parts/SKU inventory model exists yet (see docs/dashboard mock
+ *  survey) - this widget still reads a placeholder value rather than a
+ *  real stock count. Flagged here instead of silently faked. */
 function PartsLowAlertKpi(): ReactElement {
-  const filter = useDashboardFilter();
   const { navigate } = useAppStore();
-  // Derive a deterministic count from the issues tagged with parts-related titles.
-  const value = scopedCount(ISSUES.filter((i) => /tyre|brake|clutch|battery/i.test(i.title)).length, filter);
   return (
     <KpiCard
       label="Parts Low Alert"
-      value={value}
-      delta="1"
-      trend="up"
-      invertDelta
+      value="—"
       icon={<Package className="h-4 w-4" />}
-      spark={[2, 3, 2, 4, 3, 4, 4, value]}
-      progress={Math.max(0, 100 - value * 12)}
-      progressLabel="restock health"
+      progressLabel="no parts/inventory module yet"
       onClick={() => navigate("maintenance")}
     />
   );
 }
 
+/** No real workshop-bay model exists yet - flagged rather than faked. */
 function BaysOccupiedKpi(): ReactElement {
   const { navigate } = useAppStore();
-  const occupied = 3;
-  const total = 5;
   return (
     <KpiCard
       label="Bays Occupied"
-      value={`${occupied}/${total}`}
-      delta="1"
-      trend="up"
+      value="—"
       icon={<Activity className="h-4 w-4" />}
-      spark={[2, 3, 2, 3, 3, 4, 3, occupied]}
-      progress={(occupied / total) * 100}
-      progressLabel="of workshop capacity"
+      progressLabel="no workshop-bay module yet"
       onClick={() => navigate("workshop")}
     />
   );
 }
 
 function AvgTurnaroundKpi(): ReactElement {
-  const filter = useDashboardFilter();
-  // Estimated hours per completed work order, scoped by filter.
-  const completed = WORK_ORDERS.filter((w) => w.status === "Completed").length || 1;
-  const scoped = scopedCount(completed, filter) || 1;
-  const value = Math.round((14 + (scoped % 9)) * 10) / 10;
+  const { stats, loaded } = useDashboardStats();
+  const value = stats?.workOrders.avgTurnaroundHrs ?? 0;
   return (
     <KpiCard
       label="Avg Turnaround"
-      value={`${value}h`}
-      delta="0.4h"
-      trend="down"
-      invertDelta
+      value={loaded ? `${value}h` : "…"}
       icon={<Timer className="h-4 w-4" />}
-      spark={[18, 17, 16, 16, 15, 14, 14, value]}
       progress={Math.max(0, 100 - value * 4)}
       progressLabel="vs 12h target"
     />
@@ -1080,15 +918,9 @@ function AvgTurnaroundKpi(): ReactElement {
 }
 
 function MyCompletedWosTodayList(): ReactElement {
-  const filter = useDashboardFilter();
   const { navigateDetail } = useAppStore();
-  const completed = useMemo(
-    () => WORK_ORDERS.filter((w) => w.status === "Completed")
-      .sort((a, b) => +new Date(b.createdDate) - +new Date(a.createdDate))
-      .slice(0, 8),
-    [],
-  );
-  const visible = scopedSlice(completed, filter, 6);
+  const { stats } = useDashboardStats();
+  const visible = stats?.workOrders.recentCompleted.slice(0, 6) ?? [];
   return (
     <div className="divide-y divide-border">
       {visible.map((wo, i) => (
@@ -1096,8 +928,8 @@ function MyCompletedWosTodayList(): ReactElement {
           key={wo.id}
           index={i}
           primary={`${wo.workOrderId} · ${wo.title}`}
-          secondary={`${wo.vehicle} · ${wo.technician ?? "-"}`}
-          right={<StatusBadge variant="muted">{wo.status}</StatusBadge>}
+          secondary={`${wo.vehicle} · ${wo.technician}`}
+          right={<StatusBadge variant="muted">Completed</StatusBadge>}
           onClick={() => navigateDetail("maintenance", wo.id)}
         />
       ))}
@@ -1106,31 +938,17 @@ function MyCompletedWosTodayList(): ReactElement {
 }
 
 function RecurringDefectsList(): ReactElement {
-  const filter = useDashboardFilter();
   const { navigateDetail } = useAppStore();
-  const data = useMemo(() => {
-    const map = new Map<string, { count: number; vehicles: Set<string> }>();
-    ISSUES.forEach((iss) => {
-      const cur = map.get(iss.title) ?? { count: 0, vehicles: new Set<string>() };
-      cur.count += 1;
-      if (iss.vehicle) cur.vehicles.add(iss.vehicle);
-      map.set(iss.title, cur);
-    });
-    return Array.from(map.entries())
-      .map(([title, v]) => ({ title, count: v.count, vehicles: v.vehicles.size }))
-      .filter((r) => r.count >= 2)
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 6);
-  }, []);
-  const visible = scopedSlice(data, filter, 6);
+  const { stats } = useDashboardStats();
+  const visible = (stats?.issues.recurringDefects ?? []).filter((r) => r.count >= 2);
   const max = Math.max(...visible.map((r) => r.count), 1);
   return (
     <div className="flex flex-col gap-2.5">
       {visible.map((r, i) => (
         <div key={i} className="flex flex-col gap-1">
           <div className="flex items-center justify-between text-[12px]">
-            <span className="truncate text-foreground">{r.title}</span>
-            <span className="ml-2 tabular font-medium">{r.count}× · {r.vehicles} veh</span>
+            <span className="truncate text-foreground">{r.reason}</span>
+            <span className="ml-2 tabular font-medium">{r.count}×</span>
           </div>
           <div className="h-1 w-full overflow-hidden rounded-full bg-muted">
             <div className="h-full rounded-full bg-foreground transition-[width] duration-500 ease-out"
@@ -1142,7 +960,7 @@ function RecurringDefectsList(): ReactElement {
         <div className="text-[11px] text-muted-foreground">No recurring defects detected.</div>
       )}
       {visible.length > 0 && (
-        <Btn size="xs" variant="ghost" onClick={() => navigateDetail("issues", visible[0].title)}>
+        <Btn size="xs" variant="ghost" onClick={() => navigateDetail("issues", visible[0].reason)}>
           Open issues
         </Btn>
       )}
@@ -1153,20 +971,16 @@ function RecurringDefectsList(): ReactElement {
 /* ---- safety-officer (5 new + reuse kpi-compliance-score) ---- */
 
 function InspectionsDueKpi(): ReactElement {
-  const filter = useDashboardFilter();
   const { navigate } = useAppStore();
-  const value = scopedCount(INSPECTIONS.filter((i) => i.result !== "Pass").length || 7, filter);
+  const { stats, loaded } = useDashboardStats();
+  const value = stats?.inspections.dueSoonCount ?? 0;
   return (
     <KpiCard
       label="Inspections Due"
-      value={value}
-      delta="2"
-      trend="up"
-      invertDelta
+      value={loaded ? value : "…"}
       icon={<ClipboardCheck className="h-4 w-4" />}
-      spark={[5, 6, 7, 6, 8, 7, 7, value]}
       progress={Math.min(100, value * 12)}
-      progressLabel="action required"
+      progressLabel="stale >90 days"
       onClick={() => navigate("inspection")}
     />
   );
@@ -1175,14 +989,8 @@ function InspectionsDueKpi(): ReactElement {
 function OpenIssuesBySeverityList(): ReactElement {
   const filter = useDashboardFilter();
   const { navigateDetail } = useAppStore();
-  const data = useMemo(() => {
-    const order: Issue["severity"][] = ["Critical", "High", "Medium", "Low"];
-    return order.map((sev) => ({
-      severity: sev,
-      count: ISSUES.filter((i) => i.severity === sev && (i.status === "Open" || i.status === "In Progress")).length,
-    }));
-  }, []);
-  const visible = scopedSlice(data, filter, 4);
+  const { stats } = useDashboardStats();
+  const visible = stats?.issues.bySeverity ?? [];
   const max = Math.max(...visible.map((r) => r.count), 1);
   return (
     <div className="flex flex-col gap-2.5">
@@ -1207,18 +1015,14 @@ function OpenIssuesBySeverityList(): ReactElement {
 }
 
 function ExpiringDocsKpi(): ReactElement {
-  const filter = useDashboardFilter();
   const { navigate } = useAppStore();
-  const value = scopedCount(DOCUMENTS.filter((d) => d.status === "Expiring Soon" || d.status === "Expired").length, filter);
+  const { stats, loaded } = useDashboardStats();
+  const value = (stats?.documents.expiringSoonCount ?? 0) + (stats?.documents.expiredCount ?? 0);
   return (
     <KpiCard
       label="Expiring Docs"
-      value={value}
-      delta="3"
-      trend="up"
-      invertDelta
+      value={loaded ? value : "…"}
       icon={<FileText className="h-4 w-4" />}
-      spark={[6, 8, 7, 9, 10, 9, 11, value]}
       progress={Math.min(100, value * 7)}
       progressLabel="renewal queue"
       onClick={() => navigate("documents")}
@@ -1227,22 +1031,17 @@ function ExpiringDocsKpi(): ReactElement {
 }
 
 function IncidentTrendChart(): ReactElement {
-  const data = useMemo(
-    () => Array.from({ length: 8 }, (_, i) => ({
-      week: `W${i + 1}`,
-      incidents: Math.round(4 + Math.sin(i / 1.5) * 2 + i * 0.3),
-    })),
-    [],
-  );
+  const { stats } = useDashboardStats();
+  const data = stats?.issues.incidentTrend ?? [];
   return (
-    <ChartFrame footer="Incidents per week · last 8 weeks">
+    <ChartFrame footer="Incidents reported · last 12 months">
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={data} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
           <CartesianGrid strokeDasharray="2 2" stroke={GRID_STROKE} vertical={false} />
-          <XAxis dataKey="week" tick={AXIS_TICK_STYLE} axisLine={false} tickLine={false} />
+          <XAxis dataKey="month" tick={AXIS_TICK_STYLE} axisLine={false} tickLine={false} />
           <YAxis tick={AXIS_TICK_STYLE} axisLine={false} tickLine={false} allowDecimals={false} />
           <Tooltip contentStyle={CHART_TOOLTIP_STYLE} labelStyle={{ color: "var(--muted-foreground)" }} />
-          <Line type="monotone" dataKey="incidents" stroke={FOREGROUND_STROKE} strokeWidth={1.5} dot={false} />
+          <Line type="monotone" dataKey="count" stroke={FOREGROUND_STROKE} strokeWidth={1.5} dot={false} />
         </LineChart>
       </ResponsiveContainer>
     </ChartFrame>
@@ -1250,22 +1049,9 @@ function IncidentTrendChart(): ReactElement {
 }
 
 function DriverComplianceList(): ReactElement {
-  const filter = useDashboardFilter();
   const { navigate } = useAppStore();
-  const data = useMemo(
-    () => DRIVERS.filter((d) => d.role === "Driver")
-      .map((d) => ({
-        id: d.id,
-        name: d.name,
-        onTime: Math.round(d.onTimeRate * 1000) / 10,
-        trips: d.tripsCompleted,
-        status: d.status,
-      }))
-      .sort((a, b) => a.onTime - b.onTime)
-      .slice(0, 8),
-    [],
-  );
-  const visible = scopedSlice(data, filter, 6);
+  const { stats } = useDashboardStats();
+  const visible = stats?.hr.driverCompliance.slice(0, 6) ?? [];
   return (
     <div className="divide-y divide-border">
       {visible.map((d, i) => (
@@ -1273,12 +1059,11 @@ function DriverComplianceList(): ReactElement {
           key={d.id}
           index={i}
           primary={d.name}
-          secondary={`${d.trips} trips · ${d.status}`}
+          secondary={d.licenseExpiry ? `License expires ${new Date(d.licenseExpiry).toLocaleDateString("en-IN")}` : "No license on file"}
           right={
-            <div className="flex flex-col items-end">
-              <span className="tabular text-[11px] font-medium">{d.onTime}%</span>
-              <span className="text-[9px] text-muted-foreground">on-time</span>
-            </div>
+            <StatusBadge variant={d.licenseStatus === "Expired" ? "solid" : d.licenseStatus === "Expiring" ? "outline" : "muted"}>
+              {d.licenseStatus}
+            </StatusBadge>
           }
           onClick={() => navigate("drivers-staff")}
         />
@@ -1290,37 +1075,28 @@ function DriverComplianceList(): ReactElement {
 /* ---- hr-manager (6) ---- */
 
 function HeadcountKpi(): ReactElement {
-  const filter = useDashboardFilter();
   const { navigate } = useAppStore();
-  const value = scopedCount(DRIVERS.length, filter);
+  const { stats, loaded } = useDashboardStats();
+  const value = stats?.hr.headcount ?? 0;
   return (
     <KpiCard
       label="Headcount"
-      value={value}
-      delta="3"
-      trend="up"
+      value={loaded ? value : "…"}
       icon={<Users className="h-4 w-4" />}
-      spark={[28, 30, 29, 31, 32, 32, 32, value]}
-      progress={80}
-      progressLabel="of 40 plan"
-      onClick={() => navigate("drivers-staff")}
+      onClick={() => navigate("hr")}
     />
   );
 }
 
 function PendingLeavesKpi(): ReactElement {
-  const filter = useDashboardFilter();
   const { navigate } = useAppStore();
-  const value = scopedCount(DRIVERS.filter((d) => d.status === "On Leave").length || 5, filter);
+  const { stats, loaded } = useDashboardStats();
+  const value = stats?.hr.pendingLeavesCount ?? 0;
   return (
     <KpiCard
       label="Pending Leaves"
-      value={value}
-      delta="2"
-      trend="up"
-      invertDelta
+      value={loaded ? value : "…"}
       icon={<Calendar className="h-4 w-4" />}
-      spark={[3, 4, 5, 4, 5, 6, 5, value]}
       progress={Math.min(100, value * 15)}
       progressLabel="awaiting approval"
       onClick={() => navigate("hr")}
@@ -1330,174 +1106,118 @@ function PendingLeavesKpi(): ReactElement {
 
 function PayrollStatusKpi(): ReactElement {
   const { navigate } = useAppStore();
-  const daysToPayroll = 3;
+  const { stats, loaded } = useDashboardStats();
+  const status = stats?.hr.payrollStatus;
   return (
     <KpiCard
       label="Payroll Status"
-      value={`${daysToPayroll}d`}
-      delta="on track"
-      trend="up"
+      value={loaded ? (status ? status.status : "No runs") : "…"}
       icon={<Banknote className="h-4 w-4" />}
-      spark={[7, 6, 5, 4, 3, 3, 3, daysToPayroll]}
-      progress={Math.max(0, 100 - daysToPayroll * 14)}
-      progressLabel="to next run"
+      progressLabel={status ? `${status.month} · ₹${(status.netTotalINR / 100000).toFixed(1)}L net` : "no payroll run yet"}
       onClick={() => navigate("payroll")}
     />
   );
 }
 
 function OpenPositionsKpi(): ReactElement {
-  const filter = useDashboardFilter();
   const { navigate } = useAppStore();
-  const value = scopedCount(4, filter);
+  const { stats, loaded } = useDashboardStats();
+  const value = stats?.hr.openPositionsCount ?? 0;
   return (
     <KpiCard
       label="Open Positions"
-      value={value}
-      delta="1"
-      trend="down"
+      value={loaded ? value : "…"}
       icon={<UserCog className="h-4 w-4" />}
-      spark={[6, 5, 5, 4, 4, 4, 4, value]}
-      progress={Math.max(0, 100 - value * 18)}
-      progressLabel="of recruitment plan"
       onClick={() => navigate("hr")}
     />
   );
 }
 
 function AttendanceTodayKpi(): ReactElement {
-  const filter = useDashboardFilter();
   const { navigate } = useAppStore();
-  const present = scopedCount(DRIVERS.filter((d) => d.status === "Active").length, filter);
-  const total = scopedCount(DRIVERS.length, filter);
+  const { stats, loaded } = useDashboardStats();
+  const presentPct = stats?.hr.attendanceTodayPct ?? 0;
+  const headcount = stats?.hr.headcount ?? 0;
   return (
     <KpiCard
       label="Attendance Today"
-      value={`${present}/${total}`}
-      delta="92%"
-      trend="up"
+      value={loaded ? `${presentPct}%` : "…"}
       icon={<CheckCircle2 className="h-4 w-4" />}
-      spark={[26, 27, 28, 27, 28, 29, 28, present]}
-      progress={total > 0 ? (present / total) * 100 : 0}
-      progressLabel="present rate"
+      progress={presentPct}
+      progressLabel={`of ${headcount} active`}
       onClick={() => navigate("hr")}
     />
   );
 }
 
+/** No real driver-training/course model exists yet - flagged rather than
+ *  faked. Driver license compliance (a real, adjacent signal) is covered
+ *  by the "Driver Compliance" widget above. */
 function TrainingDueList(): ReactElement {
-  const filter = useDashboardFilter();
   const { navigate } = useAppStore();
-  const data = useMemo(
-    () => DRIVERS.filter((d) => d.role === "Driver" && d.status === "Active")
-      .slice(0, 8)
-      .map((d, i) => ({
-        id: d.id,
-        name: d.name,
-        course: ["Defensive Driving", "Hazmat Handling", "Hours of Service", "First Aid", "Vehicle Inspection"][i % 5],
-        due: (i + 1) * 4,
-      })),
-    [],
-  );
-  const visible = scopedSlice(data, filter, 6);
   return (
-    <div className="divide-y divide-border">
-      {visible.map((d, i) => (
-        <ListRow
-          key={d.id}
-          index={i}
-          primary={d.name}
-          secondary={d.course}
-          right={
-            <div className="flex flex-col items-end">
-              <StatusBadge variant={d.due <= 8 ? "solid" : "outline"}>{d.due}d</StatusBadge>
-              <span className="mt-1 text-[9px]">until due</span>
-            </div>
-          }
-          onClick={() => navigate("hr")}
-        />
-      ))}
+    <div className="py-6 text-center text-[11px] text-muted-foreground">
+      No training-records module yet.
+      <Btn size="xs" variant="ghost" className="mt-2" onClick={() => navigate("hr")}>Open HR</Btn>
     </div>
   );
 }
 
 /* ---- branch-manager (6) ---- */
+/* "Branch" here means the active dashboard's location filter, scoped
+   server-side in GET /api/dashboard/stats (Vehicle.location /
+   Employee.branchName) - see stats.branch. */
 
 function BranchRevenueKpi(): ReactElement {
-  const filter = useDashboardFilter();
   const { navigate } = useAppStore();
-  // Derive a branch-scoped revenue from total trips.
-  const baseRev = TRIPS.reduce((s, t) => s + t.freightAmount, 0);
-  const value = scopedCount(Math.round(baseRev * 0.25), filter);
+  const { stats, loaded } = useDashboardStats();
+  const value = stats?.branch.revenue ?? 0;
   return (
     <KpiCard
       label="Branch Revenue"
-      value={`₹${(value / 100000).toFixed(1)}L`}
-      delta="6.4%"
-      trend="up"
+      value={loaded ? `₹${(value / 100000).toFixed(1)}L` : "…"}
       icon={<Banknote className="h-4 w-4" />}
-      spark={[8, 9, 10, 11, 10, 12, 12, value / 100000]}
-      progress={75}
-      progressLabel="of ₹16L target"
       onClick={() => navigate("invoice")}
     />
   );
 }
 
 function BranchTripsKpi(): ReactElement {
-  const filter = useDashboardFilter();
   const { navigate } = useAppStore();
-  const value = scopedCount(TRIPS.length, filter);
+  const { stats, loaded } = useDashboardStats();
+  const value = stats?.branch.trips ?? 0;
   return (
     <KpiCard
       label="Branch Trips"
-      value={value}
-      delta="4"
-      trend="up"
+      value={loaded ? value : "…"}
       icon={<Truck className="h-4 w-4" />}
-      spark={[32, 36, 38, 40, 42, 41, 44, value]}
-      progress={80}
-      progressLabel="of monthly plan"
       onClick={() => navigate("trips")}
     />
   );
 }
 
 function BranchStaffKpi(): ReactElement {
-  const filter = useDashboardFilter();
   const { navigate } = useAppStore();
-  const present = scopedCount(18, filter);
-  const total = scopedCount(24, filter);
+  const { stats, loaded } = useDashboardStats();
+  const value = stats?.branch.staff ?? 0;
   return (
     <KpiCard
       label="Branch Staff"
-      value={`${present}/${total}`}
-      delta="2 absent"
-      trend="down"
-      invertDelta
+      value={loaded ? value : "…"}
       icon={<Users className="h-4 w-4" />}
-      spark={[20, 19, 18, 19, 18, 18, 18, present]}
-      progress={total > 0 ? (present / total) * 100 : 0}
-      progressLabel="on duty"
       onClick={() => navigate("drivers-staff")}
     />
   );
 }
 
 function BranchOnTimeKpi(): ReactElement {
-  const filter = useDashboardFilter();
-  const base = 92.6;
-  const value = filter.branch && filter.branch !== "All Branches"
-    ? Math.round((base - 1.8) * 10) / 10
-    : base;
+  const { stats, loaded } = useDashboardStats();
+  const value = stats?.branch.onTimePct ?? 0;
   return (
     <KpiCard
       label="Branch On-Time"
-      value={`${value}%`}
-      delta="1.2%"
-      trend="up"
+      value={loaded ? `${value}%` : "…"}
       icon={<TrendingUp className="h-4 w-4" />}
-      spark={[89, 90, 91, 90, 92, 91, 92, value]}
       progress={value}
       progressLabel="of 95% target"
     />
@@ -1505,31 +1225,28 @@ function BranchOnTimeKpi(): ReactElement {
 }
 
 function BranchIssuesKpi(): ReactElement {
-  const filter = useDashboardFilter();
   const { navigate } = useAppStore();
-  const value = scopedCount(ISSUES.filter((i) => i.status === "Open" || i.status === "In Progress").length, filter);
+  const { stats, loaded } = useDashboardStats();
+  const value = stats?.branch.issues ?? 0;
   return (
     <KpiCard
       label="Branch Issues"
-      value={value}
-      delta="1"
-      trend="down"
-      invertDelta
+      value={loaded ? value : "…"}
       icon={<AlertCircle className="h-4 w-4" />}
-      spark={[8, 7, 6, 7, 6, 5, 5, value]}
-      progress={Math.max(0, 100 - value * 8)}
-      progressLabel="resolution health"
       onClick={() => navigate("issues")}
     />
   );
 }
 
+/** Cost breakdown (fuel/driver pay/overheads) has no real per-branch ledger
+ *  yet - only revenue is real (from stats.branch.revenue). The expense
+ *  split below stays commented as illustrative, not a real P&L. */
 function BranchPnlComposite(): ReactElement {
-  const filter = useDashboardFilter();
-  const revenue = scopedCount(Math.round(TRIPS.reduce((s, t) => s + t.freightAmount, 0) * 0.25), filter);
-  const fuelCost = scopedCount(Math.round(revenue * 0.34), filter);
-  const driverPay = scopedCount(Math.round(revenue * 0.18), filter);
-  const overheads = scopedCount(Math.round(revenue * 0.12), filter);
+  const { stats } = useDashboardStats();
+  const revenue = stats?.branch.revenue ?? 0;
+  const fuelCost = Math.round(revenue * 0.34);
+  const driverPay = Math.round(revenue * 0.18);
+  const overheads = Math.round(revenue * 0.12);
   const netMargin = revenue - fuelCost - driverPay - overheads;
   const marginPct = revenue > 0 ? Math.round((netMargin / revenue) * 1000) / 10 : 0;
   return (
@@ -1568,107 +1285,59 @@ function BranchPnlComposite(): ReactElement {
   );
 }
 
-/* ---- accountant (5 new + reuse chart-receivables-aging) ---- */
+/* ---- accountant (5 new + reuse chart-receivables-aging) -----------------
+   No real GST/TDS filing ledger or bank-account/balance model exists yet
+   (see docs/dashboard mock survey) - the four widgets below are flagged
+   placeholders rather than fabricated figures. `kpi-filings-due` maps to
+   the one real adjacent signal (documents expiring soon). */
 
 function GstPayableKpi(): ReactElement {
-  const filter = useDashboardFilter();
   const { navigate } = useAppStore();
-  const value = scopedCount(420000, filter);
   return (
-    <KpiCard
-      label="GST Payable"
-      value={`₹${(value / 100000).toFixed(1)}L`}
-      delta="₹20k"
-      trend="up"
-      invertDelta
-      icon={<ShieldAlert className="h-4 w-4" />}
-      spark={[3.4, 3.6, 3.8, 4.0, 4.1, 4.2, 4.2, value / 100000]}
-      progress={70}
-      progressLabel="of monthly estimate"
-      onClick={() => navigate("compliance")}
-    />
+    <KpiCard label="GST Payable" value="—" icon={<ShieldAlert className="h-4 w-4" />}
+      progressLabel="no GST ledger module yet" onClick={() => navigate("compliance")} />
   );
 }
 
 function TdsDeductedKpi(): ReactElement {
-  const filter = useDashboardFilter();
   const { navigate } = useAppStore();
-  const value = scopedCount(110000, filter);
   return (
-    <KpiCard
-      label="TDS Deducted"
-      value={`₹${(value / 100000).toFixed(1)}L`}
-      delta="₹8k"
-      trend="up"
-      icon={<Banknote className="h-4 w-4" />}
-      spark={[0.9, 0.95, 1.0, 1.05, 1.08, 1.10, 1.10, value / 100000]}
-      progress={60}
-      progressLabel="of quarterly estimate"
-      onClick={() => navigate("financial-ops")}
-    />
+    <KpiCard label="TDS Deducted" value="—" icon={<Banknote className="h-4 w-4" />}
+      progressLabel="no TDS ledger module yet" onClick={() => navigate("financial-ops")} />
   );
 }
 
 function FilingsDueKpi(): ReactElement {
-  const filter = useDashboardFilter();
   const { navigate } = useAppStore();
-  const value = scopedCount(2, filter);
+  const { stats, loaded } = useDashboardStats();
+  const value = stats?.documents.filingsDueCount ?? 0;
   return (
     <KpiCard
       label="Filings Due"
-      value={value}
-      delta="this week"
-      trend="flat"
-      invertDelta
+      value={loaded ? value : "…"}
       icon={<FileText className="h-4 w-4" />}
-      spark={[3, 2, 2, 3, 2, 2, 2, value]}
       progress={Math.min(100, value * 30)}
-      progressLabel="GSTR-1 + 3B pending"
+      progressLabel="documents expiring soon"
       onClick={() => navigate("compliance")}
     />
   );
 }
 
 function BankBalanceKpi(): ReactElement {
-  const filter = useDashboardFilter();
   const { navigate } = useAppStore();
-  const value = scopedCount(1840000, filter);
   return (
-    <KpiCard
-      label="Bank Balance"
-      value={`₹${(value / 100000).toFixed(1)}L`}
-      delta="4.2%"
-      trend="up"
-      icon={<Banknote className="h-4 w-4" />}
-      spark={[15, 16, 17, 17, 18, 18, 18, value / 100000]}
-      progress={62}
-      progressLabel="of ₹30L reserve"
-      onClick={() => navigate("ledger")}
-    />
+    <KpiCard label="Bank Balance" value="—" icon={<Banknote className="h-4 w-4" />}
+      progressLabel="no bank-account module yet" onClick={() => navigate("ledger")} />
   );
 }
 
+/** No real vendor-payables/PO-aging model wired here yet - flagged rather
+ *  than faked. */
 function PayablesAgingChart(): ReactElement {
-  const filter = useDashboardFilter();
-  const slice = scopedSlice(EXPENSES, filter);
-  const buckets = [
-    { name: "0–30", count: slice.filter((_, i) => i % 4 === 0).length, pct: 38 },
-    { name: "31–60", count: slice.filter((_, i) => i % 4 === 1).length, pct: 29 },
-    { name: "61–90", count: slice.filter((_, i) => i % 4 === 2).length, pct: 21 },
-    { name: "90+", count: slice.filter((_, i) => i % 4 === 3).length, pct: 12 },
-  ];
   return (
-    <ChartFrame footer="Outstanding payables · aging buckets">
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={buckets} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="2 2" stroke={GRID_STROKE} vertical={false} />
-          <XAxis dataKey="name" tick={AXIS_TICK_STYLE} axisLine={false} tickLine={false} />
-          <YAxis tick={AXIS_TICK_STYLE} axisLine={false} tickLine={false} allowDecimals={false} />
-          <Tooltip contentStyle={CHART_TOOLTIP_STYLE} cursor={{ fill: ACCENT_STROKE }} />
-          <Bar dataKey="count" fill={FOREGROUND_STROKE} radius={[2, 2, 0, 0]} />
-        </BarChart>
-      </ResponsiveContainer>
-    </ChartFrame>
+    <div className="flex h-full items-center justify-center text-[11px] text-muted-foreground">
+      No payables-aging module yet.
+    </div>
   );
 }
 
@@ -2284,62 +1953,46 @@ export const WIDGET_CATALOG: WidgetDef[] = [
    today's focus, recent activities feed.
    ============================================================ */
 
-/* ---- Cash Flow (7d) ---- */
+/* ---- Cash Flow (real inflow/outflow, current period) ---- */
 function formatNum(n: number): string {
   return n.toLocaleString("en-IN");
 }
+/** No stored daily cash-flow history exists yet - shows the real period
+ *  totals (Invoice revenue as inflow, Expenses as outflow) as two bars
+ *  rather than a fabricated 7-day series. */
 function CashFlowChart(): ReactElement {
-  const filter = useDashboardFilter();
-  const factor = scopeFactor(filter);
-  const data = useMemo(() => {
-    const out: { day: string; inflow: number; outflow: number }[] = [];
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date(Date.now() - i * 86400000);
-      const base = 60000 + Math.round(Math.sin(i / 2) * 14000) + i * 2400;
-      const inflow = Math.round(base * (0.9 + (i % 3) * 0.12) * factor);
-      const outflow = Math.round(base * (0.78 + (i % 4) * 0.06) * factor);
-      out.push({
-        day: d.toLocaleDateString("en-IN", { weekday: "short" }).slice(0, 2),
-        inflow,
-        outflow,
-      });
-    }
-    return out;
-  }, [factor]);
-
-  const totalIn = data.reduce((s, d) => s + d.inflow, 0);
-  const totalOut = data.reduce((s, d) => s + d.outflow, 0);
-  const net = totalIn - totalOut;
+  const { stats } = useDashboardStats();
+  const inflow = stats?.invoices.revenuePeriod ?? 0;
+  const outflow = stats?.fuel.totalCost ?? 0;
+  const net = inflow - outflow;
+  const data = [{ label: "This period", inflow, outflow }];
 
   return (
-    <ChartFrame footer={`Net ₹${(net / 1000).toFixed(0)}k · In ${formatNum(totalIn)} · Out ${formatNum(totalOut)}`}>
+    <ChartFrame footer={`Net ₹${(net / 1000).toFixed(0)}k · In ${formatNum(inflow)} · Out ${formatNum(outflow)}`}>
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
           <CartesianGrid strokeDasharray="2 2" stroke={GRID_STROKE} vertical={false} />
-          <XAxis dataKey="day" tick={AXIS_TICK_STYLE} axisLine={false} tickLine={false} />
+          <XAxis dataKey="label" tick={AXIS_TICK_STYLE} axisLine={false} tickLine={false} />
           <YAxis tick={AXIS_TICK_STYLE} axisLine={false} tickLine={false}
             tickFormatter={(v: number) => `${v / 1000}k`} />
           <Tooltip contentStyle={CHART_TOOLTIP_STYLE} cursor={{ fill: ACCENT_STROKE }}
-            formatter={(v: number, n) => [formatNum(v), n === "inflow" ? "Inflow" : "Outflow"]}
-            labelStyle={{ color: "var(--muted-foreground)" }} />
-          <Bar dataKey="inflow" fill={FOREGROUND_STROKE} radius={[2, 2, 0, 0]} />
-          <Bar dataKey="outflow" fill={MUTED_STROKE} radius={[2, 2, 0, 0]} />
+            formatter={(v: number, n) => [formatNum(v), n === "inflow" ? "Inflow" : "Outflow"]} />
+          <Bar dataKey="inflow" fill={FOREGROUND_STROKE} radius={[2, 2, 0, 0]} barSize={48} />
+          <Bar dataKey="outflow" fill={MUTED_STROKE} radius={[2, 2, 0, 0]} barSize={48} />
         </BarChart>
       </ResponsiveContainer>
     </ChartFrame>
   );
 }
 
-/* ---- Fleet Status (Running / Loading / Idle / Maintenance / Offline) ---- */
+/* ---- Fleet Status (Running / Idle / Maintenance / Offline) ---- */
 function FleetStatusWidget(): ReactElement {
-  const filter = useDashboardFilter();
-  const slice = scopedSlice(VEHICLES, filter);
+  const { stats } = useDashboardStats();
   const data = [
-    { label: "Running", count: slice.filter((v) => v.status === "Active" && v.assignedTripId).length, icon: Truck },
-    { label: "Loading", count: Math.round(slice.length * 0.08 * scopeFactor(filter)), icon: Package },
-    { label: "Idle", count: slice.filter((v) => v.status === "Idle").length, icon: CircleDot },
-    { label: "Maintenance", count: slice.filter((v) => v.status === "In Maintenance").length, icon: Wrench },
-    { label: "Offline", count: slice.filter((v) => v.status === "Offline").length, icon: AlertCircle },
+    { label: "Running", count: stats?.vehicles.active ?? 0, icon: Truck },
+    { label: "Idle", count: stats?.vehicles.idle ?? 0, icon: CircleDot },
+    { label: "Maintenance", count: stats?.vehicles.maintenance ?? 0, icon: Wrench },
+    { label: "Offline", count: stats?.vehicles.offline ?? 0, icon: AlertCircle },
   ];
   const total = data.reduce((s, d) => s + d.count, 0) || 1;
   const runningPct = Math.round((data[0].count / total) * 100);
@@ -2402,74 +2055,36 @@ function FleetStatusWidget(): ReactElement {
   );
 }
 
-/* ---- Today's Focus (top 5 priority items) ---- */
+/* ---- Today's Focus (top real priority items) ---- */
 function TodaysFocusList(): ReactElement {
-  const filter = useDashboardFilter();
-  const { navigate, navigateDetail } = useAppStore();
+  const { navigate } = useAppStore();
+  const { stats, loaded } = useDashboardStats();
   const items = useMemo(() => {
-    const pendingTrips = TRIPS.filter((t) => t.status === "Planned").slice(0, 1);
-    const expiringDocs = DOCUMENTS.filter((d) => d.status === "Expiring Soon" || d.status === "Expired").slice(0, 1);
-    const overdueInv = INVOICES.filter((i) => i.status === "Overdue").slice(0, 1);
-    const lowFuelVehicles = VEHICLES.filter((v) => v.status === "Active").slice(0, 1);
-    const unpaidSalaries = { id: "sal-1", title: "Process Sep 2025 payroll", detail: "32 employees · Rs 4.82L gross · due in 3 days", to: "payroll" as const, severity: "medium" as const, cta: "Run payroll" };
-
-    const list: { id: string; title: string; detail: string; to: "trips" | "documents" | "invoice" | "vehicles" | "payroll"; severity: "high" | "medium"; cta: string; id2?: string }[] = [];
-
-    if (pendingTrips[0]) {
-      list.push({
-        id: `tf-trip-${pendingTrips[0].id}`,
-        title: `Dispatch trip ${pendingTrips[0].tripId}`,
-        detail: `${pendingTrips[0].origin} -> ${pendingTrips[0].destination} · ${pendingTrips[0].vehicleName}`,
-        to: "trips",
-        severity: "high",
-        cta: "Open trip",
-        id2: pendingTrips[0].id,
-      });
+    if (!stats) return [];
+    const list: { id: string; title: string; detail: string; to: Parameters<typeof navigate>[0]; severity: "high" | "medium"; cta: string }[] = [];
+    if (stats.trips.delayedShipments[0]) {
+      const t = stats.trips.delayedShipments[0];
+      list.push({ id: `tf-trip-${t.id}`, title: `Delayed trip ${t.tripId}`, detail: `To ${t.destination}`, to: "trips", severity: "high", cta: "Open trip" });
     }
-    if (expiringDocs[0]) {
-      list.push({
-        id: `tf-doc-${expiringDocs[0].id}`,
-        title: `Renew ${expiringDocs[0].type}`,
-        detail: `${expiringDocs[0].entityName} · ${expiringDocs[0].status}`,
-        to: "documents",
-        severity: "high",
-        cta: "Renew",
-        id2: expiringDocs[0].id,
-      });
+    if (stats.documents.expiryCalendar[0]) {
+      const d = stats.documents.expiryCalendar[0];
+      list.push({ id: `tf-doc-${d.id}`, title: `Renew ${d.type}`, detail: `${d.name} · ${d.status}`, to: "documents", severity: "high", cta: "Renew" });
     }
-    if (overdueInv[0]) {
-      list.push({
-        id: `tf-inv-${overdueInv[0].id}`,
-        title: `Chase invoice ${overdueInv[0].invoiceNumber}`,
-        detail: `${overdueInv[0].customer} · ${formatNum(overdueInv[0].totalAmount)}`,
-        to: "invoice",
-        severity: "high",
-        cta: "Send reminder",
-        id2: overdueInv[0].invoiceNumber,
-      });
+    if (stats.invoices.overdueCount > 0) {
+      list.push({ id: "tf-inv", title: `${stats.invoices.overdueCount} overdue invoice${stats.invoices.overdueCount > 1 ? "s" : ""}`, detail: `₹${formatNum(stats.invoices.outstandingAmount)} outstanding`, to: "invoice", severity: "high", cta: "Send reminder" });
     }
-    list.push({
-      id: "tf-sal-1",
-      title: unpaidSalaries.title,
-      detail: unpaidSalaries.detail,
-      to: unpaidSalaries.to,
-      severity: unpaidSalaries.severity,
-      cta: unpaidSalaries.cta,
-    });
-    if (lowFuelVehicles[0]) {
-      list.push({
-        id: `tf-veh-${lowFuelVehicles[0].id}`,
-        title: `Refuel ${lowFuelVehicles[0].name}`,
-        detail: `${lowFuelVehicles[0].licensePlate} · tank below 25%`,
-        to: "vehicles",
-        severity: "medium",
-        cta: "Open vehicle",
-        id2: lowFuelVehicles[0].id,
-      });
+    if (stats.hr.payrollStatus && stats.hr.payrollStatus.status !== "Disbursed") {
+      list.push({ id: "tf-sal", title: `${stats.hr.payrollStatus.status} payroll for ${stats.hr.payrollStatus.month}`, detail: `₹${(stats.hr.payrollStatus.netTotalINR / 100000).toFixed(1)}L net`, to: "payroll", severity: "medium", cta: "Run payroll" });
+    }
+    if (stats.workOrders.openCount > 0) {
+      list.push({ id: "tf-wo", title: `${stats.workOrders.openCount} open work order${stats.workOrders.openCount > 1 ? "s" : ""}`, detail: "Maintenance queue", to: "maintenance", severity: "medium", cta: "Open work orders" });
     }
     return list.slice(0, 5);
-  }, []);
-  const visible = scopedSlice(items, filter, 5);
+  }, [stats]);
+  if (loaded && items.length === 0) {
+    return <div className="py-4 text-center text-[11px] text-muted-foreground">Nothing needs attention right now.</div>;
+  }
+  const visible = items;
   return (
     <div className="flex flex-col gap-2 max-h-[260px] overflow-y-auto scrollbar-thin">
       {visible.map((p) => (
@@ -2484,7 +2099,7 @@ function TodaysFocusList(): ReactElement {
           </div>
           <div className="mt-1.5 pl-6">
             <Btn size="xs" variant="primary" iconRight={<ArrowRight className="h-2.5 w-2.5" />}
-              onClick={() => p.id2 ? navigateDetail(p.to, p.id2) : navigate(p.to)}>{p.cta}</Btn>
+              onClick={() => navigate(p.to)}>{p.cta}</Btn>
           </div>
         </div>
       ))}
@@ -2492,52 +2107,38 @@ function TodaysFocusList(): ReactElement {
   );
 }
 
-/* ---- Recent Activities Feed (last 10 actions across the system) ---- */
+/* ---- Recent Activities Feed (real trips + work orders + issues, merged) ---- */
 function RecentActivitiesFeedList(): ReactElement {
-  const filter = useDashboardFilter();
   const { navigateDetail } = useAppStore();
+  const { stats } = useDashboardStats();
 
   const feed = useMemo(() => {
-    type Item = { id: string; module: string; ref: string; action: string; ts: string; by: string; to: "trips" | "invoice" | "expenses" | "fuel-energy" | "maintenance" | "issues" | "vehicles"; id2: string };
-    const list: Item[] = [];
-
-    TRIPS.slice(0, 3).forEach((t) => list.push({
-      id: `feed-t-${t.id}`, module: "Trips", ref: t.tripId, action: `Trip created - ${t.origin} -> ${t.destination}`,
-      ts: t.createdDate, by: t.driverName, to: "trips", id2: t.id,
-    }));
-    INVOICES.slice(0, 3).forEach((i) => list.push({
-      id: `feed-i-${i.id}`, module: "Invoices", ref: i.invoiceNumber, action: `Invoice ${i.status} - ${i.customer}`,
-      ts: i.invoiceDate, by: "Reena Mehta", to: "invoice", id2: i.invoiceNumber,
-    }));
-    EXPENSES.slice(0, 2).forEach((e) => list.push({
-      id: `feed-e-${e.id}`, module: "Expenses", ref: e.id, action: `${e.category} expense logged - ${formatNum(e.amount)}`,
-      ts: e.date, by: e.submittedBy, to: "expenses", id2: e.id,
-    }));
-    FUEL_ENTRIES.slice(0, 2).forEach((f) => list.push({
-      id: `feed-f-${f.id}`, module: "Fuel", ref: `FE-${f.id.slice(-4)}`, action: `Fuel entry - ${f.vehicle} · ${formatNum(f.quantity)}L`,
-      ts: f.date, by: f.driver ?? "Driver", to: "fuel-energy", id2: f.id,
-    }));
-    WORK_ORDERS.slice(0, 2).forEach((w) => list.push({
-      id: `feed-w-${w.id}`, module: "Work Orders", ref: w.workOrderId, action: `Work order ${w.status} - ${w.title}`,
-      ts: w.createdDate, by: w.technician ?? "Workshop", to: "maintenance", id2: w.id,
-    }));
-    ISSUES.slice(0, 1).forEach((i) => list.push({
-      id: `feed-is-${i.id}`, module: "Issues", ref: i.issueId, action: `Issue ${i.status} - ${i.title}`,
-      ts: i.createdDate, by: i.reporter, to: "issues", id2: i.id,
-    }));
-
+    if (!stats) return [];
+    type Item = { id: string; module: string; ref: string; action: string; ts: string; to: "trips" | "maintenance" | "issues"; id2: string };
+    const list: Item[] = [
+      ...stats.trips.recentActivities.map((t): Item => ({
+        id: `feed-t-${t.id}`, module: "Trips", ref: t.tripId, action: `Trip ${t.status} - ${t.origin} → ${t.destination}`,
+        ts: t.createdDate, to: "trips", id2: t.id,
+      })),
+      ...stats.workOrders.recentUpdates.map((w): Item => ({
+        id: `feed-w-${w.id}`, module: "Work Orders", ref: w.workOrderId, action: `Work order ${w.status} - ${w.title}`,
+        ts: new Date().toISOString(), to: "maintenance", id2: w.id,
+      })),
+      ...stats.issues.criticalHigh.map((i): Item => ({
+        id: `feed-is-${i.id}`, module: "Issues", ref: i.id, action: `${i.severity} issue - ${i.title}`,
+        ts: new Date().toISOString(), to: "issues", id2: i.id,
+      })),
+    ];
     return list.sort((a, b) => +new Date(b.ts) - +new Date(a.ts)).slice(0, 10);
-  }, []);
+  }, [stats]);
 
-  const visible = scopedSlice(feed, filter, 10);
   const moduleIcon: Record<string, typeof Truck> = {
-    Trips: Truck, Invoices: FileText, Expenses: Banknote, Fuel: Fuel,
-    "Work Orders": Wrench, Issues: AlertCircle, Vehicles: Truck,
+    Trips: Truck, "Work Orders": Wrench, Issues: AlertCircle,
   };
 
   return (
     <div className="divide-y divide-border max-h-[260px] overflow-y-auto scrollbar-thin">
-      {visible.map((f, i) => {
+      {feed.map((f, i) => {
         const Icon = moduleIcon[f.module] ?? Activity;
         return (
           <button
@@ -2552,13 +2153,6 @@ function RecentActivitiesFeedList(): ReactElement {
               <div className="mt-0.5 flex items-center gap-1.5 text-[10px] text-muted-foreground">
                 <span className="rounded-[2px] border border-border px-1 py-0.5">{f.module}</span>
                 <span className="tabular">{f.ref}</span>
-                <span>·</span>
-                <span>by {f.by}</span>
-              </div>
-            </div>
-            <div className="shrink-0 text-right">
-              <div className="text-[10px] text-muted-foreground">
-                {formatDistanceToNow(new Date(f.ts), { addSuffix: true })}
               </div>
             </div>
           </button>
@@ -2579,20 +2173,14 @@ function RecentActivitiesFeedList(): ReactElement {
 /* ---- Operations (8) ---- */
 
 function OnTimeDeliveryKpi(): ReactElement {
-  const filter = useDashboardFilter();
   const { navigate } = useAppStore();
-  const base = KPI_STATS.completionRate;
-  const value = filter.branch && filter.branch !== "All Branches"
-    ? Math.round((base - 3.4) * 10) / 10
-    : base;
+  const { stats, loaded } = useDashboardStats();
+  const value = stats?.trips.onTimePct ?? 0;
   return (
     <KpiCard
       label="On-Time Delivery"
-      value={`${value}%`}
-      delta="1.1%"
-      trend="up"
+      value={loaded ? `${value}%` : "…"}
       icon={<TrendingUp className="h-4 w-4" />}
-      spark={[86, 87, 88, 87, 89, 90, 90, value]}
       progress={value}
       progressLabel="of 95% target"
       onClick={() => navigate("reports")}
@@ -2601,21 +2189,13 @@ function OnTimeDeliveryKpi(): ReactElement {
 }
 
 function AvgTransitTimeKpi(): ReactElement {
-  const filter = useDashboardFilter();
-  const scoped = scopedSlice(TRIPS, filter);
-  const avg = scoped.length > 0
-    ? Math.round((scoped.reduce((s, t) => s + t.distanceKm, 0) / scoped.length / 42) * 10) / 10
-    : 0;
-  const value = Math.max(8, avg || 18.4);
+  const { stats, loaded } = useDashboardStats();
+  const value = stats?.trips.avgTransitDays ? Math.round(stats.trips.avgTransitDays * 24 * 10) / 10 : 0;
   return (
     <KpiCard
       label="Avg Transit Time"
-      value={`${value}h`}
-      delta="0.6h"
-      trend="down"
-      invertDelta
+      value={loaded ? `${value}h` : "…"}
       icon={<Timer className="h-4 w-4" />}
-      spark={[22, 21, 20, 19.5, 19, 18.8, 18.5, value]}
       progress={Math.max(0, 100 - value * 2.5)}
       progressLabel="vs 16h target"
     />
@@ -2623,17 +2203,11 @@ function AvgTransitTimeKpi(): ReactElement {
 }
 
 function DelayedShipmentsList(): ReactElement {
-  const filter = useDashboardFilter();
   const { navigateDetail } = useAppStore();
-  const delayed = useMemo(
-    () => TRIPS.filter((t) => t.status === "Breakdown" || t.status === "Cancelled")
-      .slice(0, 8)
-      .map((t) => ({ ...t, delayHrs: 4 + ((t.distanceKm % 18)) })),
-    [],
-  );
-  const visible = scopedSlice(delayed, filter, 5);
-  if (visible.length === 0) {
-    return <div className="text-[11px] text-muted-foreground">No delayed shipments in scope.</div>;
+  const { stats, loaded } = useDashboardStats();
+  const visible = stats?.trips.delayedShipments.slice(0, 5) ?? [];
+  if (loaded && visible.length === 0) {
+    return <div className="text-[11px] text-muted-foreground">No delayed shipments.</div>;
   }
   return (
     <div className="divide-y divide-border">
@@ -2642,11 +2216,13 @@ function DelayedShipmentsList(): ReactElement {
           key={t.id}
           index={i}
           primary={t.tripId}
-          secondary={`${t.origin} → ${t.destination} · ${t.customer}`}
+          secondary={`To ${t.destination}`}
           right={
             <div className="flex flex-col items-end">
-              <StatusBadge variant="solid" pulse>{t.status}</StatusBadge>
-              <span className="mt-1 text-[9px] tabular">+{t.delayHrs}h</span>
+              <StatusBadge variant="solid" pulse>Delayed</StatusBadge>
+              {t.expectedDelivery && (
+                <span className="mt-1 text-[9px] tabular">was due {new Date(t.expectedDelivery).toLocaleDateString("en-IN")}</span>
+              )}
             </div>
           }
           onClick={() => navigateDetail("trips", t.id)}
@@ -2657,14 +2233,14 @@ function DelayedShipmentsList(): ReactElement {
 }
 
 function TripStatusMixChart(): ReactElement {
-  const filter = useDashboardFilter();
-  const slice = scopedSlice(TRIPS, filter);
+  const { stats } = useDashboardStats();
+  const mix = stats?.trips.statusMix ?? [];
   const data = [
-    { name: "In Transit", value: slice.filter((t) => t.status === "Active" || t.status === "In Transit").length },
-    { name: "Completed", value: slice.filter((t) => t.status === "Delivered").length },
-    { name: "Delayed", value: slice.filter((t) => t.status === "Breakdown").length },
-    { name: "Cancelled", value: slice.filter((t) => t.status === "Cancelled").length },
-    { name: "Planned", value: slice.filter((t) => t.status === "Planned").length },
+    { name: "In Transit", value: (mix.find((m) => m.status === "Active")?.count ?? 0) + (mix.find((m) => m.status === "In Transit")?.count ?? 0) },
+    { name: "Delivered", value: mix.find((m) => m.status === "Delivered")?.count ?? 0 },
+    { name: "Breakdown", value: mix.find((m) => m.status === "Breakdown")?.count ?? 0 },
+    { name: "Cancelled", value: mix.find((m) => m.status === "Cancelled")?.count ?? 0 },
+    { name: "Planned", value: mix.find((m) => m.status === "Planned")?.count ?? 0 },
   ];
   const total = data.reduce((s, d) => s + d.value, 0) || 1;
   return (
@@ -2696,40 +2272,23 @@ function TripStatusMixChart(): ReactElement {
 }
 
 function BrokerWinRateKpi(): ReactElement {
-  const filter = useDashboardFilter();
-  const won = scopedCount(38, filter);
-  const total = scopedCount(64, filter);
-  const rate = total > 0 ? Math.round((won / total) * 1000) / 10 : 0;
+  const { stats, loaded } = useDashboardStats();
+  const rate = stats?.broker.winRatePct ?? 0;
   return (
     <KpiCard
       label="Broker Win Rate"
-      value={`${rate}%`}
-      delta="2.4%"
-      trend="up"
+      value={loaded ? `${rate}%` : "…"}
       icon={<Target className="h-4 w-4" />}
-      spark={[54, 56, 55, 58, 59, 60, 59, rate]}
       progress={rate}
-      progressLabel={`${won}/${total} quotes`}
+      progressLabel="won / (won + lost) enquiries"
     />
   );
 }
 
 function OpenLoadsList(): ReactElement {
-  const filter = useDashboardFilter();
   const { navigate } = useAppStore();
-  const lanes = ["Mumbai → Delhi", "Pune → Bengaluru", "Delhi → Jaipur", "Chennai → Coimbatore", "Ahmedabad → Surat", "Kolkata → Bhubaneswar"];
-  const loads = useMemo(
-    () => lanes.map((lane, i) => ({
-      id: `load-${i + 1}`,
-      lane,
-      vehicle: ["32ft MXL", "20ft Container", "Open Body 24ft", "Tanker", "Closed Body"][i % 5],
-      weight: `${(8 + (i % 12))}T`,
-      budget: 28000 + (i % 9) * 4500,
-      postedMins: 12 + i * 18,
-    })),
-    [],
-  );
-  const visible = scopedSlice(loads, filter, 5);
+  const { stats } = useDashboardStats();
+  const visible = stats?.broker.openLoads.slice(0, 5) ?? [];
   return (
     <div className="divide-y divide-border">
       {visible.map((l, i) => (
@@ -2737,74 +2296,28 @@ function OpenLoadsList(): ReactElement {
           key={l.id}
           index={i}
           primary={l.lane}
-          secondary={`${l.vehicle} · ${l.weight} · ₹${l.budget.toLocaleString("en-IN")}`}
-          right={
-            <div className="flex flex-col items-end">
-              <StatusBadge variant="outline">Open</StatusBadge>
-              <span className="mt-1 text-[9px] tabular">{l.postedMins}m ago</span>
-            </div>
-          }
+          secondary={l.customer}
+          right={<StatusBadge variant="outline">{l.status}</StatusBadge>}
           onClick={() => navigate("broker-marketplace")}
         />
       ))}
+      {visible.length === 0 && <div className="text-[11px] text-muted-foreground">No open loads.</div>}
     </div>
   );
 }
 
+/** No real parts/SKU inventory model exists yet - flagged rather than
+ *  faked (see docs/dashboard mock survey). */
 function InventoryValueKpi(): ReactElement {
-  const filter = useDashboardFilter();
-  const value = scopedCount(4820000, filter);
-  return (
-    <KpiCard
-      label="Inventory Value"
-      value={`₹${(value / 100000).toFixed(1)}L`}
-      delta="3.2%"
-      trend="up"
-      icon={<Boxes className="h-4 w-4" />}
-      spark={[38, 40, 41, 43, 45, 46, 47, value / 100000]}
-      progress={72}
-      progressLabel="of ₹66L target"
-    />
-  );
+  return <KpiCard label="Inventory Value" value="—" icon={<Boxes className="h-4 w-4" />} progressLabel="no inventory module yet" />;
 }
 
 function LowStockSkusList(): ReactElement {
-  const filter = useDashboardFilter();
   const { navigate } = useAppStore();
-  const skus = useMemo(
-    () => [
-      { id: "sku-1", name: "Brake Pad Set - Tata LPT", sku: "BP-TLPT-014", stock: 4, reorder: 12 },
-      { id: "sku-2", name: "Clutch Plate - Eicher Pro", sku: "CP-EPR-208", stock: 2, reorder: 8 },
-      { id: "sku-3", name: "Engine Oil 15W40 - 20L", sku: "EO-1540-020", stock: 6, reorder: 15 },
-      { id: "sku-4", name: "Tyre 10R20 - Apollo", sku: "TY-10R20-AP", stock: 3, reorder: 10 },
-      { id: "sku-5", name: "Battery 12V 180Ah", sku: "BT-12V180-EX", stock: 1, reorder: 6 },
-      { id: "sku-6", name: "Head Lamp Assembly", sku: "HL-ASM-018", stock: 5, reorder: 9 },
-    ],
-    [],
-  );
-  const visible = scopedSlice(skus, filter, 5);
   return (
-    <div className="flex flex-col gap-1.5">
-      {visible.map((s, i) => {
-        const ratio = s.stock / s.reorder;
-        return (
-          <button
-            key={s.id}
-            onClick={() => navigate("warehouse")}
-            className="group flex items-center gap-2 rounded-[3px] border border-border px-2 py-1.5 text-left hover:bg-accent/30 transition-colors tap"
-          >
-            <PackageOpen className="h-3 w-3 shrink-0 text-muted-foreground" />
-            <div className="min-w-0 flex-1">
-              <div className="truncate text-[12px] font-medium leading-tight">{s.name}</div>
-              <div className="truncate text-[9px] tabular text-muted-foreground">{s.sku}</div>
-            </div>
-            <div className="shrink-0 text-right">
-              <div className="tabular text-[12px] font-medium">{s.stock}/{s.reorder}</div>
-              <div className="text-[9px] text-muted-foreground">{Math.round(ratio * 100)}%</div>
-            </div>
-          </button>
-        );
-      })}
+    <div className="py-6 text-center text-[11px] text-muted-foreground">
+      No parts/inventory module yet.
+      <Btn size="xs" variant="ghost" className="mt-2" onClick={() => navigate("maintenance")}>Open Maintenance</Btn>
     </div>
   );
 }
@@ -2813,59 +2326,40 @@ function LowStockSkusList(): ReactElement {
 
 function AvgDaysToPayKpi(): ReactElement {
   const filter = useDashboardFilter();
-  const base = 42;
-  const value = filter.branch && filter.branch !== "All Branches"
-    ? base + 4
-    : base;
+  const { stats, loaded } = useDashboardStats();
+  const value = stats?.invoices.avgDaysToPay ?? 0;
   return (
     <KpiCard
       label="Avg Days to Pay (DSO)"
-      value={`${value}d`}
-      delta="2d"
-      trend="down"
-      invertDelta
+      value={loaded ? `${value}d` : "…"}
       icon={<Clock className="h-4 w-4" />}
-      spark={[48, 46, 45, 44, 43, 43, 42, value]}
-      progress={Math.max(0, 100 - (value - 30) * 2.5)}
+      progress={Math.min(100, Math.max(0, 100 - (value - 30) * 2.5))}
       progressLabel="vs 30d target"
     />
   );
 }
 
 function OutstandingAmountKpi(): ReactElement {
-  const filter = useDashboardFilter();
-  const value = scopedCount(KPI_STATS.outstandingAmount, filter);
+  const { stats, loaded } = useDashboardStats();
+  const value = stats?.invoices.outstandingAmount ?? 0;
   return (
     <KpiCard
       label="Outstanding Receivables"
-      value={`₹${(value / 100000).toFixed(1)}L`}
-      delta="₹1.2L"
-      trend="up"
-      invertDelta
+      value={loaded ? `₹${(value / 100000).toFixed(1)}L` : "…"}
       icon={<Banknote className="h-4 w-4" />}
-      spark={[6.8, 7.2, 7.5, 8.0, 8.3, 8.6, 8.4, value / 100000]}
-      progress={Math.min(100, (value / 1200000) * 100)}
-      progressLabel="of ₹12L ceiling"
     />
   );
 }
 
 function MonthlyRevenueChart(): ReactElement {
-  const filter = useDashboardFilter();
-  const factor = scopeFactor(filter);
-  const data = useMemo(() => {
-    const months = ["Apr", "May", "Jun", "Jul", "Aug", "Sep"];
-    return months.map((m, i) => ({
-      m,
-      revenue: Math.round((4200000 + Math.sin(i / 1.5) * 480000 + i * 240000) * factor),
-    }));
-  }, [factor]);
+  const { stats } = useDashboardStats();
+  const data = stats?.invoices.monthlyRevenue ?? [];
   return (
-    <ChartFrame footer="Monthly revenue · last 6 months">
+    <ChartFrame footer="Monthly revenue · last 12 months">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
           <CartesianGrid strokeDasharray="2 2" stroke={GRID_STROKE} vertical={false} />
-          <XAxis dataKey="m" tick={AXIS_TICK_STYLE} axisLine={false} tickLine={false} />
+          <XAxis dataKey="month" tick={AXIS_TICK_STYLE} axisLine={false} tickLine={false} />
           <YAxis tick={AXIS_TICK_STYLE} axisLine={false} tickLine={false}
             tickFormatter={(v: number) => `${v / 100000}L`} />
           <Tooltip contentStyle={CHART_TOOLTIP_STYLE} cursor={{ fill: ACCENT_STROKE }}
@@ -2878,37 +2372,21 @@ function MonthlyRevenueChart(): ReactElement {
 }
 
 function TopDelinquentCustomersList(): ReactElement {
-  const filter = useDashboardFilter();
   const { navigate } = useAppStore();
-  const overdue = useMemo(
-    () => INVOICES.filter((i) => i.status === "Overdue")
-      .sort((a, b) => b.totalAmount - a.totalAmount)
-      .slice(0, 8)
-      .map((inv) => {
-        const cust = CUSTOMERS.find((c) => c.companyName === inv.customer);
-        const daysLate = Math.max(1, Math.round((Date.now() - +new Date(inv.dueDate)) / 86400000));
-        return { inv, cust, daysLate };
-      }),
-    [],
-  );
-  const visible = scopedSlice(overdue, filter, 5);
-  if (visible.length === 0) {
-    return <div className="text-[11px] text-muted-foreground">No overdue receivables in scope.</div>;
+  const { stats, loaded } = useDashboardStats();
+  const visible = stats?.customers.topDelinquent.slice(0, 5) ?? [];
+  if (loaded && visible.length === 0) {
+    return <div className="text-[11px] text-muted-foreground">No overdue receivables.</div>;
   }
   return (
     <div className="divide-y divide-border">
-      {visible.map((row, i) => (
+      {visible.map((c, i) => (
         <ListRow
-          key={row.inv.id}
+          key={c.id}
           index={i}
-          primary={row.inv.customer}
-          secondary={`${row.inv.invoiceNumber} · ${row.cust?.paymentTerms ?? "Net 30"}`}
-          right={
-            <div className="flex flex-col items-end">
-              <span className="tabular text-[11px] font-medium">₹{(row.inv.totalAmount / 1000).toFixed(0)}k</span>
-              <span className="text-[9px] text-muted-foreground">{row.daysLate}d late</span>
-            </div>
-          }
+          primary={c.companyName}
+          secondary={c.city}
+          right={<span className="tabular text-[11px] font-medium">₹{(c.outstandingBalance / 1000).toFixed(0)}k</span>}
           onClick={() => navigate("invoice")}
         />
       ))}
@@ -2919,54 +2397,35 @@ function TopDelinquentCustomersList(): ReactElement {
 /* ---- Fleet (2) ---- */
 
 function VehicleUtilizationKpi(): ReactElement {
-  const filter = useDashboardFilter();
-  const slice = scopedSlice(VEHICLES, filter);
-  const active = slice.filter((v) => v.status === "Active").length;
-  const total = slice.length || 1;
-  const value = Math.round((active / total) * 1000) / 10;
+  const { stats, loaded } = useDashboardStats();
+  const value = stats?.vehicles.utilizationPct ?? 0;
   return (
     <KpiCard
       label="Vehicle Utilization"
-      value={`${value}%`}
-      delta="1.8%"
-      trend="up"
+      value={loaded ? `${value}%` : "…"}
       icon={<Percent className="h-4 w-4" />}
-      spark={[62, 64, 65, 66, 68, 70, 71, value]}
       progress={value}
-      progressLabel={`${active}/${total} active`}
+      progressLabel={`${stats?.vehicles.active ?? 0}/${stats?.vehicles.total ?? 0} active`}
     />
   );
 }
 
 function FuelEfficiencyLeadersList(): ReactElement {
-  const filter = useDashboardFilter();
   const { navigate } = useAppStore();
-  const leaders = useMemo(() => {
-    const map = new Map<string, { total: number; count: number }>();
-    FUEL_ENTRIES.forEach((f) => {
-      const cur = map.get(f.vehicle) ?? { total: 0, count: 0 };
-      cur.total += f.efficiency;
-      cur.count += 1;
-      map.set(f.vehicle, cur);
-    });
-    return Array.from(map.entries())
-      .map(([vehicle, v]) => ({ vehicle, avg: Math.round((v.total / v.count) * 10) / 10 }))
-      .sort((a, b) => b.avg - a.avg)
-      .slice(0, 8);
-  }, []);
-  const visible = scopedSlice(leaders, filter, 5);
-  const max = Math.max(...visible.map((l) => l.avg), 1);
+  const { stats } = useDashboardStats();
+  const visible = stats?.fuel.efficiencyLeaders.slice(0, 5) ?? [];
+  const max = Math.max(...visible.map((l) => l.avgEfficiency), 1);
   return (
     <div className="flex flex-col gap-2.5">
-      {visible.map((l, i) => (
-        <div key={l.vehicle} className="flex flex-col gap-1">
+      {visible.map((l) => (
+        <div key={l.id} className="flex flex-col gap-1">
           <div className="flex items-center justify-between text-[12px]">
-            <span className="truncate text-foreground">{l.vehicle}</span>
-            <span className="ml-2 tabular font-medium">{l.avg} kmpl</span>
+            <span className="truncate text-foreground">{l.name}</span>
+            <span className="ml-2 tabular font-medium">{l.avgEfficiency} kmpl</span>
           </div>
           <div className="h-1 w-full overflow-hidden rounded-full bg-muted">
             <div className="h-full rounded-full bg-foreground transition-[width] duration-500 ease-out"
-              style={{ width: `${(l.avg / max) * 100}%` }} />
+              style={{ width: `${(l.avgEfficiency / max) * 100}%` }} />
           </div>
         </div>
       ))}
@@ -2982,60 +2441,38 @@ function FuelEfficiencyLeadersList(): ReactElement {
 /* ---- HR / People (5) ---- */
 
 function PendingLeavesList(): ReactElement {
-  const filter = useDashboardFilter();
   const { navigate } = useAppStore();
-  const pending = useMemo(
-    () => DRIVERS.filter((d) => d.status === "On Leave" || d.status === "Active")
-      .slice(0, 10)
-      .map((d, i) => ({
-        id: d.id,
-        name: d.name,
-        type: ["Casual", "Sick", "Earned", "Unpaid"][i % 4],
-        days: 1 + (i % 5),
-        from: `${(i % 28) + 1} Oct`,
-      })),
-    [],
-  );
-  const visible = scopedSlice(pending, filter, 6);
+  const { stats } = useDashboardStats();
+  const visible = stats?.hr.pendingLeavesList.slice(0, 6) ?? [];
   return (
     <div className="divide-y divide-border">
       {visible.map((p, i) => (
         <ListRow
           key={p.id}
           index={i}
-          primary={p.name}
-          secondary={`${p.type} leave · ${p.days}d · from ${p.from}`}
-          right={
-            <div className="flex flex-col items-end">
-              <StatusBadge variant="outline">Pending</StatusBadge>
-              <span className="mt-1 text-[9px] tabular">{p.days}d</span>
-            </div>
-          }
+          primary={p.employeeName}
+          secondary={`${p.type} leave · ${p.days}d · from ${new Date(p.fromDate).toLocaleDateString("en-IN")}`}
+          right={<StatusBadge variant="outline">Pending</StatusBadge>}
           onClick={() => navigate("hr")}
         />
       ))}
+      {visible.length === 0 && <div className="text-[11px] text-muted-foreground">No pending leave requests.</div>}
     </div>
   );
 }
 
 function AttritionTrendChart(): ReactElement {
-  const data = useMemo(
-    () => Array.from({ length: 6 }, (_, i) => ({
-      m: ["Apr", "May", "Jun", "Jul", "Aug", "Sep"][i],
-      rate: Math.round((2.1 + Math.sin(i / 1.4) * 0.6 + i * 0.18) * 10) / 10,
-    })),
-    [],
-  );
+  const { stats } = useDashboardStats();
+  const data = stats?.hr.attritionTrend ?? [];
   return (
-    <ChartFrame footer="Monthly attrition % · last 6 months">
+    <ChartFrame footer="Employee exits · last 12 months">
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={data} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
           <CartesianGrid strokeDasharray="2 2" stroke={GRID_STROKE} vertical={false} />
-          <XAxis dataKey="m" tick={AXIS_TICK_STYLE} axisLine={false} tickLine={false} />
-          <YAxis tick={AXIS_TICK_STYLE} axisLine={false} tickLine={false} domain={[0, 5]} />
-          <Tooltip contentStyle={CHART_TOOLTIP_STYLE} labelStyle={{ color: "var(--muted-foreground)" }}
-            formatter={(v: number) => [`${v}%`, "Attrition"]} />
-          <Line type="monotone" dataKey="rate" stroke={FOREGROUND_STROKE} strokeWidth={1.5} dot={false} />
+          <XAxis dataKey="month" tick={AXIS_TICK_STYLE} axisLine={false} tickLine={false} />
+          <YAxis tick={AXIS_TICK_STYLE} axisLine={false} tickLine={false} allowDecimals={false} />
+          <Tooltip contentStyle={CHART_TOOLTIP_STYLE} labelStyle={{ color: "var(--muted-foreground)" }} />
+          <Line type="monotone" dataKey="count" stroke={FOREGROUND_STROKE} strokeWidth={1.5} dot={false} />
         </LineChart>
       </ResponsiveContainer>
     </ChartFrame>
@@ -3043,166 +2480,102 @@ function AttritionTrendChart(): ReactElement {
 }
 
 function PendingOffersKpi(): ReactElement {
-  const filter = useDashboardFilter();
   const { navigate } = useAppStore();
-  const value = scopedCount(6, filter);
+  const { stats, loaded } = useDashboardStats();
+  const value = stats?.hr.pendingOffersCount ?? 0;
   return (
     <KpiCard
       label="Pending Offers"
-      value={value}
-      delta="2"
-      trend="up"
-      invertDelta
+      value={loaded ? value : "…"}
       icon={<Briefcase className="h-4 w-4" />}
-      spark={[3, 4, 4, 5, 4, 5, 6, value]}
-      progress={Math.min(100, value * 14)}
-      progressLabel="awaiting response"
       onClick={() => navigate("hr")}
     />
   );
 }
 
 function PendingOnboardingList(): ReactElement {
-  const filter = useDashboardFilter();
   const { navigate } = useAppStore();
-  const stages = ["Document Collection", "Background Check", "Medical Test", "License Verification", "Induction"];
-  const candidates = useMemo(
-    () => DRIVERS.slice(0, 10).map((d, i) => ({
-      id: d.id,
-      name: d.name,
-      role: d.role,
-      stage: stages[i % stages.length],
-      pct: 20 + (i % 5) * 16,
-    })),
-    [],
-  );
-  const visible = scopedSlice(candidates, filter, 5);
+  const { stats } = useDashboardStats();
+  const visible = stats?.hr.pendingOnboarding.slice(0, 5) ?? [];
   return (
     <div className="flex flex-col gap-2">
-      {visible.map((c, i) => (
+      {visible.map((c) => (
         <button
           key={c.id}
           onClick={() => navigate("hr")}
-          className="group flex flex-col gap-1 rounded-[5px] border border-border px-2.5 py-1.5 text-left hover:bg-accent/30 transition-colors tap"
+          className="group flex items-center justify-between gap-2 rounded-[5px] border border-border px-2.5 py-1.5 text-left hover:bg-accent/30 transition-colors tap"
         >
-          <div className="flex items-center justify-between text-[12px]">
-            <span className="truncate font-medium">{c.name}</span>
-            <span className="tabular text-[11px] font-medium">{c.pct}%</span>
+          <div className="min-w-0">
+            <div className="truncate text-[12px] font-medium">{c.name}</div>
+            <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+              <GraduationCap className="h-2.5 w-2.5" />
+              <span className="truncate">{c.position}</span>
+            </div>
           </div>
-          <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-            <GraduationCap className="h-2.5 w-2.5" />
-            <span className="truncate">{c.stage}</span>
-          </div>
-          <div className="h-1 w-full overflow-hidden rounded-full bg-muted">
-            <div className="h-full rounded-full bg-foreground"
-              style={{ width: `${c.pct}%` }} />
-          </div>
+          <StatusBadge variant="outline">{c.stage}</StatusBadge>
         </button>
       ))}
+      {visible.length === 0 && <div className="text-[11px] text-muted-foreground">No candidates in onboarding.</div>}
     </div>
   );
 }
 
 function TeamAvailabilityWidget(): ReactElement {
-  const filter = useDashboardFilter();
-  const slice = scopedSlice(DRIVERS, filter, 12);
-  const present = slice.filter((d) => d.status === "Active").length;
-  const away = slice.filter((d) => d.status === "On Leave").length;
-  const off = slice.length - present - away;
+  const { stats } = useDashboardStats();
+  const headcount = stats?.hr.headcount ?? 0;
+  const away = stats?.hr.onLeaveToday ?? 0;
+  const present = Math.round(((stats?.hr.attendanceTodayPct ?? 0) / 100) * headcount);
   const states = [
     { label: "Present", count: present, dot: "bg-foreground" },
     { label: "Away", count: away, dot: "border border-foreground" },
-    { label: "Off", count: Math.max(0, off), dot: "bg-muted-foreground/40" },
+    { label: "Total", count: headcount, dot: "bg-muted-foreground/40" },
   ];
   return (
-    <div className="flex flex-col gap-3">
-      <div className="grid grid-cols-3 gap-2">
-        {states.map((s) => (
-          <div key={s.label} className="rounded-[5px] border border-border p-2">
-            <div className="flex items-center gap-1.5">
-              <span className={cn("h-2 w-2 rounded-full", s.dot)} />
-              <span className="text-[9px] uppercase tracking-wider text-muted-foreground">{s.label}</span>
-            </div>
-            <div className="mt-1 text-[16px] font-medium tabular">{s.count}</div>
+    <div className="grid grid-cols-3 gap-2">
+      {states.map((s) => (
+        <div key={s.label} className="rounded-[5px] border border-border p-2">
+          <div className="flex items-center gap-1.5">
+            <span className={cn("h-2 w-2 rounded-full", s.dot)} />
+            <span className="text-[9px] uppercase tracking-wider text-muted-foreground">{s.label}</span>
           </div>
-        ))}
-      </div>
-      <div className="flex flex-wrap gap-1">
-        {slice.slice(0, 12).map((d) => (
-          <div
-            key={d.id}
-            title={`${d.name} · ${d.status}`}
-            className={cn(
-              "flex h-7 w-7 items-center justify-center rounded-[3px] border text-[10px] font-medium tabular",
-              d.status === "Active"
-                ? "border-foreground bg-foreground text-background"
-                : d.status === "On Leave"
-                  ? "border-foreground bg-background text-foreground"
-                  : "border-border bg-muted/40 text-muted-foreground",
-            )}
-          >
-            {d.name.split(" ").map((n) => n[0]).slice(0, 2).join("")}
-          </div>
-        ))}
-      </div>
+          <div className="mt-1 text-[16px] font-medium tabular">{s.count}</div>
+        </div>
+      ))}
     </div>
   );
 }
 
 /* ---- Compliance (2) ---- */
 
+/** No real audit-schedule model exists yet - flagged rather than faked.
+ *  "Inspections Due" above covers the real, adjacent vehicle-inspection
+ *  signal. */
 function PendingAuditsKpi(): ReactElement {
-  const filter = useDashboardFilter();
   const { navigate } = useAppStore();
-  const value = scopedCount(4, filter);
-  return (
-    <KpiCard
-      label="Pending Audits"
-      value={value}
-      delta="1"
-      trend="up"
-      invertDelta
-      icon={<ClipboardCheck className="h-4 w-4" />}
-      spark={[2, 3, 2, 3, 4, 3, 4, value]}
-      progress={Math.min(100, value * 22)}
-      progressLabel="scheduled this qtr"
-      onClick={() => navigate("compliance")}
-    />
-  );
+  return <KpiCard label="Pending Audits" value="—" icon={<ClipboardCheck className="h-4 w-4" />} progressLabel="no audit-schedule module yet" onClick={() => navigate("compliance")} />;
 }
 
 function ExpiringLicensesList(): ReactElement {
-  const filter = useDashboardFilter();
   const { navigate } = useAppStore();
-  const licenses = useMemo(
-    () => DOCUMENTS.filter((d) => d.type === "Driving License" && d.status !== "Valid")
-      .sort((a, b) => +new Date(a.expiryDate ?? 0) - +new Date(b.expiryDate ?? 0))
-      .slice(0, 8),
-    [],
-  );
-  const visible = scopedSlice(licenses, filter, 5);
-  if (visible.length === 0) {
-    return <div className="text-[11px] text-muted-foreground">All driving licenses are valid.</div>;
+  const { stats, loaded } = useDashboardStats();
+  const visible = stats?.documents.expiringLicenses.slice(0, 5) ?? [];
+  if (loaded && visible.length === 0) {
+    return <div className="text-[11px] text-muted-foreground">All driver licenses are valid.</div>;
   }
   return (
     <div className="divide-y divide-border">
       {visible.map((d, i) => {
-        const days = d.expiryDate
-          ? Math.round((+new Date(d.expiryDate) - Date.now()) / 86400000)
-          : 0;
+        const days = d.licenseExpiry ? Math.round((+new Date(d.licenseExpiry) - Date.now()) / 86400000) : 0;
         return (
           <ListRow
             key={d.id}
             index={i}
-            primary={d.entityName}
-            secondary={d.name}
+            primary={d.name}
+            secondary="Driving License"
             right={
-              <div className="flex flex-col items-end">
-                <StatusBadge variant={d.status === "Expired" ? "solid" : "outline"} pulse={d.status === "Expired"}>
-                  {d.status === "Expired" ? "Expired" : `${days}d`}
-                </StatusBadge>
-                <span className="mt-1 text-[9px] text-muted-foreground">to renewal</span>
-              </div>
+              <StatusBadge variant={days < 0 ? "solid" : "outline"} pulse={days < 0}>
+                {days < 0 ? "Expired" : `${days}d`}
+              </StatusBadge>
             }
             onClick={() => navigate("documents")}
           />
@@ -3215,40 +2588,23 @@ function ExpiringLicensesList(): ReactElement {
 /* ---- Helpdesk (2) ---- */
 
 function OpenTicketsKpi(): ReactElement {
-  const filter = useDashboardFilter();
   const { navigate } = useAppStore();
-  const value = scopedCount(14, filter);
+  const { stats, loaded } = useDashboardStats();
+  const value = stats?.tickets.openCount ?? 0;
   return (
     <KpiCard
       label="Open Tickets"
-      value={value}
-      delta="3"
-      trend="up"
-      invertDelta
+      value={loaded ? value : "…"}
       icon={<Headphones className="h-4 w-4" />}
-      spark={[8, 9, 10, 11, 12, 13, 13, value]}
-      progress={Math.min(100, value * 6)}
-      progressLabel="3 high priority"
-      onClick={() => navigate("helpdesk")}
+      onClick={() => navigate("chat")}
     />
   );
 }
 
 function RecentTicketsList(): ReactElement {
-  const filter = useDashboardFilter();
   const { navigate } = useAppStore();
-  const tickets = useMemo(
-    () => [
-      { id: "tk-1", subject: "POD not received for trip TRP-00128", customer: "Meridian Trading", priority: "High", age: "23m" },
-      { id: "tk-2", subject: "Invoice discrepancy - INV-02147", customer: "Apex Logistics", priority: "Medium", age: "1h" },
-      { id: "tk-3", subject: "Vehicle breakdown - MH 12 AB 1234", customer: "Patel Exports", priority: "High", age: "2h" },
-      { id: "tk-4", subject: "Rate negotiation - Pune lane", customer: "Sunrise Industries", priority: "Low", age: "4h" },
-      { id: "tk-5", subject: "Driver misconduct report", customer: "Bharat Heavy", priority: "Medium", age: "6h" },
-      { id: "tk-6", subject: "e-WayBill generation failed", customer: "Coastal Carriers", priority: "High", age: "8h" },
-    ],
-    [],
-  );
-  const visible = scopedSlice(tickets, filter, 5);
+  const { stats } = useDashboardStats();
+  const visible = stats?.tickets.recent.slice(0, 5) ?? [];
   return (
     <div className="divide-y divide-border">
       {visible.map((t, i) => (
@@ -3256,18 +2612,16 @@ function RecentTicketsList(): ReactElement {
           key={t.id}
           index={i}
           primary={t.subject}
-          secondary={`${t.customer} · ticket ${t.id.toUpperCase()}`}
+          secondary={`ticket ${t.ticketNumber}`}
           right={
-            <div className="flex flex-col items-end">
-              <StatusBadge variant={t.priority === "High" ? "solid" : t.priority === "Medium" ? "outline" : "muted"}>
-                {t.priority}
-              </StatusBadge>
-              <span className="mt-1 text-[9px] tabular">{t.age}</span>
-            </div>
+            <StatusBadge variant={t.priority === "Urgent" || t.priority === "High" ? "solid" : t.priority === "Medium" ? "outline" : "muted"}>
+              {t.priority}
+            </StatusBadge>
           }
-          onClick={() => navigate("helpdesk")}
+          onClick={() => navigate("chat")}
         />
       ))}
+      {visible.length === 0 && <div className="text-[11px] text-muted-foreground">No support tickets.</div>}
     </div>
   );
 }
@@ -3277,7 +2631,7 @@ function RecentTicketsList(): ReactElement {
 function ClockWidget(): ReactElement {
   const filter = useDashboardFilter();
   const tz = filter.location && filter.location !== "All Locations" ? filter.location : "Mumbai HQ";
-  // Use a deterministic time snapshot per render
+  // Real, live time - re-rendered by the browser, not stored/fabricated data.
   const now = new Date();
   const hh = String(now.getHours()).padStart(2, "0");
   const mm = String(now.getMinutes()).padStart(2, "0");
@@ -3305,32 +2659,20 @@ function ClockWidget(): ReactElement {
   );
 }
 
+/** No weather-provider integration is connected (would require a
+ *  third-party API key, out of scope for this pass) - shown honestly
+ *  rather than as fabricated temperature/humidity/wind readings. */
 function WeatherWidget(): ReactElement {
   const filter = useDashboardFilter();
   const loc = filter.location && filter.location !== "All Locations" ? filter.location : "Mumbai HQ";
-  // Deterministic mock weather - "scattered clouds, 31°C, 72% humidity"
-  const temp = 28 + (loc.length % 5);
-  const humidity = 64 + (loc.length % 14);
-  const wind = 8 + (loc.length % 7);
   return (
     <div className="flex h-full flex-col justify-between gap-2">
       <div className="flex items-center justify-between">
         <span className="text-[10px] uppercase tracking-wider text-muted-foreground">HQ Weather</span>
         <CloudSun className="h-4 w-4 text-muted-foreground" />
       </div>
-      <div className="flex items-end gap-2">
-        <span className="font-mono text-[32px] font-semibold leading-none tracking-tight tabular">{temp}°</span>
-        <span className="pb-1 text-[11px] text-muted-foreground">Partly Cloudy</span>
-      </div>
-      <div className="grid grid-cols-2 gap-2 text-[10px]">
-        <div className="rounded-[3px] border border-border px-1.5 py-1">
-          <div className="text-muted-foreground">Humidity</div>
-          <div className="tabular font-medium">{humidity}%</div>
-        </div>
-        <div className="rounded-[3px] border border-border px-1.5 py-1">
-          <div className="text-muted-foreground">Wind</div>
-          <div className="tabular font-medium">{wind} km/h</div>
-        </div>
+      <div className="flex flex-1 flex-col items-center justify-center gap-1 text-center">
+        <span className="text-[12px] text-muted-foreground">No weather integration connected</span>
       </div>
       <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
         <MapPin className="h-2.5 w-2.5" />
@@ -3344,16 +2686,13 @@ function WeatherWidget(): ReactElement {
 
 function TotalOrgsKpi(): ReactElement {
   const { navigate } = useAppStore();
+  const { stats, loaded } = useDashboardStats();
+  const value = stats?.superadmin.totalOrgs ?? 0;
   return (
     <KpiCard
       label="Total Orgs"
-      value={42}
-      delta="3"
-      trend="up"
+      value={loaded ? value : "…"}
       icon={<Building2 className="h-4 w-4" />}
-      spark={[34, 36, 38, 39, 40, 41, 42, 42]}
-      progress={84}
-      progressLabel="of 50 plan cap"
       onClick={() => navigate("superadmin")}
     />
   );
@@ -3361,62 +2700,40 @@ function TotalOrgsKpi(): ReactElement {
 
 function ActiveUsersKpi(): ReactElement {
   const { navigate } = useAppStore();
+  const { stats, loaded } = useDashboardStats();
+  const value = stats?.superadmin.activeUsers24h ?? 0;
   return (
     <KpiCard
-      label="Active Users (24h)"
-      value={1284}
-      delta="6.4%"
-      trend="up"
+      label="Active Users (30d)"
+      value={loaded ? value : "…"}
       icon={<UsersRound className="h-4 w-4" />}
-      spark={[980, 1050, 1120, 1180, 1210, 1250, 1284, 1284]}
-      progress={72}
-      progressLabel="of 1800 MAU"
       onClick={() => navigate("superadmin")}
     />
   );
 }
 
+/** Sourced from the real SLM approvals store (useSuperadminStore), a
+ *  separate subsystem from mock-data.ts - not touched here. */
 function PendingApprovalsKpi(): ReactElement {
   const { navigate } = useAppStore();
   return (
     <KpiCard
       label="Pending Approvals"
-      value={7}
-      delta="2"
-      trend="up"
-      invertDelta
+      value="—"
       icon={<CheckCheck className="h-4 w-4" />}
-      spark={[3, 4, 5, 4, 5, 6, 7, 7]}
-      progress={Math.min(100, 7 * 12)}
-      progressLabel="awaiting review"
-      onClick={() => navigate("approvals")}
+      progressLabel="see Rean SLM > Approvals"
+      onClick={() => navigate("superadmin")}
     />
   );
 }
 
+/** No real uptime/latency telemetry is collected yet - flagged rather
+ *  than faked. */
 function PlatformHealthChart(): ReactElement {
-  const data = useMemo(
-    () => Array.from({ length: 12 }, (_, i) => ({
-      h: `${String(i * 2).padStart(2, "0")}h`,
-      uptime: Math.round((99.2 + Math.sin(i / 3) * 0.4) * 100) / 100,
-      latency: Math.round(120 + Math.cos(i / 2) * 28 + i * 4),
-    })),
-    [],
-  );
   return (
-    <ChartFrame footer="Platform uptime % · last 24 hours">
-      <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={data} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="2 2" stroke={GRID_STROKE} vertical={false} />
-          <XAxis dataKey="h" tick={AXIS_TICK_STYLE} axisLine={false} tickLine={false} />
-          <YAxis tick={AXIS_TICK_STYLE} axisLine={false} tickLine={false} domain={[98, 100]}
-            tickFormatter={(v: number) => `${v}%`} />
-          <Tooltip contentStyle={CHART_TOOLTIP_STYLE} labelStyle={{ color: "var(--muted-foreground)" }}
-            formatter={(v: number) => [`${v}%`, "Uptime"]} />
-          <Line type="monotone" dataKey="uptime" stroke={FOREGROUND_STROKE} strokeWidth={1.5} dot={false} />
-        </LineChart>
-      </ResponsiveContainer>
-    </ChartFrame>
+    <div className="flex h-full items-center justify-center text-[11px] text-muted-foreground">
+      No platform-telemetry module yet.
+    </div>
   );
 }
 
