@@ -1914,3 +1914,84 @@ model TicketMessage {
   @@index([ticketId])
 }
 
+// ===== OPERATIONS HUB (task board / sprints) =====
+// Backs the Operations Hub kanban + reports (previously entirely client-side
+// mock state seeded from mock-data.ts's TASKS array plus a deterministic
+// hash-derived fake enrichment for sprint/checklist/comments/attachments).
+// `assignee`/`createdBy`/comment `authorName` are free-text display names,
+// matching the existing Issue.assignee/reportedBy convention in this schema
+// rather than a formal User relation - not every assignee (e.g. a driver)
+// has a User row.
+
+model Sprint {
+  id        String   @id @default(cuid())
+  companyId String
+  name      String
+  goal      String?
+  startDate DateTime
+  endDate   DateTime
+  status    String   @default("Planned") // Planned | Active | Completed | Backlog
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tasks     Task[]
+
+  @@index([companyId])
+}
+
+model Task {
+  id               String    @id @default(cuid())
+  companyId        String
+  title            String
+  description      String?
+  assignee         String
+  priority         String    @default("Medium") // Urgent | High | Medium | Low
+  department       String    @default("Operations")
+  status           String    @default("Backlog") // Backlog | Planned | In Progress | Blocked | Under Review | Completed
+  isRean           Boolean   @default(false)
+  linkedEntityType String?   // Trip | Vehicle | Driver | Customer | Invoice
+  linkedEntityId   String?
+  linkedEntityName String?
+  checklistJson    String?   // [{text,done}]
+  subtasksJson     String?   // [{text,done}]
+  sprintId         String?
+  sprint           Sprint?   @relation(fields: [sprintId], references: [id])
+  dueDate          DateTime?
+  createdBy        String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  completedAt      DateTime?
+
+  comments    TaskComment[]
+  attachments TaskAttachment[]
+
+  @@index([companyId, status])
+  @@index([companyId, sprintId])
+}
+
+model TaskComment {
+  id         String   @id @default(cuid())
+  taskId     String
+  task       Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  authorName String
+  body       String
+  createdAt  DateTime @default(now())
+
+  @@index([taskId])
+}
+
+model TaskAttachment {
+  id             String   @id @default(cuid())
+  taskId         String
+  task           Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  name           String
+  bucket         String
+  key            String
+  size           Int
+  mimeType       String?
+  uploadedByName String?
+  createdAt      DateTime @default(now())
+
+  @@index([taskId])
+}
+

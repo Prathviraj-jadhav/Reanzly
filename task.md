@@ -1306,6 +1306,65 @@ nobody had wired it up.
       errors (fixed the one real lint error the conversion introduced,
       described above).
 
+## Operations Hub converted from mock data to real DB-backed task board (2026-08-10)
+
+- [x] **The Operations Hub kanban board, sprints, and reports rebuilt on a
+      real Task/Sprint schema instead of pure client-side state.** Unlike
+      Dashboard (which only needed an aggregation endpoint over models that
+      already existed), this module had zero DB backing at all: tasks lived
+      in a `useState` seeded once from mock-data.ts's `TASKS` array, and a
+      `deriveTaskExtras()` helper deterministically hash-derived fake
+      sprint/checklist/subtask/comment/attachment content per task id on
+      every page load - none of it persisted, and two browser tabs would
+      show two different fake realities for the same "task".
+      Added 4 new Prisma models - `Sprint`, `Task`, `TaskComment`,
+      `TaskAttachment` (`prisma/schema.prisma`) - and 6 real API routes
+      under `src/app/api/operations/`: `sprints` (GET/POST), `tasks`
+      (GET/POST), `tasks/[id]` (GET/PATCH/DELETE), `tasks/[id]/comments`
+      (POST), `tasks/[id]/attachments` (POST, real file upload reusing the
+      chat module's content-addressed object-storage pattern), and `meta`
+      (real assignee + linked-entity option lists sourced from Employee/
+      Driver/Trip/Vehicle/Customer/Invoice - replacing the mock ASSIGNEES/
+      TRIPS/VEHICLES/DRIVERS/CUSTOMERS/INVOICES arrays the create-task
+      drawer used to read from). `Task.assignee`/`createdBy`/comment
+      `authorName` are free-text display names rather than a formal `User`
+      relation, matching the existing `Issue.assignee` convention already
+      used elsewhere in this schema - not every assignee (e.g. a driver)
+      has a `User` row.
+      Rewrote all 7 module files (`index.tsx`, `_helpers.ts`,
+      `operations-board.tsx`, `task-card.tsx`, `task-create-drawer.tsx`,
+      `task-detail-drawer.tsx`, `operations-reports.tsx`) plus two new
+      files - `use-operations-data.ts` (fetch + CRUD hook) and the API
+      routes above - to read/write real data. The detail drawer's
+      checklist/subtask/comment/status mutations each now persist via a
+      real PATCH/POST instead of mutating local state; attachments upload
+      for real and link to a real `/api/storage/...` URL. Removed the now-
+      dead `TASKS` export from `mock-data.ts` and the `deriveTaskExtras`/
+      `CHECKLIST_BANK`/`SUBTASK_BANK`/`COMMENT_BANK`/`ATTACHMENT_BANK`
+      fake-enrichment code entirely, rather than leaving it unused.
+      Added `src/scripts/seed-operations-hub.ts` (idempotent, follows the
+      same pattern as `seed-business-data.ts`) seeding 4 real sprints and
+      18 real tasks linked to actual Trip/Vehicle/Customer/Invoice rows and
+      assigned to actual seeded Driver names, so the board isn't empty on
+      first load.
+      Caught and fixed the same `react-hooks/set-state-in-effect` shape of
+      bug hit during the Dashboard pass - defaulting the sprint filter to
+      the real "Active" sprint once sprints loaded was originally a
+      `useEffect` + `setState`; fixed by deriving the effective sprint id
+      from a `sprintChoice || activeSprint?.id || "all"` expression instead
+      of seeding state imperatively.
+      Verified live as the owner role: real linked entities (real trip/
+      vehicle/customer/invoice names, not fabricated `RZ-TRP-0042`-style
+      strings), real driver names as assignees end to end from the create-
+      drawer's dropdown through to the board card, checklist toggle
+      persisting (1/2 → 2/2 across a drawer close/reopen), a comment
+      posted with real session-user authorship ("Vikram Deshmukh · just
+      now"), and the Reports tab's 4 charts + 4 KPI tiles computing real
+      numbers (12 tasks in view, 20% completion rate, 5.5d avg cycle time)
+      from the real task set. Zero console errors on load beyond the
+      pre-existing benign dev-server HMR websocket noise. Zero new
+      TypeScript or ESLint errors.
+
 ## Sequencing reminder
 
 Agreed order with the user: **Stage 1 (SLM) → Stage 2 (Chat) → Stage 3 (Calling)**,

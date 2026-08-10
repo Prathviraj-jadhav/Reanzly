@@ -20,50 +20,35 @@ import { Plus, Trash2, Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import {
-  ASSIGNEES,
   DEPARTMENTS,
   EMPTY_TASK_FORM,
   LINKED_ENTITY_TYPES,
   PRIORITIES,
-  SPRINTS,
   TASK_STATUSES,
+  type Sprint,
   type TaskCreateForm,
 } from "./_helpers";
-import { TRIPS, VEHICLES, DRIVERS, CUSTOMERS, INVOICES } from "@/lib/mock-data";
+import type { OperationsMeta } from "./use-operations-data";
+import type { Task } from "@/lib/types";
 
 interface CreateDrawerProps {
   open: boolean;
   onClose: () => void;
   initialStatus: Task["status"];
+  defaultSprintId: string;
+  sprints: Sprint[];
+  meta: OperationsMeta;
   onSave: (form: TaskCreateForm) => void;
 }
 
-import type { Task } from "@/lib/types";
-
-function linkedEntityOptions(type: string): string[] {
-  switch (type) {
-    case "Trip":
-      return TRIPS.slice(0, 12).map((t) => t.tripId);
-    case "Vehicle":
-      return VEHICLES.slice(0, 12).map((v) => v.licensePlate);
-    case "Driver":
-      return DRIVERS.filter((d) => d.role === "Driver").slice(0, 12).map((d) => d.name);
-    case "Customer":
-      return CUSTOMERS.slice(0, 12).map((c) => c.companyName);
-    case "Invoice":
-      return INVOICES.slice(0, 12).map((i) => i.invoiceNumber);
-    default:
-      return [];
-  }
-}
-
-export function TaskCreateDrawer({ open, onClose, initialStatus, onSave }: CreateDrawerProps) {
+export function TaskCreateDrawer({ open, onClose, initialStatus, defaultSprintId, sprints, meta, onSave }: CreateDrawerProps) {
   // Form initialises from `initialStatus` - the component is remounted via
   // a `key` prop by the parent when a new column triggers the drawer, so we
   // never need an effect to sync.
   const [form, setForm] = useState<TaskCreateForm>(() => ({
     ...EMPTY_TASK_FORM,
     status: initialStatus,
+    sprint: defaultSprintId,
   }));
   const [newChecklistText, setNewChecklistText] = useState("");
 
@@ -111,7 +96,7 @@ export function TaskCreateDrawer({ open, onClose, initialStatus, onSave }: Creat
     onClose();
   };
 
-  const linkedNameOptions = linkedEntityOptions(form.linkedEntityType);
+  const linkedOptions = meta.linkedEntities[form.linkedEntityType] ?? [];
 
   return (
     <Sheet open={open} onOpenChange={(o) => !o && onClose()}>
@@ -155,7 +140,10 @@ export function TaskCreateDrawer({ open, onClose, initialStatus, onSave }: Creat
                   <SelectValue placeholder="Select…" />
                 </SelectTrigger>
                 <SelectContent>
-                  {ASSIGNEES.map((a) => (
+                  {meta.assignees.length === 0 && (
+                    <div className="px-2 py-2 text-[12px] text-muted-foreground/70">No active staff/drivers found.</div>
+                  )}
+                  {meta.assignees.map((a) => (
                     <SelectItem key={a} value={a}>
                       {a}
                     </SelectItem>
@@ -210,12 +198,13 @@ export function TaskCreateDrawer({ open, onClose, initialStatus, onSave }: Creat
           {/* Sprint + Status */}
           <div className="grid grid-cols-2 gap-3">
             <Field label="Sprint">
-              <Select value={form.sprint} onValueChange={(v) => update("sprint", v)}>
+              <Select value={form.sprint || "none"} onValueChange={(v) => update("sprint", v === "none" ? "" : v)}>
                 <SelectTrigger className="h-9 w-full rounded-[5px] border-border bg-card text-[13px]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {SPRINTS.map((s) => (
+                  <SelectItem value="none">No sprint</SelectItem>
+                  {sprints.map((s) => (
                     <SelectItem key={s.id} value={s.id}>
                       {s.name} · {s.status}
                     </SelectItem>
@@ -247,6 +236,7 @@ export function TaskCreateDrawer({ open, onClose, initialStatus, onSave }: Creat
                 value={form.linkedEntityType}
                 onValueChange={(v) => {
                   update("linkedEntityType", v);
+                  update("linkedEntityId", "");
                   update("linkedEntityName", "");
                 }}
               >
@@ -263,16 +253,22 @@ export function TaskCreateDrawer({ open, onClose, initialStatus, onSave }: Creat
               </Select>
               {form.linkedEntityType !== "None" ? (
                 <Select
-                  value={form.linkedEntityName}
-                  onValueChange={(v) => update("linkedEntityName", v)}
+                  value={form.linkedEntityId}
+                  onValueChange={(v) => {
+                    update("linkedEntityId", v);
+                    update("linkedEntityName", linkedOptions.find((o) => o.id === v)?.name ?? "");
+                  }}
                 >
                   <SelectTrigger className="h-9 w-full rounded-[5px] border-border bg-card text-[13px]">
                     <SelectValue placeholder="Select…" />
                   </SelectTrigger>
                   <SelectContent>
-                    {linkedNameOptions.map((n) => (
-                      <SelectItem key={n} value={n}>
-                        {n}
+                    {linkedOptions.length === 0 && (
+                      <div className="px-2 py-2 text-[12px] text-muted-foreground/70">None found.</div>
+                    )}
+                    {linkedOptions.map((o) => (
+                      <SelectItem key={o.id} value={o.id}>
+                        {o.name}
                       </SelectItem>
                     ))}
                   </SelectContent>

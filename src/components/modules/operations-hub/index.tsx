@@ -32,21 +32,17 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { TASKS } from "@/lib/mock-data";
 import type { Task } from "@/lib/types";
 import { useAppStore } from "@/lib/store/app-store";
 import { OperationsBoard } from "./operations-board";
 import { OperationsReports } from "./operations-reports";
 import { TaskDetailDrawer } from "./task-detail-drawer";
 import { TaskCreateDrawer } from "./task-create-drawer";
+import { useOperationsData } from "./use-operations-data";
 import {
-  ACTIVE_SPRINT_ID,
-  ASSIGNEES,
   DEPARTMENTS,
   PRIORITIES,
-  SPRINTS,
   deptForRole,
-  deriveTaskExtras,
   formatDate,
   type TaskCreateForm,
 } from "./_helpers";
@@ -59,23 +55,43 @@ export function OperationsHubModule() {
   // demo persona name for quick-login / live-demo sessions.
   const firstName = (authUser?.name?.trim() || currentRole.name).split(" ")[0];
 
-  // ===== Local task state (initialized from enriched mock data) =====
-  const [tasks, setTasks] = useState<Task[]>(() =>
-    TASKS.map((t) => deriveTaskExtras(t)),
-  );
+  const {
+    tasks,
+    sprints,
+    meta,
+    loaded,
+    createTask,
+    patchTask,
+    deleteTask,
+    postComment,
+    uploadAttachment,
+    createSprint,
+  } = useOperationsData();
 
   // ===== View state =====
   const [tab, setTab] = useState<Tab>("board");
-  const [sprintId, setSprintId] = useState<string>(ACTIVE_SPRINT_ID);
+  // "" means "not yet chosen" - falls back to the real active sprint once
+  // sprints load (mirrors the old hardcoded ACTIVE_SPRINT_ID default)
+  // without needing a setState-in-effect to seed it. Any explicit user pick,
+  // including "all", is a non-empty string and overrides the fallback.
+  const [sprintChoice, setSprintChoice] = useState<string>("");
   const [department, setDepartment] = useState<string>("all");
   const [priority, setPriority] = useState<string>("all");
   const [assignee, setAssignee] = useState<string>("all");
 
+  const sprintId = sprintChoice || sprints.find((s) => s.status === "Active")?.id || "all";
+  const setSprintId = setSprintChoice;
+
   // ===== Drawer state =====
-  const [detailTask, setDetailTask] = useState<Task | null>(null);
+  const [detailTaskId, setDetailTaskId] = useState<string | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [createInitialStatus, setCreateInitialStatus] = useState<Task["status"]>("Backlog");
+
+  // Single source of truth: look the detail task up from the live `tasks`
+  // list by id, instead of holding a second copy that can drift out of sync
+  // with server responses.
+  const detailTask = tasks.find((t) => t.id === detailTaskId) ?? null;
 
   // ===== Role-based department scoping =====
   const roleDept = deptForRole(currentRole.id);
@@ -84,68 +100,48 @@ export function OperationsHubModule() {
   // ===== Filter pipeline =====
   const filteredTasks = useMemo(() => {
     return tasks.filter((t) => {
-      // Role scoping (owner/analyst see all)
       if (isScoped && t.department !== roleDept) return false;
-      // Sprint
       if (sprintId !== "all" && t.sprint !== sprintId) return false;
-      // Department filter (only applies if role isn't scoped - otherwise redundant)
       if (!isScoped && department !== "all" && t.department !== department) return false;
-      // Priority
       if (priority !== "all" && t.priority !== priority) return false;
-      // Assignee
       if (assignee !== "all" && t.assignee !== assignee) return false;
       return true;
     });
   }, [tasks, isScoped, roleDept, sprintId, department, priority, assignee]);
 
   // ===== Active sprint info =====
-  const activeSprint = SPRINTS.find((s) => s.id === sprintId);
+  const activeSprint = sprints.find((s) => s.id === sprintId);
 
   // ===== Handlers =====
   const openTaskDetail = (task: Task) => {
-    setDetailTask(task);
+    setDetailTaskId(task.id);
     setDetailOpen(true);
   };
 
   const closeDetail = () => {
     setDetailOpen(false);
-    // Clear after the close animation
-    setTimeout(() => setDetailTask(null), 300);
+    setTimeout(() => setDetailTaskId(null), 300);
   };
 
-  const updateTask = (updated: Task) => {
-    setTasks((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
-    setDetailTask(updated);
-  };
-
-  const moveTask = (taskId: string, status: Task["status"]) => {
-    setTasks((prev) =>
-      prev.map((t) =>
-        t.id === taskId
-          ? {
-              ...t,
-              status,
-              completedDate: status === "Completed" ? t.completedDate ?? new Date().toISOString() : undefined,
-            }
-          : t,
-      ),
-    );
-    const movedTask = tasks.find((t) => t.id === taskId);
-    if (movedTask) {
-      toast.success(`Moved "${movedTask.title.slice(0, 32)}${movedTask.title.length > 32 ? "…" : ""}" to ${status}`);
+  const moveTask = async (taskId: string, status: Task["status"]) => {
+    const task = tasks.find((t) => t.id === taskId);
+    const updated = await patchTask(taskId, { status });
+    if (updated && task) {
+      toast.success(`Moved "${task.title.slice(0, 32)}${task.title.length > 32 ? "…" : ""}" to ${status}`);
     }
   };
 
-  const acceptRean = (task: Task) => {
-    setTasks((prev) => prev.map((t) => (t.id === task.id ? { ...t, isRean: false } : t)));
-    if (detailTask?.id === task.id) setDetailTask({ ...task, isRean: false });
-    toast.success("Rean task accepted - badge removed");
+  const acceptRean = async (task: Task) => {
+    const updated = await patchTask(task.id, { isRean: false });
+    if (updated) toast.success("Rean task accepted - badge removed");
   };
 
-  const dismissRean = (task: Task) => {
-    setTasks((prev) => prev.filter((t) => t.id !== task.id));
-    if (detailTask?.id === task.id) closeDetail();
-    toast.success("Rean task dismissed");
+  const dismissRean = async (task: Task) => {
+    const ok = await deleteTask(task.id);
+    if (ok) {
+      if (detailTaskId === task.id) closeDetail();
+      toast.success("Rean task dismissed");
+    }
   };
 
   const openCreateInColumn = (status: Task["status"]) => {
@@ -153,53 +149,68 @@ export function OperationsHubModule() {
     setCreateOpen(true);
   };
 
-  const handleCreateSave = (form: TaskCreateForm) => {
-    const id = `task-${Date.now()}`;
-    const newTask: Task = {
-      id,
+  const handleCreateSave = async (form: TaskCreateForm) => {
+    const created = await createTask({
       title: form.title,
-      description: form.description || "No description provided.",
+      description: form.description || undefined,
       assignee: form.assignee,
       dueDate: form.dueDate || undefined,
       priority: form.priority,
       department: form.department,
       status: form.status,
-      isRean: false,
-      linkedEntity:
-        form.linkedEntityType === "None" || !form.linkedEntityName
-          ? undefined
-          : { type: form.linkedEntityType, name: form.linkedEntityName },
-      checklist: form.checklist.length > 0 ? form.checklist : undefined,
-      subtasks: [],
-      comments: [],
-      attachments: [],
-      sprint: form.sprint,
-      createdDate: new Date().toISOString(),
-      completedDate: form.status === "Completed" ? new Date().toISOString() : undefined,
-    };
-    setTasks((prev) => [newTask, ...prev]);
-    toast.success(`Task created in ${form.status}`);
-  };
-
-  const handleCreateSprint = () => {
-    toast.success("Sprint draft created", {
-      description: "Sprint 27 added to backlog - configure dates in Sprint Settings.",
+      linkedEntityType: form.linkedEntityType,
+      linkedEntityId: form.linkedEntityId || undefined,
+      linkedEntityName: form.linkedEntityName || undefined,
+      checklist: form.checklist,
+      sprintId: form.sprint || undefined,
     });
+    if (created) toast.success(`Task created in ${form.status}`);
   };
 
-  // Assignees derived from current visible set + global list
+  const handleCreateSprint = async () => {
+    const latestEnd = sprints.reduce(
+      (max, s) => Math.max(max, new Date(s.endDate).getTime()),
+      Date.now(),
+    );
+    const startDate = new Date(latestEnd);
+    const endDate = new Date(latestEnd + 14 * 86_400_000);
+    const created = await createSprint({
+      name: `Sprint ${sprints.length + 1}`,
+      goal: "New sprint - update the goal from Sprint Settings.",
+      startDate: startDate.toISOString(),
+      endDate: endDate.toISOString(),
+      status: "Planned",
+    });
+    if (created) {
+      toast.success(`${created.name} created`, {
+        description: `${formatDate(created.startDate)} → ${formatDate(created.endDate)}`,
+      });
+    }
+  };
+
+  // ===== Detail drawer field mutations (each persists via a real PATCH) =====
+  const withChecklist = (mutate: (list: { text: string; done: boolean }[]) => { text: string; done: boolean }[]) => {
+    if (!detailTask) return;
+    patchTask(detailTask.id, { checklist: mutate(detailTask.checklist ?? []) });
+  };
+  const withSubtasks = (mutate: (list: { text: string; done: boolean }[]) => { text: string; done: boolean }[]) => {
+    if (!detailTask) return;
+    patchTask(detailTask.id, { subtasks: mutate(detailTask.subtasks ?? []) });
+  };
+
+  // Assignees derived from real tasks currently in view + the company's real
+  // staff/driver roster (meta.assignees).
   const assigneeFilterOptions = useMemo(() => {
-    const set = new Set<string>();
+    const set = new Set<string>(meta.assignees);
     tasks.forEach((t) => set.add(t.assignee));
-    ASSIGNEES.forEach((a) => set.add(a));
     return Array.from(set).sort();
-  }, [tasks]);
+  }, [tasks, meta.assignees]);
 
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
         title="Operations Hub"
-        description={`${firstName}, here's the work across ${activeSprint?.name ?? "this sprint"}.`}
+        description={`${firstName}, here's the work across ${activeSprint?.name ?? "all sprints"}.`}
         actions={
           <>
             {/* Sprint selector */}
@@ -218,7 +229,10 @@ export function OperationsHubModule() {
                 <DropdownMenuLabel className="text-[11px] uppercase tracking-wider text-muted-foreground">
                   Switch sprint
                 </DropdownMenuLabel>
-                {SPRINTS.map((s) => (
+                {sprints.length === 0 && (
+                  <div className="px-2 py-2 text-[11px] text-muted-foreground/70">No sprints yet.</div>
+                )}
+                {sprints.map((s) => (
                   <DropdownMenuItem
                     key={s.id}
                     onClick={() => {
@@ -236,7 +250,7 @@ export function OperationsHubModule() {
                     <span className="text-[11px] text-muted-foreground">
                       {formatDate(s.startDate)} → {formatDate(s.endDate)}
                     </span>
-                    <span className="line-clamp-1 text-[11px] text-muted-foreground/80">{s.goal}</span>
+                    {s.goal && <span className="line-clamp-1 text-[11px] text-muted-foreground/80">{s.goal}</span>}
                   </DropdownMenuItem>
                 ))}
                 <DropdownMenuSeparator />
@@ -263,7 +277,7 @@ export function OperationsHubModule() {
           <Sparkles className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
           <span className="text-[12px] text-muted-foreground">
             <span className="font-medium text-foreground">Sprint goal · </span>
-            {activeSprint.goal}
+            {activeSprint.goal || "No goal set for this sprint."}
           </span>
           <span className="ml-auto hidden items-center gap-2 text-[11px] text-muted-foreground sm:flex">
             <span className="tabular">{formatDate(activeSprint.startDate)}</span>
@@ -360,7 +374,7 @@ export function OperationsHubModule() {
           )}
 
           <span className="tabular text-[11px] text-muted-foreground">
-            {filteredTasks.length} tasks
+            {loaded ? `${filteredTasks.length} tasks` : "Loading…"}
           </span>
         </div>
       </div>
@@ -378,6 +392,7 @@ export function OperationsHubModule() {
       ) : (
         <OperationsReports
           tasks={tasks}
+          sprints={sprints}
           sprintId={sprintId}
           department={department}
           assignee={assignee}
@@ -391,15 +406,31 @@ export function OperationsHubModule() {
       <TaskDetailDrawer
         key={detailTask?.id ?? "none"}
         task={detailTask}
+        sprints={sprints}
         open={detailOpen}
         onClose={closeDetail}
-        onUpdate={updateTask}
+        onChangeStatus={(status) => detailTask && patchTask(detailTask.id, { status })}
+        onToggleChecklist={(idx) =>
+          withChecklist((list) => list.map((c, i) => (i === idx ? { ...c, done: !c.done } : c)))
+        }
+        onAddChecklist={(text) => withChecklist((list) => [...list, { text, done: false }])}
+        onRemoveChecklist={(idx) => withChecklist((list) => list.filter((_, i) => i !== idx))}
+        onToggleSubtask={(idx) =>
+          withSubtasks((list) => list.map((s, i) => (i === idx ? { ...s, done: !s.done } : s)))
+        }
+        onAddSubtask={(text) => withSubtasks((list) => [...list, { text, done: false }])}
+        onRemoveSubtask={(idx) => withSubtasks((list) => list.filter((_, i) => i !== idx))}
+        onPostComment={(text) => detailTask && postComment(detailTask.id, text)}
+        onUploadAttachment={(file) => detailTask && uploadAttachment(detailTask.id, file)}
       />
       <TaskCreateDrawer
         key={`create-${createOpen}-${createInitialStatus}`}
         open={createOpen}
         onClose={() => setCreateOpen(false)}
         initialStatus={createInitialStatus}
+        defaultSprintId={sprintId !== "all" ? sprintId : ""}
+        sprints={sprints}
+        meta={meta}
         onSave={handleCreateSave}
       />
     </div>

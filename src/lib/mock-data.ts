@@ -702,36 +702,6 @@ export const REMINDERS: Reminder[] = Array.from({ length: 24 }, (_, i) => {
   };
 });
 
-// ===== TASKS (Operations Hub) =====
-export const TASKS: Task[] = Array.from({ length: 18 }, (_, i) => {
-  const seed = i + 179;
-  const statuses: Task["status"][] = ["Backlog", "Planned", "In Progress", "Blocked", "Under Review", "Completed"];
-  return {
-    id: `task-${seed}`,
-    title: pick([
-      "Follow up on overdue invoice RZ-INV-02147",
-      "Schedule brake inspection for MH 12 JK 4521",
-      "Renew insurance for 3 vehicles expiring this month",
-      "Investigate fuel anomaly on Tata LPT 1613",
-      "Assign driver for Pune-Bengaluru FTL tomorrow",
-      "Review POD for trip RZ-TRP-0042",
-      "Process settlement for driver Kuldeep Singh",
-      "Clear pending challans - DL 1C AA 7821",
-      "Update eWay Bill Part-B for breakdown replacement",
-      "Onboard new customer Meridian Trading Co",
-    ], seed),
-    description: "Auto-generated from operational signals. Review and assign.",
-    assignee: fullName(seed + 14),
-    dueDate: daysAhead((seed % 14) - 5),
-    priority: pick<Task["priority"]>(["Urgent", "High", "Medium", "Low"], seed),
-    department: pick(DEPTS, seed),
-    status: pick(statuses, seed),
-    isRean: seed % 4 === 0,
-    linkedEntity: seed % 3 === 0 ? { type: "Trip", name: `RZ-TRP-${String(seed).padStart(4, "0")}` } : undefined,
-    createdDate: daysAgo(seed % 20),
-  };
-});
-
 // ===== AUTOMATIONS =====
 export const AUTOMATIONS: Automation[] = [
   {

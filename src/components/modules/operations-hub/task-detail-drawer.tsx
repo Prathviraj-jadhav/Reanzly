@@ -30,12 +30,10 @@ import {
   GitBranch,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { toast } from "sonner";
 import type { Task } from "@/lib/types";
 import {
   PRIORITY_ACCENT,
   PRIORITY_EFFORT,
-  SPRINTS,
   TASK_STATUSES,
   checklistProgress,
   dueLabel,
@@ -43,22 +41,48 @@ import {
   formatShortDate,
   initials,
   relativeTime,
+  type Sprint,
 } from "./_helpers";
 
 interface DetailDrawerProps {
   task: Task | null;
+  sprints: Sprint[];
   open: boolean;
   onClose: () => void;
-  onUpdate: (task: Task) => void;
+  onChangeStatus: (status: Task["status"]) => void;
+  onToggleChecklist: (idx: number) => void;
+  onAddChecklist: (text: string) => void;
+  onRemoveChecklist: (idx: number) => void;
+  onToggleSubtask: (idx: number) => void;
+  onAddSubtask: (text: string) => void;
+  onRemoveSubtask: (idx: number) => void;
+  onPostComment: (text: string) => void;
+  onUploadAttachment: (file: File) => void;
 }
 
-export function TaskDetailDrawer({ task, open, onClose, onUpdate }: DetailDrawerProps) {
+export function TaskDetailDrawer({
+  task,
+  sprints,
+  open,
+  onClose,
+  onChangeStatus,
+  onToggleChecklist,
+  onAddChecklist,
+  onRemoveChecklist,
+  onToggleSubtask,
+  onAddSubtask,
+  onRemoveSubtask,
+  onPostComment,
+  onUploadAttachment,
+}: DetailDrawerProps) {
   // Drafts are local to this drawer instance. The parent remounts us with a
   // `key={taskId}` when switching tasks, so drafts naturally reset.
   const [commentDraft, setCommentDraft] = useState("");
   const [newChecklistText, setNewChecklistText] = useState("");
   const [newSubtaskText, setNewSubtaskText] = useState("");
+  const [uploading, setUploading] = useState(false);
   const commentScrollRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!task) {
     return (
@@ -70,59 +94,27 @@ export function TaskDetailDrawer({ task, open, onClose, onUpdate }: DetailDrawer
 
   const prog = checklistProgress(task);
   const due = dueLabel(task.dueDate);
-  const sprint = SPRINTS.find((s) => s.id === task.sprint);
-
-  const toggleChecklist = (idx: number) => {
-    if (!task.checklist) return;
-    const checklist = task.checklist.map((c, i) => (i === idx ? { ...c, done: !c.done } : c));
-    onUpdate({ ...task, checklist });
-  };
+  const sprint = sprints.find((s) => s.id === task.sprint);
 
   const addChecklistItem = () => {
     const text = newChecklistText.trim();
     if (!text) return;
-    const checklist = [...(task.checklist ?? []), { text, done: false }];
-    onUpdate({ ...task, checklist });
+    onAddChecklist(text);
     setNewChecklistText("");
-  };
-
-  const removeChecklistItem = (idx: number) => {
-    if (!task.checklist) return;
-    const checklist = task.checklist.filter((_, i) => i !== idx);
-    onUpdate({ ...task, checklist });
-  };
-
-  const toggleSubtask = (idx: number) => {
-    if (!task.subtasks) return;
-    const subtasks = task.subtasks.map((s, i) => (i === idx ? { ...s, done: !s.done } : s));
-    onUpdate({ ...task, subtasks });
   };
 
   const addSubtask = () => {
     const text = newSubtaskText.trim();
     if (!text) return;
-    const subtasks = [...(task.subtasks ?? []), { text, done: false }];
-    onUpdate({ ...task, subtasks });
+    onAddSubtask(text);
     setNewSubtaskText("");
-  };
-
-  const removeSubtask = (idx: number) => {
-    if (!task.subtasks) return;
-    const subtasks = task.subtasks.filter((_, i) => i !== idx);
-    onUpdate({ ...task, subtasks });
   };
 
   const postComment = () => {
     const text = commentDraft.trim();
     if (!text) return;
-    const comments = [
-      ...(task.comments ?? []),
-      { user: "You", text, date: new Date().toISOString() },
-    ];
-    onUpdate({ ...task, comments });
+    onPostComment(text);
     setCommentDraft("");
-    toast.success("Comment posted");
-    // Scroll to bottom after render
     setTimeout(() => {
       commentScrollRef.current?.scrollTo({
         top: commentScrollRef.current.scrollHeight,
@@ -131,16 +123,16 @@ export function TaskDetailDrawer({ task, open, onClose, onUpdate }: DetailDrawer
     }, 50);
   };
 
-  const changeStatus = (status: Task["status"]) => {
-    const patch: Task = { ...task, status };
-    if (status === "Completed" && !task.completedDate) {
-      patch.completedDate = new Date().toISOString();
+  const handleFilePick = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setUploading(true);
+    try {
+      await onUploadAttachment(file);
+    } finally {
+      setUploading(false);
     }
-    if (status !== "Completed") {
-      patch.completedDate = undefined;
-    }
-    onUpdate(patch);
-    toast.success(`Moved to ${status}`);
   };
 
   return (
@@ -175,7 +167,7 @@ export function TaskDetailDrawer({ task, open, onClose, onUpdate }: DetailDrawer
             {TASK_STATUSES.map((s) => (
               <button
                 key={s}
-                onClick={() => changeStatus(s)}
+                onClick={() => onChangeStatus(s)}
                 className={cn(
                   "rounded-[4px] border px-2 py-0.5 text-[11px] font-medium transition-colors",
                   task.status === s
@@ -255,7 +247,6 @@ export function TaskDetailDrawer({ task, open, onClose, onUpdate }: DetailDrawer
                     </div>
                   </div>
                 </div>
-                <Btn size="sm">Open</Btn>
               </div>
             </Section>
           )}
@@ -288,7 +279,7 @@ export function TaskDetailDrawer({ task, open, onClose, onUpdate }: DetailDrawer
                   className="group flex items-center gap-2 rounded-[4px] px-1 py-1 hover:bg-accent/50"
                 >
                   <button
-                    onClick={() => toggleChecklist(i)}
+                    onClick={() => onToggleChecklist(i)}
                     className={cn(
                       "flex h-4 w-4 shrink-0 items-center justify-center rounded-[3px] border transition-colors",
                       c.done
@@ -308,7 +299,7 @@ export function TaskDetailDrawer({ task, open, onClose, onUpdate }: DetailDrawer
                     {c.text}
                   </span>
                   <button
-                    onClick={() => removeChecklistItem(i)}
+                    onClick={() => onRemoveChecklist(i)}
                     className="text-muted-foreground/40 opacity-0 hover:text-foreground group-hover:opacity-100"
                     aria-label="Remove item"
                   >
@@ -340,7 +331,7 @@ export function TaskDetailDrawer({ task, open, onClose, onUpdate }: DetailDrawer
                   className="group flex items-center gap-2 rounded-[4px] px-1 py-1 hover:bg-accent/50"
                 >
                   <button
-                    onClick={() => toggleSubtask(i)}
+                    onClick={() => onToggleSubtask(i)}
                     className={cn(
                       "flex h-4 w-4 shrink-0 items-center justify-center rounded-full border transition-colors",
                       s.done
@@ -360,7 +351,7 @@ export function TaskDetailDrawer({ task, open, onClose, onUpdate }: DetailDrawer
                     {s.text}
                   </span>
                   <button
-                    onClick={() => removeSubtask(i)}
+                    onClick={() => onRemoveSubtask(i)}
                     className="text-muted-foreground/40 opacity-0 hover:text-foreground group-hover:opacity-100"
                     aria-label="Remove subtask"
                   >
@@ -387,17 +378,24 @@ export function TaskDetailDrawer({ task, open, onClose, onUpdate }: DetailDrawer
           </Section>
 
           {/* Attachments */}
-          {task.attachments && task.attachments.length > 0 && (
-            <Section
-              title="Attachments"
-              icon={<Paperclip className="h-3.5 w-3.5" />}
-              right={<span className="tabular text-[11px] text-muted-foreground">{task.attachments.length}</span>}
-            >
+          <Section
+            title="Attachments"
+            icon={<Paperclip className="h-3.5 w-3.5" />}
+            right={
+              (task.attachments?.length ?? 0) > 0 && (
+                <span className="tabular text-[11px] text-muted-foreground">{task.attachments!.length}</span>
+              )
+            }
+          >
+            {task.attachments && task.attachments.length > 0 && (
               <div className="grid grid-cols-2 gap-2">
                 {task.attachments.map((a, i) => (
-                  <div
+                  <a
                     key={i}
-                    className="flex items-center gap-2 rounded-[5px] border border-border bg-muted/40 px-2.5 py-2"
+                    href={a.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 rounded-[5px] border border-border bg-muted/40 px-2.5 py-2 hover:border-foreground/40"
                   >
                     <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[4px] border border-border bg-card">
                       {a.type === "image" ? (
@@ -412,15 +410,20 @@ export function TaskDetailDrawer({ task, open, onClose, onUpdate }: DetailDrawer
                       <div className="truncate text-[11px] font-medium text-foreground">{a.name}</div>
                       <div className="tabular text-[10px] text-muted-foreground">{a.size}</div>
                     </div>
-                  </div>
+                  </a>
                 ))}
               </div>
-              <button className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-[5px] border border-dashed border-border py-2 text-[11px] font-medium text-muted-foreground hover:bg-accent hover:text-foreground">
-                <Paperclip className="h-3 w-3" />
-                Attach file
-              </button>
-            </Section>
-          )}
+            )}
+            <input ref={fileInputRef} type="file" className="hidden" onChange={handleFilePick} />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-[5px] border border-dashed border-border py-2 text-[11px] font-medium text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-50"
+            >
+              <Paperclip className="h-3 w-3" />
+              {uploading ? "Uploading…" : "Attach file"}
+            </button>
+          </Section>
 
           {/* Comments */}
           <Section

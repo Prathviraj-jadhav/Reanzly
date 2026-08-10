@@ -16,9 +16,9 @@ import { cn } from "@/lib/utils";
 import type { Task } from "@/lib/types";
 import {
   DEPARTMENTS,
-  SPRINTS,
   formatDate,
   initials,
+  type Sprint,
 } from "./_helpers";
 import {
   Select,
@@ -30,6 +30,7 @@ import {
 
 interface ReportsProps {
   tasks: Task[];
+  sprints: Sprint[];
   // Shared filters from parent
   sprintId: string;
   department: string;
@@ -53,6 +54,7 @@ const DATE_PRESETS: { id: DateRangePreset; label: string; days: number }[] = [
 
 export function OperationsReports({
   tasks,
+  sprints,
   sprintId,
   department,
   assignee,
@@ -163,7 +165,7 @@ export function OperationsReports({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All sprints</SelectItem>
-              {SPRINTS.map((s) => (
+              {sprints.map((s) => (
                 <SelectItem key={s.id} value={s.id}>
                   {s.name} · {s.status}
                 </SelectItem>

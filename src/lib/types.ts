@@ -308,7 +308,7 @@ export interface Task {
   checklist?: { text: string; done: boolean }[];
   subtasks?: { text: string; done: boolean }[];
   comments?: { user: string; text: string; date: ISODate }[];
-  attachments?: { name: string; size: string; type: string }[];
+  attachments?: { name: string; size: string; type: string; url?: string }[];
   sprint?: string;
   createdDate: ISODate;
   completedDate?: ISODate;
