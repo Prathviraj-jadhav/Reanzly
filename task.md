@@ -1521,6 +1521,98 @@ nobody had wired it up.
       original Dashboard/Operations Hub verification passes). Zero new
       TypeScript/ESLint errors across the full touched set.
 
+## Reports module converted from mock data to real DB aggregation (2026-08-10/11)
+
+- [x] **All 11 Report Library types, Scheduled Reports, and Custom Reports
+      rebuilt on real Prisma queries and real persistence.** This was the
+      largest of the four modules converted this session: the Report
+      Library's `GeneratedReport` component computed every report from
+      `mock-data.ts` arrays via a client-side switch; two report types
+      (Maintenance Cost, Compliance Status) were explicitly marked in their
+      own code comments as "mock-derived"/"synthetic" with **no real model
+      involved at all**; "Rean Insights" was a fixed array of 6 hardcoded
+      fake findings; and both "Scheduled Reports" and "Custom Reports"
+      were pure in-memory client state seeded once from arrays in
+      `_helpers.tsx`, lost on every page refresh - "Save Custom" and
+      "Edit"/"Duplicate" on custom reports were literally just toasts that
+      changed nothing.
+      Added 2 new Prisma models - `ScheduledReport`, `CustomReport` - and
+      built `src/lib/reports-engine.ts`, a real per-report aggregation
+      function covering all 11 report types against Trip/Vehicle/Driver/
+      FuelEntry/WorkOrder/Invoice/Expense/Document/Payslip. The two
+      previously-synthetic reports are now genuinely real: Maintenance
+      Cost pulls actual `WorkOrder` rows (work order count, estimated vs.
+      actual cost, cost/km - relabeled columns to match what's real, since
+      WorkOrder has no parts/labor cost split); Compliance Status pulls
+      actual `Document` rows plus `Driver.licenseExpiry`. Rean Insights is
+      now derived live from real overdue invoices, expiring documents,
+      failed inspections, idle/offline vehicles, and flagged fuel
+      anomalies - the same "real derivation" pattern used for the
+      Dashboard's Today's Priorities widget - instead of 6 fixed fake
+      rows. P&L Summary's driver-cost line now comes from real `Payslip`
+      payroll data for the months overlapping the selected range (previously
+      an 18%-of-revenue guess), and its period-over-period deltas are real
+      comparisons against the prior equal-length period, not hardcoded
+      strings like `"+8.2%"`. Route Profitability's fuel/toll/driver cost
+      per km remain documented per-km estimates (no per-trip cost-
+      allocation ledger exists in this schema) - labeled "(est.)" in the
+      column headers rather than presented as exact, matching the same
+      honest-estimate precedent already established on the Dashboard.
+      Added 6 real API routes under `src/app/api/reports/`: the
+      parameterized `[reportId]` data endpoint (date range + vehicle
+      group/type filters - the two filters that map to real Vehicle
+      fields; Branch/Customer preset filters stay UI-only, same limitation
+      the original had), plus full CRUD + a real "Run Now" for both
+      `scheduled` and `custom` reports. "Run Now" really regenerates the
+      report's data and advances `lastRun`/`nextRun`/`runCount` for real;
+      it does not send an email (no mail integration in this app, per the
+      standing no-third-party-API-keys constraint) - stored honestly as
+      persisted metadata rather than faked as delivered.
+      Replaced the three "export" buttons' fake toasts with real output:
+      **CSV** now builds an actual file from the rendered rows/columns and
+      downloads it via a Blob URL; **Excel** downloads a real `.xls` file
+      using the HTML-table-as-Excel technique (no new dependency needed,
+      opens natively in Excel); **PDF** was replaced with a genuine
+      **Print / Save as PDF** button that calls the browser's native print
+      dialog, instead of lying about generating a PDF with no library to
+      back it. "Save Custom" now really persists a `CustomReport` row with
+      a snapshot of the generating form's filters, auto-named and
+      auto-described from those filters.
+      **Data Explorer (4th tab) was left unconverted this pass** - its 10
+      report types generate from a large (1134+739 line) seeded
+      deterministic-RNG dataset entirely local to that component, with no
+      relation to mock-data.ts or the DB at all. Converting it was out of
+      scope for this session's time budget; rather than leave it silently
+      looking live, added an explicit banner: "Demo dataset - not yet
+      connected to live data. For real numbers, use the Report Library
+      tab." Flagged here as the clear next step if this module gets
+      another pass.
+      Added `src/scripts/seed-reports.ts` (idempotent) seeding 6 real
+      scheduled reports and 4 real custom reports so both tabs aren't
+      empty on first load.
+      Caught and fixed two real bugs during live verification (via direct
+      API calls, since the Browser pane's screenshot/compositing broke
+      mid-session after a real Blob-download interaction and could not be
+      recovered - the one visual screenshot taken beforehand did confirm
+      the Trip Summary report rendering correctly with real customer
+      names, trip IDs, and freight totals matching the seeded data):
+      Rean Insights' "days overdue" wasn't clamped to zero like the
+      Invoice Aging report already did, showing a nonsensical "-7 days
+      overdue" for a not-yet-due invoice; and P&L Summary's prior-period
+      comparison reused the *current* period's overhead estimate for the
+      *prior* period's net-profit calculation, producing a wildly wrong
+      "-1428.6%" delta - fixed by computing the prior period's own
+      overhead estimate for a self-consistent comparison.
+      Verified live via direct API calls exercising the same server code
+      the UI calls: Trip Summary (25 trips, real customers/routes, ₹15.86L
+      freight - also visually confirmed in-browser), Maintenance Cost and
+      Rean Insights (real - correctly zero/empty where this tenant has no
+      WorkOrder rows, and correctly non-empty with real overdue-invoice
+      and idle-vehicle findings elsewhere), Scheduled Reports "Run Now"
+      (real `lastRun`/`nextRun` advance), Custom Reports "Run Now" (real
+      `runCount` 9 → 10, 16 real rows returned using saved filters). Zero
+      new TypeScript/ESLint errors across the full touched set.
+
 ## Sequencing reminder
 
 Agreed order with the user: **Stage 1 (SLM) → Stage 2 (Chat) → Stage 3 (Calling)**,

@@ -2032,3 +2032,45 @@ model TaskAttachment {
   @@index([taskId])
 }
 
+// ===== REPORTS =====
+// The Reports module had no persistence at all - "Scheduled" and "Custom"
+// reports were pure in-memory client state seeded from mock-data.ts on
+// every load (lost on refresh), and the Report Library's data came from
+// mock-data.ts arrays via a client-side switch rather than any DB query.
+
+model ScheduledReport {
+  id           String    @id @default(cuid())
+  companyId    String
+  reportId     String    // matches the static REPORT_TYPES catalog id, e.g. "trip-summary"
+  reportName   String
+  category     String
+  frequency    String    // Daily | Weekly | Monthly
+  deliveryTime String    // "HH:MM"
+  recipients   String    // JSON string array
+  format       String    // PDF | CSV | Excel
+  status       String    @default("Active") // Active | Paused
+  nextRun      DateTime?
+  lastRun      DateTime?
+  createdBy    String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([companyId])
+}
+
+model CustomReport {
+  id           String    @id @default(cuid())
+  companyId    String
+  name         String
+  baseReportId String    // matches REPORT_TYPES id
+  category     String
+  description  String?
+  filters      String?   // JSON snapshot of the ReportConfigForm used to build it
+  createdBy    String?
+  createdAt    DateTime  @default(now())
+  lastRun      DateTime?
+  runCount     Int       @default(0)
+
+  @@index([companyId])
+}
+

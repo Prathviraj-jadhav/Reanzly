@@ -131,11 +131,11 @@ export const REPORT_TYPES: ReportType[] = [
     id: "maintenance-cost",
     name: "Maintenance Cost",
     category: "Maintenance",
-    description: "Work order counts, parts and labor costs, and cost-per-km per vehicle.",
+    description: "Real work order counts, estimated vs actual costs, and cost-per-km per vehicle.",
     icon: "Wrench",
     formats: ["PDF", "CSV", "Excel"],
     defaultGroupBy: "Vehicle",
-    columns: ["Vehicle", "Work Orders", "Parts Cost", "Labor Cost", "Total Cost", "Cost / km"],
+    columns: ["Vehicle", "Work Orders", "Estimated Cost", "Actual Cost", "Total Cost", "Cost / km"],
     isChart: true,
   },
   {
@@ -256,154 +256,35 @@ export const ENTITY_FILTERS = [
 export const SCHEDULE_FREQUENCIES = ["Daily", "Weekly", "Monthly"] as const;
 export const SCHEDULE_FORMATS: ReportFormat[] = ["PDF", "CSV", "Excel"];
 
-// ===== Mock scheduled reports =====
-export interface ScheduledReport {
+// ===== Scheduled report DTO (real rows from GET /api/reports/scheduled) =====
+export interface ScheduledReportDTO {
   id: string;
+  reportId: string;
   reportName: string;
-  category: ReportCategory;
+  category: string;
   frequency: (typeof SCHEDULE_FREQUENCIES)[number];
   deliveryTime: string;
   recipients: string[];
   format: ReportFormat;
-  nextRun: string;
-  createdBy: string;
   status: "Active" | "Paused";
+  nextRun?: string;
+  lastRun?: string;
+  createdBy: string;
 }
 
-export const SCHEDULED_REPORTS: ScheduledReport[] = [
-  {
-    id: "sch-1",
-    reportName: "Trip Summary",
-    category: "Operations",
-    frequency: "Daily",
-    deliveryTime: "08:00",
-    recipients: ["Operations Manager", "Dispatcher"],
-    format: "PDF",
-    nextRun: new Date(Date.now() + 1 * 86400000).toISOString(),
-    createdBy: "Reena Mehta",
-    status: "Active",
-  },
-  {
-    id: "sch-2",
-    reportName: "Invoice Aging",
-    category: "Financial",
-    frequency: "Weekly",
-    deliveryTime: "09:30",
-    recipients: ["Finance Manager", "Owner"],
-    format: "Excel",
-    nextRun: new Date(Date.now() + 3 * 86400000).toISOString(),
-    createdBy: "Reena Mehta",
-    status: "Active",
-  },
-  {
-    id: "sch-3",
-    reportName: "Vehicle Utilization",
-    category: "Fleet",
-    frequency: "Weekly",
-    deliveryTime: "17:00",
-    recipients: ["Fleet Manager", "Operations Manager"],
-    format: "PDF",
-    nextRun: new Date(Date.now() + 2 * 86400000).toISOString(),
-    createdBy: "Sukhbir Gill",
-    status: "Active",
-  },
-  {
-    id: "sch-4",
-    reportName: "Rean Insights",
-    category: "Operations",
-    frequency: "Monthly",
-    deliveryTime: "10:00",
-    recipients: ["Owner", "Operations Manager", "Finance Manager"],
-    format: "PDF",
-    nextRun: new Date(Date.now() + 12 * 86400000).toISOString(),
-    createdBy: "Rean",
-    status: "Active",
-  },
-  {
-    id: "sch-5",
-    reportName: "Compliance Status",
-    category: "Compliance",
-    frequency: "Monthly",
-    deliveryTime: "11:30",
-    recipients: ["Fleet Manager", "Compliance Officer"],
-    format: "Excel",
-    nextRun: new Date(Date.now() + 8 * 86400000).toISOString(),
-    createdBy: "Sukhbir Gill",
-    status: "Paused",
-  },
-  {
-    id: "sch-6",
-    reportName: "Fuel Efficiency",
-    category: "Fuel",
-    frequency: "Weekly",
-    deliveryTime: "16:00",
-    recipients: ["Fleet Manager"],
-    format: "CSV",
-    nextRun: new Date(Date.now() + 4 * 86400000).toISOString(),
-    createdBy: "Rohit Sharma",
-    status: "Active",
-  },
-];
-
-// ===== Mock custom reports =====
-export interface CustomReport {
+// ===== Custom report DTO (real rows from GET /api/reports/custom) =====
+export interface CustomReportDTO {
   id: string;
   name: string;
-  baseReport: string;
-  category: ReportCategory;
+  baseReportId: string;
+  category: string;
   description: string;
+  filters: Record<string, unknown>;
   createdBy: string;
   createdAt: string;
-  lastRun: string;
+  lastRun?: string;
   runCount: number;
 }
-
-export const CUSTOM_REPORTS: CustomReport[] = [
-  {
-    id: "cust-1",
-    name: "Mumbai-Delhi Lane Margin",
-    baseReport: "Route Profitability",
-    category: "Operations",
-    description: "Route Profitability filtered to Mumbai–Delhi lane, monthly, owned fleet only.",
-    createdBy: "Reena Mehta",
-    createdAt: new Date(Date.now() - 45 * 86400000).toISOString(),
-    lastRun: new Date(Date.now() - 2 * 86400000).toISOString(),
-    runCount: 18,
-  },
-  {
-    id: "cust-2",
-    name: "Refrigerated Fleet Utilization",
-    baseReport: "Vehicle Utilization",
-    category: "Fleet",
-    description: "Vehicle Utilization filtered to Refrigerated group, weekly, Mumbai and Pune branches.",
-    createdBy: "Sukhbir Gill",
-    createdAt: new Date(Date.now() - 80 * 86400000).toISOString(),
-    lastRun: new Date(Date.now() - 5 * 86400000).toISOString(),
-    runCount: 34,
-  },
-  {
-    id: "cust-3",
-    name: "Top 10 Customers Outstanding",
-    baseReport: "Invoice Aging",
-    category: "Financial",
-    description: "Invoice Aging filtered to Top 10 customers, with 90+ days overdue emphasis.",
-    createdBy: "Reena Mehta",
-    createdAt: new Date(Date.now() - 120 * 86400000).toISOString(),
-    lastRun: new Date(Date.now() - 1 * 86400000).toISOString(),
-    runCount: 56,
-  },
-  {
-    id: "cust-4",
-    name: "Driver Rating Under 4.0",
-    baseReport: "Driver Performance",
-    category: "Driver",
-    description: "Driver Performance filtered to rating < 4.0, with on-time rate flag.",
-    createdBy: "Anil Reddy",
-    createdAt: new Date(Date.now() - 22 * 86400000).toISOString(),
-    lastRun: new Date(Date.now() - 0.4 * 86400000).toISOString(),
-    runCount: 9,
-  },
-];
 
 // ===== Reusable bits =====
 export function FieldLabel({

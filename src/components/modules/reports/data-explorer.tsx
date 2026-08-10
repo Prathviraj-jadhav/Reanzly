@@ -889,6 +889,14 @@ export function DataExplorer() {
 
   return (
     <div className="flex flex-col gap-4">
+      {/* Honest flag: unlike the Report Library tab (now backed by real
+          Prisma queries - see src/lib/reports-engine.ts), Data Explorer's
+          10 report types still generate from a seeded synthetic dataset
+          local to this module, not the database. Left as-is this pass
+          rather than silently presented as live. */}
+      <div className="rounded-[6px] border border-dashed border-border bg-muted/30 px-3 py-2 text-[11px] text-muted-foreground">
+        Demo dataset - not yet connected to live data. For real numbers, use the Report Library tab.
+      </div>
       {/* ===== Report selector + Export ===== */}
       <div className="flex flex-wrap items-end gap-3">
         <div className="flex flex-col gap-1">

@@ -15,25 +15,30 @@ import {
 import {
   Tabs, TabsList, TabsTrigger, TabsContent,
 } from "@/components/ui/tabs";
-import { useAppStore } from "@/lib/store/app-store";
 import {
-  REPORT_CATEGORIES, REPORT_TYPES, SCHEDULED_REPORTS, CUSTOM_REPORTS,
-  getReportIcon, formatDate, formatDateTime, relativeTime,
-  type ReportCategory, type ReportType, type ReportConfigForm, type ScheduleForm,
+  REPORT_CATEGORIES, REPORT_TYPES,
+  getReportIcon, formatDate, relativeTime, emptyConfigForm,
+  type ReportCategory, type ReportType, type ReportConfigForm, type ScheduleForm, type CustomReportDTO,
 } from "./_helpers";
 import { ReportConfigDrawer } from "./report-config-drawer";
 import { ScheduleDrawer } from "./schedule-drawer";
 import { GeneratedReport } from "./generated-report";
 import { DataExplorer } from "./data-explorer";
+import { useReportsData } from "./use-reports-data";
 
 export function ReportsModule() {
+  const {
+    scheduled, custom, loaded,
+    createSchedule, patchSchedule, deleteSchedule, runSchedule,
+    saveCustom, deleteCustom, runCustom,
+  } = useReportsData();
+
   const [activeTab, setActiveTab] = useState<"library" | "scheduled" | "custom" | "data">("library");
   const [activeCategory, setActiveCategory] = useState<ReportCategory | "All">("All");
   const [configOpen, setConfigOpen] = useState(false);
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [activeReport, setActiveReport] = useState<ReportType | null>(null);
   const [generated, setGenerated] = useState<{ report: ReportType; form: ReportConfigForm } | null>(null);
-  const [scheduledList, setScheduledList] = useState(SCHEDULED_REPORTS);
 
   const filteredReports = useMemo(() => {
     if (activeCategory === "All") return REPORT_TYPES;
@@ -49,32 +54,41 @@ export function ReportsModule() {
     const report = REPORT_TYPES.find((r) => r.id === form.reportId);
     if (!report) return;
     setGenerated({ report, form });
-    toast.success("Report generated", {
-      description: `${report.name} · ${form.columns.length} columns · ${form.format}`,
-    });
   };
 
-  const handleSchedule = (form: ScheduleForm) => {
+  const handleSchedule = async (form: ScheduleForm) => {
     const report = REPORT_TYPES.find((r) => r.id === form.reportId);
     if (!report) return;
-    setScheduledList((prev) => [
-      {
-        id: "sch-" + (prev.length + 1),
-        reportName: report.name,
-        category: report.category,
-        frequency: form.frequency,
-        deliveryTime: form.deliveryTime,
-        recipients: form.recipients.split(",").map((s) => s.trim()).filter(Boolean),
-        format: form.format,
-        nextRun: new Date(Date.now() + 86400000).toISOString(),
-        createdBy: "You",
-        status: "Active",
-      },
-      ...prev,
-    ]);
-    toast.success("Report scheduled", {
-      description: `${report.name} · ${form.frequency} at ${form.deliveryTime}`,
+    const created = await createSchedule({
+      reportId: report.id,
+      reportName: report.name,
+      category: report.category,
+      frequency: form.frequency,
+      deliveryTime: form.deliveryTime,
+      recipients: form.recipients,
+      format: form.format,
     });
+    if (created) {
+      toast.success("Report scheduled", { description: `${report.name} · ${form.frequency} at ${form.deliveryTime}` });
+    }
+  };
+
+  const handleSaveCustom = async () => {
+    if (!generated) return;
+    const { report, form } = generated;
+    const existingForBase = custom.filter((c) => c.baseReportId === report.id).length;
+    const filterBits: string[] = [];
+    if (form.vehicleGroup !== "All") filterBits.push(`Group: ${form.vehicleGroup}`);
+    if (form.vehicleType !== "All") filterBits.push(`Type: ${form.vehicleType}`);
+    filterBits.push(`Range: ${form.datePreset === "custom" ? `${form.customStart} → ${form.customEnd}` : form.datePreset}`);
+    const created = await saveCustom({
+      name: existingForBase > 0 ? `${report.name} (Custom ${existingForBase + 1})` : `${report.name} (Custom)`,
+      baseReportId: report.id,
+      category: report.category,
+      description: `${report.name} filtered - ${filterBits.join(", ")}.`,
+      filters: form,
+    });
+    if (created) toast.success("Saved as Custom Report", { description: "Available under Custom tab" });
   };
 
   const openScheduleFromGenerated = () => {
@@ -84,13 +98,38 @@ export function ReportsModule() {
     }
   };
 
-  const toggleSchedule = (id: string) => {
-    setScheduledList((prev) => prev.map((s) => s.id === id ? { ...s, status: s.status === "Active" ? "Paused" : "Active" } : s));
+  const toggleSchedule = async (id: string, current: "Active" | "Paused") => {
+    const updated = await patchSchedule(id, { status: current === "Active" ? "Paused" : "Active" });
+    if (updated) toast(updated.status === "Active" ? "Activated" : "Paused", { description: updated.reportName });
   };
 
-  const deleteSchedule = (id: string) => {
-    setScheduledList((prev) => prev.filter((s) => s.id !== id));
-    toast("Scheduled report removed");
+  const removeSchedule = async (id: string, name: string) => {
+    const ok = await deleteSchedule(id);
+    if (ok) toast("Scheduled report removed", { description: name });
+  };
+
+  const runScheduleNow = async (id: string, name: string) => {
+    const result = await runSchedule(id);
+    if (result) toast.success("Report generated", { description: `${name} · ${result.rowCount} rows` });
+  };
+
+  const runCustomReport = async (c: CustomReportDTO) => {
+    const result = await runCustom(c.id);
+    if (!result) return;
+    const report = REPORT_TYPES.find((r) => r.id === c.baseReportId);
+    if (report) {
+      const saved = c.filters as Partial<ReportConfigForm>;
+      setGenerated({
+        report,
+        form: { ...emptyConfigForm(report.id, report.columns, report.defaultGroupBy), ...saved, reportId: report.id, columns: report.columns },
+      });
+    }
+    toast.success("Custom report run", { description: `${c.name} · ${result.data.rows.length} rows` });
+  };
+
+  const removeCustom = async (id: string, name: string) => {
+    const ok = await deleteCustom(id);
+    if (ok) toast("Custom report deleted", { description: name });
   };
 
   // ===== Generated report view =====
@@ -102,6 +141,7 @@ export function ReportsModule() {
           form={generated.form}
           onBack={() => setGenerated(null)}
           onSchedule={openScheduleFromGenerated}
+          onSaveCustom={handleSaveCustom}
         />
         <ScheduleDrawer
           open={scheduleOpen}
@@ -143,14 +183,14 @@ export function ReportsModule() {
             value="scheduled"
             className="bg-transparent border border-transparent rounded-none shadow-none data-[state=active]:bg-transparent data-[state=active]:shadow-none px-1 pb-2.5 pt-1 text-[13px] data-[state=active]:text-foreground text-muted-foreground relative"
           >
-            Scheduled ({scheduledList.length})
+            Scheduled ({scheduled.length})
             {activeTab === "scheduled" && <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-foreground" />}
           </TabsTrigger>
           <TabsTrigger
             value="custom"
             className="bg-transparent border border-transparent rounded-none shadow-none data-[state=active]:bg-transparent data-[state=active]:shadow-none px-1 pb-2.5 pt-1 text-[13px] data-[state=active]:text-foreground text-muted-foreground relative"
           >
-            Custom Reports ({CUSTOM_REPORTS.length})
+            Custom Reports ({custom.length})
             {activeTab === "custom" && <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-foreground" />}
           </TabsTrigger>
           <TabsTrigger
@@ -253,7 +293,7 @@ export function ReportsModule() {
           <div className="rounded-[6px] border border-border bg-card overflow-hidden">
             <div className="flex items-center justify-between border-b border-border px-4 py-2.5">
               <h3 className="text-[12px] font-medium uppercase tracking-wider text-muted-foreground">Scheduled Reports</h3>
-              <span className="text-[11px] text-muted-foreground tabular">{scheduledList.length} schedules</span>
+              <span className="text-[11px] text-muted-foreground tabular">{scheduled.length} schedules</span>
             </div>
             <div className="overflow-x-auto scrollbar-thin">
               <table className="w-full border-collapse">
@@ -271,7 +311,7 @@ export function ReportsModule() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {scheduledList.map((s) => (
+                  {scheduled.map((s) => (
                     <tr key={s.id} className="hover:bg-accent/40 transition-colors group">
                       <td className="px-4 py-2.5">
                         <div className="text-[13px] font-medium text-foreground">{s.reportName}</div>
@@ -279,7 +319,7 @@ export function ReportsModule() {
                       </td>
                       <td className="px-4 py-2.5 text-[13px] text-foreground">{s.frequency}</td>
                       <td className="px-4 py-2.5 text-[13px] text-foreground tabular">{s.deliveryTime}</td>
-                      <td className="px-4 py-2.5 text-[12px] text-muted-foreground max-w-[200px] truncate">{s.recipients.join(", ")}</td>
+                      <td className="px-4 py-2.5 text-[12px] text-muted-foreground max-w-[200px] truncate">{s.recipients.join(", ") || "-"}</td>
                       <td className="px-4 py-2.5 text-[12px] text-foreground tabular">{s.format}</td>
                       <td className="px-4 py-2.5 text-[12px] text-foreground tabular">{formatDate(s.nextRun)}</td>
                       <td className="px-4 py-2.5">
@@ -296,18 +336,15 @@ export function ReportsModule() {
                             </button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="w-44">
-                            <DropdownMenuItem onClick={() => toast("Edit schedule", { description: s.reportName })}>
-                              <Edit3 className="h-3.5 w-3.5 mr-2" /> Edit
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => toggleSchedule(s.id)}>
+                            <DropdownMenuItem onClick={() => toggleSchedule(s.id, s.status)}>
                               {s.status === "Active" ? <Pause className="h-3.5 w-3.5 mr-2" /> : <Play className="h-3.5 w-3.5 mr-2" />}
                               {s.status === "Active" ? "Pause" : "Activate"}
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => toast("Running now…", { description: s.reportName })}>
+                            <DropdownMenuItem onClick={() => runScheduleNow(s.id, s.reportName)}>
                               <Clock className="h-3.5 w-3.5 mr-2" /> Run Now
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem className="text-foreground font-medium" onClick={() => deleteSchedule(s.id)}>
+                            <DropdownMenuItem className="text-foreground font-medium" onClick={() => removeSchedule(s.id, s.reportName)}>
                               <Trash2 className="h-3.5 w-3.5 mr-2" /> Delete
                             </DropdownMenuItem>
                           </DropdownMenuContent>
@@ -318,7 +355,7 @@ export function ReportsModule() {
                 </tbody>
               </table>
             </div>
-            {scheduledList.length === 0 && (
+            {loaded && scheduled.length === 0 && (
               <div className="py-12 text-center">
                 <p className="text-[13px] text-muted-foreground">No scheduled reports. Generate a report and click Schedule to set up automatic delivery.</p>
               </div>
@@ -329,7 +366,7 @@ export function ReportsModule() {
         {/* Custom */}
         <TabsContent value="custom" className="mt-5">
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            {CUSTOM_REPORTS.map((c) => (
+            {custom.map((c) => (
               <div key={c.id} className="group flex flex-col gap-3 rounded-[6px] border border-border bg-card p-4 hover:border-foreground/30 transition-colors">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-2">
@@ -338,7 +375,7 @@ export function ReportsModule() {
                     </div>
                     <div>
                       <h3 className="text-[14px] font-medium leading-tight text-foreground">{c.name}</h3>
-                      <p className="text-[11px] text-muted-foreground">Based on {c.baseReport} · {c.category}</p>
+                      <p className="text-[11px] text-muted-foreground">Based on {REPORT_TYPES.find((r) => r.id === c.baseReportId)?.name ?? c.baseReportId} · {c.category}</p>
                     </div>
                   </div>
                   <DropdownMenu>
@@ -348,20 +385,17 @@ export function ReportsModule() {
                       </button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-44">
-                      <DropdownMenuItem onClick={() => {
-                        const r = REPORT_TYPES.find((rt) => rt.name === c.baseReport);
-                        if (r) { openConfig(r); }
-                      }}>
+                      <DropdownMenuItem onClick={() => runCustomReport(c)}>
                         <Play className="h-3.5 w-3.5 mr-2" /> Run Now
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => toast("Edit custom report", { description: c.name })}>
-                        <Edit3 className="h-3.5 w-3.5 mr-2" /> Edit
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => toast("Duplicate", { description: c.name + " (copy)" })}>
-                        <Plus className="h-3.5 w-3.5 mr-2" /> Duplicate
+                      <DropdownMenuItem onClick={() => {
+                        const r = REPORT_TYPES.find((rt) => rt.id === c.baseReportId);
+                        if (r) openConfig(r);
+                      }}>
+                        <Edit3 className="h-3.5 w-3.5 mr-2" /> Generate Fresh Copy
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem className="text-foreground font-medium" onClick={() => toast("Custom report deleted", { description: c.name })}>
+                      <DropdownMenuItem className="text-foreground font-medium" onClick={() => removeCustom(c.id, c.name)}>
                         <Trash2 className="h-3.5 w-3.5 mr-2" /> Delete
                       </DropdownMenuItem>
                     </DropdownMenuContent>
@@ -375,6 +409,11 @@ export function ReportsModule() {
               </div>
             ))}
           </div>
+          {loaded && custom.length === 0 && (
+            <div className="rounded-[6px] border border-border bg-card p-8 text-center">
+              <p className="text-[13px] text-muted-foreground">No custom reports yet. Generate a report and click "Save Custom" to save your filters.</p>
+            </div>
+          )}
         </TabsContent>
 
         {/* Data Explorer */}
