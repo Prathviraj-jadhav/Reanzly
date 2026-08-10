@@ -29,30 +29,16 @@
 import { useEffect, useRef } from "react";
 import { MarketingNav } from "./marketing-nav";
 import { MarketingHero } from "./marketing-hero";
-import { MarketingCapabilities } from "./marketing-capabilities";
-import { MarketingSpecialties } from "./marketing-specialties";
-import { MarketingServices } from "./marketing-services";
-import { MarketingModules } from "./marketing-modules";
+import { MarketingConsole } from "./marketing-console";
 import { MarketingDirectory } from "./marketing-directory";
-import { MarketingBrokerCta } from "./marketing-broker-cta";
 import { MarketingPricing } from "./marketing-pricing";
-import { MarketingTransformations } from "./marketing-transformations";
-import { MarketingProcess } from "./marketing-process";
-import { MarketingStats } from "./marketing-stats";
-import { MarketingTestimonials } from "./marketing-testimonials";
-import { MarketingInsights } from "./marketing-insights";
 import { MarketingFAQ } from "./marketing-faq";
 import { MarketingContact } from "./marketing-contact";
 import { MarketingFooter } from "./marketing-footer";
 
 /**
- * Reduced-motion guard - inlined here (rather than imported from
- * `@/lib/animations`) so this module doesn't drag the entire GSAP library
- * into the landing page's compile graph. `@/lib/animations` re-exports
- * `gsap`/`useGSAP` from `gsap-utils.ts`, which statically imports gsap -
- * importing even the tiny `prefersReducedMotion` flag from there would
- * pull all of GSAP into the first compile of `/`. GSAP + ScrollTrigger
- * are loaded lazily in the effect below instead.
+ * Reduced-motion guard - inlined here so this module doesn't drag the entire GSAP library
+ * into the landing page's compile graph.
  */
 const prefersReducedMotion =
   typeof window !== "undefined" &&
@@ -61,13 +47,7 @@ const prefersReducedMotion =
 export function LandingSite() {
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // GSAP + ScrollTrigger are lazy-loaded so the first compile of `/`
-  // doesn't have to bundle the entire GSAP library (the static import
-  // was OOM-killing next-server at ~3.5 GB anon-rss on this 3.9 GB / 0
-  // swap box). Once the chunks load we register ScrollTrigger and run
-  // the same entrance + scroll animations inside a gsap.context scoped
-  // to this container; the cleanup reverts the context so tweens and
-  // ScrollTriggers are torn down on unmount.
+  // GSAP scroll reveals for hero and console components
   useEffect(() => {
     if (prefersReducedMotion) return;
     let cancelled = false;
@@ -115,49 +95,6 @@ export function LandingSite() {
           delay: 0.25,
           ease: "power3.out",
         });
-
-        // ── Stats - count up on scroll ───────────────────────────
-        gsap.utils.toArray<HTMLElement>(".stat-number").forEach((el) => {
-          const raw = el.getAttribute("data-value") || "0";
-          const target = parseFloat(raw);
-          const suffix = el.getAttribute("data-suffix") || "";
-          const isInteger = Number.isInteger(target);
-          const obj = { val: 0 };
-          // Set initial display to 0 so the count-up reads naturally.
-          el.textContent = `0${suffix}`;
-          gsap.to(obj, {
-            val: target,
-            duration: 0.5,
-            ease: "power2.out",
-            scrollTrigger: { trigger: el, start: "top 85%" },
-            onUpdate: () => {
-              const v = isInteger
-                ? Math.round(obj.val).toLocaleString("en-IN")
-                : obj.val.toFixed(1);
-              el.textContent = `${v}${suffix}`;
-            },
-          });
-        });
-
-        // ── Feature cards - stagger on scroll ────────────────────
-        gsap.from(".feature-card", {
-          y: 20,
-          opacity: 0,
-          duration: 0.4,
-          stagger: 0.06,
-          ease: "power2.out",
-          scrollTrigger: { trigger: ".features-grid", start: "top 80%" },
-        });
-
-        // ── Module grid - stagger on scroll ──────────────────────
-        gsap.from(".module-card", {
-          y: 20,
-          opacity: 0,
-          duration: 0.4,
-          stagger: 0.05,
-          ease: "power2.out",
-          scrollTrigger: { trigger: ".module-grid", start: "top 80%" },
-        });
       }, containerRef);
     })();
     return () => {
@@ -174,18 +111,9 @@ export function LandingSite() {
       <MarketingNav />
       <main className="flex-1">
         <MarketingHero />
-        <MarketingCapabilities />
-        <MarketingSpecialties />
-        <MarketingServices />
-        <MarketingModules />
+        <MarketingConsole />
         <MarketingDirectory />
-        <MarketingBrokerCta />
         <MarketingPricing />
-        <MarketingTransformations />
-        <MarketingProcess />
-        <MarketingStats />
-        <MarketingTestimonials />
-        <MarketingInsights />
         <MarketingFAQ />
         <MarketingContact />
       </main>

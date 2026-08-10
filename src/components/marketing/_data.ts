@@ -30,14 +30,9 @@ export const COMPANY = {
 // === NAV LINKS ===
 export const NAV_LINKS: { label: string; href: string }[] = [
   { label: "Home", href: "#home" },
-  { label: "Modules", href: "#about" },
-  { label: "Services", href: "#services" },
-  { label: "Products", href: "#products" },
+  { label: "Console", href: "#console" },
   { label: "Directory", href: "#directory" },
-  { label: "Brokers", href: "#brokers" },
   { label: "Pricing", href: "#pricing" },
-  { label: "Case Studies", href: "#case-studies" },
-  { label: "Process", href: "#process" },
   { label: "Contact", href: "#contact" },
 ];
 

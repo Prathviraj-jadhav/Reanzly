@@ -38,141 +38,148 @@ export function MarketingHero() {
   return (
     <section
       id="home"
-      className="relative overflow-hidden border-b border-border bg-background"
+      className="relative overflow-hidden border-b border-white/10 bg-[#050505] text-white"
     >
-      {/* Grid texture - fades out toward the edges */}
+      {/* Radial glow background */}
       <div
-        className="bg-grid pointer-events-none absolute inset-0 opacity-30"
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.06)_0%,transparent_60%)]"
+        aria-hidden
+      />
+
+      {/* Grid pattern overlay */}
+      <div
+        className="pointer-events-none absolute inset-0 opacity-[0.03]"
         style={{
-          maskImage:
-            "radial-gradient(ellipse 80% 60% at 50% 30%, black 30%, transparent 80%)",
-          WebkitMaskImage:
-            "radial-gradient(ellipse 80% 60% at 50% 30%, black 30%, transparent 80%)",
+          backgroundImage: `radial-gradient(circle, white 1px, transparent 1px)`,
+          backgroundSize: "24px 24px",
         }}
         aria-hidden
       />
 
-      <div className="relative mx-auto max-w-5xl px-6 py-24 text-center sm:py-32 lg:py-40">
+      <div className="relative mx-auto max-w-6xl px-6 py-20 text-center sm:py-28 lg:py-36">
         {/* Eyebrow badge */}
         <div className="hero-eyebrow mb-8 flex justify-center">
-          <span className="inline-flex items-center rounded-full border border-border bg-muted px-3 py-1 text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3.5 py-1 text-[11px] font-medium font-mono uppercase tracking-[0.16em] text-neutral-400">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
             Logistics Operating System · {REAL_MODULES.length} live modules
           </span>
         </div>
 
         {/* Headline */}
-        <h1 className="hero-title mx-auto max-w-4xl text-5xl font-medium leading-[1.05] tracking-tight text-foreground sm:text-6xl lg:text-7xl">
-          {REAL_HERO.headline}
+        <h1 className="hero-title mx-auto max-w-4xl text-4xl font-semibold tracking-tight text-white sm:text-6xl lg:text-7xl leading-[1.08]">
+          The Operating System for Freight Logistics.
         </h1>
 
         {/* Subtext */}
-        <p className="hero-subtitle mx-auto mt-6 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
-          {REAL_HERO.body}
+        <p className="hero-subtitle mx-auto mt-6 max-w-2xl text-[15px] sm:text-lg leading-relaxed text-neutral-400">
+          Run trips, manage dispatch, track vehicles, and automate billing in a single, unified workspace. Open any module as a sandbox demo instantly—no signup, no friction.
         </p>
 
         {/* CTAs */}
-        <div className="hero-cta mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
+        <div className="hero-cta mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
           <button
             type="button"
             onClick={() => openDemo("trips", "Trips module")}
-            className="tap flex h-11 w-full items-center justify-center gap-1.5 rounded-md bg-foreground px-5 text-sm font-medium uppercase tracking-wider text-background transition-colors hover:bg-foreground/90 sm:w-auto"
+            className="tap flex h-11 w-full items-center justify-center gap-2 rounded-md bg-white px-6 font-mono text-xs font-semibold uppercase tracking-wider text-black transition-colors hover:bg-neutral-200 sm:w-auto"
           >
-            <Play className="h-4 w-4" />
-            Open live demo
+            <Play className="h-3.5 w-3.5 fill-current" />
+            Launch Live Sandbox
           </button>
           <button
             type="button"
-            onClick={() => scrollToId("products")}
-            className="tap flex h-11 w-full items-center justify-center gap-1.5 rounded-md border border-border bg-background px-5 text-sm font-medium uppercase tracking-wider text-foreground transition-colors hover:bg-accent sm:w-auto"
+            onClick={() => scrollToId("console")}
+            className="tap flex h-11 w-full items-center justify-center gap-2 rounded-md border border-white/15 bg-white/5 px-6 font-mono text-xs font-medium uppercase tracking-wider text-white transition-colors hover:bg-white/10 sm:w-auto"
           >
-            Browse modules
-            <ArrowRight className="h-4 w-4" />
+            Browse Platform Console
+            <ArrowRight className="h-3.5 w-3.5" />
           </button>
         </div>
 
         {/* Trust line */}
-        <p className="mt-5 text-center text-xs text-muted-foreground">
-          {REAL_HERO.trustLine}
+        <p className="mt-6 text-center text-xs text-neutral-500 font-mono">
+          Trusted by {REAL_HERO.trustLine.replace("Trusted by ", "")}
         </p>
       </div>
 
-      {/* Hero product visual - CSS/SVG mock of the logistics ops dashboard */}
-      <div className="hero-visual relative mx-auto max-w-5xl px-6 pb-24">
-        <div className="overflow-hidden rounded-lg border border-border bg-card shadow-2xl shadow-black/5">
+      {/* Hero product visual - Sleek obsidian window mock */}
+      <div className="hero-visual relative mx-auto max-w-5xl px-6 pb-20 sm:pb-28">
+        <div className="overflow-hidden rounded-lg border border-white/10 bg-[#090909] shadow-2xl shadow-black/80">
           {/* Faux window chrome */}
-          <div className="flex items-center gap-2 border-b border-border bg-background px-4 py-2.5">
+          <div className="flex items-center gap-2 border-b border-white/10 bg-[#0d0d0d] px-4 py-3">
             <div className="flex gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-full bg-muted-foreground/40" />
-              <span className="h-2.5 w-2.5 rounded-full bg-muted-foreground/40" />
-              <span className="h-2.5 w-2.5 rounded-full bg-muted-foreground/40" />
+              <span className="h-2.5 w-2.5 rounded-full bg-white/10" />
+              <span className="h-2.5 w-2.5 rounded-full bg-white/10" />
+              <span className="h-2.5 w-2.5 rounded-full bg-white/10" />
             </div>
             <div className="ml-3 flex items-center gap-2">
-              <span className="flex h-4 w-4 items-center justify-center rounded-[3px] bg-foreground text-[8px] font-bold text-background">
+              <span className="flex h-4 w-4 items-center justify-center rounded-[3px] bg-white text-[8px] font-bold text-black font-mono">
                 RZ
               </span>
-              <span className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
-                app.reanzly.in / dashboard
+              <span className="font-mono text-[10px] uppercase tracking-wider text-neutral-400">
+                app.reanzly.in / main_sandbox
               </span>
             </div>
-            <div className="ml-auto font-mono text-[11px] text-muted-foreground">
-              Mumbai · 14:32 IST
+            <div className="ml-auto font-mono text-[10px] text-neutral-500">
+              MUMBAI · LIVE FEED
             </div>
           </div>
 
           {/* Faux sidebar + main */}
           <div className="grid grid-cols-1 sm:grid-cols-[180px_1fr]">
-            {/* Sidebar - real module names */}
-            <div className="hidden flex-col gap-1 border-r border-border bg-background/50 p-3 sm:flex">
+            {/* Sidebar */}
+            <div className="hidden flex-col gap-1 border-r border-white/10 bg-[#070707] p-3 sm:flex">
               {[
-                "Dashboard",
-                "Trips",
-                "Fleet Map",
-                "Vehicles",
-                "Invoice",
-                "Payments",
-                "Ledger",
-                "Reports",
-              ].map((label, i) => (
-                <div
-                  key={label}
+                { label: "Dashboard", id: "trips" },
+                { label: "Trips (TMS)", id: "trips" },
+                { label: "Fleet Map", id: "fleet-map" },
+                { label: "Vehicles", id: "vehicles" },
+                { label: "Invoice", id: "invoice" },
+                { label: "Payments", id: "payments" },
+                { label: "Ledger", id: "ledger" },
+                { label: "Reports", id: "reports" },
+              ].map((item, i) => (
+                <button
+                  key={item.label}
+                  type="button"
+                  onClick={() => openDemo(item.id as ModuleId, item.label)}
                   className={
-                    "flex items-center gap-2 rounded-[4px] px-2 py-1.5 text-[11px] " +
+                    "flex items-center gap-2 rounded-[4px] px-2.5 py-1.5 text-left text-[11px] font-mono transition-colors " +
                     (i === 0
-                      ? "bg-foreground font-medium text-background"
-                      : "text-muted-foreground")
+                      ? "bg-white/10 font-medium text-white"
+                      : "text-neutral-400 hover:bg-white/5 hover:text-white")
                   }
                 >
                   <span
                     className={
                       "h-1.5 w-1.5 rounded-full " +
-                      (i === 0 ? "bg-background" : "bg-muted-foreground/50")
+                      (i === 0 ? "bg-white" : "bg-neutral-600 group-hover:bg-neutral-400")
                     }
                   />
-                  {label}
-                </div>
+                  {item.label}
+                </button>
               ))}
             </div>
 
             {/* Main content */}
-            <div className="flex flex-col gap-4 p-4 sm:p-5">
-              {/* Stat tiles row - clickable, open the real module */}
+            <div className="flex flex-col gap-4 p-4 sm:p-5 bg-[#050505]">
+              {/* Stat tiles row */}
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 {REAL_HERO.statTiles.map((s) => (
                   <button
                     key={s.k}
                     type="button"
                     onClick={() => openDemo(s.module, s.k)}
-                    className="tap group rounded-[6px] border border-border bg-background p-3 text-left transition-colors hover:border-foreground/40"
+                    className="tap group rounded-[6px] border border-white/5 bg-[#090909] p-3.5 text-left transition-all duration-200 hover:border-white/15 hover:bg-[#0c0c0c]"
                     aria-label={`Open ${s.k} module in live demo`}
                   >
-                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                    <p className="text-[9px] font-mono uppercase tracking-widest text-neutral-500">
                       {s.k}
                     </p>
-                    <p className="mt-1 text-xl font-medium tabular tracking-tight text-foreground">
+                    <p className="mt-1 text-xl font-bold tabular tracking-tight text-white font-mono">
                       {s.v}
                     </p>
-                    <p className="mt-0.5 flex items-center gap-1 text-[10px] text-muted-foreground">
-                      <TrendingUp className="h-3 w-3" />
+                    <p className="mt-1.5 flex items-center gap-1 text-[10px] font-mono text-neutral-400">
+                      <TrendingUp className="h-3 w-3 text-emerald-500" />
                       {s.d}
                     </p>
                   </button>
@@ -185,16 +192,16 @@ export function MarketingHero() {
                 <button
                   type="button"
                   onClick={() => openDemo("reports", "Reports module")}
-                  className="tap group rounded-[6px] border border-border bg-background p-4 text-left transition-colors hover:border-foreground/40 lg:col-span-2"
+                  className="tap group rounded-[6px] border border-white/5 bg-[#090909] p-4 text-left transition-all duration-200 hover:border-white/15 hover:bg-[#0c0c0c] lg:col-span-2"
                   aria-label="Open Reports module in live demo"
                 >
                   <div className="mb-3 flex items-center justify-between">
-                    <p className="text-xs font-medium text-foreground">
+                    <p className="text-xs font-medium text-white font-mono">
                       Trips · last 14 days
                     </p>
                     <div className="flex items-center gap-2">
-                      <CircleDot className="h-3 w-3 text-muted-foreground" />
-                      <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                      <CircleDot className="h-3 w-3 text-emerald-500 animate-pulse" />
+                      <span className="font-mono text-[9px] uppercase tracking-wider text-neutral-500">
                         Reports module
                       </span>
                     </div>
@@ -202,18 +209,18 @@ export function MarketingHero() {
                   <Sparkline />
                 </button>
 
-                {/* Side rail: live exceptions + fleet map dot pattern */}
+                {/* Side rail */}
                 <div className="flex flex-col gap-3">
                   <button
                     type="button"
                     onClick={() => openDemo("issues", "Issues module")}
-                    className="tap group rounded-[6px] border border-border bg-background p-4 text-left transition-colors hover:border-foreground/40"
+                    className="tap group rounded-[6px] border border-white/5 bg-[#090909] p-4 text-left transition-all duration-200 hover:border-white/15 hover:bg-[#0c0c0c]"
                     aria-label="Open Issues module in live demo"
                   >
-                    <p className="text-xs font-medium text-foreground">
+                    <p className="text-xs font-medium text-white font-mono">
                       Live exceptions
                     </p>
-                    <ul className="mt-2 space-y-1.5">
+                    <ul className="mt-2.5 space-y-2">
                       {[
                         "MH-12 AB 7890 · idle 4h",
                         "Trip #TR-2284 · POD overdue",
@@ -221,9 +228,9 @@ export function MarketingHero() {
                       ].map((line) => (
                         <li
                           key={line}
-                          className="flex items-center gap-2 text-[11px] text-muted-foreground"
+                          className="flex items-center gap-2 text-[11px] font-mono text-neutral-400"
                         >
-                          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-foreground" />
+                          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#ef4444]" />
                           <span className="truncate">{line}</span>
                         </li>
                       ))}
@@ -232,10 +239,10 @@ export function MarketingHero() {
                   <button
                     type="button"
                     onClick={() => openDemo("fleet-map", "Fleet Map module")}
-                    className="tap group rounded-[6px] border border-border bg-background p-4 text-left transition-colors hover:border-foreground/40"
+                    className="tap group rounded-[6px] border border-white/5 bg-[#090909] p-4 text-left transition-all duration-200 hover:border-white/15 hover:bg-[#0c0c0c]"
                     aria-label="Open Fleet Map module in live demo"
                   >
-                    <p className="text-xs font-medium text-foreground">
+                    <p className="text-xs font-medium text-white font-mono">
                       Fleet map · 312 live
                     </p>
                     <FleetMapDots />

@@ -170,13 +170,13 @@ function PriceBlock({ model }: { model: SubscriptionModelDef }) {
     return (
       <div className="flex flex-col gap-1">
         <div className="flex items-baseline gap-1.5">
-          <span className="text-4xl font-medium tabular tracking-tight text-foreground">
+          <span className="text-4xl font-medium tabular tracking-tight text-foreground font-mono">
             ₹0
           </span>
           <span className="text-sm text-muted-foreground">flat / month</span>
         </div>
         <p className="text-sm text-muted-foreground">
-          <span className="font-medium text-foreground tabular">
+          <span className="font-medium text-foreground tabular font-mono">
             {model.commissionPct}%
           </span>{" "}
           commission per booked trip
@@ -189,7 +189,7 @@ function PriceBlock({ model }: { model: SubscriptionModelDef }) {
   return (
     <div className="flex flex-col gap-1">
       <div className="flex items-baseline gap-1.5">
-        <span className="text-4xl font-medium tabular tracking-tight text-foreground">
+        <span className="text-4xl font-medium tabular tracking-tight text-foreground font-mono">
           ₹{model.flatMonthly.toLocaleString("en-IN")}
         </span>
         <span className="text-sm text-muted-foreground">/ month</span>
@@ -197,7 +197,7 @@ function PriceBlock({ model }: { model: SubscriptionModelDef }) {
       {model.commissionPct > 0 ? (
         <p className="text-sm text-muted-foreground">
           +{" "}
-          <span className="font-medium text-foreground tabular">
+          <span className="font-medium text-foreground tabular font-mono">
             {model.commissionPct}%
           </span>{" "}
           commission on marketplace trips
