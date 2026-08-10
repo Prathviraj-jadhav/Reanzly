@@ -1365,6 +1365,76 @@ nobody had wired it up.
       pre-existing benign dev-server HMR websocket noise. Zero new
       TypeScript or ESLint errors.
 
+## Automation module converted from mock data to a real trigger-evaluation engine (2026-08-10)
+
+- [x] **The Automation module's trigger evaluation and run history rebuilt
+      on real DB queries instead of a fully simulated "Run Now"/"Test Now".**
+      Unlike Operations Hub, a real `Automation` Prisma model already
+      existed in the schema - but it had zero consumers anywhere in `src/`:
+      no `companyId`, no API routes, nothing ever queried it. The UI read
+      entirely from mock-data.ts's `AUTOMATIONS` array, and clicking "Run
+      Now" or "Test Now" just showed a toast - no query ever ran, no log
+      was ever written, and the Execution Log tab was 10 hardcoded rows
+      with fabricated timestamps and error messages.
+      Added `companyId` to the existing `Automation` model and a new
+      `AutomationRunLog` model (modeled on `IntegrationSyncLog`, the
+      closest existing real "execution history" pattern in this schema),
+      plus 6 real API routes under `src/app/api/automation/`: the list/
+      create route, `[id]` (PATCH/DELETE), `[id]/run` (the real "Run Now"),
+      `logs` (real execution history), and `test-trigger` (read-only
+      preview used by the builder's "Test Now" step, before the automation
+      is even saved).
+      Built a real trigger evaluator (`src/app/api/automation/_lib.ts`)
+      that runs a real, targeted Prisma query for well-defined trigger
+      events - Invoice overdue by N days, Document expiry approaching
+      (Nd)/expired, Inspection result = X, Trip delayed > N hours, and POD
+      accepted (mapped to the real `Pod.submissionStatus = "Approved"`,
+      since Pod has no literal "Accepted" status) - rather than a general
+      condition-tree interpreter. Any trigger outside that list (the Fuel/
+      Vehicle/Issue/Rean Alert categories, mostly) is honestly logged as
+      "Unsupported" instead of fabricating a plausible match count,
+      matching the "flag, don't fake" approach used throughout this
+      session's other mock-to-real conversions.
+      Also wired one real action end to end: when a matched trigger's
+      automation includes a "Create Task" action, it now really creates
+      `Task` rows in the Operations Hub board (built earlier this session)
+      for each matched entity, with the action's config text as the
+      assignee. The other action types (Send Notification/Email/SMS,
+      Generate Invoice Draft, Trigger Rean Analysis) have no live
+      integration in this app - deliberately, since SMS/Email would need
+      third-party API keys this project doesn't touch - so they're
+      honestly logged as "Queued (no live integration)" rather than faked
+      as sent.
+      Rewrote `index.tsx` and `automation-builder.tsx` to read/write real
+      data via a new `use-automation-data.ts` hook; kept the static
+      vocabulary (`TRIGGER_CATEGORIES`, `TRIGGER_EVENTS`, `CONDITION_
+      FIELDS`, `ACTION_TYPES`, `AUTOMATION_TEMPLATES`) as-is since those
+      are legitimate reference/enum content, not fake demo data - same
+      principle as Operations Hub's `DEPARTMENTS`/`PRIORITIES` constants.
+      Removed the now-dead `AUTOMATIONS` mock export and the hardcoded
+      `EXECUTION_LOGS` array. Added `src/scripts/seed-automation.ts`
+      (idempotent) seeding the original 6 automations as real rows, with
+      one trigger string corrected to match the real vocabulary
+      (`"Document expiry approaching (15d)"` instead of the mock's
+      truncated `"Document expiry approaching"`, which wouldn't have
+      parsed).
+      Caught and fixed a real bug during live verification: the task-
+      creation action initially fell back to creating one placeholder task
+      even when a trigger matched zero real records ("Document Expiry
+      Notification Chain: No matches" got created as an actual task).
+      Fixed by skipping task creation entirely when there are no real
+      matches, instead of a fabricated fallback target.
+      Verified live as the owner role: ran "Overdue Invoice Escalation"
+      and got a real toast with real matched invoice numbers (`Invoice
+      RZ-INV-21449 + 3 more`), confirmed the KPI tiles and execution log
+      updated with real counts (Total Runs 493 → 494 → 495), ran "Failed
+      Inspection Work Order" and got an honest real "No matches" result
+      (zero Fail-result Inspection rows for this company), then directly
+      verified via API that a test automation's "Create Task" action
+      created exactly 4 real Task rows - one per real overdue invoice,
+      correctly assigned - and cleaned them up afterward. Zero new
+      TypeScript/ESLint errors.
+
 ## Sequencing reminder
 
 Agreed order with the user: **Stage 1 (SLM) → Stage 2 (Chat) → Stage 3 (Calling)**,

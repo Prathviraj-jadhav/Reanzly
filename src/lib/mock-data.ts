@@ -1,7 +1,7 @@
 import type {
   Trip, Vehicle, Driver, Customer, Vendor, Invoice, Expense, Payment,
   Issue, Inspection, WorkOrder, FuelEntry, LorryReceipt, DocumentRecord,
-  Reminder, Task, Automation, Notification, Conversation, ChatMessage,
+  Reminder, Notification, Conversation, ChatMessage,
   RoleArchetype, ChatEntity, Widget,
 } from "./types";
 
@@ -701,94 +701,6 @@ export const REMINDERS: Reminder[] = Array.from({ length: 24 }, (_, i) => {
     status: days < 0 ? "Overdue" : days < 7 ? "Due Soon" : "Upcoming",
   };
 });
-
-// ===== AUTOMATIONS =====
-export const AUTOMATIONS: Automation[] = [
-  {
-    id: "aut-1",
-    name: "Overdue Invoice Escalation",
-    description: "Escalate invoices past due by 15 days to finance manager and send firm reminder.",
-    trigger: "Invoice overdue by 15 days",
-    triggerCategory: "Invoice",
-    conditions: [{ field: "status", operator: "equals", value: "Overdue" }],
-    actions: [
-      { type: "Send Notification", config: "Finance Manager" },
-      { type: "Send Email", config: "Firm reminder template" },
-    ],
-    status: "Active",
-    lastRun: daysAgo(1),
-    runCount: 47,
-    createdBy: "Reena Mehta",
-  },
-  {
-    id: "aut-2",
-    name: "Document Expiry Notification Chain",
-    description: "Notify at 30, 15, and 7 days before any document expires; block assignment on expiry.",
-    trigger: "Document expiry approaching",
-    triggerCategory: "Document",
-    conditions: [{ field: "daysToExpiry", operator: "less than", value: "30" }],
-    actions: [
-      { type: "Send Notification", config: "Vehicle owner + Fleet Manager" },
-      { type: "Create Task", config: "Renewal task in Operations Hub" },
-    ],
-    status: "Active",
-    lastRun: daysAgo(0.2),
-    runCount: 312,
-    createdBy: "Sukhbir Gill",
-  },
-  {
-    id: "aut-3",
-    name: "Failed Inspection → Work Order",
-    description: "Auto-create a work order when an inspection item fails, linked to the vehicle and issue.",
-    trigger: "Inspection result = Fail",
-    triggerCategory: "Inspection",
-    conditions: [{ field: "result", operator: "equals", value: "Fail" }],
-    actions: [{ type: "Create Work Order", config: "Pre-filled from failed items" }],
-    status: "Active",
-    lastRun: daysAgo(3),
-    runCount: 18,
-    createdBy: "Sukhbir Gill",
-  },
-  {
-    id: "aut-4",
-    name: "Fuel Anomaly Investigation Task",
-    description: "When Rean flags a fuel anomaly, create an investigation task assigned to the fleet manager.",
-    trigger: "Rean fuel anomaly detected",
-    triggerCategory: "Rean Alert",
-    conditions: [{ field: "anomaly", operator: "equals", value: "true" }],
-    actions: [{ type: "Create Task", config: "Fleet Manager - investigate fuel anomaly" }],
-    status: "Active",
-    lastRun: daysAgo(2),
-    runCount: 9,
-    createdBy: "Rean",
-  },
-  {
-    id: "aut-5",
-    name: "POD Accepted → Auto Invoice",
-    description: "On POD acceptance, generate a GST-compliant invoice from freight plus surcharges.",
-    trigger: "POD accepted",
-    triggerCategory: "Trip",
-    conditions: [{ field: "podStatus", operator: "equals", value: "Accepted" }],
-    actions: [{ type: "Generate Invoice Draft", config: "GST-compliant, freight + surcharges" }],
-    status: "Active",
-    lastRun: daysAgo(0.5),
-    runCount: 84,
-    createdBy: "Reena Mehta",
-  },
-  {
-    id: "aut-6",
-    name: "Trip Delay WhatsApp Notification",
-    description: "Send WhatsApp update to customer when trip is delayed beyond 2 hours from ETA.",
-    trigger: "Trip delayed > 2 hours",
-    triggerCategory: "Trip",
-    conditions: [{ field: "delayHours", operator: "greater than", value: "2" }],
-    actions: [{ type: "Send SMS", config: "WhatsApp Business - delay template" }],
-    status: "Paused",
-    lastRun: daysAgo(8),
-    runCount: 23,
-    createdBy: "Rohit Sharma",
-  },
-];
 
 // ===== NOTIFICATIONS =====
 // Tone: savage / witty / teasing - a smart-aleck ops buddy who roasts

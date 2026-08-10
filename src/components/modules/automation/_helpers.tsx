@@ -189,30 +189,19 @@ export const AUTOMATION_TEMPLATES: AutomationTemplate[] = [
   },
 ];
 
-// ===== Execution log mock =====
+// ===== Execution log row shape =====
+// Real rows now come from GET /api/automation/logs (backed by the
+// AutomationRunLog model) instead of this hardcoded array.
 export interface ExecutionLogRow {
   id: string;
   automationName: string;
   timestamp: string;
   triggerEntity: string;
   conditionsEvaluated: string;
-  result: "Success" | "Failed";
+  result: "Success" | "Failed" | "Unsupported";
   error?: string;
   durationMs: number;
 }
-
-export const EXECUTION_LOGS: ExecutionLogRow[] = [
-  { id: "ex1", automationName: "Overdue Invoice Escalation", timestamp: new Date(Date.now() - 0.1 * 3600000).toISOString(), triggerEntity: "Invoice RZ-INV-02147", conditionsEvaluated: "status = Overdue, daysOverdue > 15", result: "Success", durationMs: 142 },
-  { id: "ex2", automationName: "Document Expiry Notification Chain", timestamp: new Date(Date.now() - 0.8 * 3600000).toISOString(), triggerEntity: "Insurance · MH 12 JK 4521", conditionsEvaluated: "daysToExpiry < 15", result: "Success", durationMs: 88 },
-  { id: "ex3", automationName: "Fuel Anomaly Investigation Task", timestamp: new Date(Date.now() - 2.5 * 3600000).toISOString(), triggerEntity: "Fuel Entry · Eicher Pro 3015", conditionsEvaluated: "anomaly = true", result: "Success", durationMs: 312 },
-  { id: "ex4", automationName: "POD Accepted → Auto Invoice", timestamp: new Date(Date.now() - 4.1 * 3600000).toISOString(), triggerEntity: "Trip RZ-TRP-0042", conditionsEvaluated: "podStatus = Accepted", result: "Failed", error: "Customer GSTIN missing - invoice draft saved without tax", durationMs: 1042 },
-  { id: "ex5", automationName: "Failed Inspection → Work Order", timestamp: new Date(Date.now() - 6.2 * 3600000).toISOString(), triggerEntity: "Inspection RZ-INS-0127", conditionsEvaluated: "result = Fail", result: "Success", durationMs: 196 },
-  { id: "ex6", automationName: "Trip Delay WhatsApp Notification", timestamp: new Date(Date.now() - 8.5 * 3600000).toISOString(), triggerEntity: "Trip RZ-TRP-0038", conditionsEvaluated: "delayHours > 2", result: "Failed", error: "WhatsApp Business API rate limit hit - retry queued", durationMs: 2058 },
-  { id: "ex7", automationName: "License Expiry Alert", timestamp: new Date(Date.now() - 12 * 3600000).toISOString(), triggerEntity: "Driving License · Kuldeep Singh", conditionsEvaluated: "type = Driving License, daysToExpiry < 30", result: "Success", durationMs: 124 },
-  { id: "ex8", automationName: "Overdue Invoice Escalation", timestamp: new Date(Date.now() - 18 * 3600000).toISOString(), triggerEntity: "Invoice RZ-INV-02094", conditionsEvaluated: "status = Overdue, daysOverdue > 15", result: "Success", durationMs: 138 },
-  { id: "ex9", automationName: "Document Expiry Notification Chain", timestamp: new Date(Date.now() - 26 * 3600000).toISOString(), triggerEntity: "Fitness · Tata LPT 1613", conditionsEvaluated: "daysToExpiry < 7", result: "Success", durationMs: 76 },
-  { id: "ex10", automationName: "Service Reminder Follow-Up", timestamp: new Date(Date.now() - 36 * 3600000).toISOString(), triggerEntity: "Vehicle MH 12 JK 4521", conditionsEvaluated: "status = In Maintenance", result: "Success", durationMs: 162 },
-];
 
 // ===== Form types =====
 export interface AutomationForm {

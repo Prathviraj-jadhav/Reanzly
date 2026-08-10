@@ -1,5 +1,5 @@
 "use client";
-import { useState, useMemo } from "react";
+import { useMemo, useState } from "react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -16,31 +16,29 @@ import {
   Sparkles, FileText, Wrench, ShieldCheck, UserCheck, Clock, Receipt,
   type LucideIcon,
 } from "lucide-react";
-import { AUTOMATIONS } from "@/lib/mock-data";
 import type { Automation } from "@/lib/types";
 import {
-  AUTOMATION_TEMPLATES, EXECUTION_LOGS, EMPTY_FORM, relativeTime,
+  AUTOMATION_TEMPLATES, EMPTY_FORM, relativeTime,
   type AutomationTemplate, type AutomationForm,
 } from "./_helpers";
 import { AutomationBuilder } from "./automation-builder";
+import { useAutomationData } from "./use-automation-data";
 
 const TEMPLATE_ICONS: Record<string, LucideIcon> = {
   Wrench, Receipt, FileText, ShieldCheck, Sparkles, UserCheck, Clock,
 };
 
 export function AutomationModule() {
-  const [automations, setAutomations] = useState<Automation[]>(AUTOMATIONS);
+  const { automations, logs, loaded, createAutomation, patchAutomation, deleteAutomation, runAutomation } = useAutomationData();
   const [activeTab, setActiveTab] = useState<"active" | "templates" | "logs">("active");
   const [builderOpen, setBuilderOpen] = useState(false);
   const [initialForm, setInitialForm] = useState<AutomationForm | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
-  const updateAutomation = (id: string, patch: Partial<Automation>) => {
-    setAutomations((prev) => prev.map((a) => a.id === id ? { ...a, ...patch } : a));
-  };
-
-  const handleRowAction = (action: string, a: Automation) => {
+  const handleRowAction = async (action: string, a: Automation) => {
     switch (action) {
       case "edit":
+        setEditingId(a.id);
         setInitialForm({
           name: a.name,
           description: a.description,
@@ -53,25 +51,47 @@ export function AutomationModule() {
         });
         setBuilderOpen(true);
         break;
-      case "duplicate":
-        setAutomations((prev) => [
-          { ...a, id: "aut-" + Date.now(), name: a.name + " (copy)", status: "Paused", runCount: 0, lastRun: undefined },
-          ...prev,
-        ]);
-        toast.success("Automation duplicated", { description: a.name + " (copy)" });
+      case "duplicate": {
+        const copy = await createAutomation({
+          name: a.name + " (copy)",
+          description: a.description,
+          triggerCategory: a.triggerCategory,
+          trigger: a.trigger,
+          conditions: a.conditions,
+          actions: a.actions,
+          activate: false,
+        });
+        if (copy) toast.success("Automation duplicated", { description: copy.name });
         break;
-      case "toggle":
-        updateAutomation(a.id, { status: a.status === "Active" ? "Paused" : "Active" });
-        toast(a.status === "Active" ? "Paused" : "Activated", { description: a.name });
+      }
+      case "toggle": {
+        const nextStatus = a.status === "Active" ? "Paused" : "Active";
+        const updated = await patchAutomation(a.id, { status: nextStatus });
+        if (updated) toast(nextStatus === "Active" ? "Activated" : "Paused", { description: a.name });
         break;
-      case "delete":
-        setAutomations((prev) => prev.filter((x) => x.id !== a.id));
-        toast("Automation deleted", { description: a.name });
+      }
+      case "delete": {
+        const ok = await deleteAutomation(a.id);
+        if (ok) toast("Automation deleted", { description: a.name });
         break;
+      }
+      case "run": {
+        const result = await runAutomation(a.id);
+        if (!result) break;
+        if (result.log.result === "Unsupported") {
+          toast(a.name, { description: "Live evaluation not implemented for this trigger yet." });
+        } else if (result.tasksCreated > 0) {
+          toast.success(a.name, { description: `${result.log.triggerEntity} · created ${result.tasksCreated} task(s) in Operations Hub` });
+        } else {
+          toast.success(a.name, { description: result.log.triggerEntity });
+        }
+        break;
+      }
     }
   };
 
   const handleTemplateClick = (tpl: AutomationTemplate) => {
+    setEditingId(null);
     setInitialForm({
       name: tpl.name,
       description: tpl.description,
@@ -86,15 +106,14 @@ export function AutomationModule() {
   };
 
   const handleNewAutomation = () => {
+    setEditingId(null);
     setInitialForm({ ...EMPTY_FORM });
     setBuilderOpen(true);
   };
 
-  const handleSave = (form: AutomationForm) => {
-    const existing = automations.find((a) => a.name === form.name);
-    if (existing) {
-      // Edit existing
-      updateAutomation(existing.id, {
+  const handleSave = async (form: AutomationForm) => {
+    if (editingId) {
+      const updated = await patchAutomation(editingId, {
         name: form.name,
         description: form.description,
         triggerCategory: form.triggerCategory,
@@ -103,27 +122,22 @@ export function AutomationModule() {
         actions: form.actions,
         status: form.activate ? "Active" : "Paused",
       });
-      toast.success("Automation updated", { description: form.name });
+      if (updated) toast.success("Automation updated", { description: form.name });
     } else {
-      // Create new
-      const newAut: Automation = {
-        id: "aut-" + Date.now(),
+      const created = await createAutomation({
         name: form.name,
         description: form.description,
-        trigger: form.trigger,
         triggerCategory: form.triggerCategory,
+        trigger: form.trigger,
         conditions: form.conditions,
         actions: form.actions,
-        status: form.activate ? "Active" : "Paused",
-        lastRun: undefined,
-        runCount: 0,
-        createdBy: "You",
-      };
-      setAutomations((prev) => [newAut, ...prev]);
-      toast.success("Automation created", { description: form.name });
+        activate: form.activate,
+      });
+      if (created) toast.success("Automation created", { description: form.name });
     }
     setBuilderOpen(false);
     setInitialForm(null);
+    setEditingId(null);
   };
 
   const counts = useMemo(() => ({
@@ -164,7 +178,7 @@ export function AutomationModule() {
             value="logs"
             className="bg-transparent border border-transparent rounded-none shadow-none data-[state=active]:bg-transparent data-[state=active]:shadow-none px-1 pb-2.5 pt-1 text-[13px] data-[state=active]:text-foreground text-muted-foreground relative"
           >
-            Execution Log ({EXECUTION_LOGS.length})
+            Execution Log ({logs.length})
             {activeTab === "logs" && <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-foreground" />}
           </TabsTrigger>
         </TabsList>
@@ -176,7 +190,7 @@ export function AutomationModule() {
             <KpiTile label="Total" value={counts.total} />
             <KpiTile label="Active" value={counts.active} />
             <KpiTile label="Paused" value={counts.paused} />
-            <KpiTile label="Total Runs (30d)" value={automations.reduce((s, a) => s + a.runCount, 0)} />
+            <KpiTile label="Total Runs" value={automations.reduce((s, a) => s + a.runCount, 0)} />
           </div>
 
           <div className="rounded-[6px] border border-border bg-card overflow-hidden">
@@ -240,7 +254,7 @@ export function AutomationModule() {
                               {a.status === "Active" ? <Pause className="h-3.5 w-3.5 mr-2" /> : <Play className="h-3.5 w-3.5 mr-2" />}
                               {a.status === "Active" ? "Pause" : "Activate"}
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => toast("Run now", { description: a.name })}>
+                            <DropdownMenuItem onClick={() => handleRowAction("run", a)}>
                               <Zap className="h-3.5 w-3.5 mr-2" /> Run Now
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
@@ -255,7 +269,7 @@ export function AutomationModule() {
                 </tbody>
               </table>
             </div>
-            {automations.length === 0 && (
+            {loaded && automations.length === 0 && (
               <div className="py-12 text-center">
                 <p className="text-[13px] text-muted-foreground">No automations yet. Use a template or create one from scratch.</p>
               </div>
@@ -309,7 +323,7 @@ export function AutomationModule() {
             <div className="border-b border-border px-4 py-2.5 flex items-center justify-between">
               <h3 className="text-[12px] font-medium uppercase tracking-wider text-muted-foreground">Execution Log</h3>
               <span className="text-[11px] text-muted-foreground tabular">
-                {EXECUTION_LOGS.length} runs · {EXECUTION_LOGS.filter((l) => l.result === "Success").length} success · {EXECUTION_LOGS.filter((l) => l.result === "Failed").length} failed
+                {logs.length} runs · {logs.filter((l) => l.result === "Success").length} success · {logs.filter((l) => l.result === "Unsupported").length} unsupported
               </span>
             </div>
             <div className="overflow-x-auto scrollbar-thin">
@@ -326,21 +340,21 @@ export function AutomationModule() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {EXECUTION_LOGS.map((log) => (
+                  {logs.map((log) => (
                     <tr key={log.id} className="hover:bg-accent/30 transition-colors group">
                       <td className="px-4 py-2.5 text-[12px] text-foreground tabular whitespace-nowrap">{relativeTime(log.timestamp)}</td>
                       <td className="px-4 py-2.5 text-[13px] font-medium text-foreground">{log.automationName}</td>
                       <td className="px-4 py-2.5 text-[12px] text-foreground">{log.triggerEntity}</td>
                       <td className="px-4 py-2.5 text-[11px] text-muted-foreground max-w-[280px] truncate">{log.conditionsEvaluated}</td>
                       <td className="px-4 py-2.5">
-                        <StatusBadge variant={log.result === "Success" ? "outline" : "solid"} pulse={log.result === "Failed"}>
+                        <StatusBadge variant={log.result === "Success" ? "outline" : "solid"} pulse={log.result === "Unsupported"}>
                           {log.result}
                         </StatusBadge>
                       </td>
                       <td className="px-4 py-2.5 text-[12px] text-foreground tabular text-right">{log.durationMs}ms</td>
                       <td className="px-4 py-2.5">
                         <button
-                          onClick={() => log.error ? toast.error(log.error, { description: log.automationName }) : toast("Execution details", { description: `${log.automationName} · ${log.result}` })}
+                          onClick={() => log.error ? toast(log.error, { description: log.automationName }) : toast("Execution details", { description: `${log.automationName} · ${log.result}` })}
                           className="flex h-7 w-7 items-center justify-center rounded-[4px] text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-accent hover:text-foreground transition-all"
                         >
                           <MoreHorizontal className="h-4 w-4" />
@@ -351,6 +365,11 @@ export function AutomationModule() {
                 </tbody>
               </table>
             </div>
+            {loaded && logs.length === 0 && (
+              <div className="py-12 text-center">
+                <p className="text-[13px] text-muted-foreground">No runs yet. Use "Run Now" on an automation to see it here.</p>
+              </div>
+            )}
           </div>
         </TabsContent>
       </Tabs>
@@ -358,7 +377,7 @@ export function AutomationModule() {
       <AutomationBuilder
         open={builderOpen}
         initial={initialForm}
-        onClose={() => { setBuilderOpen(false); setInitialForm(null); }}
+        onClose={() => { setBuilderOpen(false); setInitialForm(null); setEditingId(null); }}
         onSave={handleSave}
       />
     </div>

@@ -441,9 +441,16 @@ model AuditLog {
 }
 
 // ===== AUTOMATION =====
+// `Automation` already existed in the schema but had zero consumers - no
+// companyId (added below), no API routes, nothing in src/ ever queried it.
+// The Automation module UI read entirely from mock-data.ts's AUTOMATIONS
+// array instead. AutomationRunLog is new, modeled on IntegrationSyncLog's
+// shape (the closest existing real "execution history" pattern) since no
+// run-history concept existed for automations at all.
 
 model Automation {
   id          String   @id @default(cuid())
+  companyId   String
   name        String
   description String?
   trigger     String
@@ -456,6 +463,28 @@ model Automation {
   createdBy   String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  runLogs     AutomationRunLog[]
+
+  @@index([companyId])
+}
+
+model AutomationRunLog {
+  id                  String     @id @default(cuid())
+  companyId           String
+  automationId        String
+  automation          Automation @relation(fields: [automationId], references: [id], onDelete: Cascade)
+  automationName      String     // denormalized snapshot - survives automation rename/delete
+  triggerEntity       String?    // human label of what matched, e.g. "Invoice RZ-INV-02147" or "3 invoices matched"
+  conditionsEvaluated String?
+  result              String     // Success | Failed | Unsupported
+  error               String?
+  matchedCount        Int        @default(0)
+  durationMs          Int
+  createdAt           DateTime   @default(now())
+
+  @@index([companyId, createdAt])
+  @@index([automationId])
 }
 
 // ===== DRIVER FIELD APP =====

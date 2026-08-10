@@ -89,10 +89,41 @@ export function AutomationBuilder({ open, initial, onClose, onSave }: BuilderPro
     errors.push("At least one action is required");
   }
 
-  const handleTest = () => {
-    toast.success("Test run executed", {
-      description: `Trigger simulated · ${form.conditions.length} conditions evaluated · ${form.actions.length} actions dispatched.`,
-    });
+  const [testing, setTesting] = useState(false);
+
+  const handleTest = async () => {
+    if (!form.trigger) {
+      toast("Pick a trigger event first");
+      return;
+    }
+    setTesting(true);
+    try {
+      const res = await fetch("/api/automation/test-trigger", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ triggerCategory: form.triggerCategory, trigger: form.trigger }),
+      });
+      const result = await res.json();
+      if (!res.ok) {
+        toast.error(result.error || "Test failed");
+        return;
+      }
+      if (!result.supported) {
+        toast("Live evaluation not available for this trigger yet", {
+          description: "The automation can still be saved - Run Now will log it as unsupported until this trigger gets a real query.",
+        });
+        return;
+      }
+      toast.success(`${result.totalMatched} real match${result.totalMatched === 1 ? "" : "es"} found`, {
+        description: result.matches.length > 0
+          ? result.matches.map((m: { label: string }) => m.label).join(", ")
+          : "No records currently match this trigger's real data.",
+      });
+    } catch {
+      toast.error("Test failed - check your connection.");
+    } finally {
+      setTesting(false);
+    }
   };
 
   const handleSave = () => {
@@ -415,10 +446,10 @@ export function AutomationBuilder({ open, initial, onClose, onSave }: BuilderPro
                   <Play className="h-4 w-4 text-muted-foreground mt-0.5" />
                   <div>
                     <p className="text-[13px] font-medium text-foreground">Test Run</p>
-                    <p className="text-[11px] text-muted-foreground">Simulate the trigger and verify actions execute correctly.</p>
+                    <p className="text-[11px] text-muted-foreground">Query real data for this trigger, without saving or executing actions.</p>
                   </div>
                 </div>
-                <Btn size="sm" onClick={handleTest}>Test Now</Btn>
+                <Btn size="sm" onClick={handleTest} disabled={testing}>{testing ? "Testing…" : "Test Now"}</Btn>
               </div>
             </div>
           )}
