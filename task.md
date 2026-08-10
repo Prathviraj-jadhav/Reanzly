@@ -1435,6 +1435,92 @@ nobody had wired it up.
       correctly assigned - and cleaned them up afterward. Zero new
       TypeScript/ESLint errors.
 
+## Automation module: recurring schedules, more real actions, Rean-assisted creation (2026-08-10)
+
+- [x] **Follow-up on the Automation conversion above, per explicit user
+      request to make it "more functional... add the loops in it... take
+      the help of Rean."** Three additions, all real:
+
+      **1. Real recurring schedules ("loops").** Added `scheduleEnabled`/
+      `scheduleIntervalMinutes`/`nextRunAt` to `Automation` and a new
+      `automation.run` job type on the existing SQLite job queue
+      (`src/lib/queue/index.ts` - a real, durable, polling worker already
+      running in-process since `src/instrumentation.ts` starts it at
+      server boot; this session confirmed it live via
+      `[instrumentation] queue worker started` in the dev server log).
+      Each scheduled run re-enqueues its own next occurrence
+      (`scheduleNextRun` in the new `src/lib/automation-engine.ts`), so the
+      loop is a real chain of durable DB rows, not an in-memory timer - it
+      survives server restarts and stops the instant an automation is
+      paused (the job handler re-checks live `status`/`scheduleEnabled`
+      before doing anything, so a paused automation's already-queued job
+      fires into a no-op rather than running anyway).
+      Moved the evaluation/execution engine from `src/app/api/automation/
+      _lib.ts` into `src/lib/automation-engine.ts` (a proper shared
+      library location) so both the manual "Run Now" route and the
+      recurring job handler call the identical real logic - a scheduled
+      run and a manual run always do the same real work.
+      Added a "Recurring Schedule" section to the builder (Step 1) with a
+      real interval picker (15 min / 1h / 6h / 1 day / 1 week).
+      **Verified live**: created a real automation with a 15-minute
+      schedule via the UI, confirmed a real `Job` row was enqueued
+      (`type: "automation.run"`, correct `payload`/`runAfter`) via a
+      direct DB check, force-advanced its `runAfter` to prove the running
+      worker actually picks it up, and confirmed after ~2s: the job
+      flipped to `completed`, a real `AutomationRunLog` row was written by
+      the *scheduled* run (no manual click), and a *new* job for the next
+      occurrence had already been auto-enqueued - the loop self-
+      perpetuating exactly as designed.
+
+      **2. Two more real actions.** "Create Work Order" now creates real
+      `WorkOrder` rows (for matches carrying a real `vehicleId` - Inspection
+      and Trip triggers only; matches without one are skipped rather than
+      creating an orphaned work order). "Trigger Rean Analysis" now calls
+      the same real local SLM engine every other Rean surface in this app
+      uses (`src/lib/slm/client.ts`, offline-capable, not a third-party
+      API) to generate a genuine, data-grounded analysis of the matched
+      records, stored in a new `AutomationRunLog.notes` column and
+      surfaced in the Execution Log's row details. Verified live: a real
+      overdue-invoice automation's Rean analysis correctly cited the real
+      matched invoice numbers, customer names, amounts, and days-overdue,
+      sorted worst-first - genuinely computed, not templated. The
+      remaining action types (Send Notification/Email/SMS, Generate
+      Invoice Draft) still have no live integration in this app by design
+      and stay honestly logged as "queued."
+
+      **3. "Create with Rean" - natural-language automation drafting.**
+      New `POST /api/automation/draft-with-rean`: the user describes what
+      they want in plain language, Rean (the same real local SLM engine)
+      proposes a trigger/action draft. Because the underlying model is
+      small and its raw JSON isn't reliable enough to trust blindly (the
+      existing `/api/rean` route makes the identical call for write
+      commands and explicitly avoids trusting model-structured output for
+      that reason), every field in the model's response is validated
+      against the real trigger/action vocabulary
+      (`src/lib/automation-vocabulary.ts`, extracted from the client-only
+      `_helpers.tsx` into a server-safe shared module) and, if invalid or
+      missing, replaced by a deterministic keyword-overlap match with
+      light suffix-stemming (so "fails"/"failing" still matches the real
+      "Fail" trigger) - so the endpoint always returns a real, usable
+      draft even when the model's JSON is malformed, with an honest note
+      when a fallback match was used. New `ask-rean-drawer.tsx` UI
+      ("Create with Rean" button next to "New Automation") shows the
+      draft and opens it in the existing builder for review before
+      saving - Rean drafts, the user still decides. Verified live: asking
+      "Create a work order whenever an inspection fails" correctly
+      produced `Inspection · Inspection result = Fail` + `Create Work
+      Order` after the stemming fix (it initially matched "Pass" before
+      the fix - caught and fixed during this same verification pass); the
+      local Rust SLM engine was offline in this dev session, so every
+      request genuinely exercised the real offline fallback path, not a
+      best-case-only demo.
+
+      Verification cleanup: all test automations, run logs, and job rows
+      created during live verification were deleted afterward via direct
+      API/DB calls (following the same pattern established during the
+      original Dashboard/Operations Hub verification passes). Zero new
+      TypeScript/ESLint errors across the full touched set.
+
 ## Sequencing reminder
 
 Agreed order with the user: **Stage 1 (SLM) → Stage 2 (Chat) → Stage 3 (Calling)**,

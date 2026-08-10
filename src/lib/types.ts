@@ -326,6 +326,9 @@ export interface Automation {
   lastRun?: ISODate;
   runCount: number;
   createdBy: string;
+  scheduleEnabled: boolean;
+  scheduleIntervalMinutes?: number;
+  nextRunAt?: ISODate;
 }
 
 export interface Notification {

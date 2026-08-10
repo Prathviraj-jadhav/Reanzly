@@ -13,15 +13,16 @@ import {
 import { toast } from "sonner";
 import {
   Plus, MoreHorizontal, Edit3, Copy, Pause, Play, Trash2, Zap, Filter, Workflow,
-  Sparkles, FileText, Wrench, ShieldCheck, UserCheck, Clock, Receipt,
+  Sparkles, FileText, Wrench, ShieldCheck, UserCheck, Clock, Receipt, Repeat,
   type LucideIcon,
 } from "lucide-react";
 import type { Automation } from "@/lib/types";
 import {
-  AUTOMATION_TEMPLATES, EMPTY_FORM, relativeTime,
+  AUTOMATION_TEMPLATES, EMPTY_FORM, SCHEDULE_INTERVALS, relativeTime,
   type AutomationTemplate, type AutomationForm,
 } from "./_helpers";
 import { AutomationBuilder } from "./automation-builder";
+import { AskReanDrawer } from "./ask-rean-drawer";
 import { useAutomationData } from "./use-automation-data";
 
 const TEMPLATE_ICONS: Record<string, LucideIcon> = {
@@ -34,6 +35,7 @@ export function AutomationModule() {
   const [builderOpen, setBuilderOpen] = useState(false);
   const [initialForm, setInitialForm] = useState<AutomationForm | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [askReanOpen, setAskReanOpen] = useState(false);
 
   const handleRowAction = async (action: string, a: Automation) => {
     switch (action) {
@@ -48,6 +50,8 @@ export function AutomationModule() {
           conditions: a.conditions,
           actions: a.actions,
           activate: a.status === "Active",
+          scheduleEnabled: a.scheduleEnabled,
+          scheduleIntervalMinutes: a.scheduleIntervalMinutes ?? EMPTY_FORM.scheduleIntervalMinutes,
         });
         setBuilderOpen(true);
         break;
@@ -80,10 +84,14 @@ export function AutomationModule() {
         if (!result) break;
         if (result.log.result === "Unsupported") {
           toast(a.name, { description: "Live evaluation not implemented for this trigger yet." });
-        } else if (result.tasksCreated > 0) {
-          toast.success(a.name, { description: `${result.log.triggerEntity} · created ${result.tasksCreated} task(s) in Operations Hub` });
         } else {
-          toast.success(a.name, { description: result.log.triggerEntity });
+          const parts: string[] = [];
+          if (result.tasksCreated > 0) parts.push(`${result.tasksCreated} task(s) in Operations Hub`);
+          if (result.workOrdersCreated > 0) parts.push(`${result.workOrdersCreated} work order(s)`);
+          const description = parts.length > 0
+            ? `${result.log.triggerEntity} · created ${parts.join(" + ")}`
+            : result.log.triggerEntity;
+          toast.success(a.name, { description });
         }
         break;
       }
@@ -93,6 +101,7 @@ export function AutomationModule() {
   const handleTemplateClick = (tpl: AutomationTemplate) => {
     setEditingId(null);
     setInitialForm({
+      ...EMPTY_FORM,
       name: tpl.name,
       description: tpl.description,
       triggerCategory: tpl.triggerCategory,
@@ -111,6 +120,13 @@ export function AutomationModule() {
     setBuilderOpen(true);
   };
 
+  const handleUseReanDraft = (draft: Partial<AutomationForm>) => {
+    setEditingId(null);
+    setInitialForm({ ...EMPTY_FORM, ...draft });
+    setAskReanOpen(false);
+    setBuilderOpen(true);
+  };
+
   const handleSave = async (form: AutomationForm) => {
     if (editingId) {
       const updated = await patchAutomation(editingId, {
@@ -121,6 +137,8 @@ export function AutomationModule() {
         conditions: form.conditions,
         actions: form.actions,
         status: form.activate ? "Active" : "Paused",
+        scheduleEnabled: form.scheduleEnabled,
+        scheduleIntervalMinutes: form.scheduleIntervalMinutes,
       });
       if (updated) toast.success("Automation updated", { description: form.name });
     } else {
@@ -132,6 +150,8 @@ export function AutomationModule() {
         conditions: form.conditions,
         actions: form.actions,
         activate: form.activate,
+        scheduleEnabled: form.scheduleEnabled,
+        scheduleIntervalMinutes: form.scheduleIntervalMinutes,
       });
       if (created) toast.success("Automation created", { description: form.name });
     }
@@ -152,9 +172,14 @@ export function AutomationModule() {
         title="Automation"
         description="Trigger-action workflows that run across trips, fleet, finance, and compliance."
         actions={
-          <Btn variant="primary" icon={<Plus className="h-3.5 w-3.5" />} onClick={handleNewAutomation}>
-            New Automation
-          </Btn>
+          <>
+            <Btn icon={<Sparkles className="h-3.5 w-3.5" />} onClick={() => setAskReanOpen(true)}>
+              Create with Rean
+            </Btn>
+            <Btn variant="primary" icon={<Plus className="h-3.5 w-3.5" />} onClick={handleNewAutomation}>
+              New Automation
+            </Btn>
+          </>
         }
       />
 
@@ -226,7 +251,15 @@ export function AutomationModule() {
                       </td>
                       <td className="px-4 py-2.5">
                         <div className="text-[12px] text-foreground">{a.trigger}</div>
-                        <div className="text-[10px] text-muted-foreground">{a.triggerCategory}</div>
+                        <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                          {a.triggerCategory}
+                          {a.scheduleEnabled && a.scheduleIntervalMinutes && (
+                            <span className="flex items-center gap-0.5 rounded-[3px] border border-border px-1 py-0.5 text-foreground">
+                              <Repeat className="h-2.5 w-2.5" />
+                              {SCHEDULE_INTERVALS.find((s) => s.minutes === a.scheduleIntervalMinutes)?.label.replace("Every ", "") ?? `${a.scheduleIntervalMinutes}m`}
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-4 py-2.5">
                         <StatusBadge variant={a.status === "Active" ? "solid" : "muted"} pulse={a.status === "Active"}>
@@ -354,7 +387,11 @@ export function AutomationModule() {
                       <td className="px-4 py-2.5 text-[12px] text-foreground tabular text-right">{log.durationMs}ms</td>
                       <td className="px-4 py-2.5">
                         <button
-                          onClick={() => log.error ? toast(log.error, { description: log.automationName }) : toast("Execution details", { description: `${log.automationName} · ${log.result}` })}
+                          onClick={() => {
+                            if (log.notes) toast.success("Rean's analysis", { description: log.notes });
+                            else if (log.error) toast(log.error, { description: log.automationName });
+                            else toast("Execution details", { description: `${log.automationName} · ${log.result}` });
+                          }}
                           className="flex h-7 w-7 items-center justify-center rounded-[4px] text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-accent hover:text-foreground transition-all"
                         >
                           <MoreHorizontal className="h-4 w-4" />
@@ -379,6 +416,11 @@ export function AutomationModule() {
         initial={initialForm}
         onClose={() => { setBuilderOpen(false); setInitialForm(null); setEditingId(null); }}
         onSave={handleSave}
+      />
+      <AskReanDrawer
+        open={askReanOpen}
+        onClose={() => setAskReanOpen(false)}
+        onUseDraft={handleUseReanDraft}
       />
     </div>
   );

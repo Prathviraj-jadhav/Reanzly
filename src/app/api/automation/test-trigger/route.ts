@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
 import { requireModuleAccess } from "@/lib/permissions";
-import { evaluateTrigger } from "../_lib";
+import { evaluateTrigger } from "@/lib/automation-engine";
 
 // Read-only preview used by the builder's "Test Now" step, before the
 // automation has even been saved - evaluates the real trigger query without

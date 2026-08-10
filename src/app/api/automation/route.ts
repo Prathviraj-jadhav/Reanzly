@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
 import { requireModuleAccess } from "@/lib/permissions";
-import { toAutomationDTO } from "./_lib";
+import { toAutomationDTO, scheduleNextRun } from "@/lib/automation-engine";
 
 // Real CRUD for the Automation module. The `Automation` Prisma model already
 // existed but had zero consumers anywhere in src/ - no companyId, no API
@@ -35,6 +35,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "At least one action is required." }, { status: 400 });
   }
 
+  const status = body.activate === false ? "Paused" : "Active";
+  const scheduleEnabled = Boolean(body.scheduleEnabled) && status === "Active";
+  const scheduleIntervalMinutes = scheduleEnabled ? Number(body.scheduleIntervalMinutes) || null : null;
+
   try {
     const created = await db.automation.create({
       data: {
@@ -45,11 +49,20 @@ export async function POST(req: NextRequest) {
         triggerCategory: body.triggerCategory || "Trip",
         conditions: JSON.stringify(body.conditions ?? []),
         actions: JSON.stringify(body.actions ?? []),
-        status: body.activate === false ? "Paused" : "Active",
+        status,
         createdBy: sessionUser.name,
+        scheduleEnabled,
+        scheduleIntervalMinutes,
       },
     });
-    return NextResponse.json({ automation: toAutomationDTO(created) }, { status: 201 });
+
+    let finalAutomation = created;
+    if (scheduleEnabled && scheduleIntervalMinutes) {
+      await scheduleNextRun(created.id, scheduleIntervalMinutes);
+      finalAutomation = await db.automation.findUniqueOrThrow({ where: { id: created.id } });
+    }
+
+    return NextResponse.json({ automation: toAutomationDTO(finalAutomation) }, { status: 201 });
   } catch (e) {
     console.error("POST /api/automation error:", e);
     return NextResponse.json({ error: "Could not create automation." }, { status: 500 });

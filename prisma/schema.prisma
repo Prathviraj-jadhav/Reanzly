@@ -464,6 +464,13 @@ model Automation {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  // Recurring execution ("loop") - a real, durable schedule powered by the
+  // existing SQLite job queue (src/lib/queue), not a fake cron label. Each
+  // run re-enqueues the next occurrence via a "automation.run" job.
+  scheduleEnabled         Boolean   @default(false)
+  scheduleIntervalMinutes Int?
+  nextRunAt               DateTime?
+
   runLogs     AutomationRunLog[]
 
   @@index([companyId])
@@ -479,6 +486,7 @@ model AutomationRunLog {
   conditionsEvaluated String?
   result              String     // Success | Failed | Unsupported
   error               String?
+  notes               String?    // real Rean-generated analysis text, when the "Trigger Rean Analysis" action ran
   matchedCount        Int        @default(0)
   durationMs          Int
   createdAt           DateTime   @default(now())

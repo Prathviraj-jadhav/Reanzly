@@ -79,7 +79,7 @@ export function useAutomationData() {
     return true;
   }, []);
 
-  const runAutomation = useCallback(async (id: string): Promise<{ automation: Automation; log: ExecutionLogRow; tasksCreated: number } | null> => {
+  const runAutomation = useCallback(async (id: string): Promise<{ automation: Automation; log: ExecutionLogRow; tasksCreated: number; workOrdersCreated: number } | null> => {
     const res = await fetch(`/api/automation/${id}/run`, { method: "POST" });
     if (!res.ok) {
       toast.error("Run failed.");

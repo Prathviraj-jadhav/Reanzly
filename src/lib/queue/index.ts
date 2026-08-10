@@ -27,7 +27,8 @@ export type JobType =
   | "notification.dispatch"
   | "report.generate"
   | "audit.log"
-  | "cache.invalidate";
+  | "cache.invalidate"
+  | "automation.run";
 
 export interface Job<T = unknown> {
   id: string;
@@ -369,6 +370,32 @@ function registerBuiltinHandlers(): void {
     async (payload) => {
       const n = cacheInvalidate(...payload.tags);
       return { invalidated: n };
+    }
+  );
+
+  // Recurring automation runs ("loops" in the Automation module) - a
+  // dynamic import avoids a static circular import with
+  // src/lib/automation-engine.ts, which itself imports enqueue() from
+  // this file to schedule its own next occurrence.
+  registerHandler<{ automationId: string }>(
+    "automation.run",
+    async (payload) => {
+      // A scheduled fire must re-check live state before doing anything -
+      // unlike manual "Run Now" (which should always run, even for a
+      // paused automation, since that's a deliberate user action), a
+      // schedule that got paused/disabled between enqueue and fire must
+      // not run at all, and must not re-enqueue itself. That's the whole
+      // stop condition for the recurring loop.
+      const automation = await (db as unknown as {
+        automation: { findUnique: (a: unknown) => Promise<{ status: string; scheduleEnabled: boolean } | null> };
+      }).automation.findUnique({ where: { id: payload.automationId } });
+      if (!automation || !automation.scheduleEnabled || automation.status !== "Active") {
+        return { ran: false, reason: "schedule no longer active" };
+      }
+      const { runAutomationOnce } = await import("@/lib/automation-engine");
+      const result = await runAutomationOnce(payload.automationId);
+      if (!result) return { ran: false, reason: "automation not found" };
+      return { ran: true, result: result.log.result, matched: result.log.matchedCount };
     }
   );
 

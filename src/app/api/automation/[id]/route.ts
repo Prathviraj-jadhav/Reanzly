@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
 import { requireModuleAccess } from "@/lib/permissions";
-import { toAutomationDTO } from "../_lib";
+import { toAutomationDTO, scheduleNextRun } from "@/lib/automation-engine";
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const sessionUser = await getSessionUser();
@@ -23,9 +23,29 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (body.conditions !== undefined) data.conditions = JSON.stringify(body.conditions ?? []);
   if (body.actions !== undefined) data.actions = JSON.stringify(body.actions ?? []);
   if (body.status !== undefined) data.status = body.status;
+  if (body.scheduleEnabled !== undefined) data.scheduleEnabled = Boolean(body.scheduleEnabled);
+  if (body.scheduleIntervalMinutes !== undefined) {
+    data.scheduleIntervalMinutes = body.scheduleIntervalMinutes ? Number(body.scheduleIntervalMinutes) : null;
+  }
 
   try {
-    const updated = await db.automation.update({ where: { id }, data });
+    let updated = await db.automation.update({ where: { id }, data });
+
+    // Re-derive the real schedule loop from the automation's final state -
+    // covers enabling it, changing the interval, pausing, or disabling it.
+    const finalScheduleEnabled = data.scheduleEnabled !== undefined ? Boolean(data.scheduleEnabled) : updated.scheduleEnabled;
+    const finalInterval = data.scheduleIntervalMinutes !== undefined ? (data.scheduleIntervalMinutes as number | null) : updated.scheduleIntervalMinutes;
+    if (finalScheduleEnabled && updated.status === "Active" && finalInterval) {
+      await scheduleNextRun(id, finalInterval);
+      updated = await db.automation.findUniqueOrThrow({ where: { id } });
+    } else if (updated.nextRunAt) {
+      // Not actively scheduled anymore - clear the stale nextRunAt display.
+      // Any already-queued job self-terminates on its next fire (it checks
+      // live scheduleEnabled/status before doing anything), so there's
+      // nothing to cancel here.
+      updated = await db.automation.update({ where: { id }, data: { nextRunAt: null } });
+    }
+
     return NextResponse.json({ automation: toAutomationDTO(updated) });
   } catch (e) {
     console.error("PATCH /api/automation/[id] error:", e);

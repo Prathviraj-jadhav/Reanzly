@@ -1,5 +1,14 @@
 "use client";
 import type { ReactNode } from "react";
+import {
+  TRIGGER_CATEGORIES, TRIGGER_EVENTS, CONDITION_OPERATORS, CONDITION_FIELDS,
+  ACTION_TYPES, ACTION_CONFIG_LABELS, SCHEDULE_INTERVALS,
+} from "@/lib/automation-vocabulary";
+
+export {
+  TRIGGER_CATEGORIES, TRIGGER_EVENTS, CONDITION_OPERATORS, CONDITION_FIELDS,
+  ACTION_TYPES, ACTION_CONFIG_LABELS, SCHEDULE_INTERVALS,
+};
 
 // ===== Formatters =====
 export function formatDateTime(iso?: string): string {
@@ -23,54 +32,6 @@ export function relativeTime(iso?: string): string {
   if (day < 30) return `${day}d ago`;
   return formatDateTime(iso);
 }
-
-// ===== Trigger categories & events =====
-export const TRIGGER_CATEGORIES = [
-  "Trip", "Vehicle", "Invoice", "Document", "Inspection", "Fuel", "Issue", "Rean Alert",
-] as const;
-
-export const TRIGGER_EVENTS: Record<string, string[]> = {
-  Trip: ["Trip created", "Trip started", "Trip delayed > 2 hours", "POD accepted", "Trip delivered", "Trip cancelled", "Trip breakdown"],
-  Vehicle: ["Vehicle status change", "Vehicle breakdown", "GPS signal lost", "Vehicle idle > 4 hours", "Odometer threshold crossed"],
-  Invoice: ["Invoice issued", "Invoice viewed", "Invoice overdue by 7 days", "Invoice overdue by 15 days", "Invoice overdue by 30 days", "Payment received", "Credit note issued"],
-  Document: ["Document uploaded", "Document expiry approaching (30d)", "Document expiry approaching (15d)", "Document expiry approaching (7d)", "Document expired"],
-  Inspection: ["Inspection scheduled", "Inspection completed", "Inspection result = Pass", "Inspection result = Fail", "Inspection result = Conditional"],
-  Fuel: ["Fuel entry logged", "Fuel anomaly detected", "Fuel efficiency below threshold", "Refuel qty above expected"],
-  Issue: ["Issue created", "Issue status changed", "Issue severity escalated", "Issue resolved"],
-  "Rean Alert": ["Rean fuel anomaly detected", "Rean route deviation detected", "Rean POD variance detected", "Rean new recommendation", "Rean predicted breakdown"],
-};
-
-// ===== Condition operators =====
-export const CONDITION_OPERATORS = [
-  "equals", "contains", "greater than", "less than", "is empty", "is not empty",
-] as const;
-
-export const CONDITION_FIELDS: Record<string, string[]> = {
-  Trip: ["status", "delayHours", "distanceKm", "freightAmount", "podStatus", "vehicleId", "driverId"],
-  Vehicle: ["status", "currentMeter", "groupId", "ownership", "fuelType", "gpsSpeed"],
-  Invoice: ["status", "amount", "totalAmount", "daysOverdue", "customer", "paymentStatus"],
-  Document: ["daysToExpiry", "type", "status", "entityType"],
-  Inspection: ["result", "type", "vehicleId", "linkedIssues"],
-  Fuel: ["anomaly", "quantity", "unitPrice", "totalCost", "efficiency", "vehicleId"],
-  Issue: ["severity", "status", "source", "vehicleId", "assignee"],
-  "Rean Alert": ["type", "severity", "entity", "impact"],
-};
-
-// ===== Action types =====
-export const ACTION_TYPES = [
-  "Create Task", "Send Notification", "Generate Invoice Draft", "Create Work Order",
-  "Send Email", "Send SMS", "Trigger Rean Analysis",
-] as const;
-
-export const ACTION_CONFIG_LABELS: Record<string, string> = {
-  "Create Task": "Task description & assignee",
-  "Send Notification": "Recipients (roles/users)",
-  "Generate Invoice Draft": "Invoice template",
-  "Create Work Order": "Work order type & vendor",
-  "Send Email": "Email template & recipients",
-  "Send SMS": "SMS template & recipients",
-  "Trigger Rean Analysis": "Analysis scope",
-};
 
 // ===== Template library =====
 export interface AutomationTemplate {
@@ -200,6 +161,7 @@ export interface ExecutionLogRow {
   conditionsEvaluated: string;
   result: "Success" | "Failed" | "Unsupported";
   error?: string;
+  notes?: string;
   durationMs: number;
 }
 
@@ -213,6 +175,8 @@ export interface AutomationForm {
   conditions: { field: string; operator: string; value: string }[];
   actions: { type: string; config: string }[];
   activate: boolean;
+  scheduleEnabled: boolean;
+  scheduleIntervalMinutes: number;
 }
 
 export const EMPTY_FORM: AutomationForm = {
@@ -224,6 +188,8 @@ export const EMPTY_FORM: AutomationForm = {
   conditions: [],
   actions: [],
   activate: true,
+  scheduleEnabled: false,
+  scheduleIntervalMinutes: SCHEDULE_INTERVALS[1].minutes, // hourly default
 };
 
 // ===== Field label helper =====

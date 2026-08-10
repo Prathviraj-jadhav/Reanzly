@@ -11,12 +11,12 @@ import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
 } from "@/components/ui/sheet";
 import {
-  Plus, X, Check, Zap, Filter, Workflow, Play, AlertCircle,
+  Plus, X, Check, Zap, Filter, Workflow, Play, AlertCircle, Repeat,
   ChevronLeft, ChevronRight, Trash2, Sparkles,
 } from "lucide-react";
 import {
   TRIGGER_CATEGORIES, TRIGGER_EVENTS, CONDITION_FIELDS, CONDITION_OPERATORS,
-  ACTION_TYPES, ACTION_CONFIG_LABELS, EMPTY_FORM, FieldLabel,
+  ACTION_TYPES, ACTION_CONFIG_LABELS, SCHEDULE_INTERVALS, EMPTY_FORM, FieldLabel,
   type AutomationForm,
 } from "./_helpers";
 
@@ -245,6 +245,48 @@ export function AutomationBuilder({ open, initial, onClose, onSave }: BuilderPro
                   When <span className="text-foreground font-medium">{form.trigger || "-"}</span> occurs, this automation fires.
                 </p>
               </div>
+
+              <div className="rounded-[6px] border border-border bg-card p-4">
+                <div className="mb-3 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Repeat className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-[12px] font-medium uppercase tracking-wider text-muted-foreground">Recurring Schedule</span>
+                  </div>
+                  <label className="flex items-center gap-2 text-[12px] cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={form.scheduleEnabled}
+                      onChange={(e) => update("scheduleEnabled", e.target.checked)}
+                      className="h-3.5 w-3.5"
+                    />
+                    <span className="text-foreground font-medium">Run automatically</span>
+                  </label>
+                </div>
+                {form.scheduleEnabled ? (
+                  <div>
+                    <FieldLabel>Interval</FieldLabel>
+                    <Select
+                      value={String(form.scheduleIntervalMinutes)}
+                      onValueChange={(v) => update("scheduleIntervalMinutes", Number(v))}
+                    >
+                      <SelectTrigger className="h-8 w-full rounded-[5px] text-[13px]"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {SCHEDULE_INTERVALS.map((s) => (
+                          <SelectItem key={s.minutes} value={String(s.minutes)}>{s.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="mt-2 text-[11px] text-muted-foreground">
+                      Re-checks this trigger's real data on this cadence, for as long as the automation stays Active - a
+                      real recurring job, not just a manual "Run Now".
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-muted-foreground">
+                    Off - this automation only runs when you click "Run Now" or manually trigger it.
+                  </p>
+                )}
+              </div>
             </div>
           )}
 
@@ -423,6 +465,10 @@ export function AutomationBuilder({ open, initial, onClose, onSave }: BuilderPro
                   <ReviewRow label="Conditions" value={String(form.conditions.length)} mono />
                   <ReviewRow label="Actions" value={String(form.actions.length)} mono />
                   <ReviewRow label="On Save" value={form.activate ? "Activate" : "Save as Draft"} />
+                  <ReviewRow
+                    label="Schedule"
+                    value={form.scheduleEnabled ? (SCHEDULE_INTERVALS.find((s) => s.minutes === form.scheduleIntervalMinutes)?.label ?? "Recurring") : "Manual only"}
+                  />
                 </div>
               </div>
 

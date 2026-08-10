@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
 import { requireModuleAccess } from "@/lib/permissions";
-import { toRunLogDTO } from "../_lib";
+import { toRunLogDTO } from "@/lib/automation-engine";
 
 export async function GET() {
   const sessionUser = await getSessionUser();
