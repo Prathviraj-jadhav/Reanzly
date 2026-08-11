@@ -321,19 +321,24 @@ function Sparkline() {
 
 /* ============================================================
    FleetMapDots - a faux monochrome map: scattered dots over a faint
-   grid, suggesting live truck positions across India. No external deps.
+   grid, suggesting live truck positions across India. Active markers
+   reuse the exact .fleet-pulse-ring/.pulse-dot animations the real
+   in-app Fleet Map module uses for live vehicles (src/app/globals.css),
+   so the marketing preview and the real product move the same way.
+   Dashed corridor lines connect the active hubs to suggest live routes,
+   not just a static scatter. No external deps.
    ============================================================ */
 function FleetMapDots() {
   // Pre-baked positions so the pattern is stable across renders.
-  const dots: { x: number; y: number; r: number; active?: boolean }[] = [
+  const dots: { x: number; y: number; r: number; active?: boolean; delay?: number }[] = [
     { x: 22, y: 40, r: 1.5 },
-    { x: 30, y: 32, r: 2, active: true },
+    { x: 30, y: 32, r: 2, active: true, delay: 0 },
     { x: 38, y: 48, r: 1.5 },
     { x: 46, y: 38, r: 1.5 },
-    { x: 54, y: 50, r: 2, active: true },
+    { x: 54, y: 50, r: 2, active: true, delay: 0.4 },
     { x: 60, y: 30, r: 1.5 },
     { x: 66, y: 44, r: 1.5 },
-    { x: 72, y: 36, r: 2, active: true },
+    { x: 72, y: 36, r: 2, active: true, delay: 0.8 },
     { x: 78, y: 52, r: 1.5 },
     { x: 84, y: 40, r: 1.5 },
     { x: 26, y: 60, r: 1.5 },
@@ -341,6 +346,13 @@ function FleetMapDots() {
     { x: 58, y: 68, r: 1.5 },
     { x: 70, y: 60, r: 1.5 },
   ];
+  // Corridor lines connecting the active hubs, in order - a faint
+  // dashed path suggesting live freight lanes rather than isolated points.
+  const activeDots = dots.filter((d) => d.active);
+  const routePath = activeDots
+    .map((d, i) => `${i === 0 ? "M" : "L"} ${d.x} ${d.y}`)
+    .join(" ");
+
   return (
     <svg
       viewBox="0 0 100 80"
@@ -371,15 +383,30 @@ function FleetMapDots() {
           strokeWidth="0.3"
         />
       ))}
+
+      {/* live freight corridor connecting the active hubs */}
+      <path
+        d={routePath}
+        fill="none"
+        stroke="var(--foreground)"
+        strokeWidth="0.5"
+        strokeDasharray="1.5 1.5"
+        opacity="0.25"
+      />
+
       {dots.map((d, i) => (
         <g key={i}>
           {d.active && (
             <circle
               cx={d.x}
               cy={d.y}
-              r={d.r + 2}
-              fill="var(--foreground)"
-              opacity="0.15"
+              r={d.r}
+              fill="none"
+              stroke="var(--foreground)"
+              strokeWidth="0.5"
+              opacity="0.6"
+              className="fleet-pulse-ring"
+              style={{ animationDelay: `${d.delay ?? 0}s` }}
             />
           )}
           <circle
@@ -388,6 +415,8 @@ function FleetMapDots() {
             r={d.r}
             fill="var(--foreground)"
             opacity={d.active ? 1 : 0.5}
+            className={d.active ? "pulse-dot" : undefined}
+            style={d.active ? { animationDelay: `${d.delay ?? 0}s` } : undefined}
           />
         </g>
       ))}
