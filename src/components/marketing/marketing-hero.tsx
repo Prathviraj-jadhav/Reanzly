@@ -242,10 +242,31 @@ export function MarketingHero() {
                     className="tap group rounded-[6px] border border-white/5 bg-[#090909] p-4 text-left transition-all duration-200 hover:border-white/15 hover:bg-[#0c0c0c]"
                     aria-label="Open Fleet Map module in live demo"
                   >
-                    <p className="text-xs font-medium text-white font-mono">
-                      Fleet map · 312 live
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-medium text-white font-mono">
+                        Fleet map
+                      </p>
+                      <CircleDot className="h-3 w-3 text-emerald-500 animate-pulse" />
+                    </div>
+                    <p className="mt-1.5 text-2xl font-bold tabular tracking-tight text-white font-mono">
+                      312
                     </p>
-                    <LiveFreightNetwork />
+                    <p className="mt-0.5 flex items-center gap-1 text-[10px] font-mono text-neutral-400">
+                      <TrendingUp className="h-3 w-3 text-emerald-500" />
+                      vehicles tracked live
+                    </p>
+                    <div className="mt-3 grid grid-cols-4 gap-2 border-t border-white/5 pt-3">
+                      {FLEET_BREAKDOWN.map((b) => (
+                        <div key={b.label}>
+                          <p className="text-sm font-bold tabular text-white font-mono">
+                            {b.v}
+                          </p>
+                          <p className="mt-0.5 text-[8.5px] font-mono uppercase tracking-wider text-neutral-500">
+                            {b.label}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
                   </button>
                 </div>
               </div>
@@ -320,111 +341,15 @@ function Sparkline() {
 }
 
 /* ============================================================
-   LiveFreightNetwork - an actual (simplified) silhouette of India, not
-   an abstract schematic. Real relative city positions (Delhi north,
-   Mumbai west coast, Kolkata east, Bengaluru/Chennai south), a slow
-   rotating radar sweep centered near the geographic middle, and small
-   packets genuinely travelling each freight corridor via native SVG
-   <animateMotion> - no JS, no deps. Hub depots reuse the exact
-   .fleet-pulse-ring/.pulse-dot animations the real in-app Fleet Map
-   module uses for live vehicles (src/app/globals.css), so this
-   marketing preview moves the same way the real product does.
+   FLEET_BREAKDOWN - real numbers tied directly to the card's own "312"
+   headline (218 + 58 + 24 + 12 = 312), not an abstract graphic. Matches
+   the Active/Idle/Maint./Offline breakdown the real in-app Fleet Health
+   widget uses, so the marketing preview and the real product agree on
+   vocabulary, not just visuals.
    ============================================================ */
-const INDIA_OUTLINE =
-  "M 28 3 L 40 3 L 46 10 L 52 11 L 62 19 L 56 27 L 52 34 L 48 44 " +
-  "L 40 58 L 32 74 L 27 89 L 20 72 L 14 56 L 9 40 L 6 24 L 13 12 L 22 5 Z";
-
-const FREIGHT_HUBS = [
-  { id: "delhi", label: "DEL", x: 32, y: 14, r: 2, delay: 0 },
-  { id: "mumbai", label: "BOM", x: 16, y: 46, r: 2, delay: 0.5 },
-  { id: "kolkata", label: "CCU", x: 50, y: 30, r: 1.8, delay: 1 },
-  { id: "bengaluru", label: "BLR", x: 28, y: 66, r: 2, delay: 1.5 },
-  { id: "chennai", label: "MAA", x: 36, y: 74, r: 1.6, delay: 0.2 },
+const FLEET_BREAKDOWN = [
+  { label: "Active", v: 218 },
+  { label: "Idle", v: 58 },
+  { label: "Maint.", v: 24 },
+  { label: "Offline", v: 12 },
 ];
-const FREIGHT_WAYPOINTS = [
-  { id: "ahmedabad", x: 13, y: 28, r: 1 },
-  { id: "nagpur", x: 30, y: 38, r: 1 },
-  { id: "hyderabad", x: 32, y: 52, r: 1 },
-];
-const FREIGHT_ROUTES = [
-  { d: "M 32 14 L 13 28 L 16 46", dur: 6.5, begin: -1.2 }, // Delhi - Ahmedabad - Mumbai
-  { d: "M 32 14 L 30 38 L 50 30", dur: 8, begin: -3 }, // Delhi - Nagpur - Kolkata
-  { d: "M 16 46 L 32 52 L 28 66", dur: 7, begin: -0.5 }, // Mumbai - Hyderabad - Bengaluru
-  { d: "M 50 30 Q 46 55 36 74", dur: 9, begin: -4.5 }, // Kolkata - Chennai
-  { d: "M 28 66 L 36 74", dur: 4, begin: -1.8 }, // Bengaluru - Chennai
-];
-
-function LiveFreightNetwork() {
-  return (
-    <svg
-      viewBox="0 0 70 92"
-      className="mt-2 h-28 w-full"
-      preserveAspectRatio="xMidYMid meet"
-      aria-hidden
-    >
-      <defs>
-        <clipPath id="india-clip">
-          <path d={INDIA_OUTLINE} />
-        </clipPath>
-        <radialGradient id="radar-sweep" cx="0" cy="0" r="1">
-          <stop offset="0%" stopColor="var(--foreground)" stopOpacity="0.35" />
-          <stop offset="100%" stopColor="var(--foreground)" stopOpacity="0" />
-        </radialGradient>
-      </defs>
-
-      {/* landmass */}
-      <path d={INDIA_OUTLINE} fill="var(--foreground)" opacity="0.05" stroke="var(--foreground)" strokeWidth="0.5" strokeOpacity="0.35" />
-
-      {/* rotating radar sweep, clipped to the landmass so it reads as a scan, not a spotlight */}
-      <g clipPath="url(#india-clip)">
-        <g transform="translate(30 40)">
-          <path d="M 0 0 L 0 -50 A 50 50 0 0 1 20 -46 Z" fill="url(#radar-sweep)">
-            <animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="6s" repeatCount="indefinite" />
-          </path>
-        </g>
-      </g>
-
-      {/* freight corridors */}
-      {FREIGHT_ROUTES.map((r, i) => (
-        <path key={i} d={r.d} fill="none" stroke="var(--foreground)" strokeWidth="0.4" opacity="0.25" />
-      ))}
-
-      {/* waypoints - static, minor stops */}
-      {FREIGHT_WAYPOINTS.map((w) => (
-        <circle key={w.id} cx={w.x} cy={w.y} r={w.r} fill="var(--foreground)" opacity="0.35" />
-      ))}
-
-      {/* hub depots - pulsing, matching the real Fleet Map's live markers */}
-      {FREIGHT_HUBS.map((h) => (
-        <g key={h.id}>
-          <circle
-            cx={h.x}
-            cy={h.y}
-            r={h.r}
-            fill="none"
-            stroke="var(--foreground)"
-            strokeWidth="0.5"
-            opacity="0.6"
-            className="fleet-pulse-ring"
-            style={{ animationDelay: `${h.delay}s` }}
-          />
-          <circle
-            cx={h.x}
-            cy={h.y}
-            r={h.r * 0.7}
-            fill="var(--foreground)"
-            className="pulse-dot"
-            style={{ animationDelay: `${h.delay}s` }}
-          />
-        </g>
-      ))}
-
-      {/* trucks in transit - small packets travelling each corridor */}
-      {FREIGHT_ROUTES.map((r, i) => (
-        <circle key={i} r="1" fill="var(--foreground)" opacity="0.9">
-          <animateMotion path={r.d} dur={`${r.dur}s`} begin={`${r.begin}s`} repeatCount="indefinite" />
-        </circle>
-      ))}
-    </svg>
-  );
-}
