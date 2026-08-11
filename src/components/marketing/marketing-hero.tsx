@@ -245,7 +245,7 @@ export function MarketingHero() {
                     <p className="text-xs font-medium text-white font-mono">
                       Fleet map · 312 live
                     </p>
-                    <FleetMapDots />
+                    <LiveFreightNetwork />
                   </button>
                 </div>
               </div>
@@ -320,39 +320,36 @@ function Sparkline() {
 }
 
 /* ============================================================
-   FleetMapDots - a faux monochrome map: scattered dots over a faint
-   grid, suggesting live truck positions across India. Active markers
-   reuse the exact .fleet-pulse-ring/.pulse-dot animations the real
-   in-app Fleet Map module uses for live vehicles (src/app/globals.css),
-   so the marketing preview and the real product move the same way.
-   Dashed corridor lines connect the active hubs to suggest live routes,
-   not just a static scatter. No external deps.
+   LiveFreightNetwork - a schematic transit map of real Indian freight
+   corridors (Delhi/Mumbai/Kolkata/Bengaluru/Chennai hubs, via Ahmedabad/
+   Nagpur/Hyderabad waypoints), not an abstract dot scatter. Small packets
+   travel along each corridor via native SVG <animateMotion> - genuinely
+   moving GPS-style, no JS/deps. Hub nodes reuse the exact .fleet-pulse-
+   ring/.pulse-dot animations the real in-app Fleet Map module uses for
+   live vehicles (src/app/globals.css), so this marketing preview moves
+   the same way the real product does.
    ============================================================ */
-function FleetMapDots() {
-  // Pre-baked positions so the pattern is stable across renders.
-  const dots: { x: number; y: number; r: number; active?: boolean; delay?: number }[] = [
-    { x: 22, y: 40, r: 1.5 },
-    { x: 30, y: 32, r: 2, active: true, delay: 0 },
-    { x: 38, y: 48, r: 1.5 },
-    { x: 46, y: 38, r: 1.5 },
-    { x: 54, y: 50, r: 2, active: true, delay: 0.4 },
-    { x: 60, y: 30, r: 1.5 },
-    { x: 66, y: 44, r: 1.5 },
-    { x: 72, y: 36, r: 2, active: true, delay: 0.8 },
-    { x: 78, y: 52, r: 1.5 },
-    { x: 84, y: 40, r: 1.5 },
-    { x: 26, y: 60, r: 1.5 },
-    { x: 42, y: 64, r: 1.5 },
-    { x: 58, y: 68, r: 1.5 },
-    { x: 70, y: 60, r: 1.5 },
-  ];
-  // Corridor lines connecting the active hubs, in order - a faint
-  // dashed path suggesting live freight lanes rather than isolated points.
-  const activeDots = dots.filter((d) => d.active);
-  const routePath = activeDots
-    .map((d, i) => `${i === 0 ? "M" : "L"} ${d.x} ${d.y}`)
-    .join(" ");
+const FREIGHT_HUBS = [
+  { id: "delhi", x: 16, y: 14, r: 2.2, delay: 0 },
+  { id: "mumbai", x: 18, y: 54, r: 2.2, delay: 0.5 },
+  { id: "kolkata", x: 86, y: 24, r: 2, delay: 1 },
+  { id: "bengaluru", x: 54, y: 68, r: 2.2, delay: 1.5 },
+  { id: "chennai", x: 70, y: 70, r: 1.8, delay: 0.2 },
+];
+const FREIGHT_WAYPOINTS = [
+  { id: "ahmedabad", x: 9, y: 36, r: 1.1 },
+  { id: "nagpur", x: 46, y: 30, r: 1.1 },
+  { id: "hyderabad", x: 46, y: 46, r: 1.1 },
+];
+const FREIGHT_ROUTES = [
+  { d: "M 16 14 L 9 36 L 18 54", dur: 6.5, begin: -1.2 }, // Delhi - Ahmedabad - Mumbai
+  { d: "M 16 14 L 46 30 L 86 24", dur: 8, begin: -3 }, // Delhi - Nagpur - Kolkata
+  { d: "M 18 54 L 46 46 L 54 68", dur: 7, begin: -0.5 }, // Mumbai - Hyderabad - Bengaluru
+  { d: "M 86 24 Q 80 52 70 70", dur: 9, begin: -4.5 }, // Kolkata - Chennai
+  { d: "M 54 68 L 70 70", dur: 4, begin: -1.8 }, // Bengaluru - Chennai
+];
 
+function LiveFreightNetwork() {
   return (
     <svg
       viewBox="0 0 100 80"
@@ -361,64 +358,76 @@ function FleetMapDots() {
       aria-hidden
     >
       {/* faint grid */}
-      {Array.from({ length: 6 }).map((_, i) => (
+      {Array.from({ length: 5 }).map((_, i) => (
         <line
           key={`h${i}`}
           x1="0"
-          y1={(i + 1) * 12}
+          y1={(i + 1) * 13.3}
           x2="100"
-          y2={(i + 1) * 12}
+          y2={(i + 1) * 13.3}
           stroke="var(--border)"
           strokeWidth="0.3"
         />
       ))}
-      {Array.from({ length: 9 }).map((_, i) => (
+      {Array.from({ length: 7 }).map((_, i) => (
         <line
           key={`v${i}`}
-          x1={(i + 1) * 10}
+          x1={(i + 1) * 12.5}
           y1="0"
-          x2={(i + 1) * 10}
+          x2={(i + 1) * 12.5}
           y2="80"
           stroke="var(--border)"
           strokeWidth="0.3"
         />
       ))}
 
-      {/* live freight corridor connecting the active hubs */}
-      <path
-        d={routePath}
-        fill="none"
-        stroke="var(--foreground)"
-        strokeWidth="0.5"
-        strokeDasharray="1.5 1.5"
-        opacity="0.25"
-      />
+      {/* freight corridors */}
+      {FREIGHT_ROUTES.map((r, i) => (
+        <path
+          key={i}
+          d={r.d}
+          fill="none"
+          stroke="var(--foreground)"
+          strokeWidth="0.4"
+          opacity="0.2"
+        />
+      ))}
 
-      {dots.map((d, i) => (
-        <g key={i}>
-          {d.active && (
-            <circle
-              cx={d.x}
-              cy={d.y}
-              r={d.r}
-              fill="none"
-              stroke="var(--foreground)"
-              strokeWidth="0.5"
-              opacity="0.6"
-              className="fleet-pulse-ring"
-              style={{ animationDelay: `${d.delay ?? 0}s` }}
-            />
-          )}
+      {/* waypoints - static, minor stops */}
+      {FREIGHT_WAYPOINTS.map((w) => (
+        <circle key={w.id} cx={w.x} cy={w.y} r={w.r} fill="var(--foreground)" opacity="0.35" />
+      ))}
+
+      {/* hub depots - pulsing, matching the real Fleet Map's live markers */}
+      {FREIGHT_HUBS.map((h) => (
+        <g key={h.id}>
           <circle
-            cx={d.x}
-            cy={d.y}
-            r={d.r}
+            cx={h.x}
+            cy={h.y}
+            r={h.r}
+            fill="none"
+            stroke="var(--foreground)"
+            strokeWidth="0.5"
+            opacity="0.6"
+            className="fleet-pulse-ring"
+            style={{ animationDelay: `${h.delay}s` }}
+          />
+          <circle
+            cx={h.x}
+            cy={h.y}
+            r={h.r * 0.7}
             fill="var(--foreground)"
-            opacity={d.active ? 1 : 0.5}
-            className={d.active ? "pulse-dot" : undefined}
-            style={d.active ? { animationDelay: `${d.delay ?? 0}s` } : undefined}
+            className="pulse-dot"
+            style={{ animationDelay: `${h.delay}s` }}
           />
         </g>
+      ))}
+
+      {/* trucks in transit - small packets travelling each corridor */}
+      {FREIGHT_ROUTES.map((r, i) => (
+        <circle key={i} r="1" fill="var(--foreground)" opacity="0.9">
+          <animateMotion path={r.d} dur={`${r.dur}s`} begin={`${r.begin}s`} repeatCount="indefinite" />
+        </circle>
       ))}
     </svg>
   );
