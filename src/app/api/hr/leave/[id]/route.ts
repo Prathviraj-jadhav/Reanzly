@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
 import { requireModuleAccess } from "@/lib/permissions";
+import { logAudit } from "@/lib/audit";
 
 const INCLUDE = { employee: { select: { code: true, name: true, designation: true } } } as const;
 type Row = Awaited<ReturnType<typeof db.leaveRequest.findFirst<{ include: typeof INCLUDE }>>>;
@@ -38,5 +39,16 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (body.approver !== undefined) data.approverId = body.approver || null;
 
   const updated = await db.leaveRequest.update({ where: { id }, data, include: INCLUDE });
+
+  if (body.status === "Approved" || body.status === "Rejected") {
+    await logAudit({
+      sessionUser,
+      action: body.status === "Approved" ? "APPROVE" : "REJECT",
+      entity: "LeaveRequest",
+      entityId: updated.id,
+      description: `${body.status === "Approved" ? "Approved" : "Rejected"} ${updated.type} leave for ${updated.employee.name} (${updated.days}d)`,
+    });
+  }
+
   return NextResponse.json({ leaveRequest: toDTO(updated) });
 }

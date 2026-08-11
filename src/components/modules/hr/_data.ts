@@ -87,16 +87,6 @@ export type OfferStatus = "Drafted" | "Sent" | "Accepted" | "Declined" | "Expire
 // Document category (for Documents tab)
 export type DocCategory = "KYC" | "Education" | "Employment" | "Health" | "Legal" | "Statutory" | "Asset";
 
-// Audit entry shape
-export type AuditAction =
-  | "create"
-  | "update"
-  | "delete"
-  | "approve"
-  | "reject"
-  | "status_change"
-  | "note";
-
 export type PayrollStatus = "Draft" | "Approved" | "Paid";
 
 export type PositionStatus = "Open" | "On Hold" | "Closed";
@@ -1542,27 +1532,9 @@ export const DOC_REQUESTS: DocumentRequest[] = Array.from({ length: 6 }, (_, i) 
   };
 });
 
-// ===== Audit Log =====
-export interface AuditEntry {
-  id: string;
-  action: AuditAction;
-  entity: string;
-  entityId: string;
-  description: string;
-  user: string;
-  timestamp: string;
-  metadata?: Record<string, string>;
-}
-
-export const AUDIT_LOG: AuditEntry[] = [
-  { id: "a1", action: "create", entity: "Employee", entityId: "GP0054", description: "Added new employee record", user: "hr@reanzly.in", timestamp: isoDaysAgo(2) },
-  { id: "a2", action: "approve", entity: "LeaveRequest", entityId: "LR-0012", description: "Approved casual leave for 2 days", user: "kuldeep@reanzly.in", timestamp: isoDaysAgo(1) },
-  { id: "a3", action: "status_change", entity: "PayrollRun", entityId: "PRUN-2024-10", description: "Payroll run approved for October 2024", user: "hr@reanzly.in", timestamp: isoDaysAgo(1) },
-  { id: "a4", action: "reject", entity: "LeaveRequest", entityId: "LR-0014", description: "Rejected privilege leave (insufficient balance)", user: "anil@reanzly.in", timestamp: isoDaysAgo(3) },
-  { id: "a5", action: "update", entity: "Employee", entityId: "GP0023", description: "Updated bank account details", user: "hr@reanzly.in", timestamp: isoDaysAgo(4) },
-  { id: "a6", action: "create", entity: "Position", entityId: "REQ-001", description: "New position opened for Driver (4 openings)", user: "kuldeep@reanzly.in", timestamp: isoDaysAgo(15) },
-  { id: "a7", action: "approve", entity: "AttendanceReg", entityId: "REG-0003", description: "Regularization approved (missed punch)", user: "anil@reanzly.in", timestamp: isoDaysAgo(2) },
-];
+// Recent-activity/audit trail is real now - see /api/audit-log and
+// useAuditLog() (src/hooks/use-audit-log.ts), backed by the AuditLog
+// Prisma model. This module used to keep its own fake-actor mock feed.
 
 // ===== Leave workflow steps =====
 export const LEAVE_WORKFLOW_STEPS = [
@@ -2102,7 +2074,7 @@ export const ISSUANCE_CATEGORIES: IssuanceCategory[] = [
 ];
 
 // ===== Seed: issued documents =====
-const ISSUANCE_HR_USERS = ["hr@reanzly.in", "kuldeep@reanzly.in", "anil@reanzly.in"];
+const ISSUANCE_HR_USERS = ["sunita.rao@reanzly.in"];
 
 function genIssuanceDocId(seq: number): string {
   return `ISS-${new Date().getFullYear()}-${String(seq).padStart(4, "0")}`;

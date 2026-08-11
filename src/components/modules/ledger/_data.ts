@@ -192,7 +192,7 @@ function entry(
   opts: { status?: EntryStatus; createdBy?: string } = {},
 ): JournalEntry {
   const status = opts.status ?? "Posted";
-  const createdBy = opts.createdBy ?? "Accountant · Geeta";
+  const createdBy = opts.createdBy ?? "Geeta Sharma";
   return {
     id: `jv-${jvCounter + 1}`,
     voucherNo: nextVoucher(),

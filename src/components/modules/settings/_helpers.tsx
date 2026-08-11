@@ -127,19 +127,23 @@ export interface UserRow {
   lastActive: string;
 }
 
+// Initial paint before /api/users resolves (see access-security.tsx's
+// useRealUsers) - the real 17-person roster, correct firstname.lastname@
+// reanzly.in email pattern, so even the pre-fetch flash is accurate.
 export const USERS_MOCK: UserRow[] = [
-  { id: "u1", name: "Vikram Deshmukh", email: "vikram@reanzly.in", role: "Owner", status: "Active", branch: "Mumbai HQ", lastActive: new Date(Date.now() - 0.02 * 86400000).toISOString() },
-  { id: "u2", name: "Rohit Sharma", email: "rohit@reanzly.in", role: "Operations Manager", status: "Active", branch: "Mumbai HQ", lastActive: new Date(Date.now() - 0.1 * 86400000).toISOString() },
-  { id: "u3", name: "Reena Mehta", email: "reena@reanzly.in", role: "Finance Manager", status: "Active", branch: "Mumbai HQ", lastActive: new Date(Date.now() - 0.4 * 86400000).toISOString() },
-  { id: "u4", name: "Sukhbir Gill", email: "sukhbir@reanzly.in", role: "Fleet Manager", status: "Active", branch: "Pune", lastActive: new Date(Date.now() - 0.3 * 86400000).toISOString() },
-  { id: "u5", name: "Anil Reddy", email: "anil@reanzly.in", role: "Dispatcher", status: "Active", branch: "Bengaluru", lastActive: new Date(Date.now() - 0.6 * 86400000).toISOString() },
-  { id: "u6", name: "Kuldeep Singh", email: "kuldeep@reanzly.in", role: "Driver", status: "Active", branch: "Delhi", lastActive: new Date(Date.now() - 1.2 * 86400000).toISOString() },
-  { id: "u7", name: "Trisha Nair", email: "trisha@reanzly.in", role: "Analyst", status: "Active", branch: "Mumbai HQ", lastActive: new Date(Date.now() - 0.8 * 86400000).toISOString() },
-  { id: "u8", name: "Joseph Mathew", email: "joseph@reanzly.in", role: "Driver", status: "Invited", branch: "Chennai", lastActive: "-" },
-  { id: "u9", name: "Farhan Khan", email: "farhan@reanzly.in", role: "Workshop Lead", status: "Active", branch: "Pune", lastActive: new Date(Date.now() - 2.5 * 86400000).toISOString() },
-  { id: "u10", name: "Geeta Sharma", email: "geeta@reanzly.in", role: "Accountant", status: "Suspended", branch: "Mumbai HQ", lastActive: new Date(Date.now() - 30 * 86400000).toISOString() },
-  { id: "u11", name: "Naresh Patel", email: "naresh@reanzly.in", role: "Driver", status: "Active", branch: "Ahmedabad", lastActive: new Date(Date.now() - 0.5 * 86400000).toISOString() },
-  { id: "u12", name: "Pooja Iyer", email: "pooja@reanzly.in", role: "Compliance Officer", status: "Active", branch: "Mumbai HQ", lastActive: new Date(Date.now() - 0.7 * 86400000).toISOString() },
+  { id: "owner", name: "Vikram Deshmukh", email: "vikram.deshmukh@reanzly.in", role: "Owner", status: "Active", branch: "Mumbai HQ", lastActive: "-" },
+  { id: "ops-manager", name: "Rohit Sharma", email: "rohit.sharma@reanzly.in", role: "Ops Manager", status: "Active", branch: "Mumbai HQ", lastActive: "-" },
+  { id: "finance-manager", name: "Reena Mehta", email: "reena.mehta@reanzly.in", role: "Finance Manager", status: "Active", branch: "Mumbai HQ", lastActive: "-" },
+  { id: "fleet-manager", name: "Sukhbir Gill", email: "sukhbir.gill@reanzly.in", role: "Fleet Manager", status: "Active", branch: "Pune", lastActive: "-" },
+  { id: "dispatcher", name: "Anil Reddy", email: "anil.reddy@reanzly.in", role: "Dispatcher", status: "Active", branch: "Bengaluru", lastActive: "-" },
+  { id: "driver", name: "Kuldeep Singh", email: "kuldeep.singh@reanzly.in", role: "Driver", status: "Active", branch: "Delhi", lastActive: "-" },
+  { id: "analyst", name: "Priya Iyer", email: "priya.iyer@reanzly.in", role: "Analyst", status: "Active", branch: "Mumbai HQ", lastActive: "-" },
+  { id: "warehouse-manager", name: "Balwinder Sandhu", email: "balwinder.sandhu@reanzly.in", role: "Warehouse Manager", status: "Active", branch: "Pune", lastActive: "-" },
+  { id: "mechanic", name: "Farhan Khan", email: "farhan.khan@reanzly.in", role: "Mechanic", status: "Active", branch: "Pune", lastActive: "-" },
+  { id: "accountant", name: "Geeta Sharma", email: "geeta.sharma@reanzly.in", role: "Accountant", status: "Active", branch: "Mumbai HQ", lastActive: "-" },
+  { id: "branch-manager", name: "Naresh Patel", email: "naresh.patel@reanzly.in", role: "Branch Manager", status: "Active", branch: "Ahmedabad", lastActive: "-" },
+  { id: "safety-officer", name: "Pooja Iyer", email: "pooja.iyer@reanzly.in", role: "Safety Officer", status: "Active", branch: "Mumbai HQ", lastActive: "-" },
+  { id: "hr-manager", name: "Sunita Rao", email: "sunita.rao@reanzly.in", role: "HR Manager", status: "Active", branch: "Mumbai HQ", lastActive: "-" },
 ];
 
 // ===== Roles =====

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
 import { requireModuleAccess } from "@/lib/permissions";
+import { logAudit } from "@/lib/audit";
 
 const INCLUDE = { candidates: { orderBy: { appliedAt: "desc" as const } } } as const;
 type Row = Awaited<ReturnType<typeof db.hrPosition.findFirst<{ include: typeof INCLUDE }>>>;
@@ -76,6 +77,13 @@ export async function POST(req: NextRequest) {
       status: body.status || "Open",
     },
     include: INCLUDE,
+  });
+  await logAudit({
+    sessionUser,
+    action: "CREATE",
+    entity: "Position",
+    entityId: created.positionId,
+    description: `Opened new position: ${created.title} (${created.openings} opening${created.openings === 1 ? "" : "s"})`,
   });
   return NextResponse.json({ position: toDTO(created) }, { status: 201 });
 }

@@ -382,12 +382,14 @@ export const EHS_INCIDENTS: EhsIncident[] = Array.from({ length: 12 }).map((_, i
 // Audit log - 14 records
 export const AUDIT_LOG: AuditLogEntry[] = Array.from({ length: 14 }).map((_, i) => {
   const type = AUDIT_TYPES[i % AUDIT_TYPES.length];
+  // Real seeded roster (src/lib/mock-data.ts ROLE_ARCHETYPES) - these are
+  // the actual people/roles in the system, not invented names.
   const actors = [
-    { name: "Vikram Kapoor", role: "Owner" },
+    { name: "Vikram Deshmukh", role: "Owner" },
     { name: "Rohit Sharma", role: "Ops Manager" },
-    { name: "Reena Mehta", role: "Accountant" },
-    { name: "Anil Reddy", role: "Fleet Manager" },
-    { name: "Kuldeep Gill", role: "Safety Officer" },
+    { name: "Reena Mehta", role: "Finance Manager" },
+    { name: "Sukhbir Gill", role: "Fleet Manager" },
+    { name: "Pooja Iyer", role: "Safety Officer" },
   ];
   const actor = actors[i % actors.length];
   const resources = [

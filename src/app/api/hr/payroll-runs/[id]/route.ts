@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
 import { requireModuleAccess } from "@/lib/permissions";
+import { logAudit } from "@/lib/audit";
 
 const INCLUDE = { _count: { select: { payslips: true } } } as const;
 type Row = Awaited<ReturnType<typeof db.payrollRun.findFirst<{ include: typeof INCLUDE }>>>;
@@ -52,6 +53,16 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     });
     await tx.payslip.updateMany({ where: { payrollRunId: id }, data: { status: newStatus } });
     return run;
+  });
+
+  await logAudit({
+    sessionUser,
+    action: action === "approve" ? "APPROVE" : "STATUS_CHANGE",
+    entity: "PayrollRun",
+    entityId: updated.id,
+    description: action === "approve"
+      ? `Approved payroll run for ${updated.month} (${updated._count.payslips} employees)`
+      : `Disbursed payroll run for ${updated.month} (${updated._count.payslips} employees)`,
   });
 
   return NextResponse.json({ payrollRun: toDTO(updated) });

@@ -682,7 +682,7 @@ export const SEED_DOCUMENTS: GeneratedDocument[] = [
     createdAt: daysAgo(3),
     updatedAt: daysAgo(2),
     issuedAt: daysAgo(3),
-    createdBy: "Rohit Deshpande",
+    createdBy: "Reena Mehta",
     tags: ["Finance", "Quotation", "FTL"],
   },
   {
@@ -745,7 +745,7 @@ export const SEED_DOCUMENTS: GeneratedDocument[] = [
     createdAt: daysAgo(12),
     updatedAt: daysAgo(12),
     issuedAt: daysAgo(12),
-    createdBy: "Reena Kapoor",
+    createdBy: "Sunita Rao",
     tags: ["Payroll", "Payslip", "June 2024"],
   },
   {
@@ -768,7 +768,7 @@ export const SEED_DOCUMENTS: GeneratedDocument[] = [
     createdAt: daysAgo(20),
     updatedAt: daysAgo(20),
     issuedAt: daysAgo(20),
-    createdBy: "Rohit Deshpande",
+    createdBy: "Sukhbir Gill",
     tags: ["Compliance", "NOC", "Vehicle"],
   },
 ];

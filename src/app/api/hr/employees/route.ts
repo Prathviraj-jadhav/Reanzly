@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
 import { requireModuleAccess } from "@/lib/permissions";
+import { logAudit } from "@/lib/audit";
 
 // Real CRUD for HR Employees, replacing the Zustand+localStorage
 // `reanzly-hr` store's employees slice. `documents`/`assetsAssigned` are
@@ -119,6 +120,13 @@ export async function POST(req: NextRequest) {
         documentsJson: body.documents ? JSON.stringify(body.documents) : null,
         assetsJson: body.assetsAssigned ? JSON.stringify(body.assetsAssigned) : null,
       },
+    });
+    await logAudit({
+      sessionUser,
+      action: "CREATE",
+      entity: "Employee",
+      entityId: created.code,
+      description: `Added new employee record: ${created.name} (${created.designation})`,
     });
     return NextResponse.json({ employee: toDTO(created) }, { status: 201 });
   } catch (e: any) {

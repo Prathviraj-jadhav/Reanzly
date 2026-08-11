@@ -121,13 +121,15 @@ export interface Activity {
 }
 
 // ===== CONSTANTS =====
+// Real seeded roster (src/lib/mock-data.ts ROLE_ARCHETYPES) - the people
+// who'd realistically own customer-facing CRM records, not invented names.
 export const CRM_OWNERS = [
-  "Rohan Kapoor",
-  "Sneha Iyer",
-  "Amit Saxena",
-  "Priya Menon",
-  "Karthik Reddy",
-  "Divya Nair",
+  "Rohit Sharma",
+  "Anil Reddy",
+  "Naresh Patel",
+  "Reena Mehta",
+  "Faisal Ahmed",
+  "Vikram Deshmukh",
 ];
 
 export const CRM_LANES = [

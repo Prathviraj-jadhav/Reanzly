@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
 import {
@@ -23,8 +23,48 @@ import {
   relativeTime, type UserRow, type RoleRow,
 } from "../_helpers";
 
-export function AccessSecuritySection() {
+const ROLE_LABELS: Record<string, string> = {
+  superadmin: "Reanzly Staff", owner: "Owner", "ops-manager": "Ops Manager",
+  "fleet-manager": "Fleet Manager", "finance-manager": "Finance Manager",
+  dispatcher: "Dispatcher", driver: "Driver", analyst: "Analyst",
+  "warehouse-manager": "Warehouse Manager", customer: "Customer", broker: "Broker",
+  "safety-officer": "Safety Officer", mechanic: "Mechanic", "branch-manager": "Branch Manager",
+  accountant: "Accountant", "hr-manager": "HR Manager", "warehouse-crew": "Warehouse Crew",
+};
+
+// Real, company-scoped users from /api/users - USERS_MOCK (invented people,
+// wrong-pattern emails) is only the initial paint before the fetch lands.
+// Returns the state pair directly so callers mutate the one real list
+// in place (local edits like suspend/invite) instead of bridging two
+// states together with a synchronizing effect.
+function useRealUsers(): [UserRow[], Dispatch<SetStateAction<UserRow[]>>] {
   const [users, setUsers] = useState<UserRow[]>(USERS_MOCK);
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/users", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (cancelled || !data?.users?.length) return;
+        setUsers(
+          data.users.map((u: { id: string; name: string; email: string; role: string; department: string; status: string; lastActive: string | null }) => ({
+            id: u.id,
+            name: u.name,
+            email: u.email,
+            role: ROLE_LABELS[u.role] ?? u.role,
+            status: u.status === "Active" ? "Active" : u.status === "Suspended" ? "Suspended" : "Invited",
+            branch: u.department || "—",
+            lastActive: u.lastActive ?? "-",
+          })),
+        );
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+  return [users, setUsers];
+}
+
+export function AccessSecuritySection() {
+  const [users, setUsers] = useRealUsers();
   const [roles, setRoles] = useState<RoleRow[]>(ROLES_MOCK);
   const [addUserOpen, setAddUserOpen] = useState(false);
   const [roleEditorOpen, setRoleEditorOpen] = useState(false);
@@ -252,7 +292,7 @@ export function AccessSecuritySection() {
       <AddUserSheet open={addUserOpen} onClose={() => setAddUserOpen(false)} onAdd={(u) => {
         setUsers((prev) => [{ ...u, id: "u" + (prev.length + 1), lastActive: "-" }, ...prev]);
         setAddUserOpen(false);
-      }} branches={[...new Set(USERS_MOCK.map((u) => u.branch))]} roles={roles.map((r) => r.name)} />
+      }} branches={[...new Set(users.map((u) => u.branch))]} roles={roles.map((r) => r.name)} />
       <RoleEditorSheet
         open={roleEditorOpen}
         role={editingRole}
@@ -303,8 +343,8 @@ function SecurityTab() {
   ]);
   const [auditLog] = useState<{ id: string; actor: string; action: string; target: string; ip: string; ts: string }[]>([
     { id: "a1", actor: "Vikram Deshmukh", action: "Updated role permissions", target: "Role: Fleet Manager", ip: "103.21.58.42", ts: new Date(Date.now() - 0.1 * 86400000).toISOString() },
-    { id: "a2", actor: "Rohit Sharma", action: "Invited user", target: "imran@reanzly.in", ip: "103.21.58.42", ts: new Date(Date.now() - 0.4 * 86400000).toISOString() },
-    { id: "a3", actor: "Reena Mehta", action: "Reset password", target: "geeta@reanzly.in", ip: "49.36.84.12", ts: new Date(Date.now() - 1.2 * 86400000).toISOString() },
+    { id: "a2", actor: "Rohit Sharma", action: "Invited user", target: "naresh.patel@reanzly.in", ip: "103.21.58.42", ts: new Date(Date.now() - 0.4 * 86400000).toISOString() },
+    { id: "a3", actor: "Reena Mehta", action: "Reset password", target: "geeta.sharma@reanzly.in", ip: "49.36.84.12", ts: new Date(Date.now() - 1.2 * 86400000).toISOString() },
     { id: "a4", actor: "System", action: "Revoked session", target: "iPad Air (Bengaluru)", ip: "157.32.14.88", ts: new Date(Date.now() - 2.5 * 86400000).toISOString() },
     { id: "a5", actor: "Vikram Deshmukh", action: "Created API key", target: "Finance Export", ip: "103.21.58.42", ts: new Date(Date.now() - 4 * 86400000).toISOString() },
     { id: "a6", actor: "Pooja Iyer", action: "Added IP to whitelist", target: "0.0.0.0/0", ip: "103.21.58.42", ts: new Date(Date.now() - 5 * 86400000).toISOString() },

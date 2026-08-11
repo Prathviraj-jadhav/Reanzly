@@ -20,6 +20,7 @@ import {
 import { SectionCard } from "@/components/shared/section-card";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Btn } from "@/components/shared/btn";
+import { useAuditLog } from "@/hooks/use-audit-log";
 import { useHrStore } from "./_store";
 import {
   HR_BRANCHES,
@@ -43,7 +44,7 @@ export function Overview() {
   const performanceReviews = useHrStore((s) => s.performanceReviews);
   const exitRequests = useHrStore((s) => s.exitRequests);
   const onboardingPlans = useHrStore((s) => s.onboardingPlans);
-  const auditLog = useHrStore((s) => s.auditLog);
+  const { entries: auditLog } = useAuditLog(["Employee", "LeaveRequest", "PayrollRun", "Position"], 20);
   const payrollRuns = useHrStore((s) => s.payrollRuns);
 
   // ----- KPIs -----
@@ -421,12 +422,12 @@ export function Overview() {
             {auditLog.slice(0, 12).map((entry) => (
               <div key={entry.id} className="flex items-start gap-3 px-4 py-2.5">
                 <div className="mt-0.5">
-                  <AuditActionIcon action={entry.action} />
+                  <AuditActionIcon action={entry.action.toLowerCase()} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="text-[12px] text-foreground">{entry.description}</div>
                   <div className="text-[10.5px] text-muted-foreground">
-                    <span className="font-mono tabular">{entry.entityId}</span> · {entry.user}
+                    <span className="font-mono tabular">{entry.entityId}</span> · {entry.actorName}
                   </div>
                 </div>
                 <div className="text-right text-[10.5px] tabular text-muted-foreground">

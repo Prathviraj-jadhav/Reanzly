@@ -15,7 +15,6 @@ import {
   OFFER_LETTERS,
   DOC_REQUESTS,
   COMPOFF_REQUESTS,
-  AUDIT_LOG,
   ISSUANCES,
   type Employee,
   type AttendanceRecord,
@@ -52,8 +51,6 @@ import {
   type OfferStatus,
   type DocumentRequest,
   type CompOffRequest,
-  type AuditEntry,
-  type AuditAction,
   type ReviewCycle,
   type OnboardingTask,
   type Issuance,
@@ -85,7 +82,6 @@ interface HrState {
   exitRequests: ExitRequest[];
   docRequests: DocumentRequest[];
   issuances: Issuance[];
-  auditLog: AuditEntry[];
 
   // Real, database-backed (employees/attendanceDaily/leaveRequests/
   // positions/payslips/payrollRuns) - GET /api/hr/{employees,attendance,
@@ -93,9 +89,10 @@ interface HrState {
   // this state is still the original Zustand+localStorage mock slice
   // (attendanceSummaries/attendanceRegs/compOffRequests/holidays/
   // compliance/interviews/offers/performanceReviews/pips/onboardingPlans/
-  // exitRequests/docRequests/issuances/auditLog) - real schema doesn't
-  // exist for these yet, flagged as the next real-data pass rather than
-  // silently left inconsistent.
+  // exitRequests/docRequests/issuances) - real schema doesn't exist for
+  // these yet, flagged as the next real-data pass rather than silently
+  // left inconsistent. Recent-activity/audit trail is real now - see
+  // /api/audit-log and useAuditLog(), not stored here.
   loaded: boolean;
   hydrate: () => Promise<void>;
 
@@ -152,9 +149,6 @@ interface HrState {
   updateIssuanceStatus: (id: string, status: IssuanceStatus) => void;
   revokeIssuance: (id: string) => void;
 
-  // Audit log
-  logAudit: (entry: Omit<AuditEntry, "id" | "timestamp">) => void;
-
   reset: () => void;
 }
 
@@ -175,20 +169,10 @@ const SEED = {
   exitRequests: EXIT_REQUESTS,
   docRequests: DOC_REQUESTS,
   issuances: ISSUANCES,
-  auditLog: AUDIT_LOG,
 };
 
 function nowIso() {
   return new Date().toISOString();
-}
-
-function pushAudit(state: HrState, entry: Omit<AuditEntry, "id" | "timestamp">): AuditEntry[] {
-  const next: AuditEntry = {
-    ...entry,
-    id: `a-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-    timestamp: nowIso(),
-  };
-  return [next, ...state.auditLog].slice(0, 200);
 }
 
 async function postJSON<T>(url: string, body: unknown): Promise<T | null> {
@@ -260,14 +244,7 @@ export const useHrStore = create<HrState>()(
       addEmployee: async (e) => {
         const res = await postJSON<{ employee: Employee }>("/api/hr/employees", e);
         if (!res) return null;
-        set((s) => ({
-          employees: [res.employee, ...s.employees],
-          auditLog: pushAudit(s, {
-            action: "create", entity: "Employee", entityId: res.employee.empCode,
-            description: `Added new employee ${res.employee.name} (${res.employee.designation})`,
-            user: "hr@reanzly.in",
-          }),
-        }));
+        set((s) => ({ employees: [res.employee, ...s.employees] }));
         return res.employee;
       },
       updateEmployee: async (id, patch) => {
@@ -275,11 +252,6 @@ export const useHrStore = create<HrState>()(
         if (ok) {
           set((s) => ({
             employees: s.employees.map((e) => (e.id === id ? { ...e, ...patch } : e)),
-            auditLog: pushAudit(s, {
-              action: "update", entity: "Employee", entityId: id,
-              description: `Updated employee profile fields: ${Object.keys(patch).join(", ")}`,
-              user: "hr@reanzly.in",
-            }),
           }));
         }
         return ok;
@@ -297,30 +269,14 @@ export const useHrStore = create<HrState>()(
       addLeaveRequest: async (r) => {
         const res = await postJSON<{ leaveRequest: LeaveRequest }>("/api/hr/leave", r);
         if (!res) return null;
-        set((s) => ({
-          leaveRequests: [res.leaveRequest, ...s.leaveRequests],
-          auditLog: pushAudit(s, {
-            action: "create", entity: "LeaveRequest", entityId: res.leaveRequest.id,
-            description: `Leave request submitted by ${res.leaveRequest.empName} (${res.leaveRequest.leaveType}, ${res.leaveRequest.days}d)`,
-            user: `${res.leaveRequest.empCode}@reanzly.in`,
-          }),
-        }));
+        set((s) => ({ leaveRequests: [res.leaveRequest, ...s.leaveRequests] }));
         return res.leaveRequest;
       },
       setLeaveStatus: async (id, status) => {
-        const req = get().leaveRequests.find((r) => r.id === id);
         const ok = await patchJSON(`/api/hr/leave/${id}`, { status });
         if (ok) {
           set((s) => ({
             leaveRequests: s.leaveRequests.map((r) => (r.id === id ? { ...r, status, reviewedOn: nowIso() } : r)),
-            auditLog: req
-              ? pushAudit(s, {
-                  action: status === "Approved" ? "approve" : status === "Rejected" ? "reject" : "status_change",
-                  entity: "LeaveRequest", entityId: id,
-                  description: `Leave ${status.toLowerCase()} for ${req.empName} (${req.leaveType})`,
-                  user: "hr@reanzly.in",
-                })
-              : s.auditLog,
           }));
         }
         return ok;
@@ -353,7 +309,6 @@ export const useHrStore = create<HrState>()(
         set((s) => ({
           payrollRuns: s.payrollRuns.map((r) => (r.id === id ? res.payrollRun : r)),
           payslips: s.payslips.map((p) => (p.month === res.payrollRun.month ? { ...p, status: "Approved" as PayrollStatus } : p)),
-          auditLog: pushAudit(s, { action: "approve", entity: "PayrollRun", entityId: id, description: "Payroll run approved", user: "hr@reanzly.in" }),
         }));
         return true;
       },
@@ -363,7 +318,6 @@ export const useHrStore = create<HrState>()(
         set((s) => ({
           payrollRuns: s.payrollRuns.map((r) => (r.id === id ? res.payrollRun : r)),
           payslips: s.payslips.map((p) => (p.month === res.payrollRun.month ? { ...p, status: "Paid" as PayrollStatus } : p)),
-          auditLog: pushAudit(s, { action: "status_change", entity: "PayrollRun", entityId: id, description: "Payroll disbursed", user: "hr@reanzly.in" }),
         }));
         return true;
       },
@@ -414,25 +368,8 @@ export const useHrStore = create<HrState>()(
             if (status === "HR Review" || status === "Completed") patch.hrReviewedOn = nowIso();
             return { ...r, ...patch };
           }),
-          auditLog: pushAudit(s, {
-            action: "status_change",
-            entity: "PerformanceReview",
-            entityId: id,
-            description: `Review advanced to ${status}`,
-            user: "hr@reanzly.in",
-          }),
         })),
-      addPip: (p) =>
-        set((s) => ({
-          pips: [p, ...s.pips],
-          auditLog: pushAudit(s, {
-            action: "create",
-            entity: "PIP",
-            entityId: p.id,
-            description: `PIP initiated for ${p.empName}`,
-            user: "hr@reanzly.in",
-          }),
-        })),
+      addPip: (p) => set((s) => ({ pips: [p, ...s.pips] })),
       setPipStatus: (id, status) =>
         set((s) => ({ pips: s.pips.map((p) => (p.id === id ? { ...p, status } : p)) })),
 
@@ -461,13 +398,6 @@ export const useHrStore = create<HrState>()(
       setExitStatus: (id, status) =>
         set((s) => ({
           exitRequests: s.exitRequests.map((r) => (r.id === id ? { ...r, status } : r)),
-          auditLog: pushAudit(s, {
-            action: "status_change",
-            entity: "ExitRequest",
-            entityId: id,
-            description: `Exit advanced to ${status}`,
-            user: "hr@reanzly.in",
-          }),
         })),
       setExitInterviewNotes: (id, notes) =>
         set((s) => ({
@@ -504,13 +434,6 @@ export const useHrStore = create<HrState>()(
                 }
               : r,
           ),
-          auditLog: pushAudit(s, {
-            action: status === "Approved" ? "approve" : "reject",
-            entity: "AttendanceReg",
-            entityId: id,
-            description: `Regularization ${status.toLowerCase()}`,
-            user: "hr@reanzly.in",
-          }),
         })),
 
       setOfferStatus: (id, status) =>
@@ -537,67 +460,31 @@ export const useHrStore = create<HrState>()(
         })),
 
       // ===== Issuance mutations =====
-      addIssuance: (i) =>
-        set((s) => ({
-          issuances: [i, ...s.issuances],
-          auditLog: pushAudit(s, {
-            action: "create",
-            entity: "Issuance",
-            entityId: i.documentId,
-            description: `Issued ${i.type} for ${i.employeeName} (${i.status})`,
-            user: i.issuedBy,
-          }),
-        })),
+      addIssuance: (i) => set((s) => ({ issuances: [i, ...s.issuances] })),
       updateIssuanceStatus: (id, status) =>
-        set((s) => {
-          const found = s.issuances.find((i) => i.id === id);
-          return {
-            issuances: s.issuances.map((i) =>
-              i.id === id
-                ? {
-                    ...i,
-                    status,
-                    eSignPending: status === "Sent" ? i.eSignPending : status === "E-Signed" ? false : i.eSignPending,
-                  }
-                : i,
-            ),
-            auditLog: found
-              ? pushAudit(s, {
-                  action: "status_change",
-                  entity: "Issuance",
-                  entityId: found.documentId,
-                  description: `Issuance ${found.type} → ${status}`,
-                  user: "hr@reanzly.in",
-                })
-              : s.auditLog,
-          };
-        }),
+        set((s) => ({
+          issuances: s.issuances.map((i) =>
+            i.id === id
+              ? {
+                  ...i,
+                  status,
+                  eSignPending: status === "Sent" ? i.eSignPending : status === "E-Signed" ? false : i.eSignPending,
+                }
+              : i,
+          ),
+        })),
       revokeIssuance: (id) =>
-        set((s) => {
-          const found = s.issuances.find((i) => i.id === id);
-          return {
-            issuances: s.issuances.map((i) =>
-              i.id === id ? { ...i, status: "Revoked" as IssuanceStatus, eSignPending: false } : i,
-            ),
-            auditLog: found
-              ? pushAudit(s, {
-                  action: "status_change",
-                  entity: "Issuance",
-                  entityId: found.documentId,
-                  description: `Revoked issuance ${found.type} for ${found.employeeName}`,
-                  user: "hr@reanzly.in",
-                })
-              : s.auditLog,
-          };
-        }),
-
-      logAudit: (entry) => set((s) => ({ auditLog: pushAudit(s, entry) })),
+        set((s) => ({
+          issuances: s.issuances.map((i) =>
+            i.id === id ? { ...i, status: "Revoked" as IssuanceStatus, eSignPending: false } : i,
+          ),
+        })),
 
       reset: () => set({ ...SEED }),
     }),
     {
       name: "reanzly-hr",
-      version: 5,
+      version: 6,
       // Real, hydrated fields are never persisted to localStorage - they're
       // always refetched from the database on mount, so a stale cached copy
       // would just be dead weight (and could briefly show outdated data
@@ -617,7 +504,6 @@ export const useHrStore = create<HrState>()(
         exitRequests: s.exitRequests,
         docRequests: s.docRequests,
         issuances: s.issuances,
-        auditLog: s.auditLog,
       }),
     },
   ),
@@ -660,8 +546,6 @@ export type {
   OfferStatus,
   DocumentRequest,
   CompOffRequest,
-  AuditEntry,
-  AuditAction,
   ReviewCycle,
   Issuance,
   IssuanceStatus,
