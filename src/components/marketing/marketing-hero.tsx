@@ -320,77 +320,73 @@ function Sparkline() {
 }
 
 /* ============================================================
-   LiveFreightNetwork - a schematic transit map of real Indian freight
-   corridors (Delhi/Mumbai/Kolkata/Bengaluru/Chennai hubs, via Ahmedabad/
-   Nagpur/Hyderabad waypoints), not an abstract dot scatter. Small packets
-   travel along each corridor via native SVG <animateMotion> - genuinely
-   moving GPS-style, no JS/deps. Hub nodes reuse the exact .fleet-pulse-
-   ring/.pulse-dot animations the real in-app Fleet Map module uses for
-   live vehicles (src/app/globals.css), so this marketing preview moves
-   the same way the real product does.
+   LiveFreightNetwork - an actual (simplified) silhouette of India, not
+   an abstract schematic. Real relative city positions (Delhi north,
+   Mumbai west coast, Kolkata east, Bengaluru/Chennai south), a slow
+   rotating radar sweep centered near the geographic middle, and small
+   packets genuinely travelling each freight corridor via native SVG
+   <animateMotion> - no JS, no deps. Hub depots reuse the exact
+   .fleet-pulse-ring/.pulse-dot animations the real in-app Fleet Map
+   module uses for live vehicles (src/app/globals.css), so this
+   marketing preview moves the same way the real product does.
    ============================================================ */
+const INDIA_OUTLINE =
+  "M 28 3 L 40 3 L 46 10 L 52 11 L 62 19 L 56 27 L 52 34 L 48 44 " +
+  "L 40 58 L 32 74 L 27 89 L 20 72 L 14 56 L 9 40 L 6 24 L 13 12 L 22 5 Z";
+
 const FREIGHT_HUBS = [
-  { id: "delhi", x: 16, y: 14, r: 2.2, delay: 0 },
-  { id: "mumbai", x: 18, y: 54, r: 2.2, delay: 0.5 },
-  { id: "kolkata", x: 86, y: 24, r: 2, delay: 1 },
-  { id: "bengaluru", x: 54, y: 68, r: 2.2, delay: 1.5 },
-  { id: "chennai", x: 70, y: 70, r: 1.8, delay: 0.2 },
+  { id: "delhi", label: "DEL", x: 32, y: 14, r: 2, delay: 0 },
+  { id: "mumbai", label: "BOM", x: 16, y: 46, r: 2, delay: 0.5 },
+  { id: "kolkata", label: "CCU", x: 50, y: 30, r: 1.8, delay: 1 },
+  { id: "bengaluru", label: "BLR", x: 28, y: 66, r: 2, delay: 1.5 },
+  { id: "chennai", label: "MAA", x: 36, y: 74, r: 1.6, delay: 0.2 },
 ];
 const FREIGHT_WAYPOINTS = [
-  { id: "ahmedabad", x: 9, y: 36, r: 1.1 },
-  { id: "nagpur", x: 46, y: 30, r: 1.1 },
-  { id: "hyderabad", x: 46, y: 46, r: 1.1 },
+  { id: "ahmedabad", x: 13, y: 28, r: 1 },
+  { id: "nagpur", x: 30, y: 38, r: 1 },
+  { id: "hyderabad", x: 32, y: 52, r: 1 },
 ];
 const FREIGHT_ROUTES = [
-  { d: "M 16 14 L 9 36 L 18 54", dur: 6.5, begin: -1.2 }, // Delhi - Ahmedabad - Mumbai
-  { d: "M 16 14 L 46 30 L 86 24", dur: 8, begin: -3 }, // Delhi - Nagpur - Kolkata
-  { d: "M 18 54 L 46 46 L 54 68", dur: 7, begin: -0.5 }, // Mumbai - Hyderabad - Bengaluru
-  { d: "M 86 24 Q 80 52 70 70", dur: 9, begin: -4.5 }, // Kolkata - Chennai
-  { d: "M 54 68 L 70 70", dur: 4, begin: -1.8 }, // Bengaluru - Chennai
+  { d: "M 32 14 L 13 28 L 16 46", dur: 6.5, begin: -1.2 }, // Delhi - Ahmedabad - Mumbai
+  { d: "M 32 14 L 30 38 L 50 30", dur: 8, begin: -3 }, // Delhi - Nagpur - Kolkata
+  { d: "M 16 46 L 32 52 L 28 66", dur: 7, begin: -0.5 }, // Mumbai - Hyderabad - Bengaluru
+  { d: "M 50 30 Q 46 55 36 74", dur: 9, begin: -4.5 }, // Kolkata - Chennai
+  { d: "M 28 66 L 36 74", dur: 4, begin: -1.8 }, // Bengaluru - Chennai
 ];
 
 function LiveFreightNetwork() {
   return (
     <svg
-      viewBox="0 0 100 80"
-      className="mt-2 h-20 w-full"
-      preserveAspectRatio="none"
+      viewBox="0 0 70 92"
+      className="mt-2 h-28 w-full"
+      preserveAspectRatio="xMidYMid meet"
       aria-hidden
     >
-      {/* faint grid */}
-      {Array.from({ length: 5 }).map((_, i) => (
-        <line
-          key={`h${i}`}
-          x1="0"
-          y1={(i + 1) * 13.3}
-          x2="100"
-          y2={(i + 1) * 13.3}
-          stroke="var(--border)"
-          strokeWidth="0.3"
-        />
-      ))}
-      {Array.from({ length: 7 }).map((_, i) => (
-        <line
-          key={`v${i}`}
-          x1={(i + 1) * 12.5}
-          y1="0"
-          x2={(i + 1) * 12.5}
-          y2="80"
-          stroke="var(--border)"
-          strokeWidth="0.3"
-        />
-      ))}
+      <defs>
+        <clipPath id="india-clip">
+          <path d={INDIA_OUTLINE} />
+        </clipPath>
+        <radialGradient id="radar-sweep" cx="0" cy="0" r="1">
+          <stop offset="0%" stopColor="var(--foreground)" stopOpacity="0.35" />
+          <stop offset="100%" stopColor="var(--foreground)" stopOpacity="0" />
+        </radialGradient>
+      </defs>
+
+      {/* landmass */}
+      <path d={INDIA_OUTLINE} fill="var(--foreground)" opacity="0.05" stroke="var(--foreground)" strokeWidth="0.5" strokeOpacity="0.35" />
+
+      {/* rotating radar sweep, clipped to the landmass so it reads as a scan, not a spotlight */}
+      <g clipPath="url(#india-clip)">
+        <g transform="translate(30 40)">
+          <path d="M 0 0 L 0 -50 A 50 50 0 0 1 20 -46 Z" fill="url(#radar-sweep)">
+            <animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="6s" repeatCount="indefinite" />
+          </path>
+        </g>
+      </g>
 
       {/* freight corridors */}
       {FREIGHT_ROUTES.map((r, i) => (
-        <path
-          key={i}
-          d={r.d}
-          fill="none"
-          stroke="var(--foreground)"
-          strokeWidth="0.4"
-          opacity="0.2"
-        />
+        <path key={i} d={r.d} fill="none" stroke="var(--foreground)" strokeWidth="0.4" opacity="0.25" />
       ))}
 
       {/* waypoints - static, minor stops */}
