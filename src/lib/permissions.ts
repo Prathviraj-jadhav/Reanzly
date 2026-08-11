@@ -38,13 +38,18 @@ function rolePermissions(roleId: string): string[] {
   return ROLE_ARCHETYPES.find((r) => r.id === roleId)?.permissions ?? [];
 }
 
-/** True if this role can reach `moduleId`, directly or via its cluster parent. */
+/** True if this role can reach `moduleId`, directly, via its cluster parent, or via a cluster child. */
 export function hasModuleAccess(roleId: string, moduleId: string): boolean {
   const permissions = rolePermissions(roleId);
   if (permissions.includes("*")) return true;
   if (permissions.includes(moduleId)) return true;
   const parent = MODULE_PARENT[moduleId];
   if (parent && permissions.includes(parent)) return true;
+  // moduleId may itself be a cluster parent (e.g. "hr") that's only ever
+  // granted through a child permission (e.g. "drivers-staff", "payroll").
+  for (const [child, childParent] of Object.entries(MODULE_PARENT)) {
+    if (childParent === moduleId && permissions.includes(child)) return true;
+  }
   return false;
 }
 

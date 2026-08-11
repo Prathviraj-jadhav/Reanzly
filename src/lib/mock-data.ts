@@ -308,7 +308,7 @@ export const ROLE_ARCHETYPES: RoleArchetype[] = [
     description: "HR Manager - drivers & staff, payroll, attendance, leaves, onboarding.",
     branch: "Mumbai HQ",
     permissions: [
-      "dashboard", "drivers-staff", "payroll", "documents", "document-studio", "reports", "chat",
+      "dashboard", "hr", "drivers-staff", "payroll", "documents", "document-studio", "reports", "chat",
     ],
     avatar: "",
     initials: "SR",
