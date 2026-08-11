@@ -3,7 +3,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { RoleArchetype, Notification } from "@/lib/types";
-import { ROLE_ARCHETYPES, NOTIFICATIONS } from "@/lib/mock-data";
+import { ROLE_ARCHETYPES } from "@/lib/mock-data";
 // Type-only import of BusinessType/SubscriptionModel flows the other way
 // (module-catalog.ts imports those types from this file), so this value
 // import does not create a runtime circular dependency - it's only used
@@ -368,10 +368,12 @@ interface AppState {
   notifOpen: boolean;
   setNotifOpen: (v: boolean) => void;
   notifications: Notification[];
+  /** Real fetch from GET /api/notifications - called after restoreSession()
+   *  succeeds, since notifications only exist for a signed-in user. */
+  fetchNotifications: () => Promise<void>;
   markNotifRead: (id: string) => void;
   markAllNotifRead: () => void;
-  /** Dismissed notification ids - hides them from the bell dropdown without
-   *  deleting them. Cleared on reload. */
+  /** Dismisses (deletes) a notification for real via DELETE /api/notifications/[id]. */
   dismissNotif: (id: string) => void;
 
   /** Global system alert banner - shown above the header when set. Used for
@@ -537,6 +539,7 @@ export const useAppStore = create<AppState>()(
             },
             currentRole: role,
           });
+          void get().fetchNotifications();
         } catch {
           // Network hiccup on boot - leave whatever state was persisted;
           // the next authenticated API call will 401 and surface it properly.
@@ -687,19 +690,37 @@ export const useAppStore = create<AppState>()(
 
       notifOpen: false,
       setNotifOpen: (v) => set({ notifOpen: v }),
-      notifications: NOTIFICATIONS,
-      markNotifRead: (id) =>
+      notifications: [],
+      fetchNotifications: async () => {
+        try {
+          const res = await fetch("/api/notifications", { cache: "no-store" });
+          if (!res.ok) return;
+          const data = await res.json();
+          set({ notifications: data.notifications ?? [] });
+        } catch {
+          // Network hiccup - leave whatever was last fetched.
+        }
+      },
+      markNotifRead: (id) => {
         set((s) => ({
           notifications: s.notifications.map((n) => (n.id === id ? { ...n, read: true } : n)),
-        })),
-      markAllNotifRead: () =>
+        }));
+        void fetch(`/api/notifications/${id}`, {
+          method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ read: true }),
+        });
+      },
+      markAllNotifRead: () => {
         set((s) => ({
           notifications: s.notifications.map((n) => ({ ...n, read: true })),
-        })),
-      dismissNotif: (id) =>
+        }));
+        void fetch("/api/notifications/read-all", { method: "POST" });
+      },
+      dismissNotif: (id) => {
         set((s) => ({
           notifications: s.notifications.filter((n) => n.id !== id),
-        })),
+        }));
+        void fetch(`/api/notifications/${id}`, { method: "DELETE" });
+      },
 
       // Default banner: a billing-soft-warning that showcases the new
       // banner pattern. Users can dismiss it; it stays dismissed for the

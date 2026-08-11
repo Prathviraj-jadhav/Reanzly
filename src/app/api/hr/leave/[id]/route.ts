@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
 import { requireModuleAccess } from "@/lib/permissions";
 import { logAudit } from "@/lib/audit";
+import { notifyRole } from "@/lib/notify";
 
 const INCLUDE = { employee: { select: { code: true, name: true, designation: true } } } as const;
 type Row = Awaited<ReturnType<typeof db.leaveRequest.findFirst<{ include: typeof INCLUDE }>>>;
@@ -41,13 +42,25 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const updated = await db.leaveRequest.update({ where: { id }, data, include: INCLUDE });
 
   if (body.status === "Approved" || body.status === "Rejected") {
+    const approved = body.status === "Approved";
     await logAudit({
       sessionUser,
-      action: body.status === "Approved" ? "APPROVE" : "REJECT",
+      action: approved ? "APPROVE" : "REJECT",
       entity: "LeaveRequest",
       entityId: updated.id,
-      description: `${body.status === "Approved" ? "Approved" : "Rejected"} ${updated.type} leave for ${updated.employee.name} (${updated.days}d)`,
+      description: `${approved ? "Approved" : "Rejected"} ${updated.type} leave for ${updated.employee.name} (${updated.days}d)`,
     });
+    if (sessionUser.role !== "owner") {
+      await notifyRole({
+        companyId: sessionUser.companyId,
+        roleId: "owner",
+        category: "HR",
+        title: approved ? "Leave request approved" : "Leave request rejected",
+        description: `${updated.employee.name}'s ${updated.type} leave (${updated.days}d) was ${approved ? "approved" : "rejected"} by ${sessionUser.name}.`,
+        severity: approved ? "info" : "warning",
+        link: { module: "hr", id: updated.id },
+      });
+    }
   }
 
   return NextResponse.json({ leaveRequest: toDTO(updated) });

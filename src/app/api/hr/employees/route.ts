@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
 import { requireModuleAccess } from "@/lib/permissions";
 import { logAudit } from "@/lib/audit";
+import { notifyRole } from "@/lib/notify";
 
 // Real CRUD for HR Employees, replacing the Zustand+localStorage
 // `reanzly-hr` store's employees slice. `documents`/`assetsAssigned` are
@@ -128,6 +129,17 @@ export async function POST(req: NextRequest) {
       entityId: created.code,
       description: `Added new employee record: ${created.name} (${created.designation})`,
     });
+    if (sessionUser.role !== "owner") {
+      await notifyRole({
+        companyId: sessionUser.companyId,
+        roleId: "owner",
+        category: "HR",
+        title: "New employee added",
+        description: `${created.name} joined as ${created.designation}.`,
+        severity: "info",
+        link: { module: "hr", id: created.id },
+      });
+    }
     return NextResponse.json({ employee: toDTO(created) }, { status: 201 });
   } catch (e: any) {
     if (e?.code === "P2002") {

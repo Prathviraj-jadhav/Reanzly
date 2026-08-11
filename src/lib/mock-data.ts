@@ -1,7 +1,7 @@
 import type {
   Trip, Vehicle, Driver, Customer, Vendor, Invoice, Expense, Payment,
   Issue, Inspection, WorkOrder, FuelEntry, LorryReceipt, DocumentRecord,
-  Reminder, Notification,
+  Reminder,
   RoleArchetype, ChatEntity, Widget,
 } from "./types";
 
@@ -702,31 +702,10 @@ export const REMINDERS: Reminder[] = Array.from({ length: 24 }, (_, i) => {
   };
 });
 
-// ===== NOTIFICATIONS =====
-// Tone: savage / witty / teasing - a smart-aleck ops buddy who roasts
-// the user gently while still being informative. PG, never abusive.
-export const NOTIFICATIONS: Notification[] = [
-  // --- Existing 8 (rewritten, category/severity/timestamp/link/read preserved) ---
-  { id: "n1", category: "Compliance", title: "Insurance expires in 6 days. We told you last week.", description: "MH 12 JK 4521's cover lapses Monday. Renew it, or park it. Those are the options.", timestamp: daysAgo(0.02), read: false, link: { module: "documents" }, severity: "warning" },
-  { id: "n2", category: "Rean", title: "22% fuel overfill. Someone's filling more than the tank.", description: "Rean caught an overfill on Eicher Pro 3015 at HP Pump. Investigate before the bill arrives.", timestamp: daysAgo(0.05), read: false, link: { module: "fuel-energy" }, severity: "critical" },
-  { id: "n3", category: "Invoice", title: "Invoice RZ-INV-02147 is 18 days overdue. Awkward.", description: "Meridian Trading Co owes ₹84,200. They're not picking up. You know what to do.", timestamp: daysAgo(0.1), read: false, link: { module: "invoice" }, severity: "warning" },
-  { id: "n4", category: "Trip", title: "Trip RZ-TRP-0042 delivered. POD and all. Be shocked.", description: "Pune delivery closed, POD captured, invoice generated. This is what 'on time' looks like.", timestamp: daysAgo(0.2), read: false, link: { module: "trips", id: "trip-42" }, severity: "info" },
-  { id: "n5", category: "Vehicle", title: "Ashok Leyland 1616 IL broke down on NH-48. Naturally.", description: "Breakdown near Surat. Send help. And snacks for the driver.", timestamp: daysAgo(0.3), read: true, link: { module: "fleet-map" }, severity: "critical" },
-  { id: "n6", category: "Maintenance", title: "BharatBenz 3123 FM is due for service. Yes, again.", description: "Periodic service in 3 days. Skipping it is a choice. A bad one.", timestamp: daysAgo(0.5), read: true, link: { module: "services" }, severity: "info" },
-  { id: "n7", category: "Payment", title: "Kuldeep Singh's settlement approved. He's grinning.", description: "₹18,420 net payable. Releasing it before he asks twice would be nice.", timestamp: daysAgo(0.8), read: true, link: { module: "payments" }, severity: "info" },
-  { id: "n8", category: "Rean", title: "Rean found ₹38,000 hiding in your deadhead miles.", description: "Consolidate Pune-Bengaluru return loads. 14% less empty running. You're welcome.", timestamp: daysAgo(1), read: true, link: { module: "dashboard" }, severity: "info" },
-
-  // --- 8 brand-new savage notifications (tyre, idle, GST, customer block,
-  //     fuel theft, odo tampering, route deviation, payroll pending) ---
-  { id: "n9", category: "Vehicle", title: "Front-left tyre on MH 12 JK 4521 is at 64 PSI. Soft.", description: "Recommended 90 PSI. Inflate it before it becomes a 'situation' on the highway.", timestamp: daysAgo(0.04), read: false, link: { module: "vehicles" }, severity: "warning" },
-  { id: "n10", category: "Trip", title: "Kuldeep's been idle 2h 14m at a dhaba. Suspicious.", description: "Trip RZ-TRP-0039 hasn't moved since 14:22. Call, or pretend not to notice.", timestamp: daysAgo(0.07), read: false, link: { module: "fleet-map" }, severity: "warning" },
-  { id: "n11", category: "Compliance", title: "GSTR-3B due in 36 hours. The portal doesn't accept excuses.", description: "April return filing window closes Thursday. Reconcile, file, then sleep.", timestamp: daysAgo(0.12), read: false, link: { module: "compliance" }, severity: "critical" },
-  { id: "n12", category: "Invoice", title: "Vanguard Distributors is now on credit hold. Their fault.", description: "3 invoices overdue, 47 days average. Future LRs auto-blocked until they settle.", timestamp: daysAgo(0.18), read: false, link: { module: "customers" }, severity: "warning" },
-  { id: "n13", category: "Rean", title: "Rean thinks someone's siphoning diesel. Rean's usually right.", description: "Tank dipped 38 L overnight on parked vehicle MH 14 GH 9921. Camera, maybe?", timestamp: daysAgo(0.22), read: false, link: { module: "fuel-energy" }, severity: "critical" },
-  { id: "n14", category: "Vehicle", title: "Odometer on Tata LPT 1613 went backwards. Physics says no.", description: "Reading dropped 412 km between two GPS pings. Audit the log, then the driver.", timestamp: daysAgo(0.28), read: false, link: { module: "vehicles" }, severity: "critical" },
-  { id: "n15", category: "Trip", title: "Trip RZ-TRP-0038 took a 47 km detour. Tourism?", description: "Vehicle left the planned corridor near Nagpur. ETA pushed 1h 20m. Ask why.", timestamp: daysAgo(0.35), read: true, link: { module: "trips", id: "trip-38" }, severity: "warning" },
-  { id: "n16", category: "Payment", title: "Payroll for 32 drivers is pending. They noticed.", description: "Cycle closes Friday. ₹4.82L net payable. Process before the union does.", timestamp: daysAgo(0.45), read: true, link: { module: "payroll" }, severity: "warning" },
-];
+// Notifications are real now - see src/lib/notify.ts, GET /api/notifications,
+// and src/scripts/seed-notifications.ts. This module used to keep a static
+// mock feed here with a savage/witty tone; that voice carried over into the
+// real seed data's descriptions.
 
 // ===== DASHBOARD WIDGETS =====
 export const DASHBOARD_WIDGETS: Widget[] = [

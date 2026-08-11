@@ -50,6 +50,7 @@ model Company {
   trips       Trip[]
   invoices    Invoice[]
   auditLogs   AuditLog[]
+  notifications Notification[]
 }
 
 model Branch {
@@ -97,6 +98,7 @@ model User {
 
   company      Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   auditLogs    AuditLog[] @relation("AuditActor")
+  notifications Notification[]
   sessions     Session[]
   customer     Customer?
   brokerProfile BrokerProfile?
@@ -438,6 +440,32 @@ model AuditLog {
   timestamp DateTime @default(now())
 
   company   Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+}
+
+// ===== NOTIFICATIONS (real, per-user, real trigger points) =====
+// Replaces the client-only mock-data.ts NOTIFICATIONS array. Written by
+// src/lib/notify.ts from real mutation routes (HR approvals, Automation
+// runs) and a real recurring alert-scan job (overdue invoices), read by
+// GET /api/notifications for the signed-in user.
+model Notification {
+  id          String   @id @default(cuid())
+  companyId   String
+  userId      String   // recipient
+  category    String   // Compliance | Invoice | Trip | Vehicle | Payment | HR | Automation | Rean
+  severity    String   @default("info") // critical | warning | info
+  title       String
+  description String?
+  linkModule  String?
+  linkId      String?
+  dedupeKey   String?  // stable key for idempotent alert-scan jobs, e.g. "overdue-invoice:{invoiceId}"
+  read        Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read])
+  @@index([dedupeKey])
 }
 
 // ===== AUTOMATION =====

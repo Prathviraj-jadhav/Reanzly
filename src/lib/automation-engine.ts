@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { inferSLM } from "@/lib/slm/client";
 import { enqueue } from "@/lib/queue";
+import { notifyRole } from "@/lib/notify";
 
 // Real trigger-evaluation + action-execution engine for the Automation
 // module. Shared by the manual "Run Now" route (src/app/api/automation/
@@ -375,6 +376,26 @@ export async function runAutomationOnce(automationId: string) {
     where: { id: automationId },
     data: { lastRun: new Date(), runCount: { increment: 1 } },
   });
+
+  // Real alerts for real outcomes - only when the automation actually did
+  // something (created a task or work order), not on every scheduled tick,
+  // so this stays a signal instead of noise.
+  if (tasksCreated > 0) {
+    await notifyRole({
+      companyId, roleId: "ops-manager", category: "Automation",
+      title: `${automation.name} created ${tasksCreated} task${tasksCreated === 1 ? "" : "s"}`,
+      description: `Trigger: ${automation.trigger} (${evalResult.totalMatched} match${evalResult.totalMatched === 1 ? "" : "es"}).`,
+      severity: "info", link: { module: "operations-hub" },
+    });
+  }
+  if (workOrdersCreated > 0) {
+    await notifyRole({
+      companyId, roleId: "fleet-manager", category: "Automation",
+      title: `${automation.name} created ${workOrdersCreated} work order${workOrdersCreated === 1 ? "" : "s"}`,
+      description: `Trigger: ${automation.trigger} (${evalResult.totalMatched} match${evalResult.totalMatched === 1 ? "" : "es"}).`,
+      severity: "warning", link: { module: "maintenance" },
+    });
+  }
 
   // Real recurring loop: re-enqueue the next occurrence, but only if the
   // automation is still active + scheduled - a paused/deleted automation's

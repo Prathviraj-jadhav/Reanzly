@@ -9,9 +9,11 @@ export async function register() {
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
 
   try {
-    const { startWorker } = await import("./lib/queue");
+    const { startWorker, startAlertScan } = await import("./lib/queue");
     startWorker();
     console.log("[instrumentation] queue worker started");
+    await startAlertScan();
+    console.log("[instrumentation] alert-scan loop started");
   } catch (err) {
     // Non-fatal: the worker can also be started lazily by /api/health.
     console.warn("[instrumentation] queue worker start failed", err);

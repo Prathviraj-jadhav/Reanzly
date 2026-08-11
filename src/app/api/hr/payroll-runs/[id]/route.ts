@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
 import { requireModuleAccess } from "@/lib/permissions";
 import { logAudit } from "@/lib/audit";
+import { notifyRole } from "@/lib/notify";
 
 const INCLUDE = { _count: { select: { payslips: true } } } as const;
 type Row = Awaited<ReturnType<typeof db.payrollRun.findFirst<{ include: typeof INCLUDE }>>>;
@@ -63,6 +64,17 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     description: action === "approve"
       ? `Approved payroll run for ${updated.month} (${updated._count.payslips} employees)`
       : `Disbursed payroll run for ${updated.month} (${updated._count.payslips} employees)`,
+  });
+
+  const notifyTargetRole = sessionUser.role === "owner" ? "hr-manager" : "owner";
+  await notifyRole({
+    companyId: sessionUser.companyId,
+    roleId: notifyTargetRole,
+    category: "Payment",
+    title: action === "approve" ? "Payroll run approved" : "Payroll disbursed",
+    description: `Payroll for ${updated.month} (${updated._count.payslips} employees) was ${action === "approve" ? "approved" : "disbursed"} by ${sessionUser.name}.`,
+    severity: "info",
+    link: { module: "payroll", id: updated.id },
   });
 
   return NextResponse.json({ payrollRun: toDTO(updated) });

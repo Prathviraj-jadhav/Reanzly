@@ -28,7 +28,8 @@ export type JobType =
   | "report.generate"
   | "audit.log"
   | "cache.invalidate"
-  | "automation.run";
+  | "automation.run"
+  | "notifications.scan-alerts";
 
 export interface Job<T = unknown> {
   id: string;
@@ -399,7 +400,77 @@ function registerBuiltinHandlers(): void {
     }
   );
 
+  // Real recurring alert scan - reuses the same durable job-queue pattern
+  // as automation.run's "loops" to check for overdue invoices and overdue
+  // reminders and raise real notifications for them, instead of a fake
+  // static NOTIFICATIONS list. Idempotent per entity via notify()'s
+  // dedupeKey, so re-running every SCAN_INTERVAL_MS doesn't re-alert on
+  // something already flagged. A dynamic import avoids a static import
+  // cycle with @/lib/db here vs @/lib/notify's own @/lib/db import chain.
+  registerHandler<Record<string, never>>(
+    "notifications.scan-alerts",
+    async () => {
+      const { notifyRole } = await import("@/lib/notify");
+      const companies = await db.company.findMany({ select: { id: true } });
+      let overdueInvoices = 0;
+      let overdueReminders = 0;
+
+      for (const { id: companyId } of companies) {
+        const invoices = await db.invoice.findMany({
+          where: { companyId, paymentStatus: { not: "Paid" }, dueDate: { lt: new Date() } },
+          select: { id: true, invoiceNumber: true, customer: true, totalAmount: true },
+          take: 25,
+        });
+        for (const inv of invoices) {
+          await notifyRole({
+            companyId, roleId: "finance-manager", category: "Invoice",
+            title: `Invoice ${inv.invoiceNumber} is overdue`,
+            description: `${inv.customer} owes ₹${Math.round(inv.totalAmount).toLocaleString("en-IN")}. Payment was due before today.`,
+            severity: "critical", link: { module: "invoice", id: inv.id },
+            dedupeKey: `overdue-invoice:${inv.id}`,
+          });
+          overdueInvoices++;
+        }
+
+        const reminders = await db.reminder.findMany({
+          where: { companyId, status: { in: ["Pending", "Snoozed"] }, dueDate: { lt: new Date() } },
+          select: { id: true, title: true, category: true },
+          take: 25,
+        });
+        for (const rem of reminders) {
+          await notifyRole({
+            companyId, roleId: "fleet-manager", category: "Compliance",
+            title: rem.title,
+            description: `${rem.category} reminder is past its due date.`,
+            severity: "warning", link: { module: "reminders", id: rem.id },
+            dedupeKey: `overdue-reminder:${rem.id}`,
+          });
+          overdueReminders++;
+        }
+      }
+
+      // Re-enqueue the next scan - a real recurring loop, same mechanism
+      // automation.run uses for its schedules.
+      await enqueue("notifications.scan-alerts", {}, { runAfterMs: SCAN_INTERVAL_MS });
+      return { overdueInvoices, overdueReminders };
+    }
+  );
+
   // report.generate handler is registered lazily by the reports module if present.
+}
+
+// How often the alert-scan job re-checks for overdue invoices/reminders.
+const SCAN_INTERVAL_MS = 30 * 60_000; // 30 minutes
+
+/** Kicks off the recurring alert-scan loop - call once at server boot.
+ *  Guards against enqueueing a duplicate parallel loop on dev hot-reload
+ *  by checking for an already-pending scan job first. */
+export async function startAlertScan(): Promise<void> {
+  const pending = await (db as unknown as { job: { findFirst: (a: unknown) => Promise<unknown> } }).job.findFirst({
+    where: { type: "notifications.scan-alerts", status: "pending" },
+  });
+  if (pending) return;
+  await enqueue("notifications.scan-alerts", {}, { runAfterMs: 5_000 });
 }
 
 // ===== Queue stats for observability =====
