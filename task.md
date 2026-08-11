@@ -1674,6 +1674,65 @@ nobody had wired it up.
       across all 17 seeded roles" task rather than touching RBAC as a
       side effect of a data-conversion pass.
 
+## Seeded real data across every empty/sparse module + verified across roles (2026-08-11)
+
+- [x] **"Add real working data in every module for testing purposes, and also
+      into the roles."** Ran a real row-count inventory (not guesswork) across
+      every model with a real CRUD API and found ~16 that were empty despite
+      having genuine endpoints and UI built earlier this session: FuelEntry,
+      Inspection, WorkOrder, Issue, ServiceProgram, Reminder, Expense,
+      LorryReceipt, RateCard, Branch, and the whole HR set (Employee beyond
+      one pre-existing row, AttendanceRecord, LeaveRequest, HrPosition,
+      Candidate).
+      Wrote 3 idempotent seed scripts tied to the already-real Vehicle/
+      Driver/Trip/Customer rows:
+      - `src/scripts/seed-fleet-ops.ts` — 60 fuel entries, 24 inspections,
+        18 work orders, 16 issues, 15 service programs, 22 reminders.
+      - `src/scripts/seed-finance-ops.ts` — 5 branches, 45 expenses, 20
+        lorry receipts, 12 rate cards.
+      - `src/scripts/seed-hr-full.ts` — 28 employees (16 linked to real
+        drivers via `driverId`, never touching the pre-existing real "Anita
+        Sharma" row), 840 attendance records (30 days × 28 employees), 11
+        leave requests, 3 open positions with 9 candidates.
+      Verified live as owner: Dashboard "Open Issues" 0 → 6, "Today's
+      Priorities" now shows a real "7 open work orders" entry, Reports'
+      Maintenance Cost endpoint returns 18 real rows (₹1,90,350 estimated /
+      ₹1,91,150 actual), Rean Insights rowCount 8 → 15, and the seeded
+      "Failed Inspection Work Order" automation now runs against real
+      matches and creates real WorkOrder rows instead of finding nothing.
+
+      **Found and fixed a real RBAC bug while verifying other roles:**
+      switching to `hr-manager` to check the new employee/attendance/leave
+      data returned 403 on every single `/api/hr/*` route. Root cause:
+      `hasModuleAccess()` in `src/lib/permissions.ts` only checked a role's
+      permissions against `moduleId` or `moduleId`'s cluster parent — never
+      the reverse. HR is the one cluster where the ROLE_ARCHETYPES entry
+      grants child permissions (`"drivers-staff"`, `"payroll"`) rather than
+      the parent (`"hr"`), and every HR route checks `requireModuleAccess(user,
+      "hr")` — so every non-owner role has been locked out of HR's real
+      APIs since the HR conversion, unnoticed because nothing had been
+      role-switch-tested against it until now. Fixed `hasModuleAccess()` to
+      also check the reverse direction (does the role hold any child that
+      maps to the requested parent), and added `"hr"` directly to
+      `hr-manager`'s permissions so the sidebar's separate, simpler
+      client-side `canAccess()` (no parent/child resolution at all) renders
+      the HR nav entry — without it the module was reachable by URL/API but
+      had no way to navigate to it. Verified live: `hr-manager` now gets
+      200s from all HR endpoints and a working HR nav item showing 29
+      employees, 79% attendance, 3 open positions, 3 pending leaves, ₹9.10L
+      payroll.
+      Also verified `fleet-manager` (20 work orders, 24 inspections, 60 fuel
+      entries — all real) and `accountant` (45 real expenses; correctly
+      403'd on Lorry Receipts, which was never meant to be in that role's
+      scope).
+
+      **Flagged, not fixed (out of scope for this pass):** the Rate Cards
+      module (`src/components/modules/rate-cards/`) still reads from
+      `src/lib/store/rate-cards-store.ts`, a client-only mock store — it
+      has no real API route at all under `src/app/api`, even though the
+      real `RateCard` Prisma model now has 12 seeded rows. Logged as its
+      own task rather than folded into this seeding pass.
+
 ## Sequencing reminder
 
 Agreed order with the user: **Stage 1 (SLM) → Stage 2 (Chat) → Stage 3 (Calling)**,
