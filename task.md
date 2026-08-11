@@ -1815,6 +1815,63 @@ nobody had wired it up.
       patched to merely *look* real without the backing that'd make them
       actually real.
 
+## Built a real Notifications/Alerts/Triggers system (2026-08-11)
+
+- [x] **"Setup the Triggers and notifications and alerts and all the
+      things."** Direct follow-up to task #49, flagged (not built) during
+      the previous identity-wiring pass: Notifications were 100%
+      client-side mock - `mock-data.ts`'s `NOTIFICATIONS` array fed
+      straight into `app-store.ts`, no Prisma model, no write path from
+      anywhere real ever happened.
+      Added a real `Notification` model (recipient `userId`, category,
+      severity, title/description, link, `dedupeKey` for idempotent
+      recurring scans, read/createdAt) and `src/lib/notify.ts`
+      (`notify()`/`notifyRole()`), mirroring the `logAudit()` pattern from
+      the prior pass.
+      **Real triggers, not a static list:** new employee created notifies
+      owner; leave approved/rejected notifies owner; payroll run approved/
+      disbursed notifies whichever of owner/hr-manager didn't act; a real
+      Automation run that creates real Task/WorkOrder rows notifies
+      ops-manager/fleet-manager - only on actual outcomes, not every
+      scheduled tick, so it stays signal instead of noise.
+      **Real recurring alert scan** - a new `"notifications.scan-alerts"`
+      job type on the existing durable SQLite job queue (the same
+      mechanism Automation's recurring schedules already use), checking
+      real overdue `Invoice` and `Reminder` rows every 30 minutes and
+      raising deduped alerts for finance-manager/fleet-manager. Kicked off
+      automatically at server boot via `startAlertScan()`
+      (`src/instrumentation.ts`), guarded against double-enqueueing a
+      parallel loop on dev hot-reload.
+      Real API: `GET /api/notifications` (signed-in user's own only),
+      `PATCH` mark-read, `POST` mark-all-read, `DELETE` dismiss - every
+      route resolves the user from the verified session, never a
+      client-supplied id. Rewired `app-store.ts`'s notifications slice off
+      the mock array onto a real `fetchNotifications()` called from
+      `restoreSession()`, with `markNotifRead`/`markAllNotifRead`/
+      `dismissNotif` now hitting the real endpoints. Deleted the dead
+      `mock-data.ts` `NOTIFICATIONS` array (16 invented entries) after
+      confirming nothing else imports it.
+      `src/scripts/seed-notifications.ts` seeds a realistic backlog tied to
+      real Users and real Trip/Invoice/FuelEntry/Inspection/WorkOrder/
+      LeaveRequest rows so the bell isn't empty on first load.
+      **Verified live, and this is the good part:** the alert-scan job
+      fired automatically 5 seconds after server boot with zero manual
+      action from me and correctly raised 3 real overdue-reminder
+      notifications. `fleet-manager`'s bell showed 6 real, correctly
+      categorized items total (2 from the seed script + 3 from the live
+      alert scan + read/unread states matching exactly what was expected);
+      `owner` saw 2 real items; `dispatcher` correctly saw 0 (nothing
+      targets that role - confirmed the per-user scoping is real, not
+      just "same list for everyone"). Mark-as-read, mark-all-read, and the
+      full notification panel UI (categories, timestamps, unread dot,
+      dismiss) all verified against the live API. Zero new TypeScript/
+      ESLint errors across the full touched set.
+
+      **Flagged, not built (still out of scope):** a real Approvals
+      workflow module (task #50, unchanged from the previous pass) -
+      still fully mock with invented requester identities, and is a
+      standalone multi-step-chain subsystem, not a quick add to this pass.
+
 ## Sequencing reminder
 
 Agreed order with the user: **Stage 1 (SLM) → Stage 2 (Chat) → Stage 3 (Calling)**,
