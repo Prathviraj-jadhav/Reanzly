@@ -1733,6 +1733,88 @@ nobody had wired it up.
       real `RateCard` Prisma model now has 12 seeded rows. Logged as its
       own task rather than folded into this seeding pass.
 
+## Made "the users" real - AuditLog subsystem, real Users API, fake-actor cleanup, richer chat (2026-08-11)
+
+- [x] **"Now make them real users. like there chat and there workflow each
+      and everything and connect the dots in between and improvise it and
+      make it perfect and great."** Direct follow-up to the seeding pass
+      above: with real business data now flowing, an audit found several
+      "who did this" surfaces across the app were still inventing actor
+      identities that matched none of the 17 real seeded users, and the
+      real chat system (built earlier this session) had exactly 2 messages
+      total in it.
+      **AuditLog subsystem** — the `AuditLog` Prisma model existed with a
+      real `actor -> User` relation but had zero consumers anywhere in
+      `src/app`. Built `src/lib/audit.ts` (`logAudit()`), `GET /api/audit-log`
+      (company-scoped, `?entity=` filterable), and `src/hooks/use-audit-log.ts`.
+      Wired `logAudit()` into HR's real mutation routes (employees create,
+      leave approve/reject, payroll-run approve/disburse, position open)
+      using the real signed-in session user as actor. HR overview's
+      "Recent Activity" widget now reads this real feed instead of a local
+      Zustand `auditLog` slice that was pushing fake entries like
+      `user: "hr@reanzly.in"` (an email matching no real account) on every
+      action — removed that entire fake mechanism from `hr/_store.ts` (17
+      call sites) and the dead `AUDIT_LOG`/`AuditEntry` mock data from
+      `hr/_data.ts`.
+      **Fake-actor cleanup** — Compliance's Audit Log tab had actors like
+      `"Vikram Kapoor"/Owner` (real owner is Vikram **Deshmukh**) and
+      `"Kuldeep Gill"/Safety Officer` (no such person - conflates two real
+      people); Settings > Access & Security's audit feed had targets like
+      `imran@reanzly.in` (not a real account at all); both corrected to
+      real roster names/emails. `CRM_OWNERS` (`crm/_data.ts`) held 6
+      entirely invented names used as the default "owner" on real Lead/Deal
+      records - swapped for real roster names and **backfilled 2 existing
+      Lead/Deal rows** that had already picked up an old fake owner value.
+      Document Studio and Ledger `createdBy` defaults, and HR's issuance
+      signer picklist, corrected the same way.
+      **Real Users list** — `GET /api/users` (safe fields only, `lastActive`
+      computed from each user's most recent real `Session` row, not
+      invented) replaces Settings > Users' `MOCK_USERS`, which had
+      wrong-pattern emails (`vikram@` instead of `vikram.deshmukh@`) and two
+      people who don't exist in the seeded roster at all (Trisha Nair,
+      Joseph Mathew).
+      **Chat, substantially enriched** — `seed-chat.ts` went from 2 total
+      messages to real, business-data-connected conversations across all 5
+      channels (referencing real `Trip`/`Invoice`/`WorkOrder` rows pulled
+      live from the DB, not invented numbers) plus 3 real 1:1 DM threads
+      between real coworkers (ops-manager ↔ dispatcher, hr-manager ↔ owner,
+      fleet-manager ↔ mechanic) — the old seed only ever created Rean DMs,
+      nobody talked to each other. Deleted `mock-data.ts`'s orphaned
+      `CONVERSATIONS`/`INITIAL_CHAT_MESSAGES` arrays after confirming via
+      grep they're genuinely dead code - the real `ChatConversation`/
+      `ChatMessage` Prisma models replaced them earlier this session and
+      nothing still imports the mock versions.
+      **Bugs caught before shipping:** a `react-hooks/set-state-in-effect`
+      violation in the new Settings users hook (fixed by returning the
+      hook's own `[state, setState]` pair instead of bridging two states
+      with a synchronizing effect - the same pattern this session has hit
+      and fixed several times before); and a paise/rupee mismatch in the
+      new chat seed data - divided `WorkOrder.estimatedCost` by 100 out of
+      habit from the paise-storage convention used elsewhere, but
+      `WorkOrder` amounts are stored in plain rupees (confirmed by
+      cross-checking against Reports' Maintenance Cost total, which sums
+      the same field with no conversion) - caught via a live sanity check
+      (`₹110` for a brake job read as obviously wrong) and fixed both the
+      script and the one bad message already written to the DB.
+      Verified live: `/api/audit-log` and `/api/users` return real,
+      correctly-attributed data; HR's Recent Activity renders it; #general/
+      #fleet channels and the new DM show the enriched content with correct
+      real trip/work-order/invoice references and correct rupee amounts.
+      Zero new TypeScript/ESLint errors across the full touched set.
+
+      **Flagged, not built (out of scope for this pass — both are
+      standalone subsystems, not identity fixes):**
+      - **Notifications** are 100% client-side mock — `mock-data.ts`'s
+        `NOTIFICATIONS` array feeds `app-store.ts` directly, no Prisma
+        model, no write path from anywhere real ever happens.
+      - **Approvals** module is fully mock — every `requesterEmail` in
+        `approvals/_helpers.tsx` is invented (`vikram.d@reanzly.in` etc.,
+        not matching any real account), and no real Approval DB model
+        backs the multi-step chain UI.
+      Both logged as their own tasks rather than rushed into this pass or
+      patched to merely *look* real without the backing that'd make them
+      actually real.
+
 ## Sequencing reminder
 
 Agreed order with the user: **Stage 1 (SLM) → Stage 2 (Chat) → Stage 3 (Calling)**,
