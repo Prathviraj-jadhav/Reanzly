@@ -1,7 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
-  "buildCommand": "DATABASE_URL=file:./prisma/reanzly.db npx prisma db push --accept-data-loss && DATABASE_URL=file:./prisma/reanzly.db npx tsx src/scripts/seed-all.ts && DATABASE_URL=file:./prisma/reanzly.db npx prisma generate && DATABASE_URL=file:./prisma/reanzly.db next build",
+  "buildCommand": "bash scripts/build-vercel.sh",
   "installCommand": "bun install",
   "headers": [
     {
