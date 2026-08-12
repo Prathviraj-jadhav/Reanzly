@@ -47,5 +47,5 @@ Thumbs.db
 # Local Claude settings
 .claude/
 
-
-
+# Local deployment credentials (ignored in git, only for coding agents)
+DEPLOYMENT_CREDENTIALS.md
