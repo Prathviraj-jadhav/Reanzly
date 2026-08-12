@@ -53,6 +53,7 @@ model Company {
   notifications Notification[]
   fieldServiceTasks FieldServiceTask[]
   knowledgeArticles KnowledgeArticle[]
+  helpdeskTickets   HelpdeskTicket[]
 }
 
 model Branch {
@@ -543,6 +544,44 @@ model KnowledgeArticle {
   createdAt       DateTime @default(now())
 
   company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, status])
+}
+
+// ===== HELPDESK =====
+// Internal support-team ticketing (the Helpdesk cluster tab inside CRM).
+// Deliberately a separate model from the existing SupportTicket (which is
+// the customer-facing Vendor Portal's ticket model, with a required
+// customerId FK, a different status vocabulary, and its own TKT numbering
+// sequence) - Helpdesk tickets aren't always against a resolved Customer
+// row and need SLA/team-routing/internal-note fields SupportTicket doesn't
+// have. messages/activity/sla are JSON text columns, same convention as
+// FieldServiceTask's checklist/parts/timeEntries.
+model HelpdeskTicket {
+  id             String    @id @default(cuid())
+  companyId      String
+  ticketId       String    @unique // display code, e.g. TKT-2841
+  subject        String
+  description    String
+  customer       String
+  customerCode   String?
+  priority       String    @default("Medium") // Urgent | High | Medium | Low
+  status         String    @default("New") // New | Assigned | In Progress | Waiting | Resolved | Closed
+  channel        String    @default("Email") // Email | Phone | Portal | WhatsApp | In-App
+  team           String    @default("Operations")
+  assignee       String    @default("Unassigned")
+  requester      String
+  requesterEmail String    @default("-")
+  category       String
+  resolvedAt     DateTime?
+  relatedRef     String?
+  slaJson        String    @default("{}") // JSON: {responseDue,resolutionDue,firstResponseAt?,resolvedAt?}
+  messagesJson   String    @default("[]") // JSON: {id,author,role,text,ts,internal?}[]
+  activityJson   String    @default("[]") // JSON: {icon,label,detail,ts}[]
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  company        Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@index([companyId, status])
 }

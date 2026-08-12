@@ -45,8 +45,7 @@ import {
 interface TicketsListProps {
   tickets: HelpdeskTicket[];
   onCreate: () => void;
-  onAdd?: (t: HelpdeskTicket) => void;
-  onUpdate?: (id: string, data: Partial<HelpdeskTicket>) => void;
+  onUpdate?: (id: string, data: Record<string, unknown>) => Promise<boolean>;
 }
 
 const DATE_RANGE_PRESETS = [
@@ -94,7 +93,7 @@ function SlaCell({ ticket }: { ticket: HelpdeskTicket }) {
   );
 }
 
-export function TicketsList({ tickets, onCreate }: TicketsListProps) {
+export function TicketsList({ tickets, onCreate, onUpdate }: TicketsListProps) {
   const { navigateDetail } = useAppStore();
   const [search, setSearch] = useState("");
   const [priorityFilter, setPriorityFilter] = useState<Set<string>>(new Set());
@@ -252,8 +251,10 @@ export function TicketsList({ tickets, onCreate }: TicketsListProps) {
     { label: "Add internal note", onClick: (t: HelpdeskTicket) => toast(`Internal note`, { description: t.ticketId }) },
     {
       label: "Mark resolved",
-      onClick: (t: HelpdeskTicket) =>
-        toast.success(`Ticket resolved`, { description: t.ticketId }),
+      onClick: (t: HelpdeskTicket) => {
+        onUpdate?.(t.id, { status: "Resolved" });
+        toast.success(`Ticket resolved`, { description: t.ticketId });
+      },
     },
     {
       label: "Escalate",

@@ -45,7 +45,7 @@ import {
 interface AddTicketDrawerProps {
   open: boolean;
   onClose: () => void;
-  onAdd?: (t: HelpdeskTicket) => void;
+  onAdd?: (t: HelpdeskTicket) => Promise<boolean>;
 }
 
 interface TicketForm {
@@ -76,6 +76,7 @@ const EMPTY_FORM: TicketForm = {
 
 export function AddTicketDrawer({ open, onClose, onAdd }: AddTicketDrawerProps) {
   const [form, setForm] = useState<TicketForm>(EMPTY_FORM);
+  const [submitting, setSubmitting] = useState(false);
 
   const update = <K extends keyof TicketForm>(k: K, v: TicketForm[K]) =>
     setForm((s) => ({ ...s, [k]: v }));
@@ -88,7 +89,7 @@ export function AddTicketDrawer({ open, onClose, onAdd }: AddTicketDrawerProps) 
 
   const targets = SLA_TARGETS[form.priority];
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (errors.length > 0) {
       toast("Cannot create ticket", { description: errors[0] });
       return;
@@ -134,7 +135,10 @@ export function AddTicketDrawer({ open, onClose, onAdd }: AddTicketDrawerProps) 
         },
       ],
     };
-    if (onAdd) onAdd(newTicket);
+    setSubmitting(true);
+    const ok = await onAdd?.(newTicket);
+    setSubmitting(false);
+    if (ok === false) return;
     toast.success(`Ticket ${newId} created`, {
       description: `${form.priority} · ${form.team} · SLA ${targets.response}m/${Math.round(targets.resolution / 60)}h`,
     });
@@ -341,8 +345,8 @@ export function AddTicketDrawer({ open, onClose, onAdd }: AddTicketDrawerProps) 
         {/* Footer */}
         <div className="flex items-center justify-between border-t border-border px-5 py-3">
           <Btn variant="ghost" onClick={onClose}>Cancel</Btn>
-          <Btn variant="primary" icon={<Check className="h-3.5 w-3.5" />} onClick={handleSubmit}>
-            Create Ticket
+          <Btn variant="primary" icon={<Check className="h-3.5 w-3.5" />} onClick={handleSubmit} disabled={submitting}>
+            {submitting ? "Creating…" : "Create Ticket"}
           </Btn>
         </div>
       </SheetContent>

@@ -244,7 +244,11 @@ export interface HelpdeskTicket {
   activity: TicketActivity[];
 }
 
-// ===== Mock data: 25 realistic Indian logistics support tickets =====
+// ===== Seed data: 25 realistic Indian logistics support tickets =====
+// HELPDESK_TICKETS below is no longer read by the live app (see
+// src/app/api/helpdesk and src/scripts/seed-helpdesk.ts) - the module now
+// runs on the real HelpdeskTicket Prisma model. Kept as the seed script's
+// source data so this hand-authored content isn't thrown away.
 // SLA due timestamps are computed deterministically from createdAt so the
 // overdue / on-track badges stay stable across renders.
 function slaFor(createdAt: string, priority: TicketPriority, resolvedAt?: string): SlaClock {

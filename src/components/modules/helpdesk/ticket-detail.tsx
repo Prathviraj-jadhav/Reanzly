@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { DetailLayout, InfoRow, InfoSection, StatCard } from "@/components/shared/detail-layout";
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { useAppStore } from "@/lib/store/app-store";
-import { HELPDESK_TICKETS, type HelpdeskTicket } from "./_helpers";
+import { type HelpdeskTicket } from "./_helpers";
 import {
   Pencil,
   Clock,
@@ -65,16 +65,40 @@ interface TicketDetailProps {
   ticketId: string;
 }
 
+// Real, database-backed ticket (src/app/api/helpdesk) - fetched by id
+// directly rather than re-derived from a static mock array, which is what
+// caused newly created tickets to show "not found" here.
+function useTicket(ticketId: string) {
+  const [ticket, setTicket] = useState<HelpdeskTicket | undefined>(undefined);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-by-id on prop change, guarded by `cancelled`
+    setLoading(true);
+    fetch(`/api/helpdesk/${ticketId}`, { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (cancelled) return;
+        setTicket(data?.ticket ?? undefined);
+      })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [ticketId]);
+
+  return { ticket, setTicket, loading };
+}
+
 export function TicketDetail({ ticketId }: TicketDetailProps) {
   const { navigate } = useAppStore();
   const [activeTab, setActiveTab] = useState("overview");
   const [reply, setReply] = useState("");
   const [internal, setInternal] = useState(false);
-  const [record, setRecord] = useState<HelpdeskTicket | undefined>(
-    () => HELPDESK_TICKETS.find((t) => t.id === ticketId || t.ticketId === ticketId),
-  );
+  const { ticket, setTicket, loading } = useTicket(ticketId);
 
-  const ticket = record;
+  if (loading) {
+    return <div className="p-6 text-[13px] text-muted-foreground">Loading ticket…</div>;
+  }
 
   if (!ticket) {
     return (
@@ -87,54 +111,31 @@ export function TicketDetail({ ticketId }: TicketDetailProps) {
     );
   }
 
-  const handleStatusChange = (newStatus: TicketStatus) => {
-    setRecord((prev) =>
-      prev
-        ? {
-            ...prev,
-            status: newStatus,
-            updatedAt: new Date().toISOString(),
-            resolvedAt:
-              newStatus === "Resolved" || newStatus === "Closed"
-                ? prev.resolvedAt ?? new Date().toISOString()
-                : prev.resolvedAt,
-            activity: [
-              ...prev.activity,
-              {
-                icon: newStatus === "Resolved" ? "check" : newStatus === "Closed" ? "archive" : "play",
-                label: `Status → ${newStatus}`,
-                detail: `changed by ${"current user"}`,
-                ts: new Date().toISOString(),
-              },
-            ],
-          }
-        : prev,
-    );
-    toast.success(`Status updated`, { description: `${ticket.status} → ${newStatus}` });
+  const patch = async (body: Record<string, unknown>) => {
+    const res = await fetch(`/api/helpdesk/${ticket.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      toast.error("Couldn't save ticket", { description: "Try again." });
+      return null;
+    }
+    const { ticket: updated } = await res.json();
+    setTicket(updated);
+    return updated;
   };
 
-  const handleReply = () => {
+  const handleStatusChange = async (newStatus: TicketStatus) => {
+    const prevStatus = ticket.status;
+    const updated = await patch({ status: newStatus });
+    if (updated) toast.success(`Status updated`, { description: `${prevStatus} → ${newStatus}` });
+  };
+
+  const handleReply = async () => {
     if (!reply.trim()) return;
-    setRecord((prev) =>
-      prev
-        ? {
-            ...prev,
-            messages: [
-              ...prev.messages,
-              {
-                id: `m-${Date.now()}`,
-                author: "You",
-                role: "Agent",
-                text: reply.trim(),
-                ts: new Date().toISOString(),
-                internal,
-              },
-            ],
-            updatedAt: new Date().toISOString(),
-          }
-        : prev,
-    );
-    toast.success(internal ? "Internal note added" : "Reply sent to customer");
+    const updated = await patch({ newMessage: { text: reply.trim(), internal } });
+    if (updated) toast.success(internal ? "Internal note added" : "Reply sent to customer");
     setReply("");
     setInternal(false);
   };
