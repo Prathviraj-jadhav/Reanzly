@@ -129,6 +129,10 @@ export const ROLE_ARCHETYPES: RoleArchetype[] = [
       "reminders", "documents", "document-studio", "reports", "chat",
       // New modules - ops touches all of these.
       "pod", "rate-cards", "warehouse", "compliance",
+      // Automation is a tab inside the Settings cluster - ops configures
+      // most triggers (Trip/Document/Inspection events), so needs the
+      // cluster anchor to reach it, same fix pattern as HR/Field Service.
+      "settings",
     ],
     avatar: "",
     initials: "RS",
@@ -146,6 +150,10 @@ export const ROLE_ARCHETYPES: RoleArchetype[] = [
       // reaching it in the sidebar needs the operations-hub permission too
       // (not just field-service, which only gates the API/component).
       "workshop", "compliance", "field-service", "operations-hub",
+      // Automation is a tab inside the Settings cluster - fleet configures
+      // Inspection/WorkOrder-triggered automations (e.g. the seeded "Failed
+      // Inspection Work Order" automation), so needs the cluster anchor.
+      "settings",
     ],
     avatar: "",
     initials: "SG",
@@ -161,6 +169,9 @@ export const ROLE_ARCHETYPES: RoleArchetype[] = [
       // and GST compliance.
       "financial-ops", "rate-cards", "payroll", "compliance",
       "ledger",
+      // Automation is a tab inside the Settings cluster - finance configures
+      // Invoice/Payment-triggered automations, so needs the cluster anchor.
+      "settings",
     ],
     avatar: "",
     initials: "RM",
