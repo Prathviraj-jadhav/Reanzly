@@ -26,6 +26,12 @@ mini-services/slm-engine/target/
 dev.log
 server.log
 
+# Environment variables
+.env
+.env.local
+.env.development
+.env.test
+
 # IDE & local agent config
 .vscode/
 .idea/
