@@ -28,6 +28,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuCheckboxItem,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import {
   TASK_TYPES,
@@ -36,15 +42,16 @@ import {
   type FieldTask,
   formatDate,
   formatDateTime,
+  toInputDateTime,
   typeBadge,
   statusBadge,
 } from "./_helpers";
 
 interface TasksListProps {
   tasks: FieldTask[];
+  loaded?: boolean;
   onCreate: () => void;
-  onAdd?: (t: FieldTask) => void;
-  onUpdate?: (id: string, data: Partial<FieldTask>) => void;
+  onUpdate: (id: string, data: Partial<FieldTask> & Record<string, unknown>) => Promise<FieldTask | null>;
 }
 
 const DATE_RANGE_PRESETS = [
@@ -54,13 +61,35 @@ const DATE_RANGE_PRESETS = [
   { id: "90d", label: "Last 90 days" },
 ];
 
-export function TasksList({ tasks, onCreate }: TasksListProps) {
+function exportCsv(tasks: FieldTask[]) {
+  const headers = ["Task ID", "Title", "Type", "Customer", "Technician", "Scheduled", "Status", "Priority", "Location"];
+  const rows = tasks.map((t) => [
+    t.taskId, t.title, t.type, t.customer, t.technician,
+    formatDateTime(t.scheduledAt), t.status, t.priority, t.location,
+  ]);
+  const csv = [headers, ...rows]
+    .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","))
+    .join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `field-service-tasks-${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+export function TasksList({ tasks, loaded, onCreate, onUpdate }: TasksListProps) {
   const { navigateDetail } = useAppStore();
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<Set<string>>(new Set());
   const [statusFilter, setStatusFilter] = useState<Set<string>>(new Set());
   const [techFilter, setTechFilter] = useState<string>("");
   const [dateRange, setDateRange] = useState("all");
+  const [reassignTarget, setReassignTarget] = useState<FieldTask[] | null>(null);
+  const [rescheduleTarget, setRescheduleTarget] = useState<FieldTask[] | null>(null);
 
   const filtered = useMemo(() => {
     let r = tasks;
@@ -200,35 +229,39 @@ export function TasksList({ tasks, onCreate }: TasksListProps) {
 
   const rowActions = [
     { label: "View", onClick: (t: FieldTask) => navigateDetail("field-service", t.id) },
-    { label: "Reassign", onClick: (t: FieldTask) => toast(`Reassign task`, { description: t.taskId }) },
-    { label: "Reschedule", onClick: (t: FieldTask) => toast(`Reschedule task`, { description: t.taskId }) },
+    { label: "Reassign", onClick: (t: FieldTask) => setReassignTarget([t]) },
+    { label: "Reschedule", onClick: (t: FieldTask) => setRescheduleTarget([t]) },
     {
       label: "Mark completed",
-      onClick: (t: FieldTask) =>
-        toast.success(`Task marked complete`, { description: t.taskId }),
+      onClick: async (t: FieldTask) => {
+        const res = await onUpdate(t.id, { status: "Completed" });
+        if (res) toast.success("Task marked complete", { description: t.taskId });
+      },
     },
     {
       label: "Cancel",
-      onClick: (t: FieldTask) =>
-        toast(`Task cancelled`, { description: t.taskId }),
+      onClick: async (t: FieldTask) => {
+        const res = await onUpdate(t.id, { status: "Cancelled" });
+        if (res) toast("Task cancelled", { description: t.taskId });
+      },
     },
   ];
 
   const bulkActions = [
     {
       label: "Export",
-      onClick: (selected: FieldTask[]) =>
-        toast(`${selected.length} task${selected.length === 1 ? "" : "s"} exported`, { description: "CSV file generated" }),
+      onClick: (selected: FieldTask[]) => {
+        exportCsv(selected);
+        toast.success(`${selected.length} task${selected.length === 1 ? "" : "s"} exported`, { description: "CSV file downloaded" });
+      },
     },
     {
       label: "Assign",
-      onClick: (selected: FieldTask[]) =>
-        toast.success(`${selected.length} task${selected.length === 1 ? "" : "s"} reassigned`),
+      onClick: (selected: FieldTask[]) => setReassignTarget(selected),
     },
     {
       label: "Reschedule",
-      onClick: (selected: FieldTask[]) =>
-        toast(`${selected.length} task${selected.length === 1 ? "" : "s"} rescheduled`),
+      onClick: (selected: FieldTask[]) => setRescheduleTarget(selected),
     },
   ];
 
@@ -240,14 +273,14 @@ export function TasksList({ tasks, onCreate }: TasksListProps) {
     description: string;
     action: ReactNode;
   }>(() => ({
-    title: "No field tasks found",
-    description: "Adjust filters or create a new field service task to dispatch a technician.",
+    title: loaded === false ? "Loading field tasks…" : "No field tasks found",
+    description: loaded === false ? "" : "Adjust filters or create a new field service task to dispatch a technician.",
     action: (
       <Btn variant="primary" icon={<Plus className="h-3.5 w-3.5" />} onClick={onCreate}>
         New Task
       </Btn>
     ),
-  }), [onCreate]);
+  }), [onCreate, loaded]);
 
   return (
     <div className="flex flex-col gap-5">
@@ -262,7 +295,7 @@ export function TasksList({ tasks, onCreate }: TasksListProps) {
         ]}
         actions={
           <>
-            <Btn icon={<Download className="h-3.5 w-3.5" />} onClick={() => toast("Exporting tasks", { description: "CSV file generated" })} aria-label="Export">
+            <Btn icon={<Download className="h-3.5 w-3.5" />} onClick={() => { exportCsv(filtered); toast.success("Exporting tasks", { description: "CSV file downloaded" }); }} aria-label="Export">
               <span className="hidden sm:inline">Export</span>
             </Btn>
             <Btn variant="primary" icon={<Plus className="h-3.5 w-3.5" />} onClick={onCreate}>New Task</Btn>
@@ -385,7 +418,114 @@ export function TasksList({ tasks, onCreate }: TasksListProps) {
       <p className="text-[11px] text-muted-foreground">
         {tasks.length} tasks · {TASK_TYPES.length} types · {TASK_STATUSES.length} statuses · {TECHNICIANS.length} technicians on roster
       </p>
+
+      <ReassignDialog
+        key={reassignTarget?.map((t) => t.id).join(",") ?? "reassign-closed"}
+        tasks={reassignTarget}
+        onClose={() => setReassignTarget(null)}
+        onConfirm={async (technician) => {
+          const targets = reassignTarget ?? [];
+          const results = await Promise.all(targets.map((t) => onUpdate(t.id, { technician })));
+          const ok = results.filter(Boolean).length;
+          if (ok > 0) toast.success(`${ok} task${ok === 1 ? "" : "s"} reassigned to ${technician}`);
+          setReassignTarget(null);
+        }}
+      />
+      <RescheduleDialog
+        key={rescheduleTarget?.map((t) => t.id).join(",") ?? "reschedule-closed"}
+        tasks={rescheduleTarget}
+        onClose={() => setRescheduleTarget(null)}
+        onConfirm={async (scheduledAt) => {
+          const targets = rescheduleTarget ?? [];
+          const results = await Promise.all(targets.map((t) => onUpdate(t.id, { scheduledAt })));
+          const ok = results.filter(Boolean).length;
+          if (ok > 0) toast.success(`${ok} task${ok === 1 ? "" : "s"} rescheduled`);
+          setRescheduleTarget(null);
+        }}
+      />
     </div>
+  );
+}
+
+function ReassignDialog({
+  tasks,
+  onClose,
+  onConfirm,
+}: {
+  tasks: FieldTask[] | null;
+  onClose: () => void;
+  onConfirm: (technician: string) => void;
+}) {
+  const [technician, setTechnician] = useState<string>("");
+  const open = tasks !== null && tasks.length > 0;
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Reassign technician</DialogTitle>
+          <DialogDescription>
+            {tasks && tasks.length === 1
+              ? `Reassign ${tasks[0].taskId} to a different technician.`
+              : `Reassign ${tasks?.length ?? 0} tasks to a different technician.`}
+          </DialogDescription>
+        </DialogHeader>
+        <Select value={technician} onValueChange={setTechnician}>
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder="Select technician" />
+          </SelectTrigger>
+          <SelectContent>
+            {TECHNICIANS.map((t) => (
+              <SelectItem key={t} value={t}>{t}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <DialogFooter>
+          <Btn variant="outline" onClick={onClose}>Cancel</Btn>
+          <Btn variant="primary" disabled={!technician} onClick={() => onConfirm(technician)}>Reassign</Btn>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function RescheduleDialog({
+  tasks,
+  onClose,
+  onConfirm,
+}: {
+  tasks: FieldTask[] | null;
+  onClose: () => void;
+  onConfirm: (scheduledAt: string) => void;
+}) {
+  const [value, setValue] = useState<string>(
+    () => (tasks && tasks.length === 1 ? toInputDateTime(tasks[0].scheduledAt) : ""),
+  );
+  const open = tasks !== null && tasks.length > 0;
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Reschedule</DialogTitle>
+          <DialogDescription>
+            {tasks && tasks.length === 1
+              ? `Reschedule ${tasks[0].taskId} to a new date and time.`
+              : `Reschedule ${tasks?.length ?? 0} tasks to a new date and time.`}
+          </DialogDescription>
+        </DialogHeader>
+        <Input
+          type="datetime-local"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          className="h-9 rounded-[5px] text-[13px]"
+        />
+        <DialogFooter>
+          <Btn variant="outline" onClick={onClose}>Cancel</Btn>
+          <Btn variant="primary" disabled={!value} onClick={() => onConfirm(new Date(value).toISOString())}>Reschedule</Btn>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

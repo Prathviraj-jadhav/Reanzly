@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { DetailLayout, InfoRow, InfoSection, StatCard } from "@/components/shared/detail-layout";
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { useAppStore } from "@/lib/store/app-store";
-import { FIELD_TASKS, type FieldTask, type ChecklistItem, type PartUsed, type TimeEntry } from "./_helpers";
+import type { FieldTask, ChecklistItem, PartUsed, TimeEntry } from "./_helpers";
 import {
   Pencil,
   Wrench,
@@ -25,6 +25,9 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import {
+  TASK_TYPES,
+  TASK_PRIORITIES,
+  TECHNICIANS,
   formatDateTime,
   relativeTime,
   formatDuration,
@@ -32,11 +35,20 @@ import {
   statusBadge,
   priorityBadge,
   STATUS_TRANSITIONS,
+  FieldLabel,
   type TaskStatus,
+  type TaskType,
+  type TaskPriority,
 } from "./_helpers";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
 const TABS = [
@@ -49,16 +61,48 @@ const TABS = [
 
 interface TaskDetailProps {
   taskId: string;
+  onUpdate: (id: string, data: Partial<FieldTask> & Record<string, unknown>) => Promise<FieldTask | null>;
 }
 
-export function TaskDetail({ taskId }: TaskDetailProps) {
+export function TaskDetail({ taskId, onUpdate }: TaskDetailProps) {
   const { navigate } = useAppStore();
   const [activeTab, setActiveTab] = useState("overview");
-  const [record, setRecord] = useState<FieldTask | undefined>(
-    () => FIELD_TASKS.find((t) => t.id === taskId || t.taskId === taskId),
-  );
+  const [task, setTask] = useState<FieldTask | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [notesDraft, setNotesDraft] = useState("");
+  const [editOpen, setEditOpen] = useState(false);
 
-  const task = record;
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    fetch(`/api/field-service/${taskId}`, { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (cancelled) return;
+        setTask(data?.task ?? null);
+        setNotesDraft(data?.task?.notes ?? "");
+      })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [taskId]);
+
+  // Applies a real update via the parent's onUpdate() and syncs local state
+  // from the server's real response - every action on this page goes
+  // through this, so nothing is ever purely local/throwaway anymore.
+  const apply = async (patch: Partial<FieldTask> & Record<string, unknown>) => {
+    if (!task) return null;
+    const updated = await onUpdate(task.id, patch);
+    if (updated) setTask(updated);
+    return updated;
+  };
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-3 py-20">
+        <p className="text-[14px] text-muted-foreground">Loading task…</p>
+      </div>
+    );
+  }
 
   if (!task) {
     return (
@@ -71,37 +115,23 @@ export function TaskDetail({ taskId }: TaskDetailProps) {
     );
   }
 
-  const handleStatusChange = (newStatus: TaskStatus) => {
+  const handleStatusChange = async (newStatus: TaskStatus) => {
     if (newStatus === task.status) return;
-    setRecord((prev) =>
-      prev
-        ? {
-            ...prev,
-            status: newStatus,
-            updatedAt: new Date().toISOString(),
-            completedAt: newStatus === "Completed" ? new Date().toISOString() : prev.completedAt,
-          }
-        : prev,
+    const prevStatus = task.status;
+    const updated = await apply({ status: newStatus });
+    if (updated) toast.success("Status updated", { description: `${prevStatus} → ${newStatus}` });
+  };
+
+  const toggleChecklist = async (itemId: string) => {
+    const next: ChecklistItem[] = task.checklist.map((c) =>
+      c.id === itemId
+        ? { ...c, done: !c.done, ts: !c.done ? new Date().toISOString() : undefined }
+        : c,
     );
-    toast.success(`Status updated`, { description: `${task.status} → ${newStatus}` });
+    await apply({ checklist: next });
   };
 
-  const toggleChecklist = (itemId: string) => {
-    setRecord((prev) => {
-      if (!prev) return prev;
-      return {
-        ...prev,
-        checklist: prev.checklist.map((c) =>
-          c.id === itemId
-            ? { ...c, done: !c.done, ts: !c.done ? new Date().toISOString() : undefined }
-            : c,
-        ),
-        updatedAt: new Date().toISOString(),
-      };
-    });
-  };
-
-  const addPart = () => {
+  const addPart = async () => {
     const newPart: PartUsed = {
       id: `p-${Date.now()}`,
       name: "New part",
@@ -109,54 +139,46 @@ export function TaskDetail({ taskId }: TaskDetailProps) {
       qty: 1,
       unitCost: 0,
     };
-    setRecord((prev) =>
-      prev ? { ...prev, parts: [...prev.parts, newPart], updatedAt: new Date().toISOString() } : prev,
-    );
-    toast.success("Part added");
+    const updated = await apply({ parts: [...task.parts, newPart] });
+    if (updated) toast.success("Part added");
   };
 
-  const removePart = (id: string) => {
-    setRecord((prev) =>
-      prev ? { ...prev, parts: prev.parts.filter((p) => p.id !== id) } : prev,
-    );
+  const removePart = async (id: string) => {
+    await apply({ parts: task.parts.filter((p) => p.id !== id) });
   };
 
-  const stopTimeEntry = (id: string) => {
-    setRecord((prev) => {
-      if (!prev) return prev;
-      return {
-        ...prev,
-        timeEntries: prev.timeEntries.map((e) => {
-          if (e.id === id && !e.end) {
-            const end = new Date().toISOString();
-            const minutes = Math.round((new Date(end).getTime() - new Date(e.start).getTime()) / 60000);
-            return { ...e, end, minutes };
-          }
-          return e;
-        }),
-      };
-    });
-    toast.success("Time entry stopped");
-  };
-
-  const startTimeEntry = () => {
+  const startTimeEntry = async () => {
     const newEntry: TimeEntry = {
       id: `t-${Date.now()}`,
       label: "Work session",
       start: new Date().toISOString(),
       minutes: 0,
     };
-    setRecord((prev) =>
-      prev ? { ...prev, timeEntries: [...prev.timeEntries, newEntry] } : prev,
-    );
-    toast.success("Time entry started");
+    const updated = await apply({ timeEntries: [...task.timeEntries, newEntry] });
+    if (updated) toast.success("Time entry started");
   };
 
-  const captureSignature = () => {
-    setRecord((prev) =>
-      prev ? { ...prev, signatureCaptured: true, updatedAt: new Date().toISOString() } : prev,
-    );
-    toast.success("Customer signature captured");
+  const stopTimeEntry = async (id: string) => {
+    const next: TimeEntry[] = task.timeEntries.map((e) => {
+      if (e.id === id && !e.end) {
+        const end = new Date().toISOString();
+        const minutes = Math.round((new Date(end).getTime() - new Date(e.start).getTime()) / 60000);
+        return { ...e, end, minutes };
+      }
+      return e;
+    });
+    const updated = await apply({ timeEntries: next });
+    if (updated) toast.success("Time entry stopped");
+  };
+
+  const captureSignature = async () => {
+    const updated = await apply({ signatureCaptured: true });
+    if (updated) toast.success("Customer signature captured");
+  };
+
+  const saveNotes = async () => {
+    const updated = await apply({ notes: notesDraft });
+    if (updated) toast.success("Notes saved");
   };
 
   const totalPartsCost = task.parts.reduce((s, p) => s + p.qty * p.unitCost, 0);
@@ -170,7 +192,7 @@ export function TaskDetail({ taskId }: TaskDetailProps) {
 
   const actions = (
     <>
-      <Btn icon={<Pencil className="h-3.5 w-3.5" />} onClick={() => toast("Edit task", { description: task.taskId })} aria-label="Edit">
+      <Btn icon={<Pencil className="h-3.5 w-3.5" />} onClick={() => setEditOpen(true)} aria-label="Edit">
         <span className="hidden sm:inline">Edit</span>
       </Btn>
       <Btn variant="primary" icon={<CheckCircle2 className="h-3.5 w-3.5" />} onClick={() => handleStatusChange("Completed")} disabled={task.status === "Completed" || task.status === "Cancelled"}>
@@ -181,15 +203,14 @@ export function TaskDetail({ taskId }: TaskDetailProps) {
   );
 
   const quickActions = [
-    { label: "Reassign technician", onClick: () => toast("Reassign task", { description: task.taskId }) },
-    { label: "Reschedule", onClick: () => toast("Reschedule task", { description: task.taskId }) },
+    { label: "Reassign technician", onClick: () => setEditOpen(true) },
     { label: "Open worksheet", onClick: () => setActiveTab("worksheet") },
     { label: "Capture signature", onClick: () => setActiveTab("signature") },
     {
       label: "Cancel task",
-      onClick: () => {
-        handleStatusChange("Cancelled");
-        navigate("field-service");
+      onClick: async () => {
+        const updated = await apply({ status: "Cancelled" });
+        if (updated) navigate("field-service");
       },
     },
   ];
@@ -326,11 +347,13 @@ export function TaskDetail({ taskId }: TaskDetailProps) {
           <InfoSection title="Technician Notes">
             <div className="px-4 py-3">
               <Textarea
+                value={notesDraft}
+                onChange={(e) => setNotesDraft(e.target.value)}
                 placeholder="Add notes about the work performed, observations, or follow-up actions…"
                 className="min-h-[100px] rounded-[5px] text-[13px] bg-background"
               />
               <div className="mt-2 flex justify-end">
-                <Btn size="sm" variant="primary" onClick={() => toast.success("Notes saved")}>Save notes</Btn>
+                <Btn size="sm" variant="primary" onClick={saveNotes} disabled={notesDraft === (task.notes ?? "")}>Save notes</Btn>
               </div>
             </div>
           </InfoSection>
@@ -479,7 +502,10 @@ export function TaskDetail({ taskId }: TaskDetailProps) {
                     <div className="text-[11px] text-muted-foreground tabular">
                       {task.contactName} · {formatDateTime(task.updatedAt)}
                     </div>
-                    <Btn size="sm" variant="ghost" onClick={() => toast("Re-capture signature")}>Re-capture</Btn>
+                    <Btn size="sm" variant="ghost" onClick={async () => {
+                      const updated = await apply({ signatureCaptured: false });
+                      if (updated) toast("Signature cleared - ready to re-capture");
+                    }}>Re-capture</Btn>
                   </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center gap-3 py-12">
@@ -529,6 +555,8 @@ export function TaskDetail({ taskId }: TaskDetailProps) {
           </div>
         </div>
       )}
+
+      <EditTaskDialog task={task} open={editOpen} onClose={() => setEditOpen(false)} onSave={apply} />
     </DetailLayout>
   );
 }
@@ -547,5 +575,136 @@ function ChecklistRow({ item, onToggle }: { item: ChecklistItem; onToggle: () =>
       </div>
       {item.done && <CheckCircle2 className="h-3.5 w-3.5 text-muted-foreground" />}
     </label>
+  );
+}
+
+function EditTaskDialog({
+  task,
+  open,
+  onClose,
+  onSave,
+}: {
+  task: FieldTask;
+  open: boolean;
+  onClose: () => void;
+  onSave: (patch: Partial<FieldTask> & Record<string, unknown>) => Promise<FieldTask | null>;
+}) {
+  const [form, setForm] = useState({
+    title: task.title,
+    type: task.type as TaskType,
+    customer: task.customer,
+    technician: task.technician,
+    priority: task.priority as TaskPriority,
+    location: task.location,
+    vehicleRef: task.vehicleRef ?? "",
+    contactName: task.contactName,
+    contactPhone: task.contactPhone,
+    description: task.description,
+  });
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      setForm({
+        title: task.title, type: task.type as TaskType, customer: task.customer,
+        technician: task.technician, priority: task.priority as TaskPriority, location: task.location,
+        vehicleRef: task.vehicleRef ?? "", contactName: task.contactName, contactPhone: task.contactPhone,
+        description: task.description,
+      });
+    }
+  }, [open, task]);
+
+  const update = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) => setForm((s) => ({ ...s, [k]: v }));
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      const updated = await onSave({
+        title: form.title.trim(), type: form.type, customer: form.customer.trim(),
+        technician: form.technician, priority: form.priority, location: form.location.trim(),
+        vehicleRef: form.vehicleRef.trim() || undefined, contactName: form.contactName.trim(),
+        contactPhone: form.contactPhone.trim(), description: form.description.trim(),
+      });
+      if (updated) {
+        toast.success("Task updated");
+        onClose();
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
+      <DialogContent className="sm:max-w-md max-h-[85vh] overflow-y-auto scrollbar-thin">
+        <DialogHeader>
+          <DialogTitle>Edit task</DialogTitle>
+          <DialogDescription>Update {task.taskId}'s details.</DialogDescription>
+        </DialogHeader>
+        <div className="flex flex-col gap-3">
+          <div>
+            <FieldLabel required>Title</FieldLabel>
+            <Input value={form.title} onChange={(e) => update("title", e.target.value)} className="h-8 rounded-[5px] text-[13px]" />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <FieldLabel required>Type</FieldLabel>
+              <Select value={form.type} onValueChange={(v) => update("type", v as TaskType)}>
+                <SelectTrigger className="h-8 w-full"><SelectValue /></SelectTrigger>
+                <SelectContent>{TASK_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div>
+              <FieldLabel required>Priority</FieldLabel>
+              <Select value={form.priority} onValueChange={(v) => update("priority", v as TaskPriority)}>
+                <SelectTrigger className="h-8 w-full"><SelectValue /></SelectTrigger>
+                <SelectContent>{TASK_PRIORITIES.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <FieldLabel required>Customer</FieldLabel>
+              <Input value={form.customer} onChange={(e) => update("customer", e.target.value)} className="h-8 rounded-[5px] text-[13px]" />
+            </div>
+            <div>
+              <FieldLabel required>Technician</FieldLabel>
+              <Select value={form.technician} onValueChange={(v) => update("technician", v)}>
+                <SelectTrigger className="h-8 w-full"><SelectValue /></SelectTrigger>
+                <SelectContent>{TECHNICIANS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div>
+            <FieldLabel required>Location</FieldLabel>
+            <Input value={form.location} onChange={(e) => update("location", e.target.value)} className="h-8 rounded-[5px] text-[13px]" />
+          </div>
+          <div>
+            <FieldLabel>Vehicle ref</FieldLabel>
+            <Input value={form.vehicleRef} onChange={(e) => update("vehicleRef", e.target.value)} className="h-8 rounded-[5px] text-[13px]" />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <FieldLabel>Contact name</FieldLabel>
+              <Input value={form.contactName} onChange={(e) => update("contactName", e.target.value)} className="h-8 rounded-[5px] text-[13px]" />
+            </div>
+            <div>
+              <FieldLabel>Contact phone</FieldLabel>
+              <Input value={form.contactPhone} onChange={(e) => update("contactPhone", e.target.value)} className="h-8 rounded-[5px] text-[13px]" />
+            </div>
+          </div>
+          <div>
+            <FieldLabel required>Description</FieldLabel>
+            <Textarea value={form.description} onChange={(e) => update("description", e.target.value)} className="min-h-[80px] rounded-[5px] text-[13px]" />
+          </div>
+        </div>
+        <DialogFooter>
+          <Btn variant="outline" onClick={onClose} disabled={saving}>Cancel</Btn>
+          <Btn variant="primary" onClick={save} disabled={saving || !form.title.trim() || !form.customer.trim() || !form.location.trim() || !form.description.trim()}>
+            {saving ? "Saving…" : "Save changes"}
+          </Btn>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

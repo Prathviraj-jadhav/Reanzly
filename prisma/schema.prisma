@@ -51,6 +51,7 @@ model Company {
   invoices    Invoice[]
   auditLogs   AuditLog[]
   notifications Notification[]
+  fieldServiceTasks FieldServiceTask[]
 }
 
 model Branch {
@@ -466,6 +467,53 @@ model Notification {
 
   @@index([userId, read])
   @@index([dedupeKey])
+}
+
+// ===== FIELD SERVICE =====
+// Replaces the Field Service module's entirely client-only state: the old
+// FIELD_TASKS mock array lived only in FieldServiceModule's useState, and
+// TaskDetail separately re-derived its own record by searching that same
+// static array by id - so a task created via AddTaskDrawer was invisible
+// the moment you clicked into it ("not found"), and every action on the
+// detail page (status change, checklist, parts, time entries, signature)
+// mutated a local copy that vanished on navigation. checklist/parts/
+// timeEntries are stored as JSON (per-task nested lists, never queried
+// independently across tasks) - same convention as Employee.documentsJson/
+// assetsJson elsewhere in this schema.
+model FieldServiceTask {
+  id                String    @id @default(cuid())
+  companyId         String
+  taskId            String    @unique // display code, e.g. FS-4001
+  title             String
+  type              String    // Repair | Inspection | Survey | Installation | Maintenance
+  customerId        String?
+  customer          String
+  customerCode      String?
+  technician        String
+  scheduledAt       DateTime
+  completedAt       DateTime?
+  status            String    @default("Scheduled") // Scheduled | Assigned | En Route | In Progress | Completed | Cancelled
+  priority          String    @default("Medium") // Urgent | High | Medium | Low
+  location          String
+  locationLat       Float?
+  locationLng       Float?
+  vehicleRef        String?
+  contactName       String
+  contactPhone      String
+  description       String
+  notes             String?   // technician notes - real field; the old "Save notes" button had nowhere to save to
+  checklistJson     String    @default("[]") // JSON: {id,label,done,ts?}[]
+  partsJson         String    @default("[]") // JSON: {id,name,partNo,qty,unitCost}[]
+  timeEntriesJson   String    @default("[]") // JSON: {id,label,start,end?,minutes}[]
+  signatureCaptured Boolean   @default(false)
+  customerFeedback  String?
+  rating            Int?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  company           Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, status])
 }
 
 // ===== AUTOMATION =====

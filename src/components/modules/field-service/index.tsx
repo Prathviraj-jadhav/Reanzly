@@ -1,24 +1,14 @@
 "use client";
 
-import { useState, useCallback } from "react";
 import { useAppStore } from "@/lib/store/app-store";
-import { FIELD_TASKS, type FieldTask } from "./_helpers";
+import { useFieldServiceData } from "./use-field-service-data";
 import { TasksList } from "./tasks-list";
 import { TaskDetail } from "./task-detail";
 import { AddTaskDrawer } from "./add-task-drawer";
 
 export function FieldServiceModule() {
   const { activeView, navigate } = useAppStore();
-  // Lift FIELD_TASKS into state so in-session adds persist across list ↔ detail.
-  const [tasks, setTasks] = useState<FieldTask[]>(FIELD_TASKS);
-
-  const addTask = useCallback((t: FieldTask) => {
-    setTasks((prev) => [t, ...prev]);
-  }, []);
-
-  const updateTask = useCallback((id: string, data: Partial<FieldTask>) => {
-    setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, ...data } : t)));
-  }, []);
+  const { tasks, loaded, createTask, updateTask } = useFieldServiceData();
 
   // Detail view - route before any list hooks to keep hook order stable.
   if (
@@ -26,7 +16,7 @@ export function FieldServiceModule() {
     activeView.view === "detail" &&
     activeView.id
   ) {
-    return <TaskDetail taskId={activeView.id} />;
+    return <TaskDetail taskId={activeView.id} onUpdate={updateTask} />;
   }
 
   const drawerOpen =
@@ -39,8 +29,21 @@ export function FieldServiceModule() {
 
   return (
     <>
-      <TasksList tasks={tasks} onCreate={() => navigate("field-service", "create")} onAdd={addTask} onUpdate={updateTask} />
-      <AddTaskDrawer open={drawerOpen} onClose={closeDrawer} onAdd={addTask} />
+      <TasksList
+        tasks={tasks}
+        loaded={loaded}
+        onCreate={() => navigate("field-service", "create")}
+        onUpdate={updateTask}
+      />
+      <AddTaskDrawer
+        open={drawerOpen}
+        onClose={closeDrawer}
+        onAdd={async (t) => {
+          const created = await createTask(t);
+          if (created) closeDrawer();
+          return created;
+        }}
+      />
     </>
   );
 }

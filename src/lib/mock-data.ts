@@ -142,7 +142,10 @@ export const ROLE_ARCHETYPES: RoleArchetype[] = [
       "dashboard", "vehicles", "maintenance", "services", "inspection",
       "issues", "fuel-energy", "reminders", "documents", "document-studio", "reports", "chat",
       // New modules - fleet owns the workshop and compliance paperwork.
-      "workshop", "compliance",
+      // Field Service is a tab inside the Operations Hub cluster page, so
+      // reaching it in the sidebar needs the operations-hub permission too
+      // (not just field-service, which only gates the API/component).
+      "workshop", "compliance", "field-service", "operations-hub",
     ],
     avatar: "",
     initials: "SG",
@@ -267,7 +270,7 @@ export const ROLE_ARCHETYPES: RoleArchetype[] = [
     branch: "Pune Workshop",
     permissions: [
       "dashboard", "workshop", "maintenance", "issues", "fuel-energy",
-      "documents", "document-studio", "chat",
+      "documents", "document-studio", "chat", "field-service", "operations-hub",
       // Read-only view of the vehicles they service.
       "vehicles",
     ],

@@ -41,7 +41,7 @@ import {
 interface AddTaskDrawerProps {
   open: boolean;
   onClose: () => void;
-  onAdd?: (t: FieldTask) => void;
+  onAdd?: (t: Partial<FieldTask>) => Promise<FieldTask | null>;
 }
 
 interface TaskForm {
@@ -88,43 +88,40 @@ export function AddTaskDrawer({ open, onClose, onAdd }: AddTaskDrawerProps) {
   if (!form.location.trim()) errors.push("Location is required");
   if (!form.description.trim()) errors.push("Description is required");
 
-  const handleSubmit = () => {
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async () => {
     if (errors.length > 0) {
       toast("Cannot create task", { description: errors[0] });
       return;
     }
-    const now = new Date().toISOString();
-    const newId = `FS-${String(Math.floor(Math.random() * 9000) + 4021).padStart(4, "0")}`;
-    const scheduled = new Date(form.scheduledAt).toISOString();
-    const newTask: FieldTask = {
-      id: `ft-${Date.now()}`,
-      taskId: newId,
-      title: form.title.trim(),
-      type: form.type,
-      customer: form.customer.trim(),
-      customerCode: form.customerCode.trim() || "CR-NEW",
-      technician: form.technician,
-      scheduledAt: scheduled,
-      status: "Scheduled",
-      priority: form.priority,
-      location: form.location.trim(),
-      vehicleRef: form.vehicleRef.trim() || undefined,
-      contactName: form.contactName.trim() || form.customer.trim(),
-      contactPhone: form.contactPhone.trim() || "-",
-      description: form.description.trim(),
-      checklist: defaultChecklistForType(form.type),
-      parts: [],
-      timeEntries: [],
-      signatureCaptured: false,
-      createdAt: now,
-      updatedAt: now,
-    };
-    if (onAdd) onAdd(newTask);
-    toast.success(`Task ${newId} created`, {
-      description: `${form.type} · ${form.technician} · ${form.priority}`,
-    });
-    setForm(EMPTY_FORM);
-    onClose();
+    setSubmitting(true);
+    try {
+      const payload: Partial<FieldTask> = {
+        title: form.title.trim(),
+        type: form.type,
+        customer: form.customer.trim(),
+        customerCode: form.customerCode.trim() || undefined,
+        technician: form.technician,
+        scheduledAt: new Date(form.scheduledAt).toISOString(),
+        priority: form.priority,
+        location: form.location.trim(),
+        vehicleRef: form.vehicleRef.trim() || undefined,
+        contactName: form.contactName.trim() || form.customer.trim(),
+        contactPhone: form.contactPhone.trim() || "-",
+        description: form.description.trim(),
+        checklist: defaultChecklistForType(form.type),
+      };
+      const created = onAdd ? await onAdd(payload) : null;
+      if (!created) return; // onAdd already surfaced the real error via toast
+      toast.success(`Task ${created.taskId} created`, {
+        description: `${form.type} · ${form.technician} · ${form.priority}`,
+      });
+      setForm(EMPTY_FORM);
+      onClose();
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -316,9 +313,9 @@ export function AddTaskDrawer({ open, onClose, onAdd }: AddTaskDrawerProps) {
 
         {/* Footer */}
         <div className="flex items-center justify-between border-t border-border px-5 py-3">
-          <Btn variant="ghost" onClick={onClose}>Cancel</Btn>
-          <Btn variant="primary" icon={<Check className="h-3.5 w-3.5" />} onClick={handleSubmit}>
-            Create Task
+          <Btn variant="ghost" onClick={onClose} disabled={submitting}>Cancel</Btn>
+          <Btn variant="primary" icon={<Check className="h-3.5 w-3.5" />} onClick={handleSubmit} disabled={submitting}>
+            {submitting ? "Creating…" : "Create Task"}
           </Btn>
         </div>
       </SheetContent>
