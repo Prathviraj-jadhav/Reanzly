@@ -371,7 +371,12 @@ function buildAttachments(category: ArticleCategory, seed: number) {
   }));
 }
 
-// ===== Build 20 mock articles =====
+// ===== Build 20 seed articles =====
+// KNOWLEDGE_ARTICLES below is no longer read by the live app (see
+// src/app/api/knowledge and src/scripts/seed-knowledge.ts) - the module now
+// runs on the real KnowledgeArticle Prisma model. This generator is kept as
+// the seed script's source data so the rich, hand-authored SOP/policy/
+// playbook content it produces isn't thrown away.
 const TEMPLATES: { category: ArticleCategory; title: string; summary: string; tags: string[] }[] = [
   { category: "SOPs", title: "Trip dispatch - end-to-end SOP", summary: "The canonical trip lifecycle: indent → assign → LR → dispatch → POD → invoice. Every ops desk member must know this cold.", tags: ["trip", "lr", "pod", "e-way-bill"] },
   { category: "SOPs", title: "Vehicle onboarding SOP", summary: "How a new vehicle enters the fleet: RC verification, GPS install, document upload, insurance, first trip readiness.", tags: ["rc", "vehicle-360", "gps"] },

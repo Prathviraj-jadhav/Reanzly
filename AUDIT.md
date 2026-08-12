@@ -22,7 +22,7 @@ Status: all 6 audit passes complete.
 | 5 | **Ledger** | Every view (P&L, balance sheet, trial balance, journal, GST returns, bank reconciliation, etc.) runs on `localStorage`-only Zustand stores. A real `LedgerEntry` Prisma model exists and is never queried by any of it. | 2 |
 | 6 | **Payments** | No `Payment` Prisma model exists at all (not even unused) — the entire module, including the linked-payments tab inside real Invoice detail pages, is the `PAYMENTS` mock array. | 2 |
 | 7 | **Compliance** | All six tabs (filings, vehicle/driver compliance, EHS, audit, calendar) are fully mock — zero `fetch()` calls — despite being reachable by 7 different roles who'd expect it to be real. | 2 |
-| 8 | **Knowledge** | Same "detached detail view" bug already fixed in Field Service: `article-detail.tsx` searches the static `KNOWLEDGE_ARTICLES` array instead of the list's live state — new articles show "not found." | 2 + 3 |
+| 8 | ~~**Knowledge**~~ | **Fixed 2026-08-12.** Given a full real `KnowledgeArticle` Prisma model + API (`GET/POST /api/knowledge`, `GET/PATCH /api/knowledge/[id]`), not just a detail-view patch — matches this session's "match UI to the database" convention rather than leaving a thinner client-only fix. `article-detail.tsx` now fetches by id directly instead of re-deriving from a static array; the helpful/not-helpful vote also now persists. Related articles are computed live from the current article set instead of a frozen snapshot. Seeded via `seed-knowledge.ts` (reuses the original 20-article generator). Required adding `knowledge: "documents"` to `permissions.ts`'s `MODULE_PARENT` map — without it the new real API would have been unreachable for every non-owner role, the same class of bug as Automation (#1). Verified live: created a new article as `ops-manager`, opened it (no "not found"), cast a helpful vote, confirmed via a fresh `GET /api/knowledge` that both the article and the vote persisted, then deleted the test article. | 2 + 3 + 4 |
 | 9 | **Settings → Access & Roles** | User management (add/edit/reset password/deactivate/delete) and the entire Roles tab mutate local state only — `/api/users` has no POST/PATCH/DELETE, so every admin action here is lost on refresh. | 1 + 2 |
 | 10 | **HR → 8 of 13 tabs** | Performance Reviews, PIP, Onboarding, Exit, Interviews, Offers, Comp-Off, and parts of Attendance/Documents/Recruitment are still the original mock Zustand+localStorage slice — real for Employees/Attendance-core/Leave-core/Payroll/Positions only. | 2 |
 | 11 | ~~**Entire CRM cluster**~~ | **Fixed 2026-08-12.** `broker` (already held `"customers"`/`"vendors"`) and `branch-manager` (already held `"customers"`) now also hold `"crm"`, matching their existing customer/vendor-relationship intent. Verified live as `broker`: CRM now renders in the sidebar's People group, and the full tab strip (Overview/Customers/Vendors/Purchase/Helpdesk/Marketing/Surveys) renders on click. Root cause was `sidebar.tsx`'s client-side `canAccess()` doing a literal string match only, unlike the server-side parent-expansion check — same bug class as Automation (#1). No other role currently has customer/vendor-flavored permissions, so no other role was granted `"crm"`. | 4 |
@@ -122,7 +122,7 @@ Status: all 6 audit passes complete.
 
 **Integrations — mostly real** (connect/disconnect/test flow is real). Webhook Logs panel explicitly fabricates events client-side per its own code comment, even though the real log model/route already exist.
 
-**Knowledge — fully mock + detached-detail-view bug**, see Priority #8.
+**Knowledge — now fully real**, see Priority #8 (fixed).
 
 **Planning — fully mock, module-wide decorative actions.** Reassign, Mark Unavailable, Export, Bulk Update, New Resource — all toast-only.
 
@@ -167,7 +167,7 @@ Status: all 6 audit passes complete.
 
 **Broker Network — fully mock**, see Priority #12. Several actions are honestly labeled "(demo)" in the UI, which softens but doesn't remove the gap.
 
-**Helpdesk — fully mock, plus a detached-detail-view bug.** `index.tsx` lifts the ticket list into real component state so new tickets persist in the list — but `ticket-detail.tsx` independently re-imports the raw static `HELPDESK_TICKETS` array and searches *that* instead, so a newly created ticket shows "not found" when clicked into. Exact same bug class as Field Service's original bug and Knowledge's current one. No company-wide `/api/helpdesk` route exists (the real `SupportTicket` model is only wired to the customer-facing Vendor Portal tickets).
+**Helpdesk — fully mock, plus a detached-detail-view bug.** `index.tsx` lifts the ticket list into real component state so new tickets persist in the list — but `ticket-detail.tsx` independently re-imports the raw static `HELPDESK_TICKETS` array and searches *that* instead, so a newly created ticket shows "not found" when clicked into. Exact same bug class as Field Service's and Knowledge's original bugs (both since fixed). No company-wide `/api/helpdesk` route exists (the real `SupportTicket` model is only wired to the customer-facing Vendor Portal tickets).
 
 **Marketing (in-app CRM module) — fully mock.** No `Campaign` model or API exists; list/detail are internally consistent with each other (no pattern-3 bug), just entirely non-persistent.
 

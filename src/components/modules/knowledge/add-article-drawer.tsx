@@ -53,7 +53,7 @@ import {
 interface AddArticleDrawerProps {
   open: boolean;
   onClose: () => void;
-  onAdd?: (article: KnowledgeArticle) => void;
+  onAdd?: (article: KnowledgeArticle) => Promise<boolean>;
 }
 
 const CATEGORY_ICON: Record<ArticleCategory, React.ComponentType<{ className?: string }>> = {
@@ -68,6 +68,7 @@ const CATEGORY_ICON: Record<ArticleCategory, React.ComponentType<{ className?: s
 
 export function AddArticleDrawer({ open, onClose, onAdd }: AddArticleDrawerProps) {
   const [form, setForm] = useState<ArticleForm>(() => EMPTY_ARTICLE_FORM());
+  const [submitting, setSubmitting] = useState(false);
 
   const update = <K extends keyof ArticleForm>(k: K, v: ArticleForm[K]) =>
     setForm((s) => ({ ...s, [k]: v }));
@@ -77,7 +78,7 @@ export function AddArticleDrawer({ open, onClose, onAdd }: AddArticleDrawerProps
   if (!form.summary.trim()) errors.push("Summary is required");
   if (form.summary.length > 200) errors.push("Summary must be 200 characters or less");
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (errors.length > 0) {
       toastInfo("Cannot create article", errors[0]);
       return;
@@ -152,7 +153,10 @@ export function AddArticleDrawer({ open, onClose, onAdd }: AddArticleDrawerProps
       feedback: [],
       revisions: [{ id: `rev-${Date.now()}`, version: "1.0", ts: now, author: author.name, summary: "Initial draft created" }],
     };
-    onAdd?.(newArticle);
+    setSubmitting(true);
+    const ok = await onAdd?.(newArticle);
+    setSubmitting(false);
+    if (ok === false) return;
     toastSuccess(`Article "${form.title.trim()}" created`, `${form.category} · ${form.status} · ${form.visibility}`);
     setForm(EMPTY_ARTICLE_FORM());
     onClose();
@@ -335,8 +339,8 @@ export function AddArticleDrawer({ open, onClose, onAdd }: AddArticleDrawerProps
           <div className="text-[11px] text-muted-foreground tabular">
             {form.category} · {form.status}
           </div>
-          <Btn variant="primary" icon={<Check className="h-3.5 w-3.5" />} onClick={handleSubmit}>
-            Create Article
+          <Btn variant="primary" icon={<Check className="h-3.5 w-3.5" />} onClick={handleSubmit} disabled={submitting}>
+            {submitting ? "Creating…" : "Create Article"}
           </Btn>
         </div>
       </SheetContent>

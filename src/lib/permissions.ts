@@ -32,6 +32,7 @@ const MODULE_PARENT: Record<string, string> = {
   surveys: "crm",
   "drivers-staff": "hr",
   payroll: "hr",
+  knowledge: "documents",
 };
 
 function rolePermissions(roleId: string): string[] {

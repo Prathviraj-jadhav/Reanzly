@@ -1,5 +1,5 @@
 "use client";
-import { useState, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { DetailLayout, InfoRow, InfoSection, StatCard } from "@/components/shared/detail-layout";
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -44,7 +44,7 @@ import {
   type ArticleAttachment,
   type ArticleFeedback,
 } from "./_helpers";
-import { KNOWLEDGE_ARTICLES } from "./_helpers";
+import { toast } from "sonner";
 
 const TABS = [
   { id: "content", label: "Content" },
@@ -68,17 +68,57 @@ interface ArticleDetailProps {
   initialTab?: string;
 }
 
+// Real, database-backed article (src/app/api/knowledge) - fetched by id
+// directly rather than re-derived from a static mock array, which is what
+// caused newly created articles to show "not found" here.
+function useArticle(articleId: string) {
+  const [article, setArticle] = useState<KnowledgeArticle | undefined>(undefined);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-by-id on prop change, guarded by `cancelled`
+    setLoading(true);
+    fetch(`/api/knowledge/${articleId}`, { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (cancelled) return;
+        setArticle(data?.article ?? undefined);
+      })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [articleId]);
+
+  return { article, setArticle, loading };
+}
+
 export function ArticleDetail({ articleId, initialTab }: ArticleDetailProps) {
   const { navigate, navigateDetail } = useAppStore();
   const [activeTab, setActiveTab] = useState(initialTab || "content");
   const [feedbackVote, setFeedbackVote] = useState<"up" | "down" | null>(null);
+  const { article, setArticle, loading } = useArticle(articleId);
 
-  const record = useMemo<KnowledgeArticle | undefined>(
-    () => KNOWLEDGE_ARTICLES.find((a) => a.id === articleId),
-    [articleId],
-  );
+  const castVote = async (vote: "up" | "down") => {
+    if (!article) return;
+    setFeedbackVote(vote);
+    const res = await fetch(`/api/knowledge/${article.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ vote }),
+    });
+    if (!res.ok) {
+      toast.error("Couldn't save feedback", { description: "Try again." });
+      return;
+    }
+    const { article: updated } = await res.json();
+    setArticle(updated);
+    if (vote === "up") toastSuccess("Thanks for the feedback", "Marked as helpful");
+    else toastInfo("Thanks for the feedback", "Marked as not helpful");
+  };
 
-  const article = record;
+  if (loading) {
+    return <div className="p-6 text-[13px] text-muted-foreground">Loading article…</div>;
+  }
 
   if (!article) {
     return (
@@ -229,10 +269,7 @@ export function ArticleDetail({ articleId, initialTab }: ArticleDetailProps) {
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => {
-                    if (feedbackVote !== "up") {
-                      setFeedbackVote("up");
-                      toastSuccess("Thanks for the feedback", "Marked as helpful");
-                    }
+                    if (feedbackVote !== "up") castVote("up");
                   }}
                   className={cn(
                     "flex h-8 items-center gap-1.5 rounded-[5px] border px-3 text-[12px] font-medium transition-colors",
@@ -246,10 +283,7 @@ export function ArticleDetail({ articleId, initialTab }: ArticleDetailProps) {
                 </button>
                 <button
                   onClick={() => {
-                    if (feedbackVote !== "down") {
-                      setFeedbackVote("down");
-                      toastInfo("Thanks for the feedback", "Marked as not helpful");
-                    }
+                    if (feedbackVote !== "down") castVote("down");
                   }}
                   className={cn(
                     "flex h-8 items-center gap-1.5 rounded-[5px] border px-3 text-[12px] font-medium transition-colors",

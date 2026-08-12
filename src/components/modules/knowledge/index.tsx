@@ -1,18 +1,43 @@
 "use client";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useAppStore } from "@/lib/store/app-store";
-import { KNOWLEDGE_ARTICLES } from "./_helpers";
 import type { KnowledgeArticle } from "./_helpers";
 import { ArticlesList } from "./articles-list";
 import { ArticleDetail } from "./article-detail";
 import { AddArticleDrawer } from "./add-article-drawer";
+import { toast } from "sonner";
 
 export function KnowledgeModule() {
   const { activeView, navigate } = useAppStore();
-  const [articles, setArticles] = useState<KnowledgeArticle[]>(KNOWLEDGE_ARTICLES);
 
-  const addArticle = useCallback((a: KnowledgeArticle) => {
-    setArticles((prev) => [a, ...prev]);
+  // Real, database-backed articles (src/app/api/knowledge) - previously
+  // useState(KNOWLEDGE_ARTICLES) seeded from a client-only mock array.
+  const [articles, setArticles] = useState<KnowledgeArticle[]>([]);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/knowledge")
+      .then((r) => (r.ok ? r.json() : Promise.reject(r)))
+      .then(({ articles }) => setArticles(articles))
+      .catch(() => toast.error("Couldn't load knowledge base", { description: "Try reloading the page." }))
+      .finally(() => setLoaded(true));
+  }, []);
+
+  const addArticle = useCallback(async (a: KnowledgeArticle): Promise<boolean> => {
+    const { id: _clientId, related: _related, ...payload } = a;
+    const res = await fetch("/api/knowledge", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      toast.error("Couldn't create article", { description: body.error || "Try again." });
+      return false;
+    }
+    const { article } = await res.json();
+    setArticles((prev) => [article, ...prev]);
+    return true;
   }, []);
 
   // Detail view
@@ -32,6 +57,10 @@ export function KnowledgeModule() {
       navigate("knowledge");
     }
   };
+
+  if (!loaded) {
+    return <div className="p-6 text-[13px] text-muted-foreground">Loading knowledge base…</div>;
+  }
 
   return (
     <>

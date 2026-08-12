@@ -52,6 +52,7 @@ model Company {
   auditLogs   AuditLog[]
   notifications Notification[]
   fieldServiceTasks FieldServiceTask[]
+  knowledgeArticles KnowledgeArticle[]
 }
 
 model Branch {
@@ -512,6 +513,36 @@ model FieldServiceTask {
   updatedAt         DateTime  @updatedAt
 
   company           Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, status])
+}
+
+// ===== KNOWLEDGE BASE =====
+model KnowledgeArticle {
+  id              String   @id @default(cuid())
+  companyId       String
+  slug            String
+  title           String
+  category        String   // SOPs | Policies | Lane Playbooks | Safety | Compliance | Troubleshooting | Onboarding
+  tagsJson        String   @default("[]") // JSON: string[]
+  summary         String
+  author          String
+  authorRole      String
+  publishedOn     DateTime
+  updatedOn       DateTime @default(now())
+  views           Int      @default(0)
+  helpfulCount    Int      @default(0)
+  notHelpfulCount Int      @default(0)
+  status          String   @default("Draft") // Draft | Published | Archived | In Review
+  visibility      String   @default("Internal") // Public | Internal | Restricted
+  readingTimeMin  Int      @default(2)
+  contentJson     String   @default("[]") // JSON: ContentBlock[]
+  attachmentsJson String   @default("[]") // JSON: {id,name,type,size,uploadedBy,uploadedOn}[]
+  feedbackJson    String   @default("[]") // JSON: {id,helpful,author,comment?,ts}[]
+  revisionsJson   String   @default("[]") // JSON: {id,version,ts,author,summary}[]
+  createdAt       DateTime @default(now())
+
+  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@index([companyId, status])
 }
