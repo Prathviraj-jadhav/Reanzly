@@ -38,9 +38,7 @@ export async function POST(req: NextRequest) {
   } catch (error: any) {
     console.error("Login error:", error);
     return NextResponse.json({
-      error: "Internal Server Error",
-      message: error.message,
-      stack: error.stack,
+      error: "Internal Server Error. Please contact your administrator.",
     }, { status: 500 });
   }
 }
