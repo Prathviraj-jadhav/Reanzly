@@ -53,6 +53,7 @@ interface FuelListProps {
   onOpenAnomalies: () => void;
   onUpdate?: (id: string, data: Partial<FuelEntry>) => Promise<boolean>;
   onAdd?: (fuelEntry: FuelEntry) => Promise<boolean>;
+  onDelete?: (id: string) => Promise<boolean>;
 }
 
 const DATE_RANGE_PRESETS = [
@@ -62,7 +63,7 @@ const DATE_RANGE_PRESETS = [
   { id: "90d", label: "Last 90 days" },
 ];
 
-export function FuelList({ fuelEntries, onCreate, onOpenAnalytics, onOpenAnomalies, onUpdate, onAdd }: FuelListProps) {
+export function FuelList({ fuelEntries, onCreate, onOpenAnalytics, onOpenAnomalies, onUpdate, onAdd, onDelete }: FuelListProps) {
   const { navigateDetail } = useAppStore();
   const [editing, setEditing] = useState<FuelEntry | null>(null);
   const [search, setSearch] = useState("");
@@ -277,7 +278,11 @@ export function FuelList({ fuelEntries, onCreate, onOpenAnalytics, onOpenAnomali
     { label: "Edit", onClick: (f: FuelEntry) => setEditing(f) },
     {
       label: "Delete",
-      onClick: (f: FuelEntry) => toast(`Deleted fuel entry`, { description: `${f.vehicle} · ${formatDate(f.date)}` }),
+      onClick: async (f: FuelEntry) => {
+        const ok = await onDelete?.(f.id);
+        if (ok === false) return;
+        toast(`Deleted fuel entry`, { description: `${f.vehicle} · ${formatDate(f.date)}` });
+      },
       destructive: true,
     },
   ];

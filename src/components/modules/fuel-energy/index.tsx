@@ -61,6 +61,16 @@ export function FuelEnergyModule() {
     return true;
   }, []);
 
+  const deleteFuelEntry = useCallback(async (id: string): Promise<boolean> => {
+    const res = await fetch(`/api/fuel-entries/${id}`, { method: "DELETE" });
+    if (!res.ok) {
+      toast.error("Couldn't delete fuel entry", { description: "Try again." });
+      return false;
+    }
+    setFuelEntries((prev) => prev.filter((f) => f.id !== id));
+    return true;
+  }, []);
+
   if (!loaded) {
     return <div className="p-6 text-[13px] text-muted-foreground">Loading fuel entries…</div>;
   }
@@ -70,7 +80,7 @@ export function FuelEnergyModule() {
     activeView.view === "detail" &&
     activeView.id
   ) {
-    return <FuelDetail fuelId={activeView.id} fuelEntries={fuelEntries} onUpdate={updateFuelEntry} />;
+    return <FuelDetail fuelId={activeView.id} fuelEntries={fuelEntries} onUpdate={updateFuelEntry} onDelete={deleteFuelEntry} />;
   }
 
   const drawerOpen =
@@ -95,6 +105,7 @@ export function FuelEnergyModule() {
           onOpenAnomalies={() => setSecondary("anomalies")}
           onUpdate={updateFuelEntry}
           onAdd={addFuelEntry}
+          onDelete={deleteFuelEntry}
         />
       )}
       <LogFuelDrawer open={drawerOpen} onClose={closeDrawer} onAdd={addFuelEntry} />

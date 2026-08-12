@@ -264,7 +264,10 @@ export function MaintenanceList({ workOrders, onCreate, onOpenParts, onUpdate, o
     { label: "Print", onClick: (w: WorkOrder) => toast("Generating PDF", { description: w.workOrderId }) },
     {
       label: "Cancel",
-      onClick: (w: WorkOrder) => toast(`Work order cancelled`, { description: w.workOrderId }),
+      onClick: (w: WorkOrder) => {
+        handleUpdate(w.id, { status: "Cancelled" });
+        toast(`Work order cancelled`, { description: w.workOrderId });
+      },
       destructive: true,
     },
   ];
@@ -277,8 +280,10 @@ export function MaintenanceList({ workOrders, onCreate, onOpenParts, onUpdate, o
     },
     {
       label: "Mark Complete",
-      onClick: (selected: WorkOrder[]) =>
-        toast.success(`${selected.length} work order${selected.length === 1 ? "" : "s"} marked complete`),
+      onClick: (selected: WorkOrder[]) => {
+        selected.forEach((w) => handleUpdate(w.id, { status: "Completed" }));
+        toast.success(`${selected.length} work order${selected.length === 1 ? "" : "s"} marked complete`);
+      },
     },
   ];
 

@@ -1,5 +1,5 @@
 "use client";
-import { useState, useMemo, type ReactNode } from "react";
+import { useState, useMemo, useEffect, type ReactNode } from "react";
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable, type Column } from "@/components/shared/data-table";
 import { Btn } from "@/components/shared/btn";
@@ -8,8 +8,7 @@ import {
   vehicleStatusBadge,
 } from "@/components/shared/status-badge";
 import { useAppStore } from "@/lib/store/app-store";
-import { DRIVERS } from "@/lib/mock-data";
-import type { Vehicle } from "@/lib/types";
+import type { Vehicle, Driver } from "@/lib/types";
 import {
   Plus,
   Upload,
@@ -55,6 +54,15 @@ export function VehiclesList({ vehicles, onCreate, onBulkCreate, onUpdate }: Veh
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [watcherFilter, setWatcherFilter] = useState<string>("");
   const [editing, setEditing] = useState<Vehicle | null>(null);
+  const [activeDriverCount, setActiveDriverCount] = useState<number | null>(null);
+  useEffect(() => {
+    fetch("/api/drivers")
+      .then((r) => (r.ok ? r.json() : Promise.reject(r)))
+      .then(({ drivers }: { drivers: Driver[] }) =>
+        setActiveDriverCount(drivers.filter((d) => d.role === "Driver" && d.status === "Active").length),
+      )
+      .catch(() => setActiveDriverCount(null));
+  }, []);
 
   // Role-specific column gating (Step D).
   //  • Fleet manager: next service due (km/days), fitness cert expiry,
@@ -806,9 +814,8 @@ export function VehiclesList({ vehicles, onCreate, onBulkCreate, onUpdate }: Veh
         />
       </div>
 
-      {/* Quiet reference to DRIVERS so the import is used (operators are also drivers) */}
       <p className="text-[11px] text-muted-foreground">
-        {DRIVERS.filter((d) => d.role === "Driver").length} active drivers in pool · {vehicles.length} vehicles on registry
+        {activeDriverCount !== null ? `${activeDriverCount} active drivers in pool · ` : ""}{vehicles.length} vehicles on registry
       </p>
 
       <EditVehicleDrawer

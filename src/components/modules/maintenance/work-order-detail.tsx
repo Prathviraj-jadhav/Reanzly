@@ -132,7 +132,14 @@ export function WorkOrderDetail({ workOrderId, workOrders, onUpdate: onUpdateRea
         <span className="hidden sm:inline">Edit</span>
       </Btn>
       {wo.status !== "Completed" && (
-        <Btn variant="primary" icon={<CheckCircle2 className="h-3.5 w-3.5" />} onClick={() => toast.success("Work order completed", { description: wo.workOrderId })}>
+        <Btn
+          variant="primary"
+          icon={<CheckCircle2 className="h-3.5 w-3.5" />}
+          onClick={() => {
+            handleUpdate(wo.id, { status: "Completed" });
+            toast.success("Work order completed", { description: wo.workOrderId });
+          }}
+        >
           <span className="hidden sm:inline">Mark Complete</span>
           <span className="sm:hidden">Complete</span>
         </Btn>
@@ -147,6 +154,7 @@ export function WorkOrderDetail({ workOrderId, workOrders, onUpdate: onUpdateRea
     {
       label: "Cancel Work Order",
       onClick: () => {
+        handleUpdate(wo.id, { status: "Cancelled" });
         toast(`Work order cancelled`, { description: wo.workOrderId });
         navigate("maintenance");
       },

@@ -203,7 +203,7 @@ export function DriverDetail({ driverId, drivers, onUpdate }: DriverDetailProps)
         onUpdate={onUpdate}
       />
       <ResetPasswordDialog open={resetOpen} onOpenChange={setResetOpen} driver={driver} />
-      <DeactivateDialog open={deactivateOpen} onOpenChange={setDeactivateOpen} driver={driver} />
+      <DeactivateDialog open={deactivateOpen} onOpenChange={setDeactivateOpen} driver={driver} onUpdate={onUpdate} />
     </DetailLayout>
   );
 }
@@ -258,10 +258,12 @@ function DeactivateDialog({
   open,
   onOpenChange,
   driver,
+  onUpdate,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   driver: Driver;
+  onUpdate: (id: string, data: Partial<Driver>) => void;
 }) {
   const [reason, setReason] = useState("");
 
@@ -309,6 +311,7 @@ function DeactivateDialog({
                 toast.error("A reason is required for deactivation");
                 return;
               }
+              onUpdate(driver.id, { status: "Inactive" });
               toast.success(`${driver.name} deactivated`, { description: reason });
               onOpenChange(false);
               setReason("");

@@ -46,17 +46,17 @@ Status: all 6 audit passes complete.
 
 ## Fleet & Maintenance — Vehicles, Drivers, Maintenance, Fuel, Inspection, Issues, Reminders, Compliance, Workshop, Services, Quality
 
-**Vehicles — partially real.** Core CRUD is real. "Bulk vehicle import," header Export/Import buttons are toast-only. One orphaned mock-array reference kept alive by a comment reading *"Quiet reference to DRIVERS so the import is used"* (`vehicles-list.tsx:809-811`) — literal dead code kept only to silence a lint rule.
+**Vehicles — partially real.** Core CRUD is real. "Bulk vehicle import," header Export/Import buttons are toast-only. **Fixed 2026-08-12:** the orphaned `DRIVERS` mock-array reference (`vehicles-list.tsx:809-811`, kept alive only by a "quiet reference so the import is used" comment) now fetches `/api/drivers` and shows a real active-driver count instead of a dead-code import.
 
-**Drivers & Staff — partially real.** List/detail load and Edit are real. Deactivate and Reset Password dialogs have full validation UI but their confirm buttons only toast — never call the `onUpdate` callback that's already sitting one prop-level up (`driver-detail.tsx:242-248,307-316`). The assigned-vehicle chip links via a mock-array id (`v1`-style) into the real Vehicles detail view, which will 404 against any actual vehicle.
+**Drivers & Staff — now fully real for status changes.** List/detail load and Edit are real. **Fixed 2026-08-12:** Deactivate (both the list row action and the detail-view dialog's confirm button) now calls the real `onUpdate` callback — already sitting one prop-level up — before toasting, so `status: "Inactive"` actually persists via the existing driver `PATCH` route. The assigned-vehicle chip's mock-array-id 404 risk is unrelated and left as-is.
 
-**Maintenance — partially real.** List/detail/create/edit real. "Mark Complete" and "Cancel Work Order" — the two most important actions on a work order — are toast-only despite `handleUpdate` existing in the same file and being used for Edit.
+**Maintenance — now fully real for status changes.** List/detail/create/edit real. **Fixed 2026-08-12:** "Mark Complete" (list bulk action + detail-view button) and "Cancel Work Order"/"Cancel" (list row action + detail-view quick action) now call the existing `handleUpdate` (same one already used for Edit) before toasting, persisting `status: "Completed"`/`"Cancelled"` via the real work-orders `PATCH` route. Verified live: cancelled RZ-WO-1410 and completed RZ-WO-1406 as `branch-manager`, confirmed both status changes persisted via a fresh `GET /api/work-orders`.
 
 **Workshop — fully mock.** No API route, no matching Prisma models (JobCard/Bay/PartIssue/LabourEntry don't exist in the schema). Everything generated in-memory.
 
-**Fuel & Energy — mostly real**, but delete (list + detail) is toast-only with no DELETE call, and the anomaly/analytics sub-views read from mock arrays instead of the real fetched data the list uses.
+**Fuel & Energy — now fully real, including delete.** **Fixed 2026-08-12:** delete (list row action + detail-view button) now calls a real `deleteFuelEntry` handler wired to `DELETE /api/fuel-entries/[id]` (which already existed but was unused by the UI) instead of only toasting. The anomaly/analytics sub-views reading from mock arrays is a separate, still-open gap.
 
-**Inspection — mostly real.** "Create Work Order" from an inspection is toast-only (doesn't call the real work-orders API).
+**Inspection — now fully real for work-order creation.** **Fixed 2026-08-12:** "Create Work Order" from an inspection's quick actions now POSTs to the real `/api/work-orders` route (pre-filling vehicle, priority from the inspection result, and a title referencing the source inspection) instead of only toasting.
 
 **Issues — mostly real.** "Linked inspection" cross-reference still resolves against the mock `INSPECTIONS` array instead of `/api/inspections`.
 

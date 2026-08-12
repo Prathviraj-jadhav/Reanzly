@@ -73,6 +73,27 @@ export function InspectionDetail({ inspectionId, initialTab, inspections, onUpda
     onUpdateReal(id, data);
   };
 
+  const handleCreateWorkOrder = async () => {
+    if (!inspection) return;
+    const res = await fetch("/api/work-orders", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: `Follow-up repair - ${inspection.vehicle} (from ${inspection.inspectionId})`,
+        vehicle: inspection.vehicle,
+        type: "Unscheduled",
+        priority: inspection.result === "Fail" ? "High" : "Medium",
+      }),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      toast.error("Couldn't create work order", { description: body.error || "Try again." });
+      return;
+    }
+    const { workOrder } = await res.json();
+    toast.success("Work order created", { description: `${workOrder.workOrderId} · From ${inspection.inspectionId}` });
+  };
+
   const checklist = useMemo<ChecklistItemDef[]>(() => {
     if (!inspection) return [];
     // Derive a deterministic seed from inspectionId
@@ -133,7 +154,7 @@ export function InspectionDetail({ inspectionId, initialTab, inspections, onUpda
   const quickActions = [
     { label: "Print Report", onClick: () => toast("Opening print dialog", { description: inspection.inspectionId }) },
     { label: "Duplicate Inspection", onClick: () => toast("Inspection duplicated", { description: inspection.inspectionId }) },
-    { label: "Create Work Order", onClick: () => toast("Work order drafted", { description: `From ${inspection.inspectionId}` }) },
+    { label: "Create Work Order", onClick: handleCreateWorkOrder },
     {
       label: "Cancel Inspection",
       onClick: () => {

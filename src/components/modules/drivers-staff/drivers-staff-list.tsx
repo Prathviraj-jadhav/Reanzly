@@ -244,8 +244,10 @@ export function DriversStaffList({ drivers, onCreate, onUpdate }: DriversStaffLi
     },
     {
       label: "Deactivate",
-      onClick: (d: Driver) =>
-        toast(`Deactivated ${d.name}`, { description: "Status set to Inactive" }),
+      onClick: (d: Driver) => {
+        onUpdate(d.id, { status: "Inactive" });
+        toast(`Deactivated ${d.name}`, { description: "Status set to Inactive" });
+      },
       destructive: true,
     },
   ];

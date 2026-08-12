@@ -40,9 +40,10 @@ interface FuelDetailProps {
   fuelId: string;
   fuelEntries: FuelEntry[];
   onUpdate: (id: string, data: Partial<FuelEntry>) => Promise<boolean>;
+  onDelete: (id: string) => Promise<boolean>;
 }
 
-export function FuelDetail({ fuelId, fuelEntries, onUpdate: onUpdateReal }: FuelDetailProps) {
+export function FuelDetail({ fuelId, fuelEntries, onUpdate: onUpdateReal, onDelete }: FuelDetailProps) {
   const { navigate, navigateDetail } = useAppStore();
   const [activeTab, setActiveTab] = useState("overview");
   const entry = fuelEntries.find((f) => f.id === fuelId);
@@ -106,7 +107,9 @@ export function FuelDetail({ fuelId, fuelEntries, onUpdate: onUpdateReal }: Fuel
       <Btn
         variant="primary"
         icon={<Trash2 className="h-3.5 w-3.5" />}
-        onClick={() => {
+        onClick={async () => {
+          const ok = await onDelete(entry.id);
+          if (!ok) return;
           toast(`Deleted fuel entry`, { description: `${entry.vehicle} · ${formatDate(entry.date)}` });
           navigate("fuel-energy");
         }}
