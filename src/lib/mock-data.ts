@@ -256,6 +256,11 @@ export const ROLE_ARCHETYPES: RoleArchetype[] = [
       // Broker Network modules - resell Reanzly capacity, manage sub-brokers,
       // run settlements. Gated separately in the sidebar by businessType.
       "broker-console", "broker-marketplace", "broker-settlements",
+      // Customers/Vendors are tabs inside the CRM cluster - the sidebar's
+      // client-side canAccess() does a literal match only (no parent
+      // expansion like the server-side check), so holding "customers"/
+      // "vendors" alone never renders the CRM nav entry that leads to them.
+      "crm",
     ],
     avatar: "",
     initials: "FA",
@@ -299,6 +304,10 @@ export const ROLE_ARCHETYPES: RoleArchetype[] = [
       // Read-only visibility on rate cards and compliance for the branch.
       "rate-cards", "compliance",
       "ledger",
+      // Customers is a tab inside the CRM cluster - the sidebar's
+      // client-side canAccess() does a literal match only, so holding
+      // "customers" alone never renders the CRM nav entry that leads to it.
+      "crm",
     ],
     avatar: "",
     initials: "NP",
