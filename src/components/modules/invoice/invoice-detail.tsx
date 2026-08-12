@@ -212,10 +212,12 @@ export function InvoiceDetail({
     },
     {
       label: "Cancel Invoice",
-      onClick: () =>
+      onClick: () => {
+        onUpdate?.(invoice.id, { status: "Cancelled" });
         toast(`Cancelled ${invoice.invoiceNumber}`, {
           description: "Status set to Cancelled",
-        }),
+        });
+      },
     },
   ];
 
