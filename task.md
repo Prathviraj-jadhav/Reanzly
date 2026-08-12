@@ -1868,6 +1868,70 @@ nobody had wired it up.
       still fully mock with invented requester identities, and is a
       standalone multi-step-chain subsystem, not a quick add to this pass.
 
+## Converted Field Service from entirely-fake to real DB-backed CRUD (2026-08-12)
+
+- [x] **"Fix the field Panel and make it working make the functionality
+      working with real data and real database and all the things you can
+      use the seed data that its working. if i perform anything it should
+      be working fine."** This was the worst offender found all session -
+      not partially mock like most modules had been, but genuinely 100%
+      client-only with a severe functional bug on top: `FieldServiceModule`
+      held a 20-task `FIELD_TASKS` mock array in local `useState`, and
+      `TaskDetail` independently re-derived its own record by searching
+      that *same static array* by id - so a task created via
+      `AddTaskDrawer` was **"not found" the instant you clicked into it**,
+      since the array the list mutated and the array the detail page read
+      were never actually the same live state. Worse: Reassign, Reschedule,
+      Edit, Export, bulk Assign/Reschedule, and "Save notes" were all bare
+      `toast()` calls with **zero state mutation** - clicking them did
+      nothing at all, successful-looking toast notwithstanding.
+      Added a real `FieldServiceTask` model (checklist/parts/timeEntries
+      as JSON columns, matching the `Employee.documentsJson` convention
+      already used elsewhere) plus a real `notes` field - the old "Save
+      notes" button had nowhere to save to, since no such field existed
+      anywhere in the type or the mock data.
+      Real API: `GET`/`POST /api/field-service`, `GET`/`PATCH
+      /api/field-service/[id]` - one generic PATCH covers every mutation
+      (status transitions, reassign, reschedule, notes, checklist/parts/
+      time-entry array updates, signature, field edits), with real
+      `logAudit()` calls on create/status-change/reassign.
+      Rewired every layer via `use-field-service-data.ts`: the list's
+      Reassign/Reschedule row and bulk actions now open real dialogs that
+      PATCH and persist; Mark completed/Cancel are real PATCH calls;
+      Export is a real CSV download (was a fake toast); the detail page
+      fetches the real task by id (the core bug fix) instead of searching
+      a static array, and every action - checklist toggle, add/remove
+      part, start/stop timer, capture/re-capture signature, save notes,
+      status change, plus a new real Edit dialog - calls the real API and
+      syncs from the server's response; `AddTaskDrawer` now awaits the
+      real `POST` and only celebrates on actual success.
+      **RBAC gap found and fixed, matching the pattern from HR earlier
+      this session**: `field-service` had no role grants at all - only
+      `owner`'s `"*"` wildcard could reach it. Granted to `fleet-manager`
+      and `mechanic`. Also had to grant `operations-hub` to both, since
+      Field Service is a *tab* inside the Operations Hub cluster page and
+      the sidebar has no path to a tab whose cluster parent isn't itself
+      granted - identical shape to the HR reachability bug, different
+      module.
+      `src/scripts/seed-field-service.ts` seeds 18 realistic tasks tied to
+      real Vehicle/Customer rows - built fresh with its own generator
+      rather than porting the existing 710-line hand-written mock array
+      verbatim (moved its realistic checklist/parts templates into the
+      seed script instead of just deleting the effort that went into
+      them).
+      **Verified live, thoroughly**: a full API-level round trip (create
+      → immediately fetch by id → toggle checklist → add part → start/
+      stop timer → capture signature → save notes → reassign → mark
+      completed → independent fresh refetch) confirmed every single
+      mutation genuinely persisted - not optimistic local state. Then
+      confirmed a *real UI interaction*: clicked a checklist checkbox in
+      the actual rendered detail page, and a fresh uncached API call
+      confirmed the click persisted to the database. Confirmed the RBAC
+      fix by reaching Operations Hub → Field Service as `fleet-manager`
+      in the browser and seeing the real 18-task list with correct KPIs.
+      Cleaned up the one test task created during verification. Zero new
+      TypeScript/ESLint errors across the full touched set.
+
 ## Sequencing reminder
 
 Agreed order with the user: **Stage 1 (SLM) → Stage 2 (Chat) → Stage 3 (Calling)**,
