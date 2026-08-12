@@ -1932,6 +1932,74 @@ nobody had wired it up.
       Cleaned up the one test task created during verification. Zero new
       TypeScript/ESLint errors across the full touched set.
 
+## Full-app audit + fix pass (2026-08-12)
+
+- [x] **User asked for a full audit of every panel** - "Test the all the panel
+      and point out the uncompleted flows and broken UI, buttons, deadcode and
+      all the pending features," then "list them and document in the one
+      doc." Produced `AUDIT.md`: 4 recurring bug patterns (cluster
+      reachability gaps, decorative/toast-only buttons with real backing
+      already available, entirely mock modules, and dead mock-data
+      references) and a 12-item priority table across every module.
+- [x] **"Start working on the Audit."** Worked the priority table in order:
+  - **Automation reachability** - `ops-manager`, `finance-manager`,
+    `fleet-manager` were missing the `settings` cluster-anchor permission, so
+    the (already fully real) Automation module was invisible to every
+    non-owner role. Fixed by granting `settings` directly, same pattern as
+    the earlier HR fix.
+  - **Quality reachability** - audit's own false positive, corrected in
+    `AUDIT.md`: Quality is a cluster-child tab inside Vehicles, reachable via
+    the `vehicles` anchor permission alone, not `quality` directly.
+  - **CRM cluster reachability** - `broker` and `branch-manager` held
+    `customers`/`vendors` permissions but couldn't reach the CRM nav entry
+    at all, because the sidebar's client-side `canAccess()` does a literal
+    permission match with no parent-expansion (unlike the server-side
+    check). Fixed by granting `crm` directly to both roles.
+  - **Invoice "Cancel" button lied about success** - both the list row
+    action and detail-view quick action only showed a toast. Wired both to
+    the real `onUpdateStatus`/`onUpdate` handlers (existing
+    `PATCH /api/invoices/[id]`).
+  - **Knowledge Base was entirely client-only mock**, with the same
+    "detail view re-derives from a static array" bug as the earlier Field
+    Service fix - a newly created article showed "not found." Built a real
+    `KnowledgeArticle` Prisma model + full CRUD API
+    (`GET/POST /api/knowledge`, `GET/PATCH /api/knowledge/[id]`), rewired
+    list/detail onto it, added `knowledge: "documents"` to the parent-
+    expansion map (without it the new real API would've been unreachable
+    for every non-owner role - the same bug class as Automation), and
+    seeded via `seed-knowledge.ts`.
+  - **Helpdesk was entirely client-only mock**, same detached-detail-view
+    bug. Built a real `HelpdeskTicket` Prisma model + full CRUD API
+    (deliberately kept separate from the customer-facing `SupportTicket`
+    model - different FK requirements, status vocabulary, and fields),
+    rewired list/detail, wired status changes/replies to persist via
+    `PATCH`, and seeded via `seed-helpdesk.ts`.
+  - **Decorative row/quick actions with already-real backing** - Maintenance
+    (Mark Complete, Cancel), Drivers (Deactivate), Fuel & Energy (Delete),
+    and Inspection (Create Work Order) all had toast-only actions despite
+    the real API routes and `onUpdate`/`onDelete` handlers already existing
+    and being used elsewhere in the same files. Wired all of them through.
+    Vehicles list also dropped its last dead `DRIVERS` mock-data import in
+    favor of a real `/api/drivers` count fetch.
+- [x] **Verified live**: Maintenance's Mark Complete/Cancel confirmed via
+      direct network-request inspection - `PATCH /api/work-orders/[id]`
+      fired and returned the persisted `status: "Completed"` /
+      `"Cancelled"`, re-confirmed with a fresh `GET /api/work-orders` after
+      reload. Knowledge and Helpdesk verified live per their own sections
+      above. Remaining actions (Drivers Deactivate, Fuel Delete, Inspection
+      Create Work Order) verified via lint + typecheck + direct source/API
+      review confirming identical wiring to the already-proven pattern; the
+      backing API routes were independently confirmed to exist. Committed
+      and pushed as `b27ec92`.
+- [ ] **Still open from the audit, lower priority**: Payroll's Statutory/
+      Bank Advice/Reimbursements/Bonuses/Loans sub-schema (#33), Rate Cards
+      mock-to-real (#42), Approvals mock-to-real (#50), Broker Network's
+      19 components not calling `fetch()` despite a real backend, Compliance
+      module (fully mock, 7 reachable roles), Workshop (no Prisma models at
+      all), Superadmin (almost entirely `localStorage`-only), Partner
+      Programme (still unreachable, no model/API), Subscriptions (fully
+      mock end-to-end). Full detail in `AUDIT.md`.
+
 ## Sequencing reminder
 
 Agreed order with the user: **Stage 1 (SLM) → Stage 2 (Chat) → Stage 3 (Calling)**,
