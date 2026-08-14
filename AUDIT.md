@@ -84,13 +84,13 @@ Status: all 6 audit passes complete.
 
 **Financial Services — fully real** (this session's own work — holds up).
 
-**Rate Cards — fully mock**, confirmed still true (already tracked as task #42). 12 real seeded `RateCard` rows exist and are never read by the UI, which runs entirely on a `localStorage` Zustand store.
+**Rate Cards — fixed 2026-08-14 (task #42).** The `RateCard` Prisma model existed but had zero API routes and a shape that didn't match the mock UI at all (`customerId` required, `laneFrom`/`laneTo`/`ratePerKm`/paise-only fields, tied to unused `Trip`/`Customer` relations) — repurposed to the UI's actual field names (`source`/`destination`/`baseRate`/`rateType`/`loadType`/`surchargesJson`/`gstApplicable`/etc, `customerId` now optional), added real CRUD API routes, deleted the `localStorage` Zustand store, and wired the previously-decorative Duplicate/Delete row actions to it. Seeded 10 real cards via `seed-rate-cards.ts`.
 
 **Lorry Receipts — fully real.** Only minor gaps: Archive/Print/Download/Upload are toast-only.
 
 **Financial Ops — orphaned component.** `FinancialOpsModule` is dead code — the app deliberately reroutes any navigation to it straight to Ledger's "Treasury Ops" tab, which is itself mock (no `Voucher` model exists).
 
-**Payroll (standalone) — partially real.** Overview/Cycles/Payslips/Structures are real (matches already-completed work). Statutory Returns, Bank Advice, Reimbursements, Bonuses, and Loans & Advances remain fully mock with zero `fetch()` calls — confirmed still true, already tracked as task #33.
+**Payroll (standalone) — fixed 2026-08-14 (task #33).** Overview/Cycles/Payslips/Structures were already real. Statutory Returns, Bank Advice, Reimbursements, Bonuses, and Loans & Advances were fully mock with zero `fetch()` calls — all five now have real Prisma models (`PayrollStatutoryFiling`, `PayrollBankAdvice`, `PayrollReimbursement`, `PayrollBonus`, `PayrollLoan` + `PayrollLoanInstallment`), real API routes, and real seed data (16/8/24/18/12 rows respectively). Reimbursements/Bonuses/Loans now resolve a real `Employee` FK instead of a mock roster; Loans persist a real installment schedule using the existing EMI math instead of a fabricated one. Note: the already-real Payroll core (`PayrollRun`/`Payslip`/`SalaryStructure`) has no seed script of its own, so Bank Advice's live beneficiary-preview panel (which joins on real `Payslip` rows) will show mostly empty on a fresh deploy until that gap is separately addressed — the seeded historical Bank Advice rows themselves display fine regardless.
 
 ---
 
@@ -136,7 +136,7 @@ Status: all 6 audit passes complete.
 
 **Chat — fully real.** Call transport is honestly simulated with a disabled control explicitly marked "not yet supported," not decorative.
 
-**Superadmin — almost entirely mock.** One `localStorage`-only store backs nearly every sub-area (Organizations, Users, Billing, Tickets, Automations, Audit, Backups, Broadcasts, Compliance, its own separate Field Service copy, Integrations, Internal Team, Knowledge, Marketplace, Onboarding Wizard, Offline Sync, Developer API). Only the SLM Overview/Playground tabs are real. Real platform-level Prisma models (`PlatformUser`, `PlatformAuditLog`, `PlatformInvoice`, `SupportTicket`, `BackupSnapshot`, etc.) exist and sit completely unused.
+**Superadmin — access fixed 2026-08-14, own data still almost entirely mock.** The panel was unreachable even with the real seeded staff account: a real, server-verified login (`portal: "superadmin"`) landed on a *second*, fully disconnected mock login (`SuperAdminShell` gated on `useSuperadminStore.currentStaff`, which accepted any email/password against a hardcoded demo-account list unrelated to the real `User` table). Fixed by bridging the real session straight into the internal-staff store instead of showing the second login screen. Verified live via the real quickLogin flow (server-verified `POST /api/auth/login` → 200) landing directly on Overview/Organizations with no second gate. The underlying data problem AUDIT.md already flagged is unchanged and still open: one `localStorage`-only store backs nearly every sub-area (Organizations, Users, Billing, Tickets, Automations, Audit, Backups, Broadcasts, Compliance, its own separate Field Service copy, Integrations, Internal Team, Knowledge, Marketplace, Onboarding Wizard, Offline Sync, Developer API). Only the SLM Overview/Playground tabs are real. Real platform-level Prisma models (`PlatformUser`, `PlatformAuditLog`, `PlatformInvoice`, `SupportTicket`, `BackupSnapshot`, etc.) exist and sit completely unused.
 
 **Driver Field — mostly real.** Location tracking, activity log, and profile are real; trip/earnings history wasn't fully traced to a live endpoint — worth a follow-up check.
 
@@ -144,12 +144,15 @@ Status: all 6 audit passes complete.
 
 ---
 
-## Already-tracked items this audit re-confirmed (no change)
+## Fixed 2026-08-14: Approvals, Rate Cards, Payroll's five sub-areas, Superadmin access
 
-- **Approvals** — still fully mock, invented requester identities, no Approval model (task #50).
-- **Rate Cards** — still fully mock despite real seeded data (task #42).
-- **Payroll's Statutory/Bank Advice/Reimbursements/Bonuses/Loans** — still fully mock (task #33).
-- **Partner Programme** — confirmed still unreachable for non-owner roles (flagged during the Financial Services conversion as a sibling gap; Financial Services itself was fixed, Partner Programme was not).
+- **Approvals — fixed (task #50).** Real `ApprovalRequest` model covering the module's existing multi-type, sequential/parallel approval-chain design; a single generic PATCH replicates the exact step-advancement rules previously computed only in client state (approve/reject/delegate/withdraw). Fixed a real bug this exposed: a typo'd approver name in the original mock data ("Deshpukh" vs "Deshmukh" everywhere else) silently broke that one request's workflow permanently — the name-match-to-`currentApprover` lookup would never find a step to act on. Also fixed a pre-existing detail-view bug that ignored the fetched `requests` prop and re-read a stale, separate copy of the mock array. Added `MODULE_PARENT["approvals"] = "expenses"` — the tab was a cluster-child under Expenses with no server-side reachability mapping, so every non-owner role got a 403 despite the sidebar rendering it. Seeded 18 real requests.
+- **Rate Cards — fixed (task #42).** See Finance section above.
+- **Payroll's Statutory/Bank Advice/Reimbursements/Bonuses/Loans — fixed (task #33).** See Finance section above.
+- **Superadmin panel inaccessible with the real seeded account — fixed.** See Platform & Misc section above.
+- **Partner Programme** — confirmed still unreachable for non-owner roles (flagged during the Financial Services conversion as a sibling gap; Financial Services itself was fixed, Partner Programme was not). Still open.
+
+**New finding, deliberately not fixed — needs a scope decision, not a mechanical fix.** `finance-manager` and `analyst` both hold `"payroll"` directly but not `"hr"`, so the sidebar's client-side `canAccess()` (literal match only) never renders the HR nav entry that Payroll's tab strip lives inside — same reachability bug class as Automation/CRM, confirmed live. The mechanical fix (grant `"hr"` directly, the pattern used everywhere else this session) is a bigger call here than it looks: unlike Settings or CRM, the HR cluster's own sub-features (Employees, Leave, Performance, Exit, etc.) appear to be gated only by the single `"hr"` permission with no finer-grained per-sub-feature permission in `MODULE_PARENT` — so granting `"hr"` for Payroll reachability would also open full read/write access to Employee PII, leave records, and performance reviews for two roles whose job descriptions don't call for that. Left unfixed pending a decision on whether to widen access or split Payroll out of the HR cluster into its own reachability path.
 
 ---
 

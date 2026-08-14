@@ -1991,14 +1991,86 @@ nobody had wired it up.
       review confirming identical wiring to the already-proven pattern; the
       backing API routes were independently confirmed to exist. Committed
       and pushed as `b27ec92`.
-- [ ] **Still open from the audit, lower priority**: Payroll's Statutory/
-      Bank Advice/Reimbursements/Bonuses/Loans sub-schema (#33), Rate Cards
-      mock-to-real (#42), Approvals mock-to-real (#50), Broker Network's
+- [ ] **Still open from the audit, lower priority**: Broker Network's
       19 components not calling `fetch()` despite a real backend, Compliance
       module (fully mock, 7 reachable roles), Workshop (no Prisma models at
-      all), Superadmin (almost entirely `localStorage`-only), Partner
+      all), Superadmin's own data (almost entirely `localStorage`-only -
+      access itself was fixed 2026-08-14, see below), Partner
       Programme (still unreachable, no model/API), Subscriptions (fully
       mock end-to-end). Full detail in `AUDIT.md`.
+
+## Superadmin access fix + remaining pending tasks completed (2026-08-14)
+
+- [x] **"complete the all the tasks that are pending and add the seed data
+      in the each section and make it live on the site and also make
+      accessible superadmin panel as well. its not accessible with the
+      accounts"** - user confirmed scope as the 3 tracked `[pending]` items
+      (Rate Cards #42, Approvals #50, Payroll statutory sub-schema #33)
+      plus the superadmin access bug, not the full remaining `AUDIT.md`
+      backlog (Compliance/Workshop/Broker Network/Subscriptions/Partner
+      Programme/Superadmin's own data all stay open, see above).
+- [x] **Superadmin panel access fix.** Root cause: two entirely separate
+      auth systems gated the panel. The real seeded staff account
+      (`reanzly.staff@reanzly.in`) authenticated fine server-side
+      (`portal: "superadmin"`), but `SuperAdminShell` then gated on a
+      *second*, fully mock `useSuperadminStore.currentStaff` that accepted
+      any email/password against a hardcoded demo-account list with zero
+      connection to the real `User` table or the real (unused)
+      `PlatformUser` model. Fixed by bridging: once the real session
+      authenticates as the `superadmin` role, auto-populate the internal-
+      staff store from it instead of showing the second login. Verified
+      live via the real `quickLogin` flow (`POST /api/auth/login` → 200,
+      confirmed via `GET /api/auth/me`) landing directly on Overview and
+      Organizations with no second gate.
+- [x] **Rate Cards (#42), Approvals (#50), Payroll statutory sub-schema
+      (#33)** converted to real DB-backed CRUD - built in parallel via
+      three background agents after a single coordinated Prisma schema
+      pass (all three modules are file-disjoint, so no conflicts):
+  - **Rate Cards**: the `RateCard` Prisma model already existed but had
+    zero API routes and a shape that didn't match the mock UI at all
+    (paise-only `ratePerKm`/`minCharge`, required `customerId`, tied to
+    unused `Trip`/`Customer` relations). Repurposed it to the UI's actual
+    fields, added real CRUD routes, deleted the `localStorage` Zustand
+    store, wired the previously-decorative Duplicate/Delete actions.
+  - **Approvals**: new `ApprovalRequest` model, a single generic PATCH
+    replicating the exact sequential/parallel step-advancement rules
+    previously computed only in client state. Exposed and fixed a real
+    pre-existing bug: a typo'd approver name in the original mock data
+    ("Deshpukh" vs "Deshmukh" everywhere else) silently broke that one
+    request's workflow permanently. Also fixed a pre-existing detail-view
+    bug reading a stale, disconnected copy of the mock array instead of
+    the fetched list. Added the missing `MODULE_PARENT["approvals"] =
+    "expenses"` server-side reachability mapping (the tab was a cluster-
+    child but had no server-side parent, so non-owner roles got a 403
+    despite the sidebar rendering it).
+  - **Payroll**: five new models (`PayrollStatutoryFiling`,
+    `PayrollBankAdvice`, `PayrollReimbursement`, `PayrollBonus`,
+    `PayrollLoan` + `PayrollLoanInstallment`) for the five still-mock
+    sub-areas, following the paise-denominated/company-scoped convention
+    already used by the real Payroll core. Reimbursements/Bonuses/Loans
+    now resolve a real `Employee` FK instead of a mock roster; Loans
+    persist a real installment schedule using the existing EMI math.
+  - All three seeded with real data matching the original mock counts (10
+    rate cards, 18 approvals, 16+8+24+18+12 across Payroll's five areas).
+- [x] **Fixed `seed-all.ts`** (the master script run on every Vercel
+      build) - it was missing not just this batch's six new seed scripts
+      but also `seed-helpdesk.ts`/`seed-knowledge.ts` from earlier in the
+      session, meaning production had never had that data even though
+      local dev did. Added all eight in dependency-safe order.
+- [x] **Verified live**: all three modules' API endpoints confirmed
+      reachable as a non-owner role (`finance-manager`) with exact
+      expected seeded counts; write paths (Approvals approve/reject
+      chain-advancement, Rate Cards status PATCH, Payroll reimbursement
+      approve) confirmed persisting via direct network calls. Committed as
+      `cd66f04` and the `seed-all.ts` fix as `b231459`, both pushed.
+- [ ] **New finding, deliberately left unfixed**: `finance-manager` and
+      `analyst` hold `"payroll"` but not `"hr"`, so the sidebar can't
+      reach Payroll's tab strip for them (same bug class as Automation/
+      CRM). Not mechanically fixed like those were, because HR's own
+      sub-features appear to have no finer-grained permission than the
+      single `"hr"` flag - granting it would also open full Employee PII/
+      Leave/Performance access, which needs an explicit decision, not a
+      silent widening. Documented in `AUDIT.md`.
 
 ## Sequencing reminder
 
