@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { DataTable, type Column } from "@/components/shared/data-table";
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -35,7 +35,6 @@ import {
   SheetDescription,
 } from "@/components/ui/sheet";
 import {
-  STATUTORY_RETURNS,
   STATUTORY_TYPES,
   type StatutoryReturn,
   type StatutoryType,
@@ -59,12 +58,22 @@ const TYPE_LABELS: Record<StatutoryType, { due: string; portal: string; note: st
 };
 
 export function StatutoryTab() {
-  const [rows, setRows] = useState<StatutoryReturn[]>(STATUTORY_RETURNS);
+  const [rows, setRows] = useState<StatutoryReturn[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<Set<string>>(new Set());
   const [statusFilter, setStatusFilter] = useState<Set<string>>(new Set());
   const [view, setView] = useState<StatutoryReturn | null>(null);
   const [genOpen, setGenOpen] = useState<StatutoryType | null>(null);
+
+  const load = () => {
+    fetch("/api/payroll/statutory")
+      .then((r) => (r.ok ? r.json() : Promise.reject(r)))
+      .then(({ returns }) => setRows(returns))
+      .catch(() => toast.error("Couldn't load statutory returns", { description: "Try reloading the page." }))
+      .finally(() => setLoaded(true));
+  };
+  useEffect(load, []);
 
   const filtered = useMemo(() => {
     let r = rows;
@@ -96,40 +105,38 @@ export function StatutoryTab() {
   const overdue = rows.filter((r) => r.status === "Overdue").length;
   const totalAmount = rows.reduce((s, r) => s + r.amount, 0);
 
-  const generateChallan = (type: StatutoryType) => {
+  const generateChallan = async (type: StatutoryType) => {
     const period = type === "TDS" ? "Q2 FY25-26" : new Date().toISOString().slice(0, 7);
-    const newRec: StatutoryReturn = {
-      id: `srt-${String(rows.length + 1).padStart(3, "0")}`,
-      type,
-      period,
-      dueDate: new Date(Date.now() + 14 * 86400000).toISOString(),
-      status: "Pending",
-      amount: type === "PF" ? 43200 : type === "ESI" ? 18600 : type === "TDS" ? 98400 : 2800,
-      filingPortal: TYPE_LABELS[type].portal,
-      remarks: "Generated challan pending payment",
-    };
-    setRows((prev) => [newRec, ...prev]);
-    setGenOpen(null);
-    toast.success(`Challan generated`, { description: `${type} - ${period}` });
+    try {
+      const res = await fetch("/api/payroll/statutory", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type, period }),
+      });
+      if (!res.ok) throw new Error();
+      const { return: created } = await res.json();
+      setRows((prev) => [created, ...prev]);
+      setGenOpen(null);
+      toast.success(`Challan generated`, { description: `${type} - ${period}` });
+    } catch {
+      toast.error("Couldn't generate challan", { description: "Try again." });
+    }
   };
 
-  const markFiled = (s: StatutoryReturn) => {
-    setRows((prev) =>
-      prev.map((r) =>
-        r.id === s.id
-          ? {
-              ...r,
-              status: "Filed",
-              filedDate: new Date().toISOString(),
-              challanNo: `CHN-${String(Math.floor(Math.random() * 90000000) + 10000000)}`,
-              acknowledgementNo: `ACK${String(Math.floor(Math.random() * 90000000) + 10000000)}`,
-              filedBy: "Reena Mehta",
-              remarks: undefined,
-            }
-          : r,
-      ),
-    );
-    toast.success(`Return filed`, { description: `${s.type} - ${s.period}` });
+  const markFiled = async (s: StatutoryReturn) => {
+    try {
+      const res = await fetch(`/api/payroll/statutory/${s.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "mark-filed" }),
+      });
+      if (!res.ok) throw new Error();
+      const { return: updated } = await res.json();
+      setRows((prev) => prev.map((r) => (r.id === s.id ? updated : r)));
+      toast.success(`Return filed`, { description: `${s.type} - ${s.period}` });
+    } catch {
+      toast.error("Couldn't file return", { description: "Try again." });
+    }
   };
 
   const columns: Column<StatutoryReturn>[] = [
@@ -221,6 +228,10 @@ export function StatutoryTab() {
       return { type: t, count: matching.length, pending, total };
     });
   }, [rows]);
+
+  if (!loaded) {
+    return <div className="p-6 text-[13px] text-muted-foreground">Loading statutory returns…</div>;
+  }
 
   return (
     <div className="flex flex-col gap-4">

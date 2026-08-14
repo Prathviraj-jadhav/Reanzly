@@ -40,7 +40,11 @@ import {
 
 interface ApprovalsListProps {
   requests: ApprovalRequest[];
-  onUpdate?: (id: string, data: Partial<ApprovalRequest>) => void;
+  onAction?: (
+    id: string,
+    action: "approve" | "reject" | "delegate" | "withdraw",
+    payload?: { comment?: string; delegateTo?: string },
+  ) => Promise<ApprovalRequest | null>;
 }
 
 const DATE_RANGE_PRESETS = [
@@ -69,7 +73,7 @@ function DecisionCell({ req }: { req: ApprovalRequest }) {
   return <span className="text-[12px] text-muted-foreground">-</span>;
 }
 
-export function ApprovalsList({ requests }: ApprovalsListProps) {
+export function ApprovalsList({ requests, onAction }: ApprovalsListProps) {
   const { navigateDetail } = useAppStore();
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<Set<string>>(new Set());
@@ -220,13 +224,33 @@ export function ApprovalsList({ requests }: ApprovalsListProps) {
 
   const rowActions = [
     { label: "View", onClick: (r: ApprovalRequest) => navigateDetail("approvals", r.id) },
-    { label: "Approve", onClick: (r: ApprovalRequest) => toast.success(`Request approved`, { description: r.requestId }) },
-    { label: "Reject", onClick: (r: ApprovalRequest) => toast(`Request rejected`, { description: r.requestId }) },
-    { label: "Delegate", onClick: (r: ApprovalRequest) => toast(`Request delegated`, { description: r.requestId }) },
+    {
+      label: "Approve",
+      onClick: async (r: ApprovalRequest) => {
+        const result = await onAction?.(r.id, "approve");
+        if (result) toast.success(`Request approved`, { description: r.requestId });
+      },
+    },
+    {
+      label: "Reject",
+      onClick: async (r: ApprovalRequest) => {
+        const result = await onAction?.(r.id, "reject");
+        if (result) toast(`Request rejected`, { description: r.requestId });
+      },
+    },
+    {
+      // Delegation needs a target approver, which this row-level quick
+      // action has no picker for - route to the detail view's Decision tab
+      // instead of faking a delegate destination.
+      label: "Delegate",
+      onClick: (r: ApprovalRequest) => navigateDetail("approvals", r.id, "decision"),
+    },
     {
       label: "Withdraw",
-      onClick: (r: ApprovalRequest) =>
-        toast(`Request withdrawn`, { description: r.requestId }),
+      onClick: async (r: ApprovalRequest) => {
+        const result = await onAction?.(r.id, "withdraw");
+        if (result) toast(`Request withdrawn`, { description: r.requestId });
+      },
     },
   ];
 
@@ -238,13 +262,19 @@ export function ApprovalsList({ requests }: ApprovalsListProps) {
     },
     {
       label: "Approve",
-      onClick: (selected: ApprovalRequest[]) =>
-        toast.success(`${selected.length} request${selected.length === 1 ? "" : "s"} approved`),
+      onClick: async (selected: ApprovalRequest[]) => {
+        const results = await Promise.all(selected.map((r) => onAction?.(r.id, "approve")));
+        const succeeded = results.filter(Boolean).length;
+        if (succeeded > 0) toast.success(`${succeeded} request${succeeded === 1 ? "" : "s"} approved`);
+      },
     },
     {
       label: "Reject",
-      onClick: (selected: ApprovalRequest[]) =>
-        toast(`${selected.length} request${selected.length === 1 ? "" : "s"} rejected`),
+      onClick: async (selected: ApprovalRequest[]) => {
+        const results = await Promise.all(selected.map((r) => onAction?.(r.id, "reject")));
+        const succeeded = results.filter(Boolean).length;
+        if (succeeded > 0) toast(`${succeeded} request${succeeded === 1 ? "" : "s"} rejected`);
+      },
     },
   ];
 

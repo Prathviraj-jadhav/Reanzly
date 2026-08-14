@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { DataTable, type Column } from "@/components/shared/data-table";
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -37,10 +37,8 @@ import {
   SheetDescription,
 } from "@/components/ui/sheet";
 import {
-  LOANS,
   LOAN_TYPES,
   LOAN_STATUSES,
-  EMPLOYEES,
   type Loan,
   type LoanStatus,
   type LoanType,
@@ -64,13 +62,36 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 
+interface EmployeePickerRow {
+  id: string;
+  code: string;
+  name: string;
+  designation: string;
+  department: string;
+}
+
 export function LoansTab() {
-  const [rows, setRows] = useState<Loan[]>(LOANS);
+  const [rows, setRows] = useState<Loan[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  const [employees, setEmployees] = useState<EmployeePickerRow[]>([]);
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<Set<string>>(new Set());
   const [statusFilter, setStatusFilter] = useState<Set<string>>(new Set());
   const [view, setView] = useState<Loan | null>(null);
   const [addOpen, setAddOpen] = useState(false);
+
+  useEffect(() => {
+    Promise.all([
+      fetch("/api/payroll/loans").then((r) => (r.ok ? r.json() : Promise.reject(r))),
+      fetch("/api/payroll/employees").then((r) => (r.ok ? r.json() : { employees: [] })),
+    ])
+      .then(([loansRes, empRes]) => {
+        setRows(loansRes.loans);
+        setEmployees(empRes.employees ?? []);
+      })
+      .catch(() => toast.error("Couldn't load loans", { description: "Try reloading the page." }))
+      .finally(() => setLoaded(true));
+  }, []);
 
   const filtered = useMemo(() => {
     let r = rows;
@@ -103,18 +124,47 @@ export function LoansTab() {
   const totalDisbursed = rows.reduce((s, r) => s + r.principal, 0);
   const totalEMI = rows.filter((r) => r.status === "Active").reduce((s, r) => s + r.emi, 0);
 
-  const updateStatus = (id: string, status: LoanStatus) => {
-    setRows((prev) =>
-      prev.map((r) =>
-        r.id === id
-          ? {
-              ...r,
-              status,
-              outstanding: status === "Closed" || status === "Foreclosed" ? 0 : r.outstanding,
-            }
-          : r,
-      ),
-    );
+  const updateStatus = async (id: string, status: LoanStatus): Promise<boolean> => {
+    const action = status === "Closed" ? "close" : status === "Foreclosed" ? "foreclose" : null;
+    if (!action) return false;
+    try {
+      const res = await fetch(`/api/payroll/loans/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+      if (!res.ok) {
+        const { error } = await res.json().catch(() => ({ error: undefined }));
+        toast.error(error || "Couldn't update loan", { description: "Try again." });
+        return false;
+      }
+      const { loan } = await res.json();
+      setRows((prev) => prev.map((r) => (r.id === id ? loan : r)));
+      return true;
+    } catch {
+      toast.error("Couldn't update loan", { description: "Try again." });
+      return false;
+    }
+  };
+
+  const markInstallmentPaid = async (loanId: string, installmentId: string) => {
+    try {
+      const res = await fetch(`/api/payroll/loans/${loanId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "mark-installment-paid", installmentId }),
+      });
+      if (!res.ok) {
+        const { error } = await res.json().catch(() => ({ error: undefined }));
+        toast.error(error || "Couldn't mark installment paid", { description: "Try again." });
+        return;
+      }
+      const { loan } = await res.json();
+      setRows((prev) => prev.map((r) => (r.id === loanId ? loan : r)));
+      toast.success("Installment marked paid");
+    } catch {
+      toast.error("Couldn't mark installment paid", { description: "Try again." });
+    }
   };
 
   const columns: Column<Loan>[] = [
@@ -207,18 +257,16 @@ export function LoansTab() {
     { label: "View Details", onClick: (s) => setView(s) },
     {
       label: "Mark Closed",
-      onClick: (s) => {
+      onClick: async (s) => {
         if (s.status !== "Active") { toast("Loan already closed/foreclosed", { description: s.code }); return; }
-        updateStatus(s.id, "Closed");
-        toast.success(`Loan closed`, { description: s.code });
+        if (await updateStatus(s.id, "Closed")) toast.success(`Loan closed`, { description: s.code });
       },
     },
     {
       label: "Foreclose",
-      onClick: (s) => {
+      onClick: async (s) => {
         if (s.status !== "Active") { toast("Loan already closed/foreclosed", { description: s.code }); return; }
-        updateStatus(s.id, "Foreclosed");
-        toast(`Loan foreclosed`, { description: s.code });
+        if (await updateStatus(s.id, "Foreclosed")) toast(`Loan foreclosed`, { description: s.code });
       },
     },
     { label: "Print Schedule", onClick: (s) => toast("Generating PDF", { description: s.code }) },
@@ -240,6 +288,10 @@ export function LoansTab() {
       return { type: t, count: matching.length, outstanding, disbursed };
     }).filter((x) => x.count > 0);
   }, [rows]);
+
+  if (!loaded) {
+    return <div className="p-6 text-[13px] text-muted-foreground">Loading loans & advances…</div>;
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -352,51 +404,50 @@ export function LoansTab() {
         </SectionCard>
       </div>
 
-      <LoanDetailDrawer open={!!view} record={view} onClose={() => setView(null)} onUpdate={(status) => { if (view) { updateStatus(view.id, status); setView(null); } }} />
-      <LoanDrawer open={addOpen} onClose={() => setAddOpen(false)} onSave={(payload) => {
-        const emp = EMPLOYEES.find((e) => e.code === payload.empCode);
-        if (!emp) { toast("Select an employee"); return; }
-        const principal = Number(payload.principal) || 0;
-        const interestRate = Number(payload.interestRate) || 0;
-        const tenureMonths = Number(payload.tenureMonths) || 6;
-        const emi = Math.round((principal * (1 + (interestRate / 100) * (tenureMonths / 12))) / tenureMonths);
-        const startDate = new Date().toISOString();
-        const endDate = new Date(new Date().getFullYear(), new Date().getMonth() + tenureMonths, 5).toISOString();
-        const installments = Array.from({ length: tenureMonths }).map((_, i) => {
-          const d = new Date(new Date().getFullYear(), new Date().getMonth() + i, 5);
-          return { no: i + 1, date: d.toISOString(), amount: emi, status: (i === 0 ? "Paid" : "Upcoming") as "Paid" | "Pending" | "Upcoming" };
-        });
-        const newRec: Loan = {
-          id: `lan-${String(rows.length + 1).padStart(3, "0")}`,
-          code: `RZ-LON-${String(rows.length + 1).padStart(3, "0")}`,
-          empCode: emp.code,
-          empName: emp.name,
-          designation: emp.desig,
-          department: emp.dept,
-          type: payload.type as LoanType,
-          principal,
-          interestRate,
-          tenureMonths,
-          emi,
-          disbursedDate: new Date().toISOString(),
-          startDate,
-          endDate,
-          status: "Active",
-          outstanding: principal - emi,
-          paidInstallments: 1,
-          totalInstallments: tenureMonths,
-          installments,
-          remarks: payload.remarks,
-        };
-        setRows((prev) => [newRec, ...prev]);
-        toast.success(`Loan disbursed`, { description: newRec.code });
-        setAddOpen(false);
-      }} />
+      <LoanDetailDrawer
+        open={!!view}
+        record={view}
+        onClose={() => setView(null)}
+        onUpdate={async (status) => { if (view && (await updateStatus(view.id, status))) setView(null); }}
+        onMarkInstallmentPaid={(installmentId) => { if (view) markInstallmentPaid(view.id, installmentId); }}
+      />
+      <LoanDrawer
+        open={addOpen}
+        employees={employees}
+        onClose={() => setAddOpen(false)}
+        onSave={async (payload) => {
+          try {
+            const res = await fetch("/api/payroll/loans", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                employeeId: payload.employeeId,
+                type: payload.type,
+                principal: Number(payload.principal) || 0,
+                interestRate: Number(payload.interestRate) || 0,
+                tenureMonths: Number(payload.tenureMonths) || 6,
+                remarks: payload.remarks,
+              }),
+            });
+            if (!res.ok) {
+              const { error } = await res.json().catch(() => ({ error: undefined }));
+              toast.error(error || "Couldn't disburse loan", { description: "Try again." });
+              return;
+            }
+            const { loan } = await res.json();
+            setRows((prev) => [loan, ...prev]);
+            toast.success(`Loan disbursed`, { description: loan.code });
+            setAddOpen(false);
+          } catch {
+            toast.error("Couldn't disburse loan", { description: "Try again." });
+          }
+        }}
+      />
     </div>
   );
 }
 
-function LoanDetailDrawer({ open, record, onClose, onUpdate }: { open: boolean; record: Loan | null; onClose: () => void; onUpdate: (s: LoanStatus) => void }) {
+function LoanDetailDrawer({ open, record, onClose, onUpdate, onMarkInstallmentPaid }: { open: boolean; record: Loan | null; onClose: () => void; onUpdate: (s: LoanStatus) => void; onMarkInstallmentPaid: (installmentId: string) => void }) {
   if (!record) return null;
   const m = loanStatusBadge(record.status);
   const pct = Math.round((record.paidInstallments / record.totalInstallments) * 100);
@@ -472,7 +523,12 @@ function LoanDetailDrawer({ open, record, onClose, onUpdate }: { open: boolean; 
                 </div>
                 <div className="tabular text-[14px] font-medium text-foreground">{formatINR(nextInstallment.amount)}</div>
               </div>
-              <div className="mt-1 text-[11px] text-muted-foreground">Auto-deducted from next payslip</div>
+              <div className="mt-2 flex items-center justify-between">
+                <div className="text-[11px] text-muted-foreground">Auto-deducted from next payslip</div>
+                {nextInstallment.id && (
+                  <Btn size="sm" variant="outline" icon={<CheckCircle2 className="h-3.5 w-3.5" />} onClick={() => onMarkInstallmentPaid(nextInstallment.id!)}>Mark Paid</Btn>
+                )}
+              </div>
             </div>
           )}
 
@@ -482,17 +538,25 @@ function LoanDetailDrawer({ open, record, onClose, onUpdate }: { open: boolean; 
             <div className="rounded-[6px] border border-border overflow-hidden">
               <div className="grid grid-cols-12 border-b border-border bg-muted/30 px-3 py-2 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
                 <div className="col-span-2">#</div>
-                <div className="col-span-5">Due Date</div>
+                <div className="col-span-4">Due Date</div>
                 <div className="col-span-3 text-right">Amount</div>
-                <div className="col-span-2 text-right">Status</div>
+                <div className="col-span-3 text-right">Status</div>
               </div>
               <div className="max-h-72 overflow-y-auto scrollbar-thin">
                 {record.installments.map((i) => (
-                  <div key={i.no} className="grid grid-cols-12 border-b border-border last:border-b-0 px-3 py-2 text-[12px]">
+                  <div key={i.id ?? i.no} className="grid grid-cols-12 items-center border-b border-border last:border-b-0 px-3 py-2 text-[12px]">
                     <div className="col-span-2 tabular text-muted-foreground">{i.no}</div>
-                    <div className="col-span-5 tabular text-muted-foreground">{formatDate(i.date)}</div>
+                    <div className="col-span-4 tabular text-muted-foreground">{formatDate(i.date)}</div>
                     <div className="col-span-3 text-right tabular text-foreground">{formatINR(i.amount)}</div>
-                    <div className="col-span-2 text-right">
+                    <div className="col-span-3 flex items-center justify-end gap-1.5">
+                      {i.status !== "Paid" && i.id && (
+                        <button
+                          onClick={() => onMarkInstallmentPaid(i.id!)}
+                          className="rounded-[4px] border border-border px-1.5 py-0.5 text-[10px] text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+                        >
+                          Mark Paid
+                        </button>
+                      )}
                       <StatusBadge variant={i.status === "Paid" ? "solid" : i.status === "Pending" ? "outline" : "muted"}>{i.status}</StatusBadge>
                     </div>
                   </div>
@@ -522,8 +586,8 @@ function LoanDetailDrawer({ open, record, onClose, onUpdate }: { open: boolean; 
   );
 }
 
-function LoanDrawer({ open, onClose, onSave }: { open: boolean; onClose: () => void; onSave: (payload: { empCode: string; type: string; principal: string; interestRate: string; tenureMonths: string; remarks?: string }) => void }) {
-  const [empCode, setEmpCode] = useState("");
+function LoanDrawer({ open, employees, onClose, onSave }: { open: boolean; employees: EmployeePickerRow[]; onClose: () => void; onSave: (payload: { employeeId: string; type: string; principal: string; interestRate: string; tenureMonths: string; remarks?: string }) => void }) {
+  const [employeeId, setEmployeeId] = useState("");
   const [type, setType] = useState<LoanType>("Salary Advance");
   const [principal, setPrincipal] = useState("25000");
   const [interestRate, setInterestRate] = useState("0");
@@ -531,8 +595,9 @@ function LoanDrawer({ open, onClose, onSave }: { open: boolean; onClose: () => v
   const [remarks, setRemarks] = useState("");
 
   const handleSubmit = () => {
-    onSave({ empCode, type, principal, interestRate, tenureMonths, remarks });
-    setEmpCode(""); setType("Salary Advance"); setPrincipal("25000"); setInterestRate("0"); setTenureMonths("6"); setRemarks("");
+    if (!employeeId) { toast("Select an employee"); return; }
+    onSave({ employeeId, type, principal, interestRate, tenureMonths, remarks });
+    setEmployeeId(""); setType("Salary Advance"); setPrincipal("25000"); setInterestRate("0"); setTenureMonths("6"); setRemarks("");
   };
 
   // Live preview
@@ -556,13 +621,13 @@ function LoanDrawer({ open, onClose, onSave }: { open: boolean; onClose: () => v
           <div className="flex flex-col gap-3">
             <div>
               <FieldLabel required>Employee</FieldLabel>
-              <Select value={empCode} onValueChange={setEmpCode}>
+              <Select value={employeeId} onValueChange={setEmployeeId}>
                 <SelectTrigger className="h-8 w-full rounded-[5px] text-[13px]"><SelectValue placeholder="Select employee" /></SelectTrigger>
                 <SelectContent className="max-h-72">
-                  {EMPLOYEES.map((e) => (
-                    <SelectItem key={e.code} value={e.code}>
+                  {employees.map((e) => (
+                    <SelectItem key={e.id} value={e.id}>
                       <span className="tabular text-[11px] text-muted-foreground mr-2">{e.code}</span>
-                      {e.name} · {e.desig}
+                      {e.name} · {e.designation}
                     </SelectItem>
                   ))}
                 </SelectContent>

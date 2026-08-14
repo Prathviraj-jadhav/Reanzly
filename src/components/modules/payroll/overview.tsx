@@ -22,11 +22,8 @@ import {
   Clock,
 } from "lucide-react";
 import {
-  STATUTORY_RETURNS,
-  BANK_ADVICES,
-  REIMBURSEMENTS,
-  BONUSES,
-  LOANS,
+  type StatutoryReturn,
+  type BankAdvice,
   formatINR,
   formatINRCompact,
   formatMonthYear,
@@ -54,16 +51,37 @@ export function OverviewTab({ onNavigate }: { onNavigate: (t: PayrollTab) => voi
   const [headcount, setHeadcount] = useState(0);
   const [avgCtc, setAvgCtc] = useState(0);
   const [pendingApprovals, setPendingApprovals] = useState(0);
+  const [statutoryReturns, setStatutoryReturns] = useState<StatutoryReturn[]>([]);
+  const [bankAdvices, setBankAdvices] = useState<BankAdvice[]>([]);
+  const [reimbCount, setReimbCount] = useState(0);
+  const [bonusCount, setBonusCount] = useState(0);
+  const [loanCount, setLoanCount] = useState(0);
+  const [pendingReimb, setPendingReimb] = useState(0);
+  const [pendingBonus, setPendingBonus] = useState(0);
+  const [activeLoans, setActiveLoans] = useState(0);
+  const [totalLoanOutstanding, setTotalLoanOutstanding] = useState(0);
+  const [totalReimbAmount, setTotalReimbAmount] = useState(0);
+  const [totalBonusAmount, setTotalBonusAmount] = useState(0);
 
   useEffect(() => {
     Promise.all([
       fetch("/api/payroll/cycles").then((r) => (r.ok ? r.json() : { cycles: [] })),
       fetch("/api/payroll/payslips").then((r) => (r.ok ? r.json() : { payslips: [] })),
       fetch("/api/payroll/structures").then((r) => (r.ok ? r.json() : { structures: [] })),
-    ]).then(([cyclesRes, payslipsRes, structuresRes]) => {
+      fetch("/api/payroll/statutory").then((r) => (r.ok ? r.json() : { returns: [] })),
+      fetch("/api/payroll/bank-advice").then((r) => (r.ok ? r.json() : { advices: [] })),
+      fetch("/api/payroll/reimbursements").then((r) => (r.ok ? r.json() : { reimbursements: [] })),
+      fetch("/api/payroll/bonuses").then((r) => (r.ok ? r.json() : { bonuses: [] })),
+      fetch("/api/payroll/loans").then((r) => (r.ok ? r.json() : { loans: [] })),
+    ]).then(([cyclesRes, payslipsRes, structuresRes, statutoryRes, bankAdviceRes, reimbRes, bonusRes, loansRes]) => {
       const cyclesData: PayCycle[] = cyclesRes.cycles ?? [];
       const payslips = payslipsRes.payslips ?? [];
       const structures = structuresRes.structures ?? [];
+      const returns: StatutoryReturn[] = statutoryRes.returns ?? [];
+      const advices: BankAdvice[] = bankAdviceRes.advices ?? [];
+      const reimbursements = reimbRes.reimbursements ?? [];
+      const bonuses = bonusRes.bonuses ?? [];
+      const loans = loansRes.loans ?? [];
       setCycles(cyclesData);
       setPayslipCount(payslips.length);
       const current = cyclesData[0];
@@ -72,29 +90,33 @@ export function OverviewTab({ onNavigate }: { onNavigate: (t: PayrollTab) => voi
       const totalHc = structures.reduce((s: number, r: any) => s + r.activeHeadcount, 0);
       setAvgCtc(totalHc > 0 ? structures.reduce((s: number, r: any) => s + r.ctcAnnual * r.activeHeadcount, 0) / totalHc : 0);
       setPendingApprovals(payslips.filter((p: any) => p.status === "Draft" || p.status === "Hold").length);
+      setStatutoryReturns(returns);
+      setBankAdvices(advices);
+      setReimbCount(reimbursements.length);
+      setBonusCount(bonuses.length);
+      setLoanCount(loans.length);
+      setPendingReimb(reimbursements.filter((r: any) => r.status === "Pending").length);
+      setPendingBonus(bonuses.filter((b: any) => b.status === "Pending").length);
+      setActiveLoans(loans.filter((l: any) => l.status === "Active").length);
+      setTotalLoanOutstanding(loans.reduce((s: number, l: any) => s + l.outstanding, 0));
+      setTotalReimbAmount(reimbursements.filter((r: any) => r.status !== "Rejected").reduce((s: number, r: any) => s + r.amount, 0));
+      setTotalBonusAmount(bonuses.filter((b: any) => b.status !== "Cancelled").reduce((s: number, b: any) => s + b.amount, 0));
     }).finally(() => setLoaded(true));
   }, []);
 
   const stats = {
     currentCycle: cycles[0] ?? EMPTY_CYCLE,
     monthlyCost, headcount, avgCtc, pendingApprovals,
-    // Reimbursements/Bonuses/Loans aren't converted yet - still the
-    // original mock arrays (see task.md for the flagged Tier-2 gap).
-    pendingReimb: REIMBURSEMENTS.filter((r) => r.status === "Pending").length,
-    pendingBonus: BONUSES.filter((b) => b.status === "Pending").length,
-    activeLoans: LOANS.filter((l) => l.status === "Active").length,
-    totalLoanOutstanding: LOANS.reduce((s, l) => s + l.outstanding, 0),
-    totalReimbAmount: REIMBURSEMENTS.filter((r) => r.status !== "Rejected").reduce((s, r) => s + r.amount, 0),
-    totalBonusAmount: BONUSES.filter((b) => b.status !== "Cancelled").reduce((s, b) => s + b.amount, 0),
+    pendingReimb, pendingBonus, activeLoans, totalLoanOutstanding, totalReimbAmount, totalBonusAmount,
   };
 
   const upcomingDue = useMemo(
     () =>
-      [...STATUTORY_RETURNS]
+      [...statutoryReturns]
         .filter((r) => r.status !== "Filed")
         .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
         .slice(0, 5),
-    [],
+    [statutoryReturns],
   );
 
   // Monthly cost trend (last 6 real cycles)
@@ -278,9 +300,9 @@ export function OverviewTab({ onNavigate }: { onNavigate: (t: PayrollTab) => voi
       {/* Quick actions grid */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <QuickAction icon={<FileText className="h-4 w-4" />} title="Payslips" subtitle={`${payslipCount} records`} hint={`${stats.pendingApprovals} pending approval`} onClick={() => onNavigate("payslips")} />
-        <QuickAction icon={<Receipt className="h-4 w-4" />} title="Reimbursements" subtitle={`${REIMBURSEMENTS.length} records`} hint={`${stats.pendingReimb} pending · ${formatINRCompact(stats.totalReimbAmount)}`} onClick={() => onNavigate("reimbursements")} />
-        <QuickAction icon={<Gift className="h-4 w-4" />} title="Bonus & Incentives" subtitle={`${BONUSES.length} records`} hint={`${stats.pendingBonus} pending · ${formatINRCompact(stats.totalBonusAmount)}`} onClick={() => onNavigate("reimbursements")} />
-        <QuickAction icon={<Landmark className="h-4 w-4" />} title="Loans & Advances" subtitle={`${LOANS.length} records`} hint={`${stats.activeLoans} active · ${formatINRCompact(stats.totalLoanOutstanding)}`} onClick={() => onNavigate("loans")} />
+        <QuickAction icon={<Receipt className="h-4 w-4" />} title="Reimbursements" subtitle={`${reimbCount} records`} hint={`${stats.pendingReimb} pending · ${formatINRCompact(stats.totalReimbAmount)}`} onClick={() => onNavigate("reimbursements")} />
+        <QuickAction icon={<Gift className="h-4 w-4" />} title="Bonus & Incentives" subtitle={`${bonusCount} records`} hint={`${stats.pendingBonus} pending · ${formatINRCompact(stats.totalBonusAmount)}`} onClick={() => onNavigate("reimbursements")} />
+        <QuickAction icon={<Landmark className="h-4 w-4" />} title="Loans & Advances" subtitle={`${loanCount} records`} hint={`${stats.activeLoans} active · ${formatINRCompact(stats.totalLoanOutstanding)}`} onClick={() => onNavigate("loans")} />
       </div>
 
       {/* Statutory + Bank Advice snapshot */}
@@ -289,30 +311,30 @@ export function OverviewTab({ onNavigate }: { onNavigate: (t: PayrollTab) => voi
           <div className="grid grid-cols-2 divide-x divide-border border-b border-border">
             <div className="px-4 py-3">
               <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Filed</div>
-              <div className="tabular text-[18px] font-medium text-foreground">{STATUTORY_RETURNS.filter((r) => r.status === "Filed").length}</div>
+              <div className="tabular text-[18px] font-medium text-foreground">{statutoryReturns.filter((r) => r.status === "Filed").length}</div>
             </div>
             <div className="px-4 py-3">
               <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Pending + Overdue</div>
-              <div className="tabular text-[18px] font-medium text-foreground">{STATUTORY_RETURNS.filter((r) => r.status !== "Filed").length}</div>
+              <div className="tabular text-[18px] font-medium text-foreground">{statutoryReturns.filter((r) => r.status !== "Filed").length}</div>
             </div>
           </div>
           <div className="px-4 py-3 text-[12px] text-muted-foreground">
-            Total liability: <span className="tabular font-medium text-foreground">{formatINR(STATUTORY_RETURNS.reduce((s, r) => s + r.amount, 0))}</span>
+            Total liability: <span className="tabular font-medium text-foreground">{formatINR(statutoryReturns.reduce((s, r) => s + r.amount, 0))}</span>
           </div>
         </SectionCard>
         <SectionCard title="Bank Advice" description="Salary disbursement status" icon={<Banknote className="h-4 w-4" />} action={<Btn size="sm" variant="ghost" iconRight={<ArrowRight className="h-3.5 w-3.5" />} onClick={() => onNavigate("bank-advice")}>Open</Btn>} flush>
           <div className="grid grid-cols-2 divide-x divide-border border-b border-border">
             <div className="px-4 py-3">
               <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Processed</div>
-              <div className="tabular text-[18px] font-medium text-foreground">{BANK_ADVICES.filter((b) => b.status === "Processed").length}</div>
+              <div className="tabular text-[18px] font-medium text-foreground">{bankAdvices.filter((b) => b.status === "Processed").length}</div>
             </div>
             <div className="px-4 py-3">
               <div className="text-[10px] uppercase tracking-wider text-muted-foreground">In Flight</div>
-              <div className="tabular text-[18px] font-medium text-foreground">{BANK_ADVICES.filter((b) => b.status === "Generated" || b.status === "Submitted").length}</div>
+              <div className="tabular text-[18px] font-medium text-foreground">{bankAdvices.filter((b) => b.status === "Generated" || b.status === "Submitted").length}</div>
             </div>
           </div>
           <div className="px-4 py-3 text-[12px] text-muted-foreground">
-            Disbursed YTD: <span className="tabular font-medium text-foreground">{formatINRCompact(BANK_ADVICES.reduce((s, b) => s + (b.status === "Processed" ? b.totalAmount : 0), 0))}</span>
+            Disbursed YTD: <span className="tabular font-medium text-foreground">{formatINRCompact(bankAdvices.reduce((s, b) => s + (b.status === "Processed" ? b.totalAmount : 0), 0))}</span>
           </div>
         </SectionCard>
       </div>

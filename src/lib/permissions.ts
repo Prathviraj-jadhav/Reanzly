@@ -20,6 +20,7 @@ const MODULE_PARENT: Record<string, string> = {
   compliance: "vehicles",
   quality: "vehicles",
   "rate-cards": "invoice",
+  approvals: "expenses",
   purchase: "vendors",
   subscriptions: "settings",
   "access-matrix": "settings",

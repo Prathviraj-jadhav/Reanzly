@@ -1,20 +1,20 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable, type Column } from "@/components/shared/data-table";
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { SearchInput } from "@/components/shared/toolbar";
 import { useAppStore } from "@/lib/store/app-store";
+import type { RateCard } from "@/lib/types";
 import {
-  useRateCardsStore,
   VEHICLE_TYPES,
   LOAD_TYPES,
   RATE_CARD_STATUSES,
-  type RateCard,
+  type RateCardPayload,
   type RateCardStatus,
-} from "@/lib/store/rate-cards-store";
+} from "./_helpers";
 import {
   Plus,
   Download,
@@ -49,6 +49,67 @@ export function RateCardsModule() {
   const [editRecord, setEditRecord] = useState<RateCard | null>(null);
   const [editOpen, setEditOpen] = useState(false);
 
+  // Real, database-backed rate cards (src/app/api/rate-cards) - previously
+  // a client-only useRateCardsStore Zustand store persisted to localStorage.
+  const [rateCards, setRateCards] = useState<RateCard[]>([]);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/rate-cards")
+      .then((r) => (r.ok ? r.json() : Promise.reject(r)))
+      .then(({ rateCards }) => setRateCards(rateCards))
+      .catch(() => toast.error("Couldn't load rate cards", { description: "Try reloading the page." }))
+      .finally(() => setLoaded(true));
+  }, []);
+
+  const createRateCard = useCallback(async (payload: RateCardPayload): Promise<boolean> => {
+    const res = await fetch("/api/rate-cards", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      toast.error("Couldn't create rate card", { description: body.error || "Try again." });
+      return false;
+    }
+    const { rateCard } = await res.json();
+    setRateCards((prev) => [rateCard, ...prev]);
+    return true;
+  }, []);
+
+  const updateRateCard = useCallback(async (id: string, patch: Partial<RateCardPayload>): Promise<boolean> => {
+    setRateCards((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r))); // optimistic
+    const res = await fetch(`/api/rate-cards/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(patch),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      toast.error("Couldn't save rate card", { description: body.error || "Try again." });
+      return false;
+    }
+    const { rateCard } = await res.json();
+    setRateCards((prev) => prev.map((r) => (r.id === id ? rateCard : r)));
+    return true;
+  }, []);
+
+  const deleteRateCard = useCallback(async (id: string): Promise<boolean> => {
+    const res = await fetch(`/api/rate-cards/${id}`, { method: "DELETE" });
+    if (!res.ok) {
+      toast.error("Couldn't delete rate card", { description: "Try again." });
+      return false;
+    }
+    setRateCards((prev) => prev.filter((r) => r.id !== id));
+    return true;
+  }, []);
+
+  const duplicateRateCard = useCallback(async (r: RateCard): Promise<boolean> => {
+    const { id: _id, createdAt: _createdAt, updatedAt: _updatedAt, createdBy: _createdBy, ...rest } = r;
+    return createRateCard({ ...rest, name: `${r.name} (Copy)` });
+  }, [createRateCard]);
+
   const openEdit = (rc: RateCard) => {
     setEditRecord(rc);
     setEditOpen(true);
@@ -67,8 +128,13 @@ export function RateCardsModule() {
       open={editOpen}
       onClose={closeEdit}
       rateCard={editRecord}
+      onUpdate={updateRateCard}
     />
   );
+
+  if (!loaded) {
+    return <div className="p-6 text-[13px] text-muted-foreground">Loading rate cards…</div>;
+  }
 
   // Detail view - route before any list hooks to keep hook order stable.
   if (
@@ -78,7 +144,14 @@ export function RateCardsModule() {
   ) {
     return (
       <>
-        <RateCardDetail rateCardId={activeView.id} onEdit={openEdit} />
+        <RateCardDetail
+          rateCardId={activeView.id}
+          rateCards={rateCards}
+          onEdit={openEdit}
+          onUpdate={updateRateCard}
+          onDelete={deleteRateCard}
+          onDuplicate={duplicateRateCard}
+        />
         {editDrawer}
       </>
     );
@@ -86,16 +159,28 @@ export function RateCardsModule() {
 
   return (
     <>
-      <RateCardsList onEdit={openEdit} />
+      <RateCardsList
+        rateCards={rateCards}
+        onEdit={openEdit}
+        onCreate={createRateCard}
+        onDelete={deleteRateCard}
+        onDuplicate={duplicateRateCard}
+      />
       {editDrawer}
     </>
   );
 }
 
-function RateCardsList({ onEdit }: { onEdit?: (rc: RateCard) => void }) {
+interface RateCardsListProps {
+  rateCards: RateCard[];
+  onEdit?: (rc: RateCard) => void;
+  onCreate: (payload: RateCardPayload) => Promise<boolean>;
+  onDelete: (id: string) => Promise<boolean>;
+  onDuplicate: (rc: RateCard) => Promise<boolean>;
+}
+
+function RateCardsList({ rateCards, onEdit, onCreate, onDelete, onDuplicate }: RateCardsListProps) {
   const { activeView, navigate, navigateDetail } = useAppStore();
-  const rateCards = useRateCardsStore((s) => s.rateCards);
-  const hasHydrated = useRateCardsStore((s) => s.hasHydrated);
 
   const [search, setSearch] = useState("");
   const [vehicleFilter, setVehicleFilter] = useState<Set<string>>(new Set());
@@ -220,11 +305,17 @@ function RateCardsList({ onEdit }: { onEdit?: (rc: RateCard) => void }) {
     { label: "Edit", onClick: (r: RateCard) => onEdit ? onEdit(r) : toast("Edit rate card", { description: r.name }) },
     {
       label: "Duplicate",
-      onClick: (r: RateCard) => toast.success("Rate card duplicated", { description: `${r.name} (copy)` }),
+      onClick: async (r: RateCard) => {
+        const ok = await onDuplicate(r);
+        if (ok) toast.success("Rate card duplicated", { description: `${r.name} (copy)` });
+      },
     },
     {
       label: "Delete",
-      onClick: (r: RateCard) => toast(`Rate card ${r.name} deleted`),
+      onClick: async (r: RateCard) => {
+        const ok = await onDelete(r.id);
+        if (ok) toast(`Rate card ${r.name} deleted`);
+      },
       destructive: true,
     },
   ];
@@ -380,35 +471,32 @@ function RateCardsList({ onEdit }: { onEdit?: (rc: RateCard) => void }) {
           </div>
         </div>
 
-        {!hasHydrated ? (
-          <div className="px-4 py-10 text-center text-[13px] text-muted-foreground">Loading rate cards…</div>
-        ) : (
-          <DataTable
-            data={filtered}
-            columns={columns}
-            onRowClick={(r) => navigateDetail("rate-cards", r.id)}
-            rowActions={rowActions}
-            bulkActions={bulkActions}
-            emptyTitle="No rate cards yet"
-            emptyDescription="Create your first rate card to start pricing lanes consistently."
-            emptyAction={
-              <Btn variant="primary" icon={<Plus className="h-3.5 w-3.5" />} onClick={() => navigate("rate-cards", "create")}>
-                Create Rate Card
-              </Btn>
-            }
-            initialSort={{ key: "name", dir: "asc" }}
-          />
-        )}
+        <DataTable
+          data={filtered}
+          columns={columns}
+          onRowClick={(r) => navigateDetail("rate-cards", r.id)}
+          rowActions={rowActions}
+          bulkActions={bulkActions}
+          emptyTitle="No rate cards yet"
+          emptyDescription="Create your first rate card to start pricing lanes consistently."
+          emptyAction={
+            <Btn variant="primary" icon={<Plus className="h-3.5 w-3.5" />} onClick={() => navigate("rate-cards", "create")}>
+              Create Rate Card
+            </Btn>
+          }
+          initialSort={{ key: "name", dir: "asc" }}
+        />
       </div>
 
       <p className="text-[11px] text-muted-foreground">
-        {rateCards.length} rate cards · {VEHICLE_TYPES.length} vehicle types · {LOAD_TYPES.length} load types · persisted locally · exports the <code className="tabular">estimateRouteCost()</code> helper for OPS-5 Route Cost Planner
+        {rateCards.length} rate cards · {VEHICLE_TYPES.length} vehicle types · {LOAD_TYPES.length} load types · exports the <code className="tabular">estimateRouteCost()</code> helper for OPS-5 Route Cost Planner
       </p>
 
       {/* Create drawer (create mode only - edit drawer is mounted at module root) */}
       <AddRateCardDrawer
         open={drawerOpen}
         onClose={closeDrawer}
+        onCreate={onCreate}
       />
     </div>
   );

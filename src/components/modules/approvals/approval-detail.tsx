@@ -6,11 +6,8 @@ import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { useAppStore } from "@/lib/store/app-store";
 import {
-  APPROVAL_REQUESTS,
   type ApprovalRequest,
   type ApproverStep,
-  type ApproverState,
-  type ApprovalStatus,
 } from "./_helpers";
 import {
   Check,
@@ -55,19 +52,26 @@ const TABS = [
 
 interface ApprovalDetailProps {
   requestId: string;
+  /** Real, database-backed list fetched by the module - the detail view
+   *  finds its record here instead of re-reading a static mock array, so
+   *  list and detail always agree on the current state. */
+  requests: ApprovalRequest[];
+  onAction: (
+    id: string,
+    action: "approve" | "reject" | "delegate" | "withdraw",
+    payload?: { comment?: string; delegateTo?: string },
+  ) => Promise<ApprovalRequest | null>;
 }
 
-export function ApprovalDetail({ requestId }: ApprovalDetailProps) {
+export function ApprovalDetail({ requestId, requests, onAction }: ApprovalDetailProps) {
   const { navigate } = useAppStore();
   const [activeTab, setActiveTab] = useState("overview");
   const [comment, setComment] = useState("");
   const [decision, setDecision] = useState<"approve" | "reject" | "delegate" | "">("");
   const [delegateTo, setDelegateTo] = useState("");
-  const [record, setRecord] = useState<ApprovalRequest | undefined>(
-    () => APPROVAL_REQUESTS.find((r) => r.id === requestId || r.requestId === requestId),
-  );
+  const [submitting, setSubmitting] = useState(false);
 
-  const req = record;
+  const req = requests.find((r) => r.id === requestId || r.requestId === requestId);
 
   if (!req) {
     return (
@@ -80,7 +84,7 @@ export function ApprovalDetail({ requestId }: ApprovalDetailProps) {
     );
   }
 
-  const handleDecision = () => {
+  const handleDecision = async () => {
     if (!decision) {
       toast("Select a decision", { description: "Choose approve / reject / delegate" });
       return;
@@ -89,86 +93,15 @@ export function ApprovalDetail({ requestId }: ApprovalDetailProps) {
       toast("Delegation target required", { description: "Pick an approver to delegate to" });
       return;
     }
-    const newStatus: ApprovalStatus =
-      decision === "approve" ? "Approved" : decision === "reject" ? "Rejected" : "Delegated";
-    const now = new Date().toISOString();
-    const action =
-      decision === "approve" ? "Approved" : decision === "reject" ? "Rejected" : "Delegated";
-    setRecord((prev) => {
-      if (!prev) return prev;
-      // Mark the current pending step with the decision
-      const approvers = prev.approvers.map((a) =>
-        a.name === prev.currentApprover && a.state === "Pending"
-          ? {
-              ...a,
-              state: (decision === "approve"
-                ? "Approved"
-                : decision === "reject"
-                  ? "Rejected"
-                  : "Delegated") as ApproverState,
-              decisionAt: now,
-              comment: comment.trim() || undefined,
-              delegatedTo: decision === "delegate" ? delegateTo.trim() : undefined,
-            }
-          : a,
-      );
-      // If approved, find next pending step
-      let newCurrent = prev.currentApprover;
-      if (decision === "approve") {
-        const next = approvers.find((a) => a.state === "Pending" && !a.delegatedTo);
-        if (next) {
-          newCurrent = next.name;
-        }
-        // all approved → status falls through to the computed status below
-      } else if (decision === "reject") {
-        // skip remaining pending steps
-        approvers.forEach((a) => {
-          if (a.state === "Pending") a.state = "Skipped";
-        });
-      } else if (decision === "delegate") {
-        // Add the delegated approver as a new pending step if not present
-        const exists = approvers.find((a) => a.name === delegateTo.trim());
-        if (!exists) {
-          approvers.push({
-            id: `a-${Date.now()}`,
-            name: delegateTo.trim(),
-            role: "Delegated approver",
-            order: approvers.length + 1,
-            state: "Pending",
-          });
-        }
-        newCurrent = delegateTo.trim();
-      }
-      return {
-        ...prev,
-        approvers,
-        currentApprover: newCurrent,
-        status:
-          decision === "approve"
-            ? approvers.some((a) => a.state === "Pending")
-              ? "Pending"
-              : "Approved"
-            : newStatus,
-        decidedAt:
-          decision === "reject" || (decision === "approve" && !approvers.some((a) => a.state === "Pending"))
-            ? now
-            : prev.decidedAt,
-        history: [
-          ...prev.history,
-          {
-            id: `h-${Date.now()}`,
-            actor: "You",
-            action,
-            detail:
-              decision === "delegate"
-                ? `Delegated to ${delegateTo.trim()}${comment.trim() ? " · " + comment.trim() : ""}`
-                : `${comment.trim() ? comment.trim() : "No comment"}`,
-            ts: now,
-          },
-        ],
-      };
+    setSubmitting(true);
+    const result = await onAction(req.id, decision, {
+      comment: comment.trim() || undefined,
+      delegateTo: decision === "delegate" ? delegateTo.trim() : undefined,
     });
-    toast.success(`Request ${action.toLowerCase()}`, {
+    setSubmitting(false);
+    if (!result) return; // onAction already surfaced the error toast
+    const label = decision === "approve" ? "approved" : decision === "reject" ? "rejected" : "delegated";
+    toast.success(`Request ${label}`, {
       description: `${req.requestId} · ${comment.trim() || "no comment"}`,
     });
     setComment("");
@@ -176,27 +109,11 @@ export function ApprovalDetail({ requestId }: ApprovalDetailProps) {
     setDelegateTo("");
   };
 
-  const handleWithdraw = () => {
-    const now = new Date().toISOString();
-    setRecord((prev) =>
-      prev
-        ? {
-            ...prev,
-            status: "Withdrawn",
-            decidedAt: now,
-            history: [
-              ...prev.history,
-              {
-                id: `h-${Date.now()}`,
-                actor: prev.requester,
-                action: "Withdrew request",
-                detail: "Request withdrawn by requester",
-                ts: now,
-              },
-            ],
-          }
-        : prev,
-    );
+  const handleWithdraw = async () => {
+    setSubmitting(true);
+    const result = await onAction(req.id, "withdraw");
+    setSubmitting(false);
+    if (!result) return; // onAction already surfaced the error toast
     toast.success(`Request withdrawn`, { description: req.requestId });
   };
 
@@ -206,10 +123,10 @@ export function ApprovalDetail({ requestId }: ApprovalDetailProps) {
 
   const actions = (
     <>
-      <Btn icon={<Ban className="h-3.5 w-3.5" />} onClick={handleWithdraw} disabled={!canDecide && req.status !== "Pending"}>
+      <Btn icon={<Ban className="h-3.5 w-3.5" />} onClick={handleWithdraw} disabled={!canDecide || submitting}>
         <span className="hidden sm:inline">Withdraw</span>
       </Btn>
-      <Btn variant="primary" icon={<Check className="h-3.5 w-3.5" />} onClick={() => { setDecision("approve"); setActiveTab("decision"); }} disabled={!canDecide}>
+      <Btn variant="primary" icon={<Check className="h-3.5 w-3.5" />} onClick={() => { setDecision("approve"); setActiveTab("decision"); }} disabled={!canDecide || submitting}>
         <span className="hidden sm:inline">Decide</span>
       </Btn>
     </>
@@ -410,9 +327,9 @@ export function ApprovalDetail({ requestId }: ApprovalDetailProps) {
                   variant="primary"
                   icon={<Check className="h-3.5 w-3.5" />}
                   onClick={handleDecision}
-                  disabled={!canDecide || !decision}
+                  disabled={!canDecide || !decision || submitting}
                 >
-                  Submit decision
+                  {submitting ? "Submitting…" : "Submit decision"}
                 </Btn>
               </div>
             </div>

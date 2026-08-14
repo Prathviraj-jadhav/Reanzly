@@ -11,14 +11,9 @@ import {
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { useAppStore } from "@/lib/store/app-store";
-import {
-  useRateCardsStore,
-  type RateCard,
-  type LoadType,
-  type VehicleType,
-} from "@/lib/store/rate-cards-store";
+import type { RateCard } from "@/lib/types";
 import { EditRateCardDrawer } from "./edit-rate-card-drawer";
-import { Pencil, Calculator, Copy, IndianRupee, Percent, Truck, Route as RouteIcon, Calendar, Tag } from "lucide-react";
+import { Pencil, Calculator, Copy, IndianRupee, Percent, Truck, Route as RouteIcon, Calendar, Tag, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   Select,
@@ -38,7 +33,11 @@ const TABS = [
 
 interface RateCardDetailProps {
   rateCardId: string;
+  rateCards: RateCard[];
   onEdit?: (rc: RateCard) => void;
+  onUpdate: (id: string, patch: Partial<RateCard>) => Promise<boolean>;
+  onDelete: (id: string) => Promise<boolean>;
+  onDuplicate: (rc: RateCard) => Promise<boolean>;
 }
 
 function statusVariant(status: RateCard["status"]): "solid" | "outline" | "muted" | "dot" {
@@ -47,11 +46,11 @@ function statusVariant(status: RateCard["status"]): "solid" | "outline" | "muted
   return "muted";
 }
 
-export function RateCardDetail({ rateCardId, onEdit }: RateCardDetailProps) {
+export function RateCardDetail({ rateCardId, rateCards, onEdit, onUpdate, onDelete, onDuplicate }: RateCardDetailProps) {
   const { navigate } = useAppStore();
   const [activeTab, setActiveTab] = useState("overview");
   const [editOpen, setEditOpen] = useState(false);
-  const rateCard = useRateCardsStore((s) => s.rateCards.find((r) => r.id === rateCardId));
+  const rateCard = rateCards.find((r) => r.id === rateCardId);
 
   // Calculator inputs
   const [calcQty, setCalcQty] = useState("1");
@@ -116,7 +115,9 @@ export function RateCardDetail({ rateCardId, onEdit }: RateCardDetailProps) {
       <Btn
         variant="primary"
         icon={<Copy className="h-3.5 w-3.5" />}
-        onClick={() => {
+        onClick={async () => {
+          const ok = await onDuplicate(rateCard);
+          if (!ok) return;
           toast.success("Rate card duplicated", { description: `${rateCard.name} (copy)` });
           navigate("rate-cards");
         }}
@@ -156,6 +157,15 @@ export function RateCardDetail({ rateCardId, onEdit }: RateCardDetailProps) {
       quickActions={[
         { label: "Print", onClick: () => toast("Opening print view", { description: rateCard.name }) },
         { label: "Archive", onClick: () => toast(`Rate card ${rateCard.name} archived`) },
+        {
+          label: "Delete",
+          onClick: async () => {
+            const ok = await onDelete(rateCard.id);
+            if (!ok) return;
+            toast(`Rate card ${rateCard.name} deleted`);
+            navigate("rate-cards");
+          },
+        },
       ]}
       lastUpdated={`Created by ${rateCard.createdBy} · last updated ${formatDate(rateCard.updatedAt)}`}
     >
@@ -286,6 +296,7 @@ export function RateCardDetail({ rateCardId, onEdit }: RateCardDetailProps) {
           open={editOpen}
           rateCard={rateCard}
           onClose={() => setEditOpen(false)}
+          onUpdate={onUpdate}
         />
       )}
     </>

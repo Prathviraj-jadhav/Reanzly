@@ -1048,6 +1048,9 @@ model Employee {
   attendance    AttendanceRecord[]
   leaveRequests LeaveRequest[]
   payslips      Payslip[]
+  reimbursements PayrollReimbursement[]
+  bonuses       PayrollBonus[]
+  loans         PayrollLoan[]
 
   @@unique([companyId, code])
   @@index([companyId, status])
@@ -1233,28 +1236,33 @@ model Candidate {
 // ════════════════════════════════════════════════════════════════
 
 model RateCard {
-  id          String   @id @default(cuid())
-  companyId   String
-  customerId  String
-  customer    Customer @relation(fields: [customerId], references: [id])
-  name        String
-  laneFrom    String
-  laneTo      String
-  vehicleType String
-  ratePerKm   Int      // paise
-  minCharge   Int
-  loadingChg  Int      @default(0)
-  unloadingChg Int     @default(0)
-  validFrom   DateTime
-  validTo     DateTime?
-  status      String   @default("Active")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id              String    @id @default(cuid())
+  companyId       String
+  customerId      String?
+  customer        Customer? @relation(fields: [customerId], references: [id])
+  name            String
+  source          String
+  destination     String
+  vehicleType     String
+  loadType        String    @default("FTL") // FTL | LTL | Part Load | Container
+  rateType        String    @default("Per Km") // Per Km | Per Trip | Per Tonne | Per Package
+  baseRate        Int       // paise
+  detentionPerDay Int       @default(0) // paise
+  // Surcharge[] - lightweight per-card list, not independently queried.
+  surchargesJson  String    @default("[]")
+  gstApplicable   Boolean   @default(true)
+  gstRate         Float     @default(5)
+  status          String    @default("Active") // Active | Draft | Expired
+  effectiveFrom   DateTime
+  effectiveTo     DateTime?
+  createdBy       String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
-  trips       Trip[]   @relation("TripRateCard")
+  trips           Trip[]    @relation("TripRateCard")
 
-  @@index([companyId, customerId])
-  @@index([laneFrom, laneTo])
+  @@index([companyId, status])
+  @@index([source, destination])
 }
 
 model LorryReceipt {
@@ -2248,5 +2256,179 @@ model FinancingApplication {
   resolvedAt        DateTime? // set once status reaches approved | disbursed | rejected - powers a real avg-processing-time KPI
 
   @@index([companyId])
+}
+
+// ===== APPROVALS =====
+// Generic multi-type spend/HR approval-request workflow (Expense, Rate
+// Exception, Credit Extension, Vehicle Purchase, Discount, Vendor
+// Onboarding, Leave, Work Order). Supports both sequential and parallel
+// approval chains. This is deliberately a standalone table, not wired
+// bidirectionally into Expense/Leave/etc's own status fields yet - those
+// modules keep managing their own status independently, same as today.
+
+model ApprovalRequest {
+  id              String    @id @default(cuid())
+  companyId       String
+  requestId       String    @unique // APR-1001 style display code
+  type            String    // Expense | Rate Exception | Credit Extension | Vehicle Purchase | Discount | Vendor Onboarding | Leave | Work Order
+  title           String
+  description     String
+  requester       String
+  requesterEmail  String
+  department      String
+  amount          Int       @default(0) // paise
+  currency        String    @default("INR")
+  currentApprover String
+  status          String    @default("Pending") // Pending | Approved | Rejected | Delegated | Withdrawn
+  priority        String    @default("Medium") // Urgent | High | Medium | Low
+  chainMode       String    @default("Sequential") // Sequential | Parallel
+  relatedRef      String?
+  // ApproverStep[] / ApprovalHistoryEntry[] / Record<string, string|number> -
+  // lightweight per-request lists/maps, not independently queried.
+  payloadJson     String    @default("{}")
+  approversJson   String    @default("[]")
+  historyJson     String    @default("[]")
+  submittedAt     DateTime  @default(now())
+  decidedAt       DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([companyId, status])
+}
+
+// ===== PAYROLL — STATUTORY / BANK ADVICE / REIMBURSEMENTS / BONUSES / LOANS =====
+// The standalone Payroll module's core (PayrollRun/Payslip/SalaryStructure/
+// Employee) was already real. These five sub-areas were still mock. Money
+// stored as paise (Int), matching the rest of the Payroll models - no
+// JSON-text nesting here except where a list is genuinely a throwaway
+// per-record annotation, same convention split as the rest of the schema.
+
+model PayrollStatutoryFiling {
+  id                 String    @id @default(cuid())
+  companyId          String
+  type               String    // PF | ESI | TDS | Professional Tax
+  period             String    // e.g. "2026-07"
+  dueDate            DateTime
+  filedDate          DateTime?
+  status             String    @default("Pending") // Filed | Pending | Overdue
+  amount             Int       // paise
+  challanNo          String?
+  filedBy            String?
+  filingPortal       String?
+  acknowledgementNo  String?
+  remarks            String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@index([companyId, status])
+  @@index([companyId, period])
+}
+
+model PayrollBankAdvice {
+  id            String    @id @default(cuid())
+  companyId     String
+  adviceNo      String    @unique
+  month         String    // e.g. "2026-07"
+  bankName      String
+  bankBranch    String?
+  totalAmount   Int       // paise
+  beneficiaryCount Int    @default(0)
+  status        String    @default("Generated") // Generated | Submitted | Processed | Failed
+  generatedDate DateTime  @default(now())
+  submittedDate DateTime?
+  processedDate DateTime?
+  utrNo         String?
+  neftFile      String?
+  rtgsFile      String?
+  remarks       String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([companyId, status])
+  @@index([companyId, month])
+}
+
+model PayrollReimbursement {
+  id            String    @id @default(cuid())
+  companyId     String
+  code          String    @unique
+  employeeId    String
+  employee      Employee  @relation(fields: [employeeId], references: [id])
+  type          String    // Fuel | Travel | Food | Mobile | Stationery | Medical
+  month         String    // e.g. "2026-07"
+  amount        Int       // paise
+  status        String    @default("Pending") // Pending | Approved | Rejected | Paid
+  submittedDate DateTime  @default(now())
+  approvedDate  DateTime?
+  approvedBy    String?
+  paidDate      DateTime?
+  description   String
+  receipts      Int       @default(0)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([companyId, status])
+  @@index([companyId, month])
+}
+
+model PayrollBonus {
+  id            String    @id @default(cuid())
+  companyId     String
+  code          String    @unique
+  employeeId    String
+  employee      Employee  @relation(fields: [employeeId], references: [id])
+  type          String    // Performance | Trip Incentive | Festival | Retention | Referral
+  month         String    // e.g. "2026-07"
+  amount        Int       // paise
+  status        String    @default("Pending") // Pending | Approved | Paid | Cancelled
+  approvedDate  DateTime?
+  approvedBy    String?
+  paidDate      DateTime?
+  description   String
+  tripsCount    Int?
+  perTripAmount Int?      // paise
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([companyId, status])
+  @@index([companyId, month])
+}
+
+model PayrollLoan {
+  id              String    @id @default(cuid())
+  companyId       String
+  code            String    @unique
+  employeeId      String
+  employee        Employee  @relation(fields: [employeeId], references: [id])
+  type            String    // Vehicle | Personal | Salary Advance | Education
+  principal       Int       // paise
+  interestRate    Float     @default(0) // annual %, simple interest
+  tenureMonths    Int
+  emi             Int       // paise
+  disbursedDate   DateTime  @default(now())
+  startDate       DateTime
+  endDate         DateTime
+  status          String    @default("Active") // Active | Closed | Foreclosed
+  outstanding     Int       // paise
+  remarks         String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  installments    PayrollLoanInstallment[]
+
+  @@index([companyId, status])
+}
+
+model PayrollLoanInstallment {
+  id        String   @id @default(cuid())
+  loanId    String
+  loan      PayrollLoan @relation(fields: [loanId], references: [id], onDelete: Cascade)
+  no        Int
+  dueDate   DateTime
+  amount    Int      // paise
+  status    String   @default("Pending") // Pending | Paid
+  paidDate  DateTime?
+
+  @@index([loanId])
 }
 

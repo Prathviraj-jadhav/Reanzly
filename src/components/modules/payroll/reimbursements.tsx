@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { DataTable, type Column } from "@/components/shared/data-table";
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -44,18 +44,14 @@ import {
   SheetDescription,
 } from "@/components/ui/sheet";
 import {
-  REIMBURSEMENTS,
-  BONUSES,
   REIMB_TYPES,
   BONUS_TYPES,
-  EMPLOYEES,
   type Reimbursement,
   type ReimbStatus,
   type Bonus,
   type BonusStatus,
   type ReimbType,
   type BonusType,
-  type Department,
   formatINR,
   formatINRCompact,
   formatDate,
@@ -94,15 +90,40 @@ const BONUS_ICON: Record<BonusType, typeof Gift> = {
   Referral: UserPlus,
 };
 
+interface EmployeePickerRow {
+  id: string;
+  code: string;
+  name: string;
+  designation: string;
+  department: string;
+}
+
 export function ReimbursementsTab() {
   const [mode, setMode] = useState<"reimb" | "bonus">("reimb");
-  const [reimbRows, setReimbRows] = useState<Reimbursement[]>(REIMBURSEMENTS);
-  const [bonusRows, setBonusRows] = useState<Bonus[]>(BONUSES);
+  const [reimbRows, setReimbRows] = useState<Reimbursement[]>([]);
+  const [bonusRows, setBonusRows] = useState<Bonus[]>([]);
+  const [employees, setEmployees] = useState<EmployeePickerRow[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<Set<string>>(new Set());
   const [typeFilter, setTypeFilter] = useState<Set<string>>(new Set());
   const [view, setView] = useState<Reimbursement | Bonus | null>(null);
   const [addOpen, setAddOpen] = useState(false);
+
+  useEffect(() => {
+    Promise.all([
+      fetch("/api/payroll/reimbursements").then((r) => (r.ok ? r.json() : Promise.reject(r))),
+      fetch("/api/payroll/bonuses").then((r) => (r.ok ? r.json() : Promise.reject(r))),
+      fetch("/api/payroll/employees").then((r) => (r.ok ? r.json() : { employees: [] })),
+    ])
+      .then(([reimbRes, bonusRes, empRes]) => {
+        setReimbRows(reimbRes.reimbursements);
+        setBonusRows(bonusRes.bonuses);
+        setEmployees(empRes.employees ?? []);
+      })
+      .catch(() => toast.error("Couldn't load reimbursements & bonuses", { description: "Try reloading the page." }))
+      .finally(() => setLoaded(true));
+  }, []);
 
   const filteredReimb = useMemo(() => {
     let r = reimbRows;
@@ -156,35 +177,52 @@ export function ReimbursementsTab() {
     setView(null);
   };
 
-  const updateReimbStatus = (id: string, status: ReimbStatus) => {
-    setReimbRows((prev) =>
-      prev.map((r) =>
-        r.id === id
-          ? {
-              ...r,
-              status,
-              approvedDate: status !== "Pending" ? new Date().toISOString() : r.approvedDate,
-              approvedBy: status !== "Pending" ? "Reena Mehta" : r.approvedBy,
-              paidDate: status === "Paid" ? new Date().toISOString() : r.paidDate,
-            }
-          : r,
-      ),
-    );
+  const REIMB_ACTION: Record<ReimbStatus, string | null> = { Pending: null, Approved: "approve", Rejected: "reject", Paid: "mark-paid" };
+  const BONUS_ACTION: Record<BonusStatus, string | null> = { Pending: null, Approved: "approve", Cancelled: "cancel", Paid: "mark-paid" };
+
+  const updateReimbStatus = async (id: string, status: ReimbStatus): Promise<boolean> => {
+    const action = REIMB_ACTION[status];
+    if (!action) return false;
+    try {
+      const res = await fetch(`/api/payroll/reimbursements/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+      if (!res.ok) {
+        const { error } = await res.json().catch(() => ({ error: undefined }));
+        toast.error(error || "Couldn't update reimbursement", { description: "Try again." });
+        return false;
+      }
+      const { reimbursement } = await res.json();
+      setReimbRows((prev) => prev.map((r) => (r.id === id ? reimbursement : r)));
+      return true;
+    } catch {
+      toast.error("Couldn't update reimbursement", { description: "Try again." });
+      return false;
+    }
   };
-  const updateBonusStatus = (id: string, status: BonusStatus) => {
-    setBonusRows((prev) =>
-      prev.map((r) =>
-        r.id === id
-          ? {
-              ...r,
-              status,
-              approvedDate: status !== "Pending" ? new Date().toISOString() : r.approvedDate,
-              approvedBy: status !== "Pending" ? "Vikram Kapoor" : r.approvedBy,
-              paidDate: status === "Paid" ? new Date().toISOString() : r.paidDate,
-            }
-          : r,
-      ),
-    );
+  const updateBonusStatus = async (id: string, status: BonusStatus): Promise<boolean> => {
+    const action = BONUS_ACTION[status];
+    if (!action) return false;
+    try {
+      const res = await fetch(`/api/payroll/bonuses/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+      if (!res.ok) {
+        const { error } = await res.json().catch(() => ({ error: undefined }));
+        toast.error(error || "Couldn't update bonus", { description: "Try again." });
+        return false;
+      }
+      const { bonus } = await res.json();
+      setBonusRows((prev) => prev.map((r) => (r.id === id ? bonus : r)));
+      return true;
+    } catch {
+      toast.error("Couldn't update bonus", { description: "Try again." });
+      return false;
+    }
   };
 
   // KPIs
@@ -368,26 +406,23 @@ export function ReimbursementsTab() {
     { label: "View Details", onClick: (s) => setView(s) },
     {
       label: "Approve",
-      onClick: (s) => {
+      onClick: async (s) => {
         if (s.status !== "Pending") { toast("Reimbursement already processed", { description: s.code }); return; }
-        updateReimbStatus(s.id, "Approved");
-        toast.success(`Reimbursement approved`, { description: s.code });
+        if (await updateReimbStatus(s.id, "Approved")) toast.success(`Reimbursement approved`, { description: s.code });
       },
     },
     {
       label: "Reject",
-      onClick: (s) => {
+      onClick: async (s) => {
         if (s.status !== "Pending") { toast("Reimbursement already processed", { description: s.code }); return; }
-        updateReimbStatus(s.id, "Rejected");
-        toast(`Reimbursement rejected`, { description: s.code });
+        if (await updateReimbStatus(s.id, "Rejected")) toast(`Reimbursement rejected`, { description: s.code });
       },
     },
     {
       label: "Mark Paid",
-      onClick: (s) => {
+      onClick: async (s) => {
         if (s.status !== "Approved") { toast("Reimbursement must be Approved first", { description: s.code }); return; }
-        updateReimbStatus(s.id, "Paid");
-        toast.success(`Reimbursement paid`, { description: s.code });
+        if (await updateReimbStatus(s.id, "Paid")) toast.success(`Reimbursement paid`, { description: s.code });
       },
     },
     { label: "Print Voucher", onClick: (s) => toast("Generating PDF", { description: s.code }) },
@@ -397,26 +432,23 @@ export function ReimbursementsTab() {
     { label: "View Details", onClick: (s) => setView(s) },
     {
       label: "Approve",
-      onClick: (s) => {
+      onClick: async (s) => {
         if (s.status !== "Pending") { toast("Bonus already processed", { description: s.code }); return; }
-        updateBonusStatus(s.id, "Approved");
-        toast.success(`Bonus approved`, { description: s.code });
+        if (await updateBonusStatus(s.id, "Approved")) toast.success(`Bonus approved`, { description: s.code });
       },
     },
     {
       label: "Cancel",
-      onClick: (s) => {
+      onClick: async (s) => {
         if (s.status !== "Pending") { toast("Bonus already processed", { description: s.code }); return; }
-        updateBonusStatus(s.id, "Cancelled");
-        toast(`Bonus cancelled`, { description: s.code });
+        if (await updateBonusStatus(s.id, "Cancelled")) toast(`Bonus cancelled`, { description: s.code });
       },
     },
     {
       label: "Mark Paid",
-      onClick: (s) => {
+      onClick: async (s) => {
         if (s.status !== "Approved") { toast("Bonus must be Approved first", { description: s.code }); return; }
-        updateBonusStatus(s.id, "Paid");
-        toast.success(`Bonus paid`, { description: s.code });
+        if (await updateBonusStatus(s.id, "Paid")) toast.success(`Bonus paid`, { description: s.code });
       },
     },
     { label: "Print Letter", onClick: (s) => toast("Generating PDF", { description: s.code }) },
@@ -425,9 +457,11 @@ export function ReimbursementsTab() {
   const reimbBulkActions = [
     {
       label: "Approve Selected",
-      onClick: (sel: Reimbursement[]) => {
-        sel.forEach((s) => s.status === "Pending" && updateReimbStatus(s.id, "Approved"));
-        toast.success(`${sel.length} reimbursement${sel.length === 1 ? "" : "s"} approved`);
+      onClick: async (sel: Reimbursement[]) => {
+        const targets = sel.filter((s) => s.status === "Pending");
+        const results = await Promise.all(targets.map((s) => updateReimbStatus(s.id, "Approved")));
+        const okCount = results.filter(Boolean).length;
+        if (okCount > 0) toast.success(`${okCount} reimbursement${okCount === 1 ? "" : "s"} approved`);
       },
     },
     { label: "Export", onClick: (sel: Reimbursement[]) => toast(`${sel.length} reimbursement${sel.length === 1 ? "" : "s"} exported`, { description: "CSV file generated" }) },
@@ -435,9 +469,11 @@ export function ReimbursementsTab() {
   const bonusBulkActions = [
     {
       label: "Approve Selected",
-      onClick: (sel: Bonus[]) => {
-        sel.forEach((s) => s.status === "Pending" && updateBonusStatus(s.id, "Approved"));
-        toast.success(`${sel.length} bonus${sel.length === 1 ? "" : "es"} approved`);
+      onClick: async (sel: Bonus[]) => {
+        const targets = sel.filter((s) => s.status === "Pending");
+        const results = await Promise.all(targets.map((s) => updateBonusStatus(s.id, "Approved")));
+        const okCount = results.filter(Boolean).length;
+        if (okCount > 0) toast.success(`${okCount} bonus${okCount === 1 ? "" : "es"} approved`);
       },
     },
     { label: "Export", onClick: (sel: Bonus[]) => toast(`${sel.length} bonus${sel.length === 1 ? "" : "es"} exported`, { description: "CSV file generated" }) },
@@ -447,6 +483,10 @@ export function ReimbursementsTab() {
   const typeOptions = mode === "reimb" ? REIMB_TYPES : BONUS_TYPES;
   const statusLabel = statusFilter.size === 0 ? "All" : statusFilter.size === 1 ? Array.from(statusFilter)[0] : `${statusFilter.size} selected`;
   const typeLabel = typeFilter.size === 0 ? "All" : typeFilter.size === 1 ? Array.from(typeFilter)[0] : `${typeFilter.size} selected`;
+
+  if (!loaded) {
+    return <div className="p-6 text-[13px] text-muted-foreground">Loading reimbursements & bonuses…</div>;
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -621,58 +661,70 @@ export function ReimbursementsTab() {
         record={view}
         mode={mode}
         onClose={() => setView(null)}
-        onUpdate={(status) => {
+        onUpdate={async (status) => {
           if (!view) return;
-          if (mode === "reimb") updateReimbStatus((view as Reimbursement).id, status as ReimbStatus);
-          else updateBonusStatus((view as Bonus).id, status as BonusStatus);
-          setView(null);
+          const ok = mode === "reimb"
+            ? await updateReimbStatus((view as Reimbursement).id, status as ReimbStatus)
+            : await updateBonusStatus((view as Bonus).id, status as BonusStatus);
+          if (ok) setView(null);
         }}
       />
 
       <AddDrawer
         open={addOpen}
         mode={mode}
+        employees={employees}
         onClose={() => setAddOpen(false)}
-        onSave={(payload) => {
-          if (mode === "reimb") {
-            const newRec: Reimbursement = {
-              id: `rmb-${String(reimbRows.length + 1).padStart(3, "0")}`,
-              code: `RZ-RMB-${new Date().toISOString().slice(0, 7).replace("-", "")}-${String(reimbRows.length + 1).padStart(3, "0")}`,
-              empCode: payload.empCode,
-              empName: payload.empName,
-              designation: payload.designation,
-              department: payload.department,
-              month: payload.month,
-              type: payload.type as ReimbType,
-              amount: payload.amount,
-              status: "Pending",
-              submittedDate: new Date().toISOString(),
-              description: payload.description,
-              receipts: payload.receipts ?? 1,
-              meta: payload.meta,
-            };
-            setReimbRows((prev) => [newRec, ...prev]);
-            toast.success(`Reimbursement created`, { description: newRec.code });
-          } else {
-            const newRec: Bonus = {
-              id: `bnr-${String(bonusRows.length + 1).padStart(3, "0")}`,
-              code: `RZ-BNS-${new Date().toISOString().slice(0, 7).replace("-", "")}-${String(bonusRows.length + 1).padStart(3, "0")}`,
-              empCode: payload.empCode,
-              empName: payload.empName,
-              designation: payload.designation,
-              department: payload.department,
-              month: payload.month,
-              type: payload.type as BonusType,
-              amount: payload.amount,
-              status: "Pending",
-              description: payload.description,
-              tripsCount: payload.tripsCount,
-              perTripAmount: payload.perTripAmount,
-            };
-            setBonusRows((prev) => [newRec, ...prev]);
-            toast.success(`Bonus created`, { description: newRec.code });
+        onSave={async (payload) => {
+          try {
+            if (mode === "reimb") {
+              const res = await fetch("/api/payroll/reimbursements", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  employeeId: payload.employeeId,
+                  type: payload.type,
+                  month: payload.month,
+                  amount: payload.amount,
+                  description: payload.description,
+                  receipts: payload.receipts,
+                }),
+              });
+              if (!res.ok) {
+                const { error } = await res.json().catch(() => ({ error: undefined }));
+                toast.error(error || "Couldn't create reimbursement", { description: "Try again." });
+                return;
+              }
+              const { reimbursement } = await res.json();
+              setReimbRows((prev) => [reimbursement, ...prev]);
+              toast.success(`Reimbursement created`, { description: reimbursement.code });
+            } else {
+              const res = await fetch("/api/payroll/bonuses", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  employeeId: payload.employeeId,
+                  type: payload.type,
+                  month: payload.month,
+                  amount: payload.amount,
+                  description: payload.description,
+                  tripsCount: payload.tripsCount,
+                  perTripAmount: payload.perTripAmount,
+                }),
+              });
+              if (!res.ok) {
+                const { error } = await res.json().catch(() => ({ error: undefined }));
+                toast.error(error || "Couldn't create bonus", { description: "Try again." });
+                return;
+              }
+              const { bonus } = await res.json();
+              setBonusRows((prev) => [bonus, ...prev]);
+              toast.success(`Bonus created`, { description: bonus.code });
+            }
+            setAddOpen(false);
+          } catch {
+            toast.error(mode === "reimb" ? "Couldn't create reimbursement" : "Couldn't create bonus", { description: "Try again." });
           }
-          setAddOpen(false);
         }}
       />
     </div>
@@ -775,9 +827,6 @@ function DetailDrawer({
             <SectionTitle>Description</SectionTitle>
             <div className="rounded-[6px] border border-border bg-card px-4 py-3">
               <p className="text-[12.5px] text-foreground">{isReimb ? r.description : b.description}</p>
-              {isReimb && r.meta && (
-                <div className="mt-2 border-t border-border pt-2 text-[11.5px] text-muted-foreground">Meta: {r.meta}</div>
-              )}
             </div>
           </div>
         </div>
@@ -808,39 +857,35 @@ function DetailDrawer({
 function AddDrawer({
   open,
   mode,
+  employees,
   onClose,
   onSave,
 }: {
   open: boolean;
   mode: "reimb" | "bonus";
+  employees: EmployeePickerRow[];
   onClose: () => void;
   onSave: (payload: {
-    empCode: string;
-    empName: string;
-    designation: string;
-    department: Department;
+    employeeId: string;
     month: string;
     type: string;
     amount: number;
     description: string;
     receipts?: number;
-    meta?: string;
     tripsCount?: number;
     perTripAmount?: number;
   }) => void;
 }) {
-  const [empCode, setEmpCode] = useState("");
+  const [employeeId, setEmployeeId] = useState("");
   const [type, setType] = useState(mode === "reimb" ? "Fuel" : "Performance");
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
   const [receipts, setReceipts] = useState("1");
-  const [meta, setMeta] = useState("");
   const [tripsCount, setTripsCount] = useState("");
   const [perTripAmount, setPerTripAmount] = useState("");
 
-  // derive employee from empCode using EMPLOYEES
-  const emp = useMemo(() => EMP_LOOKUP.find((e) => e.code === empCode), [empCode]);
+  const emp = useMemo(() => employees.find((e) => e.id === employeeId), [employees, employeeId]);
   const computedAmount = type === "Trip Incentive" && tripsCount && perTripAmount ? String(Number(tripsCount) * Number(perTripAmount)) : amount;
 
   const handleSubmit = () => {
@@ -848,22 +893,18 @@ function AddDrawer({
     if (!description) { toast("Description is required"); return; }
     if (type !== "Trip Incentive" && !amount) { toast("Amount is required"); return; }
     onSave({
-      empCode: emp.code,
-      empName: emp.name,
-      designation: emp.desig,
-      department: emp.dept,
+      employeeId: emp.id,
       month,
       type,
       amount: Number(computedAmount) || 0,
       description,
       receipts: mode === "reimb" ? Number(receipts) : undefined,
-      meta: mode === "reimb" ? meta : undefined,
       tripsCount: type === "Trip Incentive" ? Number(tripsCount) : undefined,
       perTripAmount: type === "Trip Incentive" ? Number(perTripAmount) : undefined,
     });
     // reset
-    setEmpCode(""); setType(mode === "reimb" ? "Fuel" : "Performance"); setMonth(new Date().toISOString().slice(0, 7));
-    setAmount(""); setDescription(""); setReceipts("1"); setMeta(""); setTripsCount(""); setPerTripAmount("");
+    setEmployeeId(""); setType(mode === "reimb" ? "Fuel" : "Performance"); setMonth(new Date().toISOString().slice(0, 7));
+    setAmount(""); setDescription(""); setReceipts("1"); setTripsCount(""); setPerTripAmount("");
   };
 
   return (
@@ -880,13 +921,13 @@ function AddDrawer({
           <div className="flex flex-col gap-3">
             <div>
               <FieldLabel required>Employee</FieldLabel>
-              <Select value={empCode} onValueChange={setEmpCode}>
+              <Select value={employeeId} onValueChange={setEmployeeId}>
                 <SelectTrigger className="h-8 w-full rounded-[5px] text-[13px]"><SelectValue placeholder="Select employee" /></SelectTrigger>
                 <SelectContent className="max-h-72">
-                  {EMP_LOOKUP.map((e) => (
-                    <SelectItem key={e.code} value={e.code}>
+                  {employees.map((e) => (
+                    <SelectItem key={e.id} value={e.id}>
                       <span className="tabular text-[11px] text-muted-foreground mr-2">{e.code}</span>
-                      {e.name} · {e.desig}
+                      {e.name} · {e.designation}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -931,16 +972,10 @@ function AddDrawer({
               </div>
             )}
             {mode === "reimb" && (
-              <>
-                <div>
-                  <FieldLabel hint="defaults to 1">Receipts Count</FieldLabel>
-                  <Input value={receipts} onChange={(e) => setReceipts(e.target.value)} type="number" className="h-8 rounded-[5px] text-[13px] tabular" />
-                </div>
-                <div>
-                  <FieldLabel>Meta (route / context)</FieldLabel>
-                  <Input value={meta} onChange={(e) => setMeta(e.target.value)} placeholder="e.g. Mumbai-Pune-Mumbai" className="h-8 rounded-[5px] text-[13px]" />
-                </div>
-              </>
+              <div>
+                <FieldLabel hint="defaults to 1">Receipts Count</FieldLabel>
+                <Input value={receipts} onChange={(e) => setReceipts(e.target.value)} type="number" className="h-8 rounded-[5px] text-[13px] tabular" />
+              </div>
             )}
             <div>
               <FieldLabel required>Description</FieldLabel>
@@ -956,6 +991,3 @@ function AddDrawer({
     </Sheet>
   );
 }
-
-// Local lookup using EMPLOYEES exported from _helpers
-const EMP_LOOKUP = EMPLOYEES;

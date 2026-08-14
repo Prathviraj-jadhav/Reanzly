@@ -1,6 +1,6 @@
-// Seeds real Expense, LorryReceipt, RateCard, and Branch rows - real CRUD
-// APIs existed for Expenses and Lorry Receipts, RateCard is read by the
-// Trips/Rate-Cards module, but all three tables were empty.
+// Seeds real Expense, LorryReceipt, and Branch rows - real CRUD APIs
+// existed for Expenses and Lorry Receipts but both tables were empty.
+// Rate cards are seeded separately by seed-rate-cards.ts.
 //
 // Idempotent: skips if Expense already has rows for this company.
 // Run with: bun run src/scripts/seed-finance-ops.ts
@@ -14,9 +14,6 @@ function pick<T>(arr: T[], seed: number): T {
 }
 function daysAgo(n: number): Date {
   return new Date(Date.now() - n * 86_400_000);
-}
-function daysFromNow(n: number): Date {
-  return new Date(Date.now() + n * 86_400_000);
 }
 
 const EXPENSE_CATEGORIES = ["Fuel", "Toll", "Repair", "Loading", "Unloading", "DriverBhatta", "Misc"];
@@ -108,37 +105,6 @@ async function main() {
         issuedAt: daysAgo(seed % 30),
       },
     });
-  }
-
-  console.log("[seed-finance-ops] seeding rate cards...");
-  if (customers.length > 0) {
-    const lanes = [
-      ["Mumbai", "Pune"], ["Mumbai", "Delhi"], ["Pune", "Bengaluru"], ["Delhi", "Chennai"],
-      ["Ahmedabad", "Mumbai"], ["Kolkata", "Nagpur"], ["Chennai", "Hyderabad"], ["Nashik", "Pune"],
-    ];
-    for (let i = 0; i < 12; i++) {
-      const seed = i + 1013;
-      const customer = pick(customers, seed);
-      const [from, to] = pick(lanes, seed);
-      const ratePerKmRupees = 32 + (seed % 12);
-      await db.rateCard.create({
-        data: {
-          companyId: COMPANY_ID,
-          customerId: customer.id,
-          name: `${from}-${to} · ${customer.companyName}`,
-          laneFrom: from,
-          laneTo: to,
-          vehicleType: pick(["Truck", "Trailer", "Tanker"], seed),
-          ratePerKm: ratePerKmRupees * 100, // paise
-          minCharge: 5000 * 100,
-          loadingChg: 800 * 100,
-          unloadingChg: 800 * 100,
-          validFrom: daysAgo(60),
-          validTo: daysFromNow(120),
-          status: "Active",
-        },
-      });
-    }
   }
 
   console.log("[seed-finance-ops] done.");

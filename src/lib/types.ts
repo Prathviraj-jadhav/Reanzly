@@ -254,6 +254,43 @@ export interface FuelEntry {
   anomalyNote?: string;
 }
 
+export interface RateCardSurcharge {
+  id: string;
+  name: string;
+  type: "fixed" | "percent";
+  value: number;
+}
+
+export interface RateCard {
+  id: ID;
+  customerId?: string;
+  name: string;
+  source: string;
+  destination: string;
+  vehicleType:
+    | "Open Body 32ft"
+    | "Container 32ft"
+    | "Container 20ft"
+    | "Half Body 24ft"
+    | "Tanker"
+    | "Trailer 40ft"
+    | "Pickup 17ft"
+    | "Mini Truck";
+  loadType: "FTL" | "LTL" | "Part Load" | "Container";
+  rateType: "Per Km" | "Per Trip" | "Per Tonne" | "Per Package";
+  baseRate: number;
+  surcharges: RateCardSurcharge[];
+  detentionPerDay: number;
+  effectiveFrom: ISODate;
+  effectiveTo?: ISODate;
+  status: "Active" | "Draft" | "Expired";
+  gstApplicable: boolean;
+  gstRate: number;
+  createdBy?: string;
+  createdAt: ISODate;
+  updatedAt: ISODate;
+}
+
 export interface LorryReceipt {
   id: ID;
   lrNumber: string;

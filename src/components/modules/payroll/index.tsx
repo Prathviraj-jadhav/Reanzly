@@ -16,11 +16,6 @@ import {
 import {
   PAYROLL_TABS,
   type PayrollTab,
-  STATUTORY_RETURNS,
-  BANK_ADVICES,
-  REIMBURSEMENTS,
-  BONUSES,
-  LOANS,
   formatINRCompact,
   formatMonthYear,
   KpiTile,
@@ -37,14 +32,19 @@ import { LoansTab } from "./loans-advances";
 export function PayrollModule() {
   const [tab, setTab] = useState<PayrollTab>("overview");
 
-  // Real cycle/payslip/structure counts for the header KPI bar - fetched
-  // once here rather than duplicating each tab's own fetch. Statutory/Bank
-  // Advice/Reimbursements/Bonuses/Loans aren't converted yet (still the
-  // original mock arrays) - their counts below are flagged as such, not
-  // silently presented as if they were real.
+  // Real counts for the header KPI bar and footer strip, fetched once here
+  // rather than duplicating each tab's own fetch. All five sub-areas
+  // (Statutory/Bank Advice/Reimbursements/Bonuses/Loans) are real API-backed
+  // data now, same as Cycles/Payslips/Structures.
   const [cycleCount, setCycleCount] = useState(0);
   const [payslipCount, setPayslipCount] = useState(0);
   const [structureCount, setStructureCount] = useState(0);
+  const [statutoryCount, setStatutoryCount] = useState(0);
+  const [bankAdviceCount, setBankAdviceCount] = useState(0);
+  const [reimbCount, setReimbCount] = useState(0);
+  const [bonusCount, setBonusCount] = useState(0);
+  const [loanCount, setLoanCount] = useState(0);
+  const [upcomingDue, setUpcomingDue] = useState(0);
   const [kpis, setKpis] = useState({
     totalPayrollCost: 0, netPayable: 0, currentCycleMonth: "", pendingApprovals: 0, headcount: 0,
   });
@@ -54,12 +54,23 @@ export function PayrollModule() {
       fetch("/api/payroll/cycles").then((r) => (r.ok ? r.json() : { cycles: [] })),
       fetch("/api/payroll/payslips").then((r) => (r.ok ? r.json() : { payslips: [] })),
       fetch("/api/payroll/structures").then((r) => (r.ok ? r.json() : { structures: [] })),
-    ]).then(([cyclesRes, payslipsRes, structuresRes]) => {
+      fetch("/api/payroll/statutory").then((r) => (r.ok ? r.json() : { returns: [] })),
+      fetch("/api/payroll/bank-advice").then((r) => (r.ok ? r.json() : { advices: [] })),
+      fetch("/api/payroll/reimbursements").then((r) => (r.ok ? r.json() : { reimbursements: [] })),
+      fetch("/api/payroll/bonuses").then((r) => (r.ok ? r.json() : { bonuses: [] })),
+      fetch("/api/payroll/loans").then((r) => (r.ok ? r.json() : { loans: [] })),
+    ]).then(([cyclesRes, payslipsRes, structuresRes, statutoryRes, bankAdviceRes, reimbRes, bonusRes, loansRes]) => {
       const cycles = cyclesRes.cycles ?? [];
       const payslips = payslipsRes.payslips ?? [];
       setCycleCount(cycles.length);
       setPayslipCount(payslips.length);
       setStructureCount((structuresRes.structures ?? []).length);
+      setStatutoryCount((statutoryRes.returns ?? []).length);
+      setBankAdviceCount((bankAdviceRes.advices ?? []).length);
+      setReimbCount((reimbRes.reimbursements ?? []).length);
+      setBonusCount((bonusRes.bonuses ?? []).length);
+      setLoanCount((loansRes.loans ?? []).length);
+      setUpcomingDue((statutoryRes.returns ?? []).filter((r: any) => r.status !== "Filed").length);
       const currentCycle = cycles[0];
       setKpis({
         totalPayrollCost: payslips.reduce((s: number, p: any) => s + p.gross + p.employerPF + p.employerESI, 0),
@@ -70,8 +81,6 @@ export function PayrollModule() {
       });
     });
   }, []);
-
-  const upcomingDue = STATUTORY_RETURNS.filter((r) => r.status !== "Filed").length;
 
   return (
     <div className="flex min-h-full flex-col gap-4">
@@ -128,7 +137,7 @@ export function PayrollModule() {
 
       <p className="text-[11px] text-muted-foreground">
         {cycleCount} cycles · {payslipCount} payslips · {structureCount} salary structures ·{" "}
-        {STATUTORY_RETURNS.length} statutory returns · {BANK_ADVICES.length} bank advices · {REIMBURSEMENTS.length} reimbursements · {BONUSES.length} bonuses · {LOANS.length} loans · PF 12% / ESI 4.75%+1.75% / PT INR 200 / TDS slabs
+        {statutoryCount} statutory returns · {bankAdviceCount} bank advices · {reimbCount} reimbursements · {bonusCount} bonuses · {loanCount} loans · PF 12% / ESI 4.75%+1.75% / PT INR 200 / TDS slabs
       </p>
     </div>
   );

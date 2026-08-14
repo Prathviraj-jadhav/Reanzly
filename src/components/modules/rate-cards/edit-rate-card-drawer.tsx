@@ -20,25 +20,25 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import type { RateCard } from "@/lib/types";
 import {
-  useRateCardsStore,
-  type RateCard,
   type RateCardStatus,
   type VehicleType,
   type LoadType,
   type RateCalculationType,
+  type RateCardPayload,
   VEHICLE_TYPES,
   LOAD_TYPES,
   RATE_CALC_TYPES,
   RATE_CARD_STATUSES,
-} from "@/lib/store/rate-cards-store";
+} from "./_helpers";
 
 /**
  * EditRateCardDrawer - focused editor for an existing Rate Card.
  *
- * Updates route through the persisted rate-cards-store so the change
- * survives reload and is reflected everywhere the rate card is referenced
- * (trip planning, route cost planner, etc.).
+ * Saves through the real /api/rate-cards/[id] PATCH endpoint (via the
+ * `onUpdate` prop supplied by the module) so the change is persisted to the
+ * DB and reflected everywhere the rate card is referenced.
  *
  * Hick's Law: 8 fields - name, lane, vehicle/load type, rate, GST, validity.
  */
@@ -46,7 +46,7 @@ interface EditRateCardDrawerProps {
   open: boolean;
   onClose: () => void;
   rateCard?: RateCard | null;
-  onUpdate?: (id: string, data: Partial<RateCard>) => void;
+  onUpdate: (id: string, data: Partial<RateCardPayload>) => Promise<boolean>;
 }
 
 interface EditForm {
@@ -73,7 +73,7 @@ function fromRateCard(r: RateCard): EditForm {
   };
 }
 
-function toPatch(form: EditForm): Partial<RateCard> {
+function toPatch(form: EditForm): Partial<RateCardPayload> {
   return {
     name: form.name.trim(),
     source: form.source.trim(),
@@ -112,10 +112,10 @@ export function EditRateCardDrawer({
   rateCard,
   onUpdate,
 }: EditRateCardDrawerProps) {
-  const updateRateCard = useRateCardsStore((s) => s.updateRateCard);
   const [form, setForm] = useState<EditForm>(() =>
     rateCard ? fromRateCard(rateCard) : fromRateCard(EMPTY_RATECARD),
   );
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -128,22 +128,24 @@ export function EditRateCardDrawer({
   const update = <K extends keyof EditForm>(k: K, v: EditForm[K]) =>
     setForm((s) => ({ ...s, [k]: v }));
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!rateCard) return;
     if (!form.name.trim()) {
       toast("Rate card name is required");
       return;
     }
     const patch = toPatch(form);
-    if (onUpdate) {
-      onUpdate(rateCard.id, patch);
-    } else {
-      updateRateCard(rateCard.id, patch);
+    setSaving(true);
+    try {
+      const ok = await onUpdate(rateCard.id, patch);
+      if (!ok) return;
+      toast.success("Rate card updated", {
+        description: `${form.name} · ${form.source} → ${form.destination}`,
+      });
+      onClose();
+    } finally {
+      setSaving(false);
     }
-    toast.success("Rate card updated", {
-      description: `${form.name} · ${form.source} → ${form.destination}`,
-    });
-    onClose();
   };
 
   return (
@@ -261,13 +263,14 @@ export function EditRateCardDrawer({
         </div>
 
         <div className="flex items-center justify-end gap-2 border-t border-border px-5 py-3">
-          <Btn variant="ghost" onClick={onClose}>
+          <Btn variant="ghost" onClick={onClose} disabled={saving}>
             Cancel
           </Btn>
           <Btn
             variant="primary"
             icon={<Check className="h-3.5 w-3.5" />}
             onClick={handleSubmit}
+            disabled={saving}
           >
             Save Changes
           </Btn>

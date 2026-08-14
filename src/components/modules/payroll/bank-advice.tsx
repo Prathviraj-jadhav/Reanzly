@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { DataTable, type Column } from "@/components/shared/data-table";
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -37,11 +37,10 @@ import {
   SheetDescription,
 } from "@/components/ui/sheet";
 import {
-  BANK_ADVICES,
   BANK_ADVICE_STATUSES,
-  PAYSLIPS,
   type BankAdvice,
   type BankAdviceStatus,
+  type Payslip,
   formatINR,
   formatINRCompact,
   formatDate,
@@ -55,12 +54,27 @@ import {
 } from "./_helpers";
 
 export function BankAdviceTab() {
-  const [rows, setRows] = useState<BankAdvice[]>(BANK_ADVICES);
+  const [rows, setRows] = useState<BankAdvice[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  const [payslips, setPayslips] = useState<Payslip[]>([]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<Set<string>>(new Set());
   const [bankFilter, setBankFilter] = useState<string>("");
   const [view, setView] = useState<BankAdvice | null>(null);
   const [letterPreview, setLetterPreview] = useState<BankAdvice | null>(null);
+
+  useEffect(() => {
+    Promise.all([
+      fetch("/api/payroll/bank-advice").then((r) => (r.ok ? r.json() : Promise.reject(r))),
+      fetch("/api/payroll/payslips").then((r) => (r.ok ? r.json() : { payslips: [] })),
+    ])
+      .then(([advicesRes, payslipsRes]) => {
+        setRows(advicesRes.advices);
+        setPayslips(payslipsRes.payslips ?? []);
+      })
+      .catch(() => toast.error("Couldn't load bank advices", { description: "Try reloading the page." }))
+      .finally(() => setLoaded(true));
+  }, []);
 
   const uniqueBanks = useMemo(
     () => Array.from(new Set(rows.map((r) => r.bankName))).sort(),
@@ -109,8 +123,25 @@ export function BankAdviceTab() {
     });
   }, [rows, uniqueBanks]);
 
-  const updateStatus = (id: string, status: BankAdviceStatus, extra?: Partial<BankAdvice>) => {
-    setRows((prev) => prev.map((r) => (r.id === id ? { ...r, status, ...extra } : r)));
+  const patchAdvice = async (id: string, action: string) => {
+    try {
+      const res = await fetch(`/api/payroll/bank-advice/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+      if (!res.ok) {
+        const { error } = await res.json().catch(() => ({ error: undefined }));
+        toast.error(error || "Couldn't update bank advice", { description: "Try again." });
+        return null;
+      }
+      const { advice } = await res.json();
+      setRows((prev) => prev.map((r) => (r.id === id ? advice : r)));
+      return advice as BankAdvice;
+    } catch {
+      toast.error("Couldn't update bank advice", { description: "Try again." });
+      return null;
+    }
   };
 
   const columns: Column<BankAdvice>[] = [
@@ -142,12 +173,12 @@ export function BankAdviceTab() {
       render: (r) => <span className="text-[12px] text-muted-foreground">{formatMonthYear(r.month)}</span>,
     },
     {
-      key: "accountCount",
+      key: "beneficiaryCount",
       header: "Beneficiaries",
       sortable: true,
       align: "right",
       width: "120px",
-      sortValue: (r) => r.accountCount,
+      sortValue: (r) => r.beneficiaryCount,
       render: (r) => <span className="tabular text-[12px] text-muted-foreground">{r.beneficiaryCount}</span>,
     },
     {
@@ -203,18 +234,18 @@ export function BankAdviceTab() {
     { label: "Preview Letter", onClick: (s) => setLetterPreview(s) },
     {
       label: "Submit to Bank",
-      onClick: (s) => {
+      onClick: async (s) => {
         if (s.status !== "Generated") { toast("Advice already submitted/processed", { description: s.adviceNo }); return; }
-        updateStatus(s.id, "Submitted", { submittedDate: new Date().toISOString() });
-        toast.success(`Advice submitted to bank`, { description: s.adviceNo });
+        const updated = await patchAdvice(s.id, "submit");
+        if (updated) toast.success(`Advice submitted to bank`, { description: s.adviceNo });
       },
     },
     {
       label: "Mark Processed",
-      onClick: (s) => {
+      onClick: async (s) => {
         if (s.status !== "Submitted") { toast("Advice must be Submitted first", { description: s.adviceNo }); return; }
-        updateStatus(s.id, "Processed", { processedDate: new Date().toISOString(), utrNo: `UTR${String(Math.floor(Math.random() * 90000000) + 10000000)}` });
-        toast.success(`Bank advice processed`, { description: s.adviceNo });
+        const updated = await patchAdvice(s.id, "mark-processed");
+        if (updated) toast.success(`Bank advice processed`, { description: s.adviceNo });
       },
     },
     { label: "Download NEFT File", onClick: (s) => { if (!s.neftFile) { toast("NEFT file not yet generated", { description: s.adviceNo }); return; } toast("Downloading NEFT file", { description: s.neftFile }); } },
@@ -226,20 +257,20 @@ export function BankAdviceTab() {
     { label: "Export", onClick: (sel: BankAdvice[]) => toast(`${sel.length} advice${sel.length === 1 ? "" : "s"} exported`, { description: "CSV file generated" }) },
     {
       label: "Generate NEFT Files",
-      onClick: (sel: BankAdvice[]) => {
-        sel.forEach((s) => {
-          if (!s.neftFile) {
-            const neftFile = `RZ-NEFT-${s.month.replace("-", "")}-${s.adviceNo.split("-").pop()}.csv`;
-            updateStatus(s.id, s.status, { neftFile });
-          }
-        });
-        toast.success(`${sel.length} NEFT file${sel.length === 1 ? "" : "s"} generated`, { description: "NACH-compliant CSV format" });
+      onClick: async (sel: BankAdvice[]) => {
+        const targets = sel.filter((s) => !s.neftFile);
+        await Promise.all(targets.map((s) => patchAdvice(s.id, "generate-neft")));
+        toast.success(`${targets.length} NEFT file${targets.length === 1 ? "" : "s"} generated`, { description: "NACH-compliant CSV format" });
       },
     },
   ];
 
   const statusLabel = statusFilter.size === 0 ? "All" : statusFilter.size === 1 ? Array.from(statusFilter)[0] : `${statusFilter.size} selected`;
   const bankLabel = bankFilter || "All";
+
+  if (!loaded) {
+    return <div className="p-6 text-[13px] text-muted-foreground">Loading bank advices…</div>;
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -251,7 +282,17 @@ export function BankAdviceTab() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Btn icon={<FileDown className="h-3.5 w-3.5" />} onClick={() => toast("Generating NEFT batch", { description: "All pending advices" })}>Generate NEFT</Btn>
+          <Btn
+            icon={<FileDown className="h-3.5 w-3.5" />}
+            onClick={async () => {
+              const targets = rows.filter((r) => !r.neftFile);
+              if (targets.length === 0) { toast("All advices already have NEFT files", { description: "Nothing to generate" }); return; }
+              await Promise.all(targets.map((s) => patchAdvice(s.id, "generate-neft")));
+              toast.success(`${targets.length} NEFT file${targets.length === 1 ? "" : "s"} generated`, { description: "NACH-compliant CSV format" });
+            }}
+          >
+            Generate NEFT
+          </Btn>
           <Btn icon={<Download className="h-3.5 w-3.5" />} onClick={() => toast("Exporting", { description: "CSV file generated" })}>Export</Btn>
         </div>
       </div>
@@ -349,7 +390,21 @@ export function BankAdviceTab() {
         </SectionCard>
       </div>
 
-      <BankAdviceDetailDrawer open={!!view} record={view} onClose={() => setView(null)} onPreviewLetter={(r) => { setView(null); setLetterPreview(r); }} />
+      <BankAdviceDetailDrawer
+        open={!!view}
+        record={view}
+        payslips={payslips}
+        onClose={() => setView(null)}
+        onPreviewLetter={(r) => { setView(null); setLetterPreview(r); }}
+        onSubmit={async (r) => {
+          const updated = await patchAdvice(r.id, "submit");
+          if (updated) { toast.success(`Advice submitted to bank`, { description: r.adviceNo }); setView(null); }
+        }}
+        onGenerateNeft={async (r) => {
+          const updated = await patchAdvice(r.id, "generate-neft");
+          if (updated) toast.success("NEFT file generated", { description: updated.neftFile });
+        }}
+      />
       <BankAdviceLetterPreview open={!!letterPreview} record={letterPreview} onClose={() => setLetterPreview(null)} />
 
       <p className="text-[11px] text-muted-foreground">
@@ -359,11 +414,11 @@ export function BankAdviceTab() {
   );
 }
 
-function BankAdviceDetailDrawer({ open, record, onClose, onPreviewLetter }: { open: boolean; record: BankAdvice | null; onClose: () => void; onPreviewLetter: (r: BankAdvice) => void }) {
+function BankAdviceDetailDrawer({ open, record, payslips, onClose, onPreviewLetter, onSubmit, onGenerateNeft }: { open: boolean; record: BankAdvice | null; payslips: Payslip[]; onClose: () => void; onPreviewLetter: (r: BankAdvice) => void; onSubmit: (r: BankAdvice) => void; onGenerateNeft: (r: BankAdvice) => void }) {
   if (!record) return null;
   const m = bankAdviceStatusBadge(record.status);
-  // Sample beneficiary list from PAYSLIPS (filtered by bank and month)
-  const beneficiaries = PAYSLIPS.filter((p) => p.bankName === record.bankName && p.month === record.month).slice(0, 5);
+  // Real beneficiary list from live Payslips, filtered by bank and month.
+  const beneficiaries = payslips.filter((p) => p.bankName === record.bankName && p.month === record.month).slice(0, 5);
   return (
     <Sheet open={open} onOpenChange={(o) => !o && onClose()}>
       <SheetContent side="right" className="w-full sm:max-w-xl flex flex-col gap-0 p-0" showCloseButton={false}>
@@ -413,7 +468,7 @@ function BankAdviceDetailDrawer({ open, record, onClose, onPreviewLetter }: { op
             </div>
             <div className="mt-2 flex flex-wrap items-center gap-2">
               {!record.neftFile && (
-                <Btn size="sm" variant="outline" icon={<FileDown className="h-3.5 w-3.5" />} onClick={() => toast("Generating NEFT file", { description: record.adviceNo })}>Generate NEFT</Btn>
+                <Btn size="sm" variant="outline" icon={<FileDown className="h-3.5 w-3.5" />} onClick={() => onGenerateNeft(record)}>Generate NEFT</Btn>
               )}
               {record.neftFile && (
                 <Btn size="sm" variant="outline" icon={<Download className="h-3.5 w-3.5" />} onClick={() => toast("Downloading NEFT file", { description: record.neftFile })}>Download NEFT</Btn>
@@ -461,7 +516,7 @@ function BankAdviceDetailDrawer({ open, record, onClose, onPreviewLetter }: { op
         <div className="flex items-center justify-end gap-2 border-t border-border px-5 py-3">
           <Btn variant="ghost" icon={<Printer className="h-3.5 w-3.5" />} onClick={() => toast("Generating PDF", { description: record.adviceNo })}>Print</Btn>
           {record.status === "Generated" && (
-            <Btn variant="primary" icon={<Send className="h-3.5 w-3.5" />} onClick={() => toast.success(`Advice submitted to bank`, { description: record.adviceNo })}>Submit to Bank</Btn>
+            <Btn variant="primary" icon={<Send className="h-3.5 w-3.5" />} onClick={() => onSubmit(record)}>Submit to Bank</Btn>
           )}
         </div>
       </SheetContent>

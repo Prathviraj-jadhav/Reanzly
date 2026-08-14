@@ -240,8 +240,11 @@ export interface BankAdvice {
   month: string;
   bankName: string;
   bankBranch: string;
-  accountCount: number;
   totalAmount: number;
+  // Legacy mock-only field, kept so the still-unused BANK_ADVICES generator
+  // below continues to type-check; the real API DTO never returns it -
+  // use beneficiaryCount instead.
+  accountCount?: number;
   status: BankAdviceStatus;
   generatedDate: string;
   submittedDate?: string;
@@ -296,6 +299,7 @@ export interface Bonus {
 }
 
 export interface LoanInstallment {
+  id?: string; // present on real API rows, absent on the still-unused mock generator below
   no: number;
   date: string;
   amount: number;

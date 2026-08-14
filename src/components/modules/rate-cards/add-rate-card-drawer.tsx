@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { Btn } from "@/components/shared/btn";
 import { SavageInput } from "@/components/shared/savage-input";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
 import { X, Check, Plus, Trash2 } from "lucide-react";
 import {
   Sheet,
@@ -21,8 +20,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import type { RateCard, RateCardSurcharge as Surcharge } from "@/lib/types";
 import {
-  useRateCardsStore,
   VEHICLE_TYPES,
   LOAD_TYPES,
   RATE_CALC_TYPES,
@@ -31,16 +30,17 @@ import {
   type LoadType,
   type RateCalculationType,
   type RateCardStatus,
-  type Surcharge,
-  type RateCard,
-} from "@/lib/store/rate-cards-store";
-import { FieldLabel } from "./_helpers";
+  type RateCardPayload,
+  FieldLabel,
+} from "./_helpers";
 
 interface AddRateCardDrawerProps {
   open: boolean;
   onClose: () => void;
   /** When provided the drawer operates in edit mode for this rate card. */
   record?: RateCard;
+  onCreate?: (payload: RateCardPayload) => Promise<boolean>;
+  onUpdate?: (id: string, patch: Partial<RateCardPayload>) => Promise<boolean>;
 }
 
 interface FormState {
@@ -98,10 +98,9 @@ function fromRecord(r: RateCard): FormState {
   };
 }
 
-export function AddRateCardDrawer({ open, onClose, record }: AddRateCardDrawerProps) {
-  const addRateCard = useRateCardsStore((s) => s.addRateCard);
-  const updateRateCard = useRateCardsStore((s) => s.updateRateCard);
+export function AddRateCardDrawer({ open, onClose, record, onCreate, onUpdate }: AddRateCardDrawerProps) {
   const [form, setForm] = useState<FormState>(emptyForm);
+  const [saving, setSaving] = useState(false);
 
   // Pre-fill from record when entering edit mode.
   useEffect(() => {
@@ -131,7 +130,7 @@ export function AddRateCardDrawer({ open, onClose, record }: AddRateCardDrawerPr
     update("surcharges", form.surcharges.filter((s) => s.id !== id));
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!form.name.trim()) {
       toast("Rate card name is required");
       return;
@@ -144,7 +143,7 @@ export function AddRateCardDrawer({ open, onClose, record }: AddRateCardDrawerPr
       toast("Base rate must be greater than zero");
       return;
     }
-    const payload = {
+    const payload: RateCardPayload = {
       name: form.name,
       source: form.source,
       destination: form.destination,
@@ -160,16 +159,24 @@ export function AddRateCardDrawer({ open, onClose, record }: AddRateCardDrawerPr
       gstApplicable: form.gstApplicable,
       gstRate: form.gstApplicable ? Number(form.gstRate) || 0 : 0,
     };
-    if (record) {
-      updateRateCard(record.id, payload);
-      toast.success("Rate card updated", { description: `${form.name} · ${form.source} → ${form.destination}` });
+
+    setSaving(true);
+    try {
+      if (record) {
+        const ok = await onUpdate?.(record.id, payload);
+        if (ok === false) return;
+        toast.success("Rate card updated", { description: `${form.name} · ${form.source} → ${form.destination}` });
+        onClose();
+        return;
+      }
+      const ok = await onCreate?.(payload);
+      if (ok === false) return;
+      toast.success("Rate card created", { description: `${form.name} · ${form.source} → ${form.destination}` });
+      setForm(emptyForm());
       onClose();
-      return;
+    } finally {
+      setSaving(false);
     }
-    const id = addRateCard({ ...payload, createdBy: "Current user" });
-    toast.success("Rate card created", { description: `${form.name} · ${id.slice(0, 12)}` });
-    setForm(emptyForm());
-    onClose();
   };
 
   return (
@@ -358,8 +365,8 @@ export function AddRateCardDrawer({ open, onClose, record }: AddRateCardDrawerPr
 
         {/* Footer */}
         <div className="flex items-center justify-between gap-2 border-t border-border px-5 py-3">
-          <Btn variant="ghost" onClick={onClose}>Cancel</Btn>
-          <Btn variant="primary" icon={<Check className="h-3.5 w-3.5" />} onClick={handleSubmit}>
+          <Btn variant="ghost" onClick={onClose} disabled={saving}>Cancel</Btn>
+          <Btn variant="primary" icon={<Check className="h-3.5 w-3.5" />} onClick={handleSubmit} disabled={saving}>
             {record ? "Save Changes" : "Create Rate Card"}
           </Btn>
         </div>
