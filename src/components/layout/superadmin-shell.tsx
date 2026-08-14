@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/lib/store/app-store";
 import { useSuperadminStore } from "@/components/modules/superadmin/_store";
@@ -63,6 +63,7 @@ import {
   Scale,
   BookOpen,
   MapPin,
+  Loader2,
   type LucideIcon,
 } from "lucide-react";
 
@@ -118,8 +119,10 @@ const GROUPS: SubNavItem["group"][] = ["Operations", "Revenue", "Intelligence", 
 
 export function SuperAdminShell() {
   const currentStaff = useSuperadminStore((s) => s.currentStaff);
+  const adminLogin = useSuperadminStore((s) => s.adminLogin);
   const adminLogout = useSuperadminStore((s) => s.adminLogout);
   const canAccess = useSuperadminStore((s) => s.canAccess);
+  const authUser = useAppStore((s) => s.authUser);
   const logout = useAppStore((s) => s.logout);
   const setAnnounceOpen = useAppStore((s) => s.setAnnounceOpen);
   const [active, setActive] = useState<AdminSubView>("overview");
@@ -127,8 +130,27 @@ export function SuperAdminShell() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [search, setSearch] = useState("");
 
-  // Gate 1: no staff signed in -> full-screen admin login.
+  // A real DB-authenticated session already reached this shell (AppShell
+  // only renders it once portal === "superadmin", which requires a genuine
+  // sign-in as the "superadmin" role). Bridge that session straight into
+  // the internal-staff store instead of forcing a second, disconnected
+  // mock login - the old flow left the real seeded account with no way in.
+  useEffect(() => {
+    if (!currentStaff && authUser?.roleId === "superadmin") {
+      adminLogin(authUser.email, "superadmin");
+    }
+  }, [currentStaff, authUser, adminLogin]);
+
+  // Gate 1: no real superadmin session and no staff signed in -> admin
+  // login (kept for direct/local testing of the admin surface itself).
   if (!currentStaff) {
+    if (authUser?.roleId === "superadmin") {
+      return (
+        <div className="flex h-screen w-full items-center justify-center bg-background text-foreground">
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        </div>
+      );
+    }
     return <AdminLogin />;
   }
 
