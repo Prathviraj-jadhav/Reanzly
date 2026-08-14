@@ -20,7 +20,18 @@ const SEED_FILES = [
   "seed-notifications.ts",
   "seed-operations-hub.ts",
   "seed-reports.ts",
-  "seed-vendor-portal.ts"
+  "seed-vendor-portal.ts",
+  "seed-helpdesk.ts",
+  "seed-knowledge.ts",
+  "seed-rate-cards.ts",
+  "seed-approvals.ts",
+  // Payroll sub-area seeds need real Employee rows - must run after
+  // seed-hr-full.ts, which is why they're appended at the end.
+  "seed-payroll-statutory.ts",
+  "seed-payroll-bank-advice.ts",
+  "seed-payroll-reimbursements.ts",
+  "seed-payroll-bonuses.ts",
+  "seed-payroll-loans.ts"
 ];
 
 async function main() {
