@@ -364,9 +364,10 @@ export function Documents() {
       {view === "requests" && (
         <DocRequestsView
           requests={docRequests}
-          onMarkReceived={(r) => {
-            setDocRequestStatus(r.id, "Received");
-            toast.success("Document received", { description: `${r.docType} · ${r.empName}` });
+          onMarkReceived={async (r) => {
+            const ok = await setDocRequestStatus(r.id, "Received");
+            if (ok) toast.success("Document received", { description: `${r.docType} · ${r.empName}` });
+            else toast.error("Couldn't update request", { description: "Try again." });
           }}
           onRequest={(r) => toast.success("Re-request sent", { description: `${r.empName} notified` })}
         />

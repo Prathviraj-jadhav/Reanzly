@@ -1,18 +1,15 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
-import { cn } from "@/lib/utils";
+import { useState, useMemo } from "react";
 import { toast } from "sonner";
 import {
   Play,
-  RotateCcw,
   Download,
   Clock,
   HardDrive,
   CalendarClock,
   History,
   Database,
-  CheckCircle2,
   AlertCircle,
 } from "lucide-react";
 import {
@@ -47,6 +44,7 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { KpiCard } from "@/components/shared/kpi-card";
 import { DataTable, type Column } from "@/components/shared/data-table";
 import { useSuperadminStore } from "./_store";
+import { useBackupsData } from "./use-backups-data";
 import {
   formatDateTime,
   relativeTime,
@@ -56,56 +54,22 @@ import {
 
 /* ============================================================
    BackupsView - KPI row, schedule config, history table, run
-   backup now (simulated progress), restore dialog, per-tenant
-   export.
+   backup now, restore confirm, per-tenant export.
+
+   Backups are real SQLite snapshots (VACUUM INTO) that complete
+   synchronously server-side, so there's no client-side progress
+   timer here - just a loading state while the request is in flight.
    ============================================================ */
 export function BackupsView() {
-  const backups = useSuperadminStore((s) => s.backups);
   const orgs = useSuperadminStore((s) => s.orgs);
-  const schedule = useSuperadminStore((s) => s.backupSchedule);
-  const hasHydrated = useSuperadminStore((s) => s.hasHydrated);
-  const runBackup = useSuperadminStore((s) => s.runBackup);
-  const finishBackup = useSuperadminStore((s) => s.finishBackup);
-  const restoreBackup = useSuperadminStore((s) => s.restoreBackup);
-  const setBackupSchedule = useSuperadminStore((s) => s.setBackupSchedule);
   const exportTenant = useSuperadminStore((s) => s.exportTenant);
+  const currentStaff = useSuperadminStore((s) => s.currentStaff);
+  const { backups, schedule, loaded, running, runBackup, restoreBackup, setBackupSchedule } = useBackupsData();
 
-  const [runProgress, setRunProgress] = useState(0);
   const [restoreTarget, setRestoreTarget] = useState<Backup | null>(null);
-  const [restoreProgress, setRestoreProgress] = useState(0);
   const [restoreConfirmOpen, setRestoreConfirmOpen] = useState(false);
+  const [restoring, setRestoring] = useState(false);
   const [exportOrgId, setExportOrgId] = useState<string>("");
-
-  // Live "running" backup (if any in the list has status Running). We
-  // derive `running` from the store so we don't need to mirror the same
-  // fact in local state - keeps a single source of truth.
-  const liveRunning = backups.find((b) => b.status === "Running");
-  const running = liveRunning?.id ?? null;
-
-  // Auto-finish a backup after a simulated duration. The setInterval
-  // callback (NOT the effect body) calls setState, so we don't trip the
-  // react-hooks/set-state-in-effect rule. The interval itself is the
-  // "subscription to an external system" that the rule expects effects
-  // to set up.
-  useEffect(() => {
-    if (!liveRunning) return;
-    const startMs = new Date(liveRunning.startedAt).getTime();
-    const totalDur = liveRunning.type === "Full" ? 3000 : 1200; // simulated ms
-    const interval = setInterval(() => {
-      const elapsed = Date.now() - startMs;
-      const pct = Math.min(100, (elapsed / totalDur) * 100);
-      setRunProgress(pct);
-      if (pct >= 100) {
-        clearInterval(interval);
-        finishBackup(liveRunning.id, "Completed");
-        setRunProgress(0);
-        toast.success(`${liveRunning.type} backup completed`, {
-          description: `${liveRunning.type === "Full" ? "4,2 GB" : "~170 MB"} · ${Math.round(totalDur / 100) / 10}s`,
-        });
-      }
-    }, 80);
-    return () => clearInterval(interval);
-  }, [liveRunning, finishBackup]);
 
   // KPIs (Miller's Law: max 5)
   const kpis = useMemo(() => {
@@ -124,37 +88,26 @@ export function BackupsView() {
     };
   }, [backups, schedule]);
 
-  // Start a new backup
-  const startBackup = (type: "Full" | "Incremental") => {
+  const startBackup = async (type: "Full" | "Incremental") => {
     if (running) {
       toast("Backup already running", { description: "Wait for the current one to finish" });
       return;
     }
-    const id = runBackup(type, "Anand K. · Manual");
-    toast(`${type} backup started`, { description: "Simulated progress in real time" });
-    void id;
+    await runBackup(type, `${currentStaff?.name ?? "Superadmin"} · Manual`);
   };
 
-  const handleRestore = () => {
+  const handleRestore = async () => {
     if (!restoreTarget) return;
     setRestoreConfirmOpen(false);
-    setRestoreProgress(0);
-    const total = 2400; // ms
-    const interval = setInterval(() => {
-      setRestoreProgress((p) => {
-        const next = Math.min(100, p + (100 / (total / 80)));
-        if (next >= 100) {
-          clearInterval(interval);
-          restoreBackup(restoreTarget.id);
-          toast.success("Restore completed", {
-            description: `Restored to ${formatDateTime(restoreTarget.startedAt)}`,
-          });
-          setRestoreTarget(null);
-          setRestoreProgress(0);
-        }
-        return next;
+    setRestoring(true);
+    const ok = await restoreBackup(restoreTarget.id, currentStaff?.name);
+    setRestoring(false);
+    if (ok) {
+      toast.success("Restore verified", {
+        description: `Snapshot from ${formatDateTime(restoreTarget.startedAt)} confirmed on disk.`,
       });
-    }, 80);
+    }
+    setRestoreTarget(null);
   };
 
   const columns: Column<Backup>[] = [
@@ -224,14 +177,7 @@ export function BackupsView() {
       sortValue: (r) => r.status,
       render: (r) => {
         const v = backupStatusVariant(r.status);
-        return (
-          <div className="flex items-center gap-2">
-            <StatusBadge variant={v.variant} pulse={v.pulse}>{r.status}</StatusBadge>
-            {r.status === "Running" && (
-              <span className="tabular text-[10px] text-muted-foreground">{runProgress.toFixed(0)}%</span>
-            )}
-          </div>
-        );
+        return <StatusBadge variant={v.variant} pulse={v.pulse}>{r.status}</StatusBadge>;
       },
     },
   ];
@@ -254,7 +200,7 @@ export function BackupsView() {
     },
   ];
 
-  const storagePct = (kpis.storageUsed / kpis.storageCap) * 100;
+  const storagePct = kpis.storageCap > 0 ? (kpis.storageUsed / kpis.storageCap) * 100 : 0;
 
   return (
     <div className="flex flex-col gap-4">
@@ -276,7 +222,7 @@ export function BackupsView() {
         />
         <KpiCard
           label="Storage Used"
-          value={`${kpis.storageUsed.toFixed(1)} GB`}
+          value={`${kpis.storageUsed.toFixed(2)} GB`}
           icon={<HardDrive className="h-4 w-4" />}
           delta={`of ${kpis.storageCap} GB`}
           trend={storagePct > 80 ? "down" : "up"}
@@ -295,7 +241,7 @@ export function BackupsView() {
           label="Total Snapshots"
           value={kpis.totalBackups}
           icon={<History className="h-4 w-4" />}
-          delta={`${(kpis.totalSize / 1024).toFixed(1)} GB all-time`}
+          delta={`${(kpis.totalSize / 1024).toFixed(2)} GB all-time`}
           trend="up"
         />
       </div>
@@ -305,52 +251,34 @@ export function BackupsView() {
         {/* Run backup now */}
         <SectionCard
           title="Run backup now"
-          description="Trigger an immediate backup of all tenant data"
+          description="Trigger an immediate real SQLite snapshot of the database"
           icon={<Play className="h-4 w-4" />}
         >
           <div className="flex flex-col gap-3">
-            {running && (
-              <div className="rounded-[5px] border border-border bg-muted/30 p-3">
-                <div className="flex items-center justify-between text-[12px] mb-1.5">
-                  <span className="text-foreground font-medium">
-                    {liveRunning?.type ?? "Backup"} backup in progress…
-                  </span>
-                  <span className="tabular text-muted-foreground">{runProgress.toFixed(0)}%</span>
-                </div>
-                <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-                  <div
-                    className="h-full rounded-full bg-foreground transition-[width] duration-100"
-                    style={{ width: `${runProgress}%` }}
-                  />
-                </div>
-                <div className="mt-1.5 text-[10px] text-muted-foreground tabular">
-                  Started {liveRunning ? relativeTime(liveRunning.startedAt) : "-"} · triggered by {liveRunning?.triggeredBy ?? "-"}
-                </div>
-              </div>
-            )}
             <div className="grid grid-cols-2 gap-2">
               <Btn
                 variant="primary"
                 icon={<Play className="h-3.5 w-3.5" />}
-                loading={!!running}
+                loading={running}
                 onClick={() => startBackup("Incremental")}
-                disabled={!!running}
+                disabled={running}
               >
                 Incremental
               </Btn>
               <Btn
                 variant="outline"
                 icon={<Database className="h-3.5 w-3.5" />}
-                loading={!!running}
+                loading={running}
                 onClick={() => startBackup("Full")}
-                disabled={!!running}
+                disabled={running}
               >
                 Full
               </Btn>
             </div>
             <p className="text-[11px] text-muted-foreground leading-relaxed">
-              Incremental backups capture changes since the last full backup (~170 MB,
-              ~2 min). Full backups snapshot everything (~4.2 GB, ~30 min).
+              Runs a real `VACUUM INTO` snapshot of the live database - safe under
+              concurrent reads/writes. Full and Incremental produce the same real
+              snapshot; the label is preserved for the schedule below.
             </p>
           </div>
         </SectionCard>
@@ -436,7 +364,7 @@ export function BackupsView() {
           </div>
           <div className="mt-3 flex items-center justify-between rounded-[5px] border border-border bg-muted/30 px-3 py-2">
             <span className="text-[11px] text-muted-foreground tabular">
-              Storage: {kpis.storageUsed.toFixed(1)} / {kpis.storageCap} GB ({storagePct.toFixed(0)}%)
+              Storage: {kpis.storageUsed.toFixed(2)} / {kpis.storageCap} GB ({storagePct.toFixed(0)}%)
             </span>
             <span className="text-[11px] text-muted-foreground tabular">
               Auto-purge: backups older than {schedule.retentionDays} days
@@ -492,7 +420,7 @@ export function BackupsView() {
             </span>
           </div>
         </div>
-        {!hasHydrated ? (
+        {!loaded ? (
           <div className="px-4 py-10 text-center text-[13px] text-muted-foreground">Loading backups…</div>
         ) : (
           <DataTable
@@ -513,11 +441,13 @@ export function BackupsView() {
           <AlertDialogHeader>
             <AlertDialogTitle className="text-[16px]">Restore from this backup?</AlertDialogTitle>
             <AlertDialogDescription className="text-[13px]">
-              This will overwrite current tenant data with the snapshot from{" "}
+              This verifies the real snapshot from{" "}
               <span className="text-foreground font-medium tabular">
                 {restoreTarget ? formatDateTime(restoreTarget.startedAt) : "-"}
-              </span>
-              . All changes made after that point will be lost. The restore is logged in the audit trail.
+              </span>{" "}
+              is present on disk and marks it restored. Swapping the live database file
+              is an operator action done with the server stopped, not automated here.
+              The check is logged in the audit trail.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -532,29 +462,19 @@ export function BackupsView() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Restore progress dialog */}
-      <Dialog open={restoreTarget !== null && !restoreConfirmOpen} onOpenChange={(o) => !o && setRestoreTarget(null)}>
+      {/* Restore in-progress dialog */}
+      <Dialog open={restoring} onOpenChange={() => undefined}>
         <DialogContent showCloseButton={false} className="sm:max-w-[440px] p-0 gap-0 rounded-[6px]">
           <DialogHeader className="px-5 py-4 border-b border-border">
-            <DialogTitle className="text-[15px]">Restoring from snapshot…</DialogTitle>
+            <DialogTitle className="text-[15px]">Verifying snapshot…</DialogTitle>
             <DialogDescription className="text-[12px]">
               {restoreTarget ? formatDateTime(restoreTarget.startedAt) : "-"} · {restoreTarget?.type ?? "-"}
             </DialogDescription>
           </DialogHeader>
           <div className="px-5 py-5">
-            <div className="flex items-center justify-between text-[12px] mb-1.5">
-              <span className="text-foreground font-medium">Replaying snapshot…</span>
-              <span className="tabular text-muted-foreground">{restoreProgress.toFixed(0)}%</span>
-            </div>
-            <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-              <div
-                className="h-full rounded-full bg-foreground transition-[width] duration-100"
-                style={{ width: `${restoreProgress}%` }}
-              />
-            </div>
-            <div className="mt-3 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+            <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
               <AlertCircle className="h-3 w-3" />
-              Do not close this dialog - restore is non-interruptible.
+              Checking the snapshot file on disk…
             </div>
           </div>
         </DialogContent>
@@ -579,10 +499,10 @@ function ScheduleRow({
 }) {
   return (
     <div
-      className={cn(
-        "flex items-start justify-between gap-3 rounded-[5px] border p-3 transition-colors",
-        checked ? "border-foreground/40 bg-accent/30" : "border-border",
-      )}
+      className={
+        "flex items-start justify-between gap-3 rounded-[5px] border p-3 transition-colors " +
+        (checked ? "border-foreground/40 bg-accent/30" : "border-border")
+      }
     >
       <div className="min-w-0 flex-1">
         <div className="text-[12px] font-medium text-foreground">{label}</div>

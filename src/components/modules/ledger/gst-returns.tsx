@@ -19,7 +19,7 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { SectionCard } from "@/components/shared/section-card";
 import { DataTable, type Column } from "@/components/shared/data-table";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { useLedgerTallyStore } from "@/lib/store/ledger-tally-store";
+import { useGstData } from "@/components/modules/ledger/use-gst-data";
 import type {
   GSTReturn,
   GSTReturnType,
@@ -81,7 +81,7 @@ function reconVariant(status: ReconStatus): "solid" | "outline" | "muted" {
 }
 
 export function GstReturnsView() {
-  const gstReturns = useLedgerTallyStore((s) => s.gstReturns);
+  const { gstReturns } = useGstData();
   const [activeType, setActiveType] = useState<GSTReturnType>("GSTR-1");
 
   const typeReturns = useMemo(
@@ -161,7 +161,7 @@ export function GstReturnsView() {
    GSTR-1 / GSTR-3B table
    ============================================================ */
 function GstReturnTable({ returns, type }: { returns: GSTReturn[]; type: GSTReturnType }) {
-  const updateGstReturn = useLedgerTallyStore((s) => s.updateGstReturn);
+  const { updateGstReturn } = useGstData();
 
   const columns: Column<GSTReturn>[] = [
     {
@@ -256,12 +256,12 @@ function GstReturnTable({ returns, type }: { returns: GSTReturn[]; type: GSTRetu
     },
     {
       label: "Mark as Filed",
-      onClick: (g: GSTReturn) => {
+      onClick: async (g: GSTReturn) => {
         if (g.status === "Filed") {
           toast("Already filed", { description: `${g.type} ${g.period}` });
           return;
         }
-        updateGstReturn(g.id, {
+        await updateGstReturn(g.id, {
           status: "Filed",
           filingDate: new Date().toISOString().slice(0, 10),
           ackNo: g.ackNo ?? String(Date.now()).slice(0, 15),
@@ -328,8 +328,7 @@ function GstReturnTable({ returns, type }: { returns: GSTReturn[]; type: GSTRetu
    GSTR-2B Reconciliation panel
    ============================================================ */
 function GstReconPanel() {
-  const reconLines = useLedgerTallyStore((s) => s.reconLines);
-  const setReconStatus = useLedgerTallyStore((s) => s.setReconStatus);
+  const { reconLines, setReconStatus } = useGstData();
   const [filter, setFilter] = useState<"All" | ReconStatus>("All");
 
   const filtered = useMemo(
@@ -462,22 +461,22 @@ function GstReconPanel() {
   const rowActions = [
     {
       label: "Mark Matched",
-      onClick: (l: GSTReconLine) => {
-        setReconStatus(l.id, "Matched");
+      onClick: async (l: GSTReconLine) => {
+        await setReconStatus(l.id, "Matched");
         toast.success("Reconciled as matched", { description: l.invoiceNo });
       },
     },
     {
       label: "Mark Mismatched",
-      onClick: (l: GSTReconLine) => {
-        setReconStatus(l.id, "Mismatched", l.reason ?? "Manual override");
+      onClick: async (l: GSTReconLine) => {
+        await setReconStatus(l.id, "Mismatched", l.reason ?? "Manual override");
         toast(`Marked mismatched · ${l.invoiceNo}`);
       },
     },
     {
       label: "Mark Pending",
-      onClick: (l: GSTReconLine) => {
-        setReconStatus(l.id, "Pending", l.reason ?? "Awaiting vendor filing");
+      onClick: async (l: GSTReconLine) => {
+        await setReconStatus(l.id, "Pending", l.reason ?? "Awaiting vendor filing");
         toast(`Marked pending · ${l.invoiceNo}`);
       },
     },

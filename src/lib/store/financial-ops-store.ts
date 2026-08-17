@@ -118,7 +118,7 @@ const DAYS_AGO = (n: number) => new Date(Date.now() - n * 86400000).toISOString(
 const DAYS_FROM_NOW = (n: number) => new Date(Date.now() + n * 86400000).toISOString();
 
 // ===== Seed vouchers - realistic Indian logistics =====
-function seedVouchers(): FinOpsVoucher[] {
+export function seedVouchers(): FinOpsVoucher[] {
   const v: FinOpsVoucher[] = [
     {
       id: "fin-1",

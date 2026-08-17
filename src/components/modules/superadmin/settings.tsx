@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import {
@@ -31,6 +31,8 @@ import { SectionCard } from "@/components/shared/section-card";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { SearchInput } from "@/components/shared/toolbar";
 import { useSuperadminStore } from "./_store";
+import { useSuperadminSettingsData } from "./use-superadmin-settings-data";
+import { useSuperadminAuditData } from "./use-superadmin-audit-data";
 import { MODULES } from "./_data";
 import { formatDateTime, relativeTime } from "./_helpers";
 
@@ -39,12 +41,9 @@ import { formatDateTime, relativeTime } from "./_helpers";
    config, branding (placeholder), audit log table.
    ============================================================ */
 export function SettingsView() {
-  const gateways = useSuperadminStore((s) => s.gateways);
-  const featureFlags = useSuperadminStore((s) => s.featureFlags);
-  const auditLog = useSuperadminStore((s) => s.auditLog);
-  const setFeatureFlag = useSuperadminStore((s) => s.setFeatureFlag);
-  const updateGateway = useSuperadminStore((s) => s.updateGateway);
-  const testGateway = useSuperadminStore((s) => s.testGateway);
+  const currentStaff = useSuperadminStore((s) => s.currentStaff);
+  const { gateways, featureFlags, setFeatureFlag, updateGateway, testGateway } = useSuperadminSettingsData();
+  const { auditLog } = useSuperadminAuditData();
 
   const [search, setSearch] = useState("");
   const [moduleFilter, setModuleFilter] = useState<Set<string>>(new Set());
@@ -84,15 +83,19 @@ export function SettingsView() {
     setFn(next);
   };
 
-  const handleTest = (id: "email" | "sms") => {
+  const handleTest = async (id: "email" | "sms") => {
     setTesting(id);
-    setTimeout(() => {
-      testGateway(id);
-      setTesting(null);
-      toast.success(`${id === "email" ? "Email" : "SMS"} test sent`, {
-        description: `Test message dispatched via ${id === "email" ? emailGateway?.provider : smsGateway?.provider}`,
+    const result = await testGateway(id, currentStaff?.name);
+    setTesting(null);
+    if (result?.lastTestStatus === "ok") {
+      toast.success(`${id === "email" ? "Email" : "SMS"} gateway configuration verified`, {
+        description: `${result.provider} · ${result.fromAddress}`,
       });
-    }, 800);
+    } else {
+      toast.error(`${id === "email" ? "Email" : "SMS"} gateway check failed`, {
+        description: "Gateway must be enabled with a provider and from-address configured.",
+      });
+    }
   };
 
   const moduleLabel = moduleFilter.size === 0 ? "All" : moduleFilter.size === 1 ? Array.from(moduleFilter)[0] : `${moduleFilter.size} selected`;
@@ -122,7 +125,7 @@ export function SettingsView() {
                 <Switch
                   checked={on}
                   onCheckedChange={(v) => {
-                    setFeatureFlag(m.id, v);
+                    setFeatureFlag(m.id, v, currentStaff?.name);
                     toast(`${v ? "Enabled" : "Disabled"} ${m.label} globally`, {
                       description: v ? "Visible in all tenant sidebars" : "Hidden from all tenant sidebars",
                     });
@@ -167,12 +170,12 @@ export function SettingsView() {
               <GatewayField
                 label="Provider"
                 value={emailGateway.provider}
-                onChange={(v) => updateGateway("email", { provider: v })}
+                onChange={(v) => updateGateway("email", { provider: v }, currentStaff?.name)}
               />
               <GatewayField
                 label="From address"
                 value={emailGateway.fromAddress}
-                onChange={(v) => updateGateway("email", { fromAddress: v })}
+                onChange={(v) => updateGateway("email", { fromAddress: v }, currentStaff?.name)}
                 mono
               />
               <div className="flex items-center justify-between rounded-[5px] border border-border px-3 py-2">
@@ -185,7 +188,7 @@ export function SettingsView() {
                 <Switch
                   checked={emailGateway.enabled}
                   onCheckedChange={(v) => {
-                    updateGateway("email", { enabled: v });
+                    updateGateway("email", { enabled: v }, currentStaff?.name);
                     toast(`${v ? "Enabled" : "Disabled"} email gateway`, { description: emailGateway.provider });
                   }}
                 />
@@ -217,12 +220,12 @@ export function SettingsView() {
               <GatewayField
                 label="Provider"
                 value={smsGateway.provider}
-                onChange={(v) => updateGateway("sms", { provider: v })}
+                onChange={(v) => updateGateway("sms", { provider: v }, currentStaff?.name)}
               />
               <GatewayField
                 label="Sender ID"
                 value={smsGateway.fromAddress}
-                onChange={(v) => updateGateway("sms", { fromAddress: v })}
+                onChange={(v) => updateGateway("sms", { fromAddress: v }, currentStaff?.name)}
                 mono
               />
               <div className="flex items-center justify-between rounded-[5px] border border-border px-3 py-2">
@@ -235,7 +238,7 @@ export function SettingsView() {
                 <Switch
                   checked={smsGateway.enabled}
                   onCheckedChange={(v) => {
-                    updateGateway("sms", { enabled: v });
+                    updateGateway("sms", { enabled: v }, currentStaff?.name);
                     toast(`${v ? "Enabled" : "Disabled"} SMS gateway`, { description: smsGateway.provider });
                   }}
                 />
@@ -441,14 +444,22 @@ function GatewayField({
   onChange: (v: string) => void;
   mono?: boolean;
 }) {
+  // Local draft state so typing doesn't fire a network request per
+  // keystroke - onChange (the real PATCH) only commits on blur, matching
+  // how every other real-data text field in this app persists.
+  const [draft, setDraft] = useState(value);
+  useEffect(() => setDraft(value), [value]);
   return (
     <div className="flex flex-col gap-1">
       <label className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
         {label}
       </label>
       <Input
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={() => {
+          if (draft !== value) onChange(draft);
+        }}
         className={cn("h-9 rounded-[5px]", mono && "tabular")}
       />
     </div>

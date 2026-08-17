@@ -172,6 +172,7 @@ model Vehicle {
   issues          Issue[]           @relation("VehicleIssues")
   servicePrograms ServiceProgram[]  @relation("VehicleServicePrograms")
   reminders       Reminder[]        @relation("VehicleReminders")
+  planningResources PlanningResource[]
 }
 
 // ===== PEOPLE =====
@@ -211,6 +212,7 @@ model Driver {
   fuelEntries     FuelEntry[]
   inspections     Inspection[]
   reminders       Reminder[]
+  planningResources PlanningResource[]
 }
 
 model Customer {
@@ -516,6 +518,370 @@ model FieldServiceTask {
   company           Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@index([companyId, status])
+}
+
+// ===== PLANNING & SCHEDULING =====
+// Resource/allocation Gantt for drivers, vehicles, and workshop bays. Real
+// counterpart to the old planning/_helpers.tsx mock (buildResources/
+// buildAllocations). utilisationWeek/allocationsThisWeek/conflicts are
+// deliberately NOT stored here - computed live from PlanningAllocation rows
+// at request time (same "can't go stale" pattern as Reminder.daysRemaining),
+// scoped to whatever week the caller asks for.
+model PlanningResource {
+  id          String   @id @default(cuid())
+  companyId   String
+  code        String
+  name        String
+  type        String   // Driver | Vehicle | Bay
+  designation String?
+  homeBase    String
+  status      String   @default("Available") // Available | Allocated | Off-duty | Maintenance
+  shiftStart  String   @default("06:00")
+  shiftEnd    String   @default("18:00")
+  skills      String?  // comma-separated
+  driverId    String?
+  driver      Driver?  @relation(fields: [driverId], references: [id])
+  vehicleId   String?
+  vehicle     Vehicle? @relation(fields: [vehicleId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  allocations PlanningAllocation[]
+
+  @@index([companyId, type])
+}
+
+model PlanningAllocation {
+  id            String           @id @default(cuid())
+  companyId     String
+  resourceId    String
+  resource      PlanningResource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  type          String           // Trip | Maintenance | Inspection | Loading | Unloading | Rest | Training
+  title         String
+  refNo         String
+  startAt       DateTime
+  durationHours Int
+  status        String           @default("Planned") // Planned | Confirmed | Active | Completed | Cancelled
+  location      String?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  @@index([companyId, resourceId])
+  @@index([startAt])
+}
+
+// ===== LEDGER (double-entry accounting) =====
+// Real counterpart to the old ledger-store.ts mock (localStorage-only
+// Chart of Accounts + journal vouchers). Balances/Trial Balance/P&L/Balance
+// Sheet are deliberately NOT stored - computed live from real
+// LedgerJournalLine postings at request time, mirroring the exact math the
+// old client-side getAccountBalance/getTrialBalance/getProfitLoss/
+// getBalanceSheet selectors used (opening balance + signed Dr/Cr postings
+// up to an as-of date), just server-side now.
+model LedgerAccount {
+  id             String   @id @default(cuid())
+  companyId      String
+  code           String
+  name           String
+  group          String   // Asset | Liability | Income | Expense | Equity
+  subgroup       String   // Current Asset | Fixed Asset | Bank & Cash | Current Liability | Long Term Liability | Equity Capital | Operating Income | Other Income | Direct Expense | Indirect Expense | Duties & Taxes
+  openingBalance Int      @default(0) // whole rupees
+  openingNature  String   @default("Dr") // Dr | Cr
+  isSystem       Boolean  @default(false) // protected seed account, UI blocks delete
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  lines          LedgerJournalLine[]
+
+  @@unique([companyId, code])
+  @@index([companyId, group])
+}
+
+model LedgerJournalEntry {
+  id        String   @id @default(cuid())
+  companyId String
+  voucherNo String
+  date      DateTime
+  narration String
+  status    String   @default("Posted") // Draft | Posted
+  createdBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  lines     LedgerJournalLine[]
+
+  @@unique([companyId, voucherNo])
+  @@index([companyId, date])
+}
+
+model LedgerJournalLine {
+  id        String             @id @default(cuid())
+  entryId   String
+  entry     LedgerJournalEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  accountId String
+  account   LedgerAccount      @relation(fields: [accountId], references: [id])
+  debit     Int                @default(0)
+  credit    Int                @default(0)
+
+  @@index([accountId])
+  @@index([entryId])
+}
+
+// ===== TREASURY OPS =====
+// Real counterpart to the old financial-ops-store.ts mock (localStorage-only
+// FinOpsVoucher). One flat model covers all 7 voucher types (Advance, Add
+// Money, Withdrawal, Movement, Truck Forwarding, Settlement, Recovery
+// Voucher) via nullable type-specific fields, matching the original TS
+// union-of-optionals shape. Standalone from the double-entry Journal (not
+// auto-posted to LedgerJournalEntry) - same scope boundary as Expenses/
+// Financial Services elsewhere in this app.
+model TreasuryVoucher {
+  id            String   @id @default(cuid())
+  companyId     String
+  type          String   // Advance | Add Money | Withdrawal | Movement | Truck Forwarding | Settlement | Recovery Voucher
+  number        String
+  party         String
+  amount        Int
+  mode          String   // Cash | UPI | Bank | NEFT | RTGS | Cheque | Card
+  reference     String?
+  date          DateTime
+  status        String   @default("Draft") // Draft | Pending | Approved | Rejected
+  against       String?
+  fromAccount   String?  // Movement only
+  toAccount     String?  // Movement only
+  vehicle       String?  // Truck Forwarding only
+  vendor        String?  // Truck Forwarding only
+  lrNumber      String?  // Truck Forwarding only
+  fromCity      String?  // Truck Forwarding only
+  toCity        String?  // Truck Forwarding only
+  totalAdvance  Int?     // Settlement only
+  totalExpense  Int?     // Settlement only
+  netPayable    Int?     // Settlement only
+  settledAmount Int?     // Settlement only
+  balance       Int?     // Settlement only
+  approvedBy    String?  // Withdrawal only
+  remarks       String?
+  createdBy     String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([companyId, number])
+  @@index([companyId, type])
+}
+
+// ===== LEDGER: GST RETURNS =====
+model LedgerGstReturn {
+  id             String    @id @default(cuid())
+  companyId      String
+  type           String    // GSTR-1 | GSTR-3B | GSTR-2B
+  period         String    // e.g. "Oct 2024"
+  dueDate        DateTime
+  filingDate     DateTime?
+  status         String    @default("Draft") // Draft | Prepared | Filed | Reconciling
+  taxableValue   Int       @default(0)
+  outputTax      Int       @default(0)
+  inputTaxCredit Int       @default(0)
+  netPayable     Int       @default(0)
+  matched        Int?
+  mismatched     Int?
+  pending        Int?
+  ackNo          String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@unique([companyId, type, period])
+  @@index([companyId, type])
+}
+
+model LedgerGstReconLine {
+  id           String   @id @default(cuid())
+  companyId    String
+  vendorGstin  String
+  vendorName   String
+  invoiceNo    String
+  invoiceDate  DateTime
+  taxableValue Int
+  itcClaimed   Int
+  itcAsPer2B   Int
+  status       String   @default("Pending") // Matched | Mismatched | Pending
+  reason       String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([companyId, status])
+}
+
+// ===== HR: DOCUMENT REQUESTS / ISSUANCES / RECRUITMENT (Interviews & Offers) =====
+model HrDocumentRequest {
+  id          String    @id @default(cuid())
+  companyId   String
+  empId       String
+  empCode     String
+  empName     String
+  docType     String
+  reason      String
+  requestedOn DateTime
+  dueDate     DateTime
+  status      String    @default("Pending") // Pending | Received | Overdue | Cancelled
+  receivedOn  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([companyId, status])
+}
+
+model HrIssuance {
+  id           String    @id @default(cuid())
+  companyId    String
+  documentId   String    // human-readable like ISS-2025-0001
+  type         String
+  category     String
+  employeeId   String
+  employeeName String
+  designation  String
+  branch       String
+  status       String    @default("Draft") // Draft | Sent | Accepted | E-Signed | Expired | Revoked
+  issuedBy     String
+  issuedOn     DateTime
+  validUntil   DateTime?
+  format       String    @default("A4")
+  letterhead   Boolean   @default(true)
+  watermark    Boolean   @default(false)
+  branded      String    @default("reanzly")
+  theme        String    @default("monochrome")
+  font         String    @default("sans")
+  ccManager    Boolean   @default(false)
+  bccHrHead    Boolean   @default(false)
+  fieldsJson   String    @default("{}") // JSON: Record<string,string>
+  eSignPending Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@unique([companyId, documentId])
+  @@index([companyId, status])
+}
+
+model HrInterview {
+  id            String   @id @default(cuid())
+  companyId     String
+  positionId    String
+  candidateId   String
+  candidateName String
+  role          String
+  round         String   // Telephonic | Technical | HR | Final
+  scheduledOn   DateTime
+  duration      Int
+  interviewer   String
+  status        String   @default("Scheduled") // Scheduled | Completed | Cancelled | No-Show
+  feedback      String?
+  rating        Int?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([companyId, status])
+}
+
+model HrOfferLetter {
+  id             String    @id @default(cuid())
+  companyId      String
+  positionId     String
+  candidateId    String
+  candidateName  String
+  role           String
+  branch         String
+  offeredCTC     Int
+  joiningDate    DateTime
+  status         String    @default("Drafted") // Drafted | Sent | Accepted | Declined | Expired
+  issuedOn       DateTime
+  acceptedOn     DateTime?
+  declinedOn     DateTime?
+  declinedReason String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([companyId, status])
+}
+
+// ===== SUPERADMIN: BACKUPS =====
+// Real snapshots of the SQLite database via `VACUUM INTO` (SQLite's
+// built-in hot-backup primitive - safe under concurrent reads/writes,
+// unlike a raw file copy). filePath points at a real .db file on disk.
+// storageUsedGB is intentionally NOT stored here - it's derived from the
+// real sizeMB of completed rows so it can never drift from reality.
+model Backup {
+  id          String    @id @default(cuid())
+  companyId   String
+  type        String    // Full | Incremental (see route comment: both produce a full VACUUM INTO snapshot)
+  status      String    @default("Running") // Running | Completed | Failed | Restored
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+  sizeMB      Float     @default(0)
+  durationSec Int       @default(0)
+  triggeredBy String
+  filePath    String?
+  restoredAt  DateTime?
+
+  @@index([companyId, status])
+}
+
+// ===== SUPERADMIN: PLATFORM AUDIT LOG =====
+// Cross-tenant, so intentionally has no companyId (unlike the tenant-scoped
+// AuditLog model above) and no FK to User - internal/superadmin staff
+// (Anand Kumar et al, see admin-login.tsx) are a separate concept from the
+// tenant User table, so actor is free text like the original mock
+// AuditEntry shape, not a relation.
+// Named SuperadminAuditLog (not PlatformAuditLog) to avoid colliding with
+// the pre-existing, unused PlatformAuditLog/PlatformUser/BackupSnapshot
+// models further down this schema - those are vestigial boilerplate from
+// an earlier/different product template ("Garage Plus", per PlatformUser's
+// own comment), not planning for Reanzly's Superadmin portal, so this
+// intentionally does not build on them.
+model SuperadminAuditLog {
+  id        String   @id @default(cuid())
+  actor     String
+  action    String
+  target    String
+  module    String
+  ip        String?
+  timestamp DateTime @default(now())
+
+  @@index([module])
+  @@index([actor])
+}
+
+// ===== SUPERADMIN: SETTINGS (feature flags + gateways) =====
+model SuperadminFeatureFlag {
+  id        String   @id @default(cuid())
+  moduleId  String   @unique
+  enabled   Boolean  @default(true)
+  updatedAt DateTime @updatedAt
+}
+
+// "Test" validates the configured provider/fromAddress are present and the
+// gateway is enabled - it does NOT send a real email/SMS (this app has no
+// SES/Karix credentials wired up anywhere, so faking network delivery
+// would be a lie; this is an honest config-completeness check instead).
+model SuperadminGateway {
+  id             String    @id // "email" | "sms"
+  label          String
+  provider       String
+  fromAddress    String
+  enabled        Boolean   @default(true)
+  lastTestAt     DateTime?
+  lastTestStatus String? // ok | fail
+  updatedAt      DateTime  @updatedAt
+}
+
+model BackupSchedule {
+  id                String   @id @default(cuid())
+  companyId         String   @unique
+  dailyEnabled      Boolean  @default(true)
+  dailyTime         String   @default("02:00")
+  weeklyFullEnabled Boolean  @default(true)
+  weeklyDay         String   @default("Sun")
+  retentionDays     Int      @default(30)
+  storageCapGB      Int      @default(500)
+  updatedAt         DateTime @updatedAt
 }
 
 // ===== KNOWLEDGE BASE =====

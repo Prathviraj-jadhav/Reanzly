@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
-import { requireModuleAccess } from "@/lib/permissions";
+import { requireModuleAccess, forbidden } from "@/lib/permissions";
+import { assignDemoTripsIfEmpty, ensureDriverForSession, isDriverRole } from "@/lib/driver-session";
 
 // Real CRUD for the Trips module, replacing pure client-side state seeded
 // from src/lib/mock-data.ts's TRIPS array. vehicleName/driverName/customer
@@ -57,8 +58,14 @@ export async function GET() {
   }
   const denied = requireModuleAccess(sessionUser, "trips");
   if (denied) return denied;
+  const where: { companyId: string; driverId?: string } = { companyId: sessionUser.companyId };
+  if (isDriverRole(sessionUser.role)) {
+    const me = await ensureDriverForSession(sessionUser);
+    await assignDemoTripsIfEmpty(sessionUser.companyId, me.id);
+    where.driverId = me.id;
+  }
   const trips = await db.trip.findMany({
-    where: { companyId: sessionUser.companyId },
+    where,
     include: TRIP_INCLUDE,
     orderBy: { createdAt: "desc" },
   });
@@ -72,6 +79,9 @@ export async function POST(req: NextRequest) {
   }
   const denied = requireModuleAccess(sessionUser, "trips");
   if (denied) return denied;
+  if (isDriverRole(sessionUser.role)) {
+    return forbidden("Drivers cannot create trips from this API.");
+  }
 
   const body = await req.json();
   const origin = String(body.origin || "").trim();

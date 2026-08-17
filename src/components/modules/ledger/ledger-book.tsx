@@ -16,7 +16,7 @@ import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { SectionCard } from "@/components/shared/section-card";
 import { EmptyState } from "@/components/shared/empty-state";
-import { useLedgerStore } from "@/lib/store/ledger-store";
+import { useLedgerData } from "./use-ledger-data";
 import {
   formatINR,
   formatAmt,
@@ -35,13 +35,11 @@ import {
    ============================================================ */
 
 export function LedgerBookView() {
-  const accounts = useLedgerStore((s) => s.accounts);
-  const entries = useLedgerStore((s) => s.entries);
-  const getAccountBalance = useLedgerStore((s) => s.getAccountBalance);
+  const { accounts, entries, getAccountBalance } = useLedgerData();
 
-  // Default to "Cash in Hand" if present, else first account.
+  // Default to "Cash in Hand" (code 10001) if present, else first account.
   const defaultAccountId = useMemo(() => {
-    const cash = accounts.find((a) => a.id === "acc-cash");
+    const cash = accounts.find((a) => a.code === "10001");
     if (cash) return cash.id;
     return accounts[0]?.id ?? "";
   }, [accounts]);

@@ -11,11 +11,7 @@ import {
   ONBOARDING_PLANS,
   EXIT_REQUESTS,
   ATTENDANCE_REGS,
-  INTERVIEWS,
-  OFFER_LETTERS,
-  DOC_REQUESTS,
   COMPOFF_REQUESTS,
-  ISSUANCES,
   type Employee,
   type AttendanceRecord,
   type MonthlyAttendanceSummary,
@@ -84,14 +80,15 @@ interface HrState {
   issuances: Issuance[];
 
   // Real, database-backed (employees/attendanceDaily/leaveRequests/
-  // positions/payslips/payrollRuns) - GET /api/hr/{employees,attendance,
-  // leave,positions,payslips,payroll-runs} on hydrate(). Everything else in
-  // this state is still the original Zustand+localStorage mock slice
-  // (attendanceSummaries/attendanceRegs/compOffRequests/holidays/
-  // compliance/interviews/offers/performanceReviews/pips/onboardingPlans/
-  // exitRequests/docRequests/issuances) - real schema doesn't exist for
-  // these yet, flagged as the next real-data pass rather than silently
-  // left inconsistent. Recent-activity/audit trail is real now - see
+  // positions/payslips/payrollRuns/interviews/offers/docRequests/
+  // issuances) - GET /api/hr/{employees,attendance,leave,positions,
+  // payslips,payroll-runs,interviews,offers,doc-requests,issuances} on
+  // hydrate(). Everything else in this state is still the original
+  // Zustand+localStorage mock slice (attendanceSummaries/attendanceRegs/
+  // compOffRequests/holidays/compliance/performanceReviews/pips/
+  // onboardingPlans/exitRequests) - real schema doesn't exist for these
+  // yet, flagged as the next real-data pass rather than silently left
+  // inconsistent. Recent-activity/audit trail is real now - see
   // /api/audit-log and useAuditLog(), not stored here.
   loaded: boolean;
   hydrate: () => Promise<void>;
@@ -118,8 +115,10 @@ interface HrState {
 
   // Position/candidate mutations
   addPosition: (p: Partial<Position>) => Promise<Position | null>;
+  updatePosition: (id: string, patch: Partial<Position>) => Promise<boolean>;
   addCandidate: (positionId: string, c: Partial<Candidate>) => Promise<boolean>;
   setCandidateStage: (positionId: string, candidateId: string, stage: CandidateStage) => Promise<boolean>;
+  addInterview: (i: Partial<Interview> & { positionId: string; candidateId: string; candidateName: string }) => Promise<Interview | null>;
 
   // Performance mutations
   setReviewStatus: (id: string, status: ReviewStatus, rating?: Rating, comments?: string) => void;
@@ -139,36 +138,33 @@ interface HrState {
   setRegStatus: (id: string, status: RegStatus, reviewerComments?: string) => void;
 
   // Offer letter mutations
-  setOfferStatus: (id: string, status: OfferStatus) => void;
+  setOfferStatus: (id: string, status: OfferStatus) => Promise<boolean>;
 
   // Document request mutations
-  setDocRequestStatus: (id: string, status: DocumentRequest["status"]) => void;
+  setDocRequestStatus: (id: string, status: DocumentRequest["status"]) => Promise<boolean>;
 
   // Issuance (document issuance) mutations
-  addIssuance: (i: Issuance) => void;
-  updateIssuanceStatus: (id: string, status: IssuanceStatus) => void;
-  revokeIssuance: (id: string) => void;
+  addIssuance: (i: Issuance) => Promise<Issuance | null>;
+  updateIssuanceStatus: (id: string, status: IssuanceStatus) => Promise<boolean>;
+  revokeIssuance: (id: string) => Promise<boolean>;
 
   reset: () => void;
 }
 
-// Employees/attendanceDaily/leaveRequests/payslips/payrollRuns/positions
-// are real now - start empty and are populated by hydrate(), not seeded
-// from mock-data. Everything else here is still the original mock seed.
+// Employees/attendanceDaily/leaveRequests/payslips/payrollRuns/positions/
+// interviews/offers/docRequests/issuances are real now - start empty and
+// are populated by hydrate(), not seeded from mock-data. Everything else
+// here is still the original mock seed.
 const SEED = {
   attendanceSummaries: ATTENDANCE_SUMMARIES,
   attendanceRegs: ATTENDANCE_REGS,
   compOffRequests: COMPOFF_REQUESTS,
   holidays: HOLIDAYS,
   compliance: COMPLIANCE_ITEMS,
-  interviews: INTERVIEWS,
-  offers: OFFER_LETTERS,
   performanceReviews: PERFORMANCE_REVIEWS,
   pips: PIPS,
   onboardingPlans: ONBOARDING_PLANS,
   exitRequests: EXIT_REQUESTS,
-  docRequests: DOC_REQUESTS,
-  issuances: ISSUANCES,
 };
 
 function nowIso() {
@@ -215,17 +211,25 @@ export const useHrStore = create<HrState>()(
       payslips: [],
       payrollRuns: [],
       positions: [],
+      interviews: [],
+      offers: [],
+      docRequests: [],
+      issuances: [],
       loaded: false,
 
       hydrate: async () => {
         try {
-          const [emp, att, leave, pos, slips, runs] = await Promise.all([
+          const [emp, att, leave, pos, slips, runs, ivs, offs, docReqs, iss] = await Promise.all([
             fetch("/api/hr/employees").then((r) => (r.ok ? r.json() : { employees: [] })),
             fetch("/api/hr/attendance").then((r) => (r.ok ? r.json() : { attendance: [] })),
             fetch("/api/hr/leave").then((r) => (r.ok ? r.json() : { leaveRequests: [] })),
             fetch("/api/hr/positions").then((r) => (r.ok ? r.json() : { positions: [] })),
             fetch("/api/hr/payslips").then((r) => (r.ok ? r.json() : { payslips: [] })),
             fetch("/api/hr/payroll-runs").then((r) => (r.ok ? r.json() : { payrollRuns: [] })),
+            fetch("/api/hr/interviews").then((r) => (r.ok ? r.json() : { interviews: [] })),
+            fetch("/api/hr/offers").then((r) => (r.ok ? r.json() : { offers: [] })),
+            fetch("/api/hr/doc-requests").then((r) => (r.ok ? r.json() : { docRequests: [] })),
+            fetch("/api/hr/issuances").then((r) => (r.ok ? r.json() : { issuances: [] })),
           ]);
           set({
             employees: emp.employees ?? [],
@@ -234,6 +238,10 @@ export const useHrStore = create<HrState>()(
             positions: pos.positions ?? [],
             payslips: slips.payslips ?? [],
             payrollRuns: runs.payrollRuns ?? [],
+            interviews: ivs.interviews ?? [],
+            offers: offs.offers ?? [],
+            docRequests: docReqs.docRequests ?? [],
+            issuances: iss.issuances ?? [],
             loaded: true,
           });
         } catch {
@@ -327,6 +335,21 @@ export const useHrStore = create<HrState>()(
         if (!res) return null;
         set((s) => ({ positions: [res.position, ...s.positions] }));
         return res.position;
+      },
+      updatePosition: async (id, patch) => {
+        const ok = await patchJSON(`/api/hr/positions/${id}`, patch);
+        if (ok) {
+          set((s) => ({
+            positions: s.positions.map((p) => (p.id === id ? { ...p, ...patch } : p)),
+          }));
+        }
+        return ok;
+      },
+      addInterview: async (i) => {
+        const res = await postJSON<{ interview: Interview }>("/api/hr/interviews", i);
+        if (!res) return null;
+        set((s) => ({ interviews: [res.interview, ...s.interviews] }));
+        return res.interview;
       },
       addCandidate: async (positionId, c) => {
         const res = await postJSON<{ candidate: Candidate }>("/api/hr/candidates", { ...c, positionId });
@@ -436,55 +459,80 @@ export const useHrStore = create<HrState>()(
           ),
         })),
 
-      setOfferStatus: (id, status) =>
-        set((s) => ({
-          offers: s.offers.map((o) =>
-            o.id === id
-              ? {
-                  ...o,
-                  status,
-                  acceptedOn: status === "Accepted" ? nowIso() : o.acceptedOn,
-                  declinedOn: status === "Declined" ? nowIso() : o.declinedOn,
-                }
-              : o,
-          ),
-        })),
+      setOfferStatus: async (id, status) => {
+        const ok = await patchJSON(`/api/hr/offers/${id}`, { status });
+        if (ok) {
+          set((s) => ({
+            offers: s.offers.map((o) =>
+              o.id === id
+                ? {
+                    ...o,
+                    status,
+                    acceptedOn: status === "Accepted" ? nowIso() : o.acceptedOn,
+                    declinedOn: status === "Declined" ? nowIso() : o.declinedOn,
+                  }
+                : o,
+            ),
+          }));
+        }
+        return ok;
+      },
 
-      setDocRequestStatus: (id, status) =>
-        set((s) => ({
-          docRequests: s.docRequests.map((d) =>
-            d.id === id
-              ? { ...d, status, receivedOn: status === "Received" ? nowIso() : d.receivedOn }
-              : d,
-          ),
-        })),
+      setDocRequestStatus: async (id, status) => {
+        const ok = await patchJSON(`/api/hr/doc-requests/${id}`, { status });
+        if (ok) {
+          set((s) => ({
+            docRequests: s.docRequests.map((d) =>
+              d.id === id
+                ? { ...d, status, receivedOn: status === "Received" ? nowIso() : d.receivedOn }
+                : d,
+            ),
+          }));
+        }
+        return ok;
+      },
 
       // ===== Issuance mutations =====
-      addIssuance: (i) => set((s) => ({ issuances: [i, ...s.issuances] })),
-      updateIssuanceStatus: (id, status) =>
-        set((s) => ({
-          issuances: s.issuances.map((i) =>
-            i.id === id
-              ? {
-                  ...i,
-                  status,
-                  eSignPending: status === "Sent" ? i.eSignPending : status === "E-Signed" ? false : i.eSignPending,
-                }
-              : i,
-          ),
-        })),
-      revokeIssuance: (id) =>
-        set((s) => ({
-          issuances: s.issuances.map((i) =>
-            i.id === id ? { ...i, status: "Revoked" as IssuanceStatus, eSignPending: false } : i,
-          ),
-        })),
+      addIssuance: async (i) => {
+        const res = await postJSON<{ issuance: Issuance }>("/api/hr/issuances", i);
+        if (!res) return null;
+        set((s) => ({ issuances: [res.issuance, ...s.issuances] }));
+        return res.issuance;
+      },
+      updateIssuanceStatus: async (id, status) => {
+        const ok = await patchJSON(`/api/hr/issuances/${id}`, { status });
+        if (ok) {
+          set((s) => ({
+            issuances: s.issuances.map((i) =>
+              i.id === id
+                ? {
+                    ...i,
+                    status,
+                    eSignPending: status === "Sent" ? i.eSignPending : status === "E-Signed" ? false : i.eSignPending,
+                  }
+                : i,
+            ),
+          }));
+        }
+        return ok;
+      },
+      revokeIssuance: async (id) => {
+        const ok = await patchJSON(`/api/hr/issuances/${id}`, { status: "Revoked" });
+        if (ok) {
+          set((s) => ({
+            issuances: s.issuances.map((i) =>
+              i.id === id ? { ...i, status: "Revoked" as IssuanceStatus, eSignPending: false } : i,
+            ),
+          }));
+        }
+        return ok;
+      },
 
       reset: () => set({ ...SEED }),
     }),
     {
       name: "reanzly-hr",
-      version: 6,
+      version: 7,
       // Real, hydrated fields are never persisted to localStorage - they're
       // always refetched from the database on mount, so a stale cached copy
       // would just be dead weight (and could briefly show outdated data
@@ -496,14 +544,10 @@ export const useHrStore = create<HrState>()(
         compOffRequests: s.compOffRequests,
         holidays: s.holidays,
         compliance: s.compliance,
-        interviews: s.interviews,
-        offers: s.offers,
         performanceReviews: s.performanceReviews,
         pips: s.pips,
         onboardingPlans: s.onboardingPlans,
         exitRequests: s.exitRequests,
-        docRequests: s.docRequests,
-        issuances: s.issuances,
       }),
     },
   ),

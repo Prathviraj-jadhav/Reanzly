@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getStorage, isImmutableKey } from "@/lib/storage/object-storage";
+import { getSessionUser } from "@/lib/auth";
+import { unauthorized } from "@/lib/permissions";
 
 // ===== Object Storage Serving Route =====
 // Serves blobs (POD photos, documents, exports) from object storage with
@@ -16,6 +18,9 @@ export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ key: string[] }> }
 ) {
+  const sessionUser = await getSessionUser();
+  if (!sessionUser) return unauthorized();
+
   const { key: parts } = await params;
   if (!parts || parts.length < 2) {
     return NextResponse.json({ error: "Invalid key" }, { status: 400 });
@@ -36,8 +41,8 @@ export async function GET(
 
   const immutable = isImmutableKey(key);
   const cacheControl = immutable
-    ? "public, max-age=31536000, immutable"
-    : "public, max-age=300, must-revalidate";
+    ? "private, max-age=31536000, immutable"
+    : "private, max-age=300, must-revalidate";
 
   const headers = new Headers();
   headers.set("Content-Type", obj.meta.contentType);

@@ -1,27 +1,18 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { PageHeader } from "@/components/shared/page-header";
 import { SectionCard } from "@/components/shared/section-card";
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
-import { useAppStore } from "@/lib/store/app-store";
 import {
   Gavel, Banknote, BookText, Download, PlayCircle, CheckCircle2,
   TrendingUp, Clock, Percent, Wallet,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
-  SEED_SETTLEMENT_CYCLES,
-  SEED_LEDGER,
-  SEED_BANK_DETAILS,
   SEED_QUOTES,
-  SETTLEMENT_CYCLE_TYPES,
   DEFAULT_MARKUP_PCT,
-  type SettlementCycle,
-  type LedgerEntry,
-  type SettlementCycleType,
-  type SettlementCycleStatus,
   formatINR,
   formatINRCompact,
   formatDate,
@@ -30,15 +21,15 @@ import {
   ledgerTypeBadge,
   KpiTile,
 } from "./_helpers";
+import { useBrokerProfileData } from "./use-broker-profile-data";
+import { useBrokerFinanceData } from "./use-broker-finance-data";
 
 export function BrokerSettlementsModule() {
-  const authUser = useAppStore((s) => s.authUser);
-  const brokerProfile = authUser?.brokerProfile;
-  const cycleType: SettlementCycleType = brokerProfile?.settlementCycle ?? "Fortnightly";
-  const markupPct = brokerProfile?.markupPct ?? DEFAULT_MARKUP_PCT;
+  const { profile } = useBrokerProfileData();
+  const { ledger, settlements: cycles, bankDetails, createSettlement, updateSettlementStatus } = useBrokerFinanceData();
 
-  const [cycles, setCycles] = useState<SettlementCycle[]>(SEED_SETTLEMENT_CYCLES);
-  const [ledger, setLedger] = useState<LedgerEntry[]>(SEED_LEDGER);
+  const cycleType = profile?.settlementCycle ?? "Fortnightly";
+  const markupPct = profile?.markupPct ?? DEFAULT_MARKUP_PCT;
 
   // ===== Derived: KPIs =====
   const currentCycle = cycles.find((c) => c.status === "Draft");
@@ -51,87 +42,62 @@ export function BrokerSettlementsModule() {
   const decidedQuotes = SEED_QUOTES.filter((q) => q.status === "Accepted" || q.status === "Rejected").length;
   const winRate = decidedQuotes === 0 ? 0 : Math.round((acceptedQuotes / decidedQuotes) * 100);
 
+  // Real ledger comes back oldest-first.
+  const sortedLedger = useMemo(() => [...ledger].reverse(), [ledger]);
+  const runningBalance = sortedLedger[0]?.runningBalanceINR ?? 0;
+
   // ===== Handlers =====
-  const runSettlement = () => {
-    // Generate a new draft cycle from "open" trips (mock: use a fresh random
-    // gross based on previous cycle). Mark old Draft as Approved when a new
-    // one is run, so there's at most one Draft at a time.
+  const runSettlement = async () => {
+    if (currentCycle) {
+      toast("A draft cycle already exists", { description: `${currentCycle.cycleId} - approve or pay it first.` });
+      return;
+    }
+    // No real trip-aggregation source exists yet, so the gross trips/value
+    // still comes from a plausible estimate here - but the cycle itself,
+    // and its commission/TDS/net computation, are now real and persisted.
     const now = new Date();
     const periodEnd = now.toISOString();
     const periodStart = new Date(now.getTime() - 14 * 86400000).toISOString();
     const grossTrips = 12 + Math.floor(Math.random() * 14);
     const grossValueINR = (grossTrips * 45000) + Math.floor(Math.random() * 50000);
-    const commissionEarnedINR = Math.round(grossValueINR * markupPct / 100);
-    const tdsDeductedINR = Math.round(commissionEarnedINR * 0.01);
-    const newCycle: SettlementCycle = {
-      id: `stl-${String(cycles.length + 1).padStart(3, "0")}`,
-      cycleId: `CYC-2025-${String(cycles.length + 1).padStart(2, "0")}`,
+
+    const created = await createSettlement({
       periodStart,
       periodEnd,
       grossTrips,
       grossValueINR,
       commissionPct: markupPct,
-      commissionEarnedINR,
       tdsPct: 1,
-      tdsDeductedINR,
-      gstTreatment: brokerProfile?.gstTreatment ?? "Forward Charge",
-      netPayableINR: commissionEarnedINR - tdsDeductedINR,
-      status: "Draft",
-      createdAt: periodEnd,
-    };
-    // Move any existing Draft -> Approved so only one Draft exists.
-    setCycles((prev) => [
-      newCycle,
-      ...prev.map((c) => (c.status === "Draft" ? { ...c, status: "Approved" as SettlementCycleStatus } : c)),
-    ]);
-    toast.success("Settlement run generated", {
-      description: `${newCycle.cycleId} - ${grossTrips} trips - net ${formatINR(newCycle.netPayableINR)} after TDS.`,
+      gstTreatment: profile?.gstTreatment ?? "Forward Charge",
     });
+    if (created) {
+      toast.success("Settlement run generated", {
+        description: `${created.cycleId} - ${grossTrips} trips - net ${formatINR(created.netPayableINR)} after TDS.`,
+      });
+    }
   };
 
-  const approveCycle = (id: string) => {
-    setCycles((prev) =>
-      prev.map((c) => (c.id === id ? { ...c, status: "Approved" as SettlementCycleStatus } : c)),
-    );
+  const approveCycle = async (id: string) => {
     const c = cycles.find((x) => x.id === id);
-    if (c) toast.success("Cycle approved", { description: `${c.cycleId} ready for payout.` });
+    const ok = await updateSettlementStatus(id, "Approved");
+    if (ok && c) toast.success("Cycle approved", { description: `${c.cycleId} ready for payout.` });
   };
 
-  const payCycle = (id: string) => {
+  const payCycle = async (id: string) => {
     const c = cycles.find((x) => x.id === id);
-    if (!c) return;
-    setCycles((prev) =>
-      prev.map((x) => (x.id === id ? { ...x, status: "Paid" as SettlementCycleStatus } : x)),
-    );
-    // Add a debit ledger entry for the payout + update running balance.
-    const prevBalance = ledger.length > 0 ? ledger[0].runningBalanceINR : 0;
-    const newEntry: LedgerEntry = {
-      id: `led-${String(ledger.length + 1).padStart(3, "0")}`,
-      date: new Date().toISOString(),
-      type: "Debit",
-      description: `Payout - NACH credit to ${SEED_BANK_DETAILS.bankName} ****${SEED_BANK_DETAILS.accountNumber.slice(-4)}`,
-      refId: `PAY-${c.cycleId}`,
-      amountINR: c.netPayableINR,
-      runningBalanceINR: prevBalance - c.netPayableINR,
-    };
-    setLedger((prev) => [newEntry, ...prev]);
-    toast.success("Payout initiated", {
-      description: `${formatINR(c.netPayableINR)} NACH credit queued for ${SEED_BANK_DETAILS.bankName} ****${SEED_BANK_DETAILS.accountNumber.slice(-4)}.`,
-    });
+    const ok = await updateSettlementStatus(id, "Paid");
+    if (ok && c) {
+      toast.success("Payout initiated", {
+        description: `${formatINR(c.netPayableINR)} NACH credit queued for ${bankDetails?.bankName ?? "your registered account"}.`,
+      });
+    }
   };
 
   const downloadAdvice = () => {
     toast.success("Bank advice (NACH) downloaded", {
-      description: `${SEED_BANK_DETAILS.accountName} - ${SEED_BANK_DETAILS.ifsc} - ${formatINR(SEED_BANK_DETAILS.nextPayoutAmountINR)}`,
+      description: `${bankDetails?.bankAccountName ?? "-"} - ${bankDetails?.bankIfsc ?? "-"} - ${formatINR(bankDetails?.nextPayoutAmount ?? 0)}`,
     });
   };
-
-  // ===== Derived: ledger sorted by date desc (already in the seed but be safe) =====
-  const sortedLedger = useMemo(
-    () => [...ledger].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
-    [ledger],
-  );
-  const runningBalance = sortedLedger[0]?.runningBalanceINR ?? 0;
 
   return (
     <div className="flex min-h-full flex-col gap-4 pb-8">
@@ -142,7 +108,7 @@ export function BrokerSettlementsModule() {
           { label: "Cycle", value: cycleType },
           { label: "Commission", value: `${markupPct}% of gross` },
           { label: "TDS", value: "1% deducted" },
-          { label: "GST", value: brokerProfile?.gstTreatment ?? "Forward Charge" },
+          { label: "GST", value: profile?.gstTreatment ?? "Forward Charge" },
         ]}
         actions={
           <Btn variant="primary" icon={<PlayCircle className="h-3.5 w-3.5" />} onClick={runSettlement}>
@@ -158,7 +124,7 @@ export function BrokerSettlementsModule() {
         <KpiTile icon={<Wallet className="h-3.5 w-3.5" />} label="YTD commission" value={formatINRCompact(ytdCommission)} hint={`${cycles.length} cycles run`} />
         <KpiTile icon={<Percent className="h-3.5 w-3.5" />} label="Win rate" value={`${winRate}%`} hint="across all quotes" />
         <KpiTile icon={<Banknote className="h-3.5 w-3.5" />} label="Ledger balance" value={formatINRCompact(runningBalance)} hint="unpaid commission" />
-        <KpiTile icon={<Gavel className="h-3.5 w-3.5" />} label="Next payout" value={formatDate(SEED_BANK_DETAILS.nextPayoutDate)} hint={formatINRCompact(SEED_BANK_DETAILS.nextPayoutAmountINR)} />
+        <KpiTile icon={<Gavel className="h-3.5 w-3.5" />} label="Next payout" value={formatDate(bankDetails?.nextPayoutDate ?? undefined)} hint={formatINRCompact(bankDetails?.nextPayoutAmount ?? 0)} />
       </div>
 
       {/* Settlement cycles */}
@@ -199,7 +165,6 @@ export function BrokerSettlementsModule() {
                   >
                     <td className="px-4 py-2.5">
                       <div className="tabular text-[12.5px] font-medium text-foreground">{c.cycleId}</div>
-                      <div className="text-[11px] text-muted-foreground">{relativeTime(c.createdAt)}</div>
                     </td>
                     <td className="px-4 py-2.5 text-left text-muted-foreground">
                       <div className="text-[12px]">{formatDate(c.periodStart)}</div>
@@ -326,13 +291,12 @@ export function BrokerSettlementsModule() {
           }
         >
           <div className="space-y-2 text-[12px]">
-            <PayoutRow label="Bank" value={SEED_BANK_DETAILS.bankName} />
-            <PayoutRow label="Branch" value={SEED_BANK_DETAILS.branch} />
-            <PayoutRow label="Account name" value={SEED_BANK_DETAILS.accountName} />
-            <PayoutRow label="Account no." value={`****${SEED_BANK_DETAILS.accountNumber.slice(-4)}`} mono />
-            <PayoutRow label="IFSC" value={SEED_BANK_DETAILS.ifsc} mono />
-            <PayoutRow label="Account type" value={SEED_BANK_DETAILS.accountType} />
-            <PayoutRow label="NACH UMR" value={SEED_BANK_DETAILS.nachUmr} mono />
+            <PayoutRow label="Bank" value={bankDetails?.bankName ?? "-"} />
+            <PayoutRow label="Branch" value={bankDetails?.bankBranch ?? "-"} />
+            <PayoutRow label="Account name" value={bankDetails?.bankAccountName ?? "-"} />
+            <PayoutRow label="Account no." value={`****${(bankDetails?.bankAccountNumber ?? "").slice(-4)}`} mono />
+            <PayoutRow label="IFSC" value={bankDetails?.bankIfsc ?? "-"} mono />
+            <PayoutRow label="NACH UMR" value={bankDetails?.nachUmr ?? "-"} mono />
           </div>
           <div className="mt-3 rounded-[6px] border border-border bg-muted/30 p-3">
             <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
@@ -340,10 +304,10 @@ export function BrokerSettlementsModule() {
             </div>
             <div className="mt-1 flex items-baseline justify-between">
               <span className="text-[18px] font-medium tabular text-foreground">
-                {formatINR(SEED_BANK_DETAILS.nextPayoutAmountINR)}
+                {formatINR(bankDetails?.nextPayoutAmount ?? 0)}
               </span>
               <span className="text-[12px] text-muted-foreground">
-                {formatDate(SEED_BANK_DETAILS.nextPayoutDate)}
+                {formatDate(bankDetails?.nextPayoutDate ?? undefined)}
               </span>
             </div>
             <Btn

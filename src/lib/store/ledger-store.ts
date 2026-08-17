@@ -273,23 +273,25 @@ export const useLedgerStore = create<LedgerState>()(
         for (const acc of get().accounts) {
           const bal = signedBalance(acc, postingsFor(get().entries, acc.id, asOf));
           if (Math.abs(bal) < 0.5) continue;
+          // Signed, not Math.abs(bal): a contra account (e.g. Accumulated
+          // Depreciation, a Cr-normal account inside the Asset group) must
+          // SUBTRACT from its group's total, not add to it - Math.abs() on
+          // every balance regardless of group made the balance sheet not
+          // balance whenever a contra account had a nonzero balance.
           switch (acc.group) {
             case "Asset": {
-              const v = Math.abs(bal); // assets are Dr-positive normally
-              assets.push({ account: acc, amount: v });
-              totalAssets += v;
+              assets.push({ account: acc, amount: bal });
+              totalAssets += bal;
               break;
             }
             case "Liability": {
-              const v = Math.abs(bal); // liabilities are Cr-normally -> bal is negative
-              liabilities.push({ account: acc, amount: v });
-              totalLiabilities += v;
+              liabilities.push({ account: acc, amount: -bal });
+              totalLiabilities += -bal;
               break;
             }
             case "Equity": {
-              const v = Math.abs(bal);
-              equity.push({ account: acc, amount: v });
-              totalEquity += v;
+              equity.push({ account: acc, amount: -bal });
+              totalEquity += -bal;
               break;
             }
             // Income/Expense are nominal - they flow into retained earnings.

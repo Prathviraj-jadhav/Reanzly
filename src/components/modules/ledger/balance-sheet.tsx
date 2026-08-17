@@ -19,7 +19,7 @@ import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { SectionCard } from "@/components/shared/section-card";
 import { EmptyState } from "@/components/shared/empty-state";
-import { useLedgerStore } from "@/lib/store/ledger-store";
+import { useLedgerData } from "./use-ledger-data";
 import {
   formatINR,
   formatINRCompact,
@@ -39,7 +39,7 @@ import {
    ============================================================ */
 
 export function BalanceSheetView() {
-  const getBalanceSheet = useLedgerStore((s) => s.getBalanceSheet);
+  const { getBalanceSheet } = useLedgerData();
 
   const [asOf, setAsOf] = useState<string>(todayISO());
 

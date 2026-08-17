@@ -21,6 +21,18 @@ function toDTO(c: Awaited<ReturnType<typeof db.candidate.findFirstOrThrow>>) {
   };
 }
 
+export async function GET() {
+  const sessionUser = await getSessionUser();
+  if (!sessionUser) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  const denied = requireModuleAccess(sessionUser, "hr");
+  if (denied) return denied;
+  const candidates = await db.candidate.findMany({
+    where: { companyId: sessionUser.companyId },
+    orderBy: { appliedAt: "desc" },
+  });
+  return NextResponse.json({ candidates: candidates.map(toDTO) });
+}
+
 export async function POST(req: NextRequest) {
   const sessionUser = await getSessionUser();
   if (!sessionUser) return NextResponse.json({ error: "Not signed in." }, { status: 401 });

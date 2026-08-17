@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
+import { hasDirectModuleAccess, forbidden } from "@/lib/permissions";
 
 // Real, company-scoped list of the actual signed-in-capable users - backs
 // Settings > Users (previously a hardcoded MOCK_USERS array with wrong-
@@ -10,6 +11,9 @@ import { getSessionUser } from "@/lib/auth";
 export async function GET() {
   const sessionUser = await getSessionUser();
   if (!sessionUser) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  if (!hasDirectModuleAccess(sessionUser.role, "settings")) {
+    return forbidden("Your role does not have access to the user directory.");
+  }
 
   const users = await db.user.findMany({
     where: { companyId: sessionUser.companyId },

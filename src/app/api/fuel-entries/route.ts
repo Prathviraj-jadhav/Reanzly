@@ -57,6 +57,9 @@ export async function POST(req: NextRequest) {
     ? await db.driver.findFirst({ where: { companyId: sessionUser.companyId, name: driverName } })
     : null;
 
+  const quantity = Number.isFinite(body.quantity) ? body.quantity : 0;
+  const unitPrice = Number.isFinite(body.unitPrice) ? body.unitPrice : 0;
+
   const created = await db.fuelEntry.create({
     data: {
       companyId: sessionUser.companyId,
@@ -64,9 +67,14 @@ export async function POST(req: NextRequest) {
       driverId: matchedDriver?.id ?? null,
       date: body.date ? new Date(body.date) : new Date(),
       fuelType: body.fuelType || "Diesel",
-      quantity: Number.isFinite(body.quantity) ? body.quantity : 0,
-      unitPrice: Number.isFinite(body.unitPrice) ? body.unitPrice : 0,
-      totalCost: Number.isFinite(body.totalCost) ? body.totalCost : 0,
+      quantity,
+      unitPrice,
+      // Server-computed, not client-trusted: a caller that sends
+      // quantity+unitPrice without also correctly multiplying them (the "Log
+      // Fuel" UI does today, but nothing enforced it) would otherwise silently
+      // save totalCost: 0, corrupting every downstream spend aggregate
+      // (fuel-analytics, dashboard KPI, vehicle fuel history, anomaly detection).
+      totalCost: Math.round(quantity * unitPrice),
       odometer: Number.isFinite(body.odometer) ? body.odometer : 0,
       efficiency: Number.isFinite(body.efficiency) ? body.efficiency : null,
       station: body.station || null,

@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
     where: { userId },
     include: {
       conversation: {
-        include: { participants: true, messages: { orderBy: { createdAt: "desc" }, take: 1 } },
+        include: { participants: true },
       },
     },
     orderBy: { conversation: { updatedAt: "desc" } },
@@ -117,7 +117,11 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    const lastMsg = conv.messages[0];
+    // recentTopLevel is already fetched fresh, sorted desc, just above - reuse
+    // it instead of a second nested-relation query for "last message" (that
+    // nested `include: { messages: { orderBy, take: 1 } }` was found to
+    // return a stale row after a REST-fallback send; see BUG-CHAT-001).
+    const lastMsg = recentTopLevel[0];
     conversations.push({
       id: conv.id,
       name: conv.name,

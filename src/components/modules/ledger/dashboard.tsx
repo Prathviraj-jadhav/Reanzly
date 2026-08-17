@@ -16,7 +16,7 @@ import {
 import { KpiCard } from "@/components/shared/kpi-card";
 import { SectionCard } from "@/components/shared/section-card";
 import { StatusBadge } from "@/components/shared/status-badge";
-import { useLedgerStore } from "@/lib/store/ledger-store";
+import { useLedgerData } from "./use-ledger-data";
 import {
   formatINR,
   formatINRCompact,
@@ -38,10 +38,7 @@ import {
    ============================================================ */
 
 export function LedgerDashboard() {
-  const accounts = useLedgerStore((s) => s.accounts);
-  const entries = useLedgerStore((s) => s.entries);
-  const getAccountBalance = useLedgerStore((s) => s.getAccountBalance);
-  const getTrialBalance = useLedgerStore((s) => s.getTrialBalance);
+  const { accounts, entries, getAccountBalance, getTrialBalance } = useLedgerData();
 
   // Account map for entry line display.
   const accountMap = useMemo(() => {
@@ -75,12 +72,12 @@ export function LedgerDashboard() {
     }
     const netCashFlow = receipts - payments;
 
-    // Outstanding receivables = current balance of Accounts Receivable
-    const ar = accounts.find((a) => a.id === "acc-ar");
+    // Outstanding receivables = current balance of Accounts Receivable (code 11000)
+    const ar = accounts.find((a) => a.code === "11000");
     const outstandingRecv = ar ? Math.abs(getAccountBalance(ar.id)) : 0;
 
-    // Outstanding payables = current balance of Accounts Payable
-    const ap = accounts.find((a) => a.id === "acc-ap");
+    // Outstanding payables = current balance of Accounts Payable (code 20000)
+    const ap = accounts.find((a) => a.code === "20000");
     const outstandingPay = ap ? Math.abs(getAccountBalance(ap.id)) : 0;
 
     // Trial balance total (today)

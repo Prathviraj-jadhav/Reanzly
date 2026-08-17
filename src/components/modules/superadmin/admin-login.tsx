@@ -55,12 +55,10 @@ const ROLE_ICON: Record<InternalRoleId, typeof Building2> = {
   "product-manager": Cpu,
 };
 
-/** Demo logins - shown on the AdminLogin screen so testers and internal team
- *  members can one-tap sign in. Password is the same for all: "reanzly-admin".
- *  These are demo accounts only - not real credentials. Production uses
- *  NextAuth + 2FA enforced for all internal roles.
- */
-const DEMO_PASSWORD = "reanzly-admin";
+/** Seeded platform-admin login (src/scripts/seed-users.ts). Internal
+ *  role chips only change the client-side persona after this session exists. */
+const SUPERADMIN_EMAIL = "reanzly.staff@reanzly.in";
+const SUPERADMIN_PASSWORD = "Reanzly@Demo2026";
 
 const DEMO_ACCOUNTS: { roleId: InternalRoleId; email: string; name: string; department: string }[] = [
   { roleId: "superadmin", email: "anand.kumar@reanzly.com", name: "Anand Kumar", department: "Leadership" },
@@ -98,6 +96,7 @@ const SUB_VIEWS_LABEL: Record<string, string> = {
 export function AdminLogin() {
   const adminLogin = useSuperadminStore((s) => s.adminLogin);
   const logout = useAppStore((s) => s.logout);
+  const loginWithPassword = useAppStore((s) => s.loginWithPassword);
   const [step, setStep] = useState<1 | 2>(1);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -112,7 +111,7 @@ export function AdminLogin() {
     setRoleId(id);
     // Pre-fill email if a demo account matches this role.
     const demo = DEMO_ACCOUNTS.find((d) => d.roleId === id);
-    if (demo && !email) setEmail(demo.email);
+    if (demo && !email) setEmail(SUPERADMIN_EMAIL);
     setError(null);
     setStep(2);
   }
@@ -122,21 +121,34 @@ export function AdminLogin() {
     setError(null);
   }
 
-  // True one-tap sign in: pick the demo account and immediately call
-  // adminLogin. No extra "Continue" + "Sign in" clicks required.
-  function pickDemo(demoRoleId: InternalRoleId, demoEmail: string) {
-    setRoleId(demoRoleId);
-    setEmail(demoEmail);
-    setPassword("reanzly-admin");
-    setError(null);
-    setBusy(true);
-    setTimeout(() => {
-      adminLogin(demoEmail.trim(), demoRoleId);
-      setBusy(false);
-    }, 350);
+  async function signInAsPlatformAdmin(persona: InternalRoleId, uiEmail: string, password: string) {
+    const result = await loginWithPassword(SUPERADMIN_EMAIL, password, "superadmin");
+    if (!result.ok) {
+      return result.error || "Sign in failed.";
+    }
+    const roleAfter = useAppStore.getState().authUser?.roleId;
+    if (roleAfter !== "superadmin") {
+      logout();
+      return "This account is not a Reanzly platform admin.";
+    }
+    adminLogin(uiEmail, persona);
+    return null;
   }
 
-  function submit(e?: React.FormEvent) {
+  // True one-tap sign in: pick the demo account and immediately call
+  // adminLogin. No extra "Continue" + "Sign in" clicks required.
+  async function pickDemo(demoRoleId: InternalRoleId, demoEmail: string) {
+    setRoleId(demoRoleId);
+    setEmail(demoEmail);
+    setPassword(SUPERADMIN_PASSWORD);
+    setError(null);
+    setBusy(true);
+    const err = await signInAsPlatformAdmin(demoRoleId, demoEmail, SUPERADMIN_PASSWORD);
+    setBusy(false);
+    if (err) setError(err);
+  }
+
+  async function submit(e?: React.FormEvent) {
     e?.preventDefault();
     setError(null);
     if (!roleId) {
@@ -152,10 +164,24 @@ export function AdminLogin() {
       return;
     }
     setBusy(true);
-    setTimeout(() => {
-      adminLogin(email.trim(), roleId);
+    const loginEmail = DEMO_ACCOUNTS.some((d) => d.email.toLowerCase() === email.trim().toLowerCase())
+      ? SUPERADMIN_EMAIL
+      : email.trim();
+    const result = await loginWithPassword(loginEmail, password, "superadmin");
+    if (!result.ok) {
       setBusy(false);
-    }, 450);
+      setError(result.error || "Sign in failed.");
+      return;
+    }
+    const roleAfter = useAppStore.getState().authUser?.roleId;
+    if (roleAfter !== "superadmin") {
+      logout();
+      setBusy(false);
+      setError("This account is not a Reanzly platform admin.");
+      return;
+    }
+    adminLogin(email.trim(), roleId);
+    setBusy(false);
   }
 
   function handleBackToOrgLogin() {
@@ -477,9 +503,6 @@ function Step1RolePicker({
             Demo accounts · one-tap sign in
           </span>
           <span className="h-px flex-1 bg-border" />
-          <span className="text-[10px] text-muted-foreground tabular">
-            pwd: <code className="rounded-[3px] bg-muted px-1 py-0.5 text-[10px] font-mono">{DEMO_PASSWORD}</code>
-          </span>
         </div>
         <div className="max-h-[280px] overflow-y-auto rounded-[6px] border border-border bg-background/50 p-1.5">
           <div className="grid grid-cols-1 gap-1 sm:grid-cols-2">

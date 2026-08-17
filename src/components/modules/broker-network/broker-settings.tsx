@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { SectionCard } from "@/components/shared/section-card";
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -25,9 +25,8 @@ import {
   Handshake,
 } from "lucide-react";
 import { toast } from "sonner";
-import { useAppStore } from "@/lib/store/app-store";
+import { useBrokerProfileData } from "./use-broker-profile-data";
 import {
-  REANZLY_LANE_RATES,
   SETTLEMENT_CYCLE_TYPES,
   GST_TREATMENTS,
   DEFAULT_MARKUP_PCT,
@@ -58,25 +57,44 @@ interface BrokerSettingsForm {
   registeredState: string;
 }
 
-export function BrokerSettings() {
-  const authUser = useAppStore((s) => s.authUser);
-  const bp = authUser?.brokerProfile;
+const FALLBACK: BrokerSettingsForm = {
+  brokerCode: "RZ-BRK-001",
+  markupPct: DEFAULT_MARKUP_PCT,
+  settlementCycle: "Fortnightly",
+  gstTreatment: "Forward Charge",
+  coverageLanes: DEFAULT_COVERAGE_LANES,
+  brokerageName: "Reanzly Broker Network - Mumbai Hub",
+  parentBroker: "Reanzly HQ (direct)",
+  gstin: "",
+  registeredState: "Maharashtra",
+};
 
-  const initial: BrokerSettingsForm = {
-    brokerCode: bp?.brokerCode ?? "RZ-BRK-001",
-    markupPct: bp?.markupPct ?? DEFAULT_MARKUP_PCT,
-    settlementCycle: bp?.settlementCycle ?? "Fortnightly",
-    gstTreatment: bp?.gstTreatment ?? "Forward Charge",
-    coverageLanes: bp?.coverageLanes ?? DEFAULT_COVERAGE_LANES,
-    brokerageName: authUser?.orgName ?? "Reanzly Broker Network - Mumbai Hub",
-    parentBroker: bp?.parentBrokerId ?? "Reanzly HQ (direct)",
-    gstin: "27ABCDE1234F1Z5",
-    registeredState: "Maharashtra",
+function formFromProfile(bp: ReturnType<typeof useBrokerProfileData>["profile"]): BrokerSettingsForm {
+  if (!bp) return FALLBACK;
+  return {
+    brokerCode: bp.brokerCode,
+    markupPct: bp.markupPct,
+    settlementCycle: bp.settlementCycle,
+    gstTreatment: bp.gstTreatment,
+    coverageLanes: bp.coverageLanes,
+    brokerageName: bp.companyName,
+    parentBroker: bp.parentBrokerId ?? "Reanzly HQ (direct)",
+    gstin: bp.gstin ?? "",
+    registeredState: FALLBACK.registeredState,
   };
+}
 
-  const [form, setForm] = useState<BrokerSettingsForm>(initial);
+export function BrokerSettings() {
+  const { profile, laneRates, updateProfile } = useBrokerProfileData();
+
+  const [form, setForm] = useState<BrokerSettingsForm>(FALLBACK);
   const [laneDraft, setLaneDraft] = useState("");
   const [dirty, setDirty] = useState(false);
+
+  // Load the real saved form once the profile arrives.
+  useEffect(() => {
+    if (profile) setForm(formFromProfile(profile));
+  }, [profile]);
 
   const set = <K extends keyof BrokerSettingsForm>(k: K, v: BrokerSettingsForm[K]) => {
     setForm((p) => ({ ...p, [k]: v }));
@@ -101,24 +119,33 @@ export function BrokerSettings() {
     );
   };
 
-  const save = () => {
-    setDirty(false);
-    toast.success("Settings saved", {
-      description: `Markup ${form.markupPct}% - ${form.settlementCycle} cycle - ${form.coverageLanes.length} coverage lanes.`,
+  const save = async () => {
+    const ok = await updateProfile({
+      markupPct: form.markupPct,
+      settlementCycle: form.settlementCycle,
+      gstTreatment: form.gstTreatment,
+      coverageLanes: form.coverageLanes,
+      companyName: form.brokerageName,
+      gstin: form.gstin,
     });
+    if (ok) {
+      setDirty(false);
+      toast.success("Settings saved", {
+        description: `Markup ${form.markupPct}% - ${form.settlementCycle} cycle - ${form.coverageLanes.length} coverage lanes.`,
+      });
+    }
   };
 
   const reset = () => {
-    setForm(initial);
+    setForm(formFromProfile(profile));
     setDirty(false);
     toast("Settings reverted to last saved values");
   };
 
   // Derived: avg resale rate at current markup.
-  const avgResale = Math.round(
-    REANZLY_LANE_RATES.reduce((s, l) => s + resaleRate(l.baseRatePerKm, form.markupPct), 0) /
-      REANZLY_LANE_RATES.length,
-  );
+  const avgResale = laneRates.length
+    ? Math.round(laneRates.reduce((s, l) => s + resaleRate(l.baseRatePerKm, form.markupPct), 0) / laneRates.length)
+    : 0;
 
   return (
     <div className="flex flex-col gap-4 pb-8">
@@ -302,7 +329,7 @@ export function BrokerSettings() {
             Suggested lanes (from Reanzly rate card)
           </div>
           <div className="mt-1.5 flex flex-wrap gap-1.5">
-            {REANZLY_LANE_RATES.filter((l) => !form.coverageLanes.includes(l.lane)).map((l) => (
+            {laneRates.filter((l) => !form.coverageLanes.includes(l.lane)).map((l) => (
               <button
                 key={l.id}
                 type="button"

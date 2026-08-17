@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
         vehicleId: matchedVehicle?.id ?? null,
         driverId: matchedDriver?.id ?? null,
         type: body.type || "Pre-Trip",
-        inspector: body.inspector || "Unknown",
+        inspector: body.inspector || sessionUser.name,
         date: body.date ? new Date(body.date) : new Date(),
         result: body.result || "Pass",
         odometer: Number.isFinite(body.odometer) ? body.odometer : 0,

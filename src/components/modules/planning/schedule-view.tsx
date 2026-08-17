@@ -4,16 +4,13 @@ import { useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 import { StatusBadge } from "@/components/shared/status-badge";
 import {
-  RESOURCES,
-  ALLOCATIONS,
-  CONFLICT_IDS,
   resourceTypeMeta,
   allocationStatusBadge,
-  startOfWeek,
   dayLabels,
   type Allocation,
   type PlanningResource,
 } from "./_helpers";
+import type { usePlanningData } from "./use-planning-data";
 import { ChevronLeft, ChevronRight, AlertTriangle, Calendar } from "lucide-react";
 import { toastInfo } from "@/lib/toast";
 
@@ -41,10 +38,13 @@ const RESOURCE_COL_WIDTH = "w-[200px] min-w-[200px]";
 
 interface ScheduleViewProps {
   mode: "week" | "day";
+  data: ReturnType<typeof usePlanningData>;
+  weekStart: Date;
+  setWeekStart: (d: Date) => void;
 }
 
-export function ScheduleView({ mode }: ScheduleViewProps) {
-  const [weekStart, setWeekStart] = useState<Date>(() => startOfWeek());
+export function ScheduleView({ mode, data, weekStart, setWeekStart }: ScheduleViewProps) {
+  const { resources, allocations, conflictIds } = data;
   const [selectedDayIdx, setSelectedDayIdx] = useState<number>(0);
   const [typeFilter, setTypeFilter] = useState<"all" | "Driver" | "Vehicle" | "Bay">("all");
   const [showConflictsOnly, setShowConflictsOnly] = useState(false);
@@ -53,41 +53,43 @@ export function ScheduleView({ mode }: ScheduleViewProps) {
   const days = useMemo(() => dayLabels(weekStart), [weekStart]);
 
   const visibleResources = useMemo(() => {
-    let list = RESOURCES;
+    let list = resources;
     if (typeFilter !== "all") list = list.filter((r) => r.type === typeFilter);
     if (showConflictsOnly) {
       const conflictResourceIds = new Set<string>();
-      ALLOCATIONS.forEach((a) => {
-        if (CONFLICT_IDS.has(a.id)) conflictResourceIds.add(a.resourceId);
+      allocations.forEach((a) => {
+        if (conflictIds.has(a.id)) conflictResourceIds.add(a.resourceId);
       });
       list = list.filter((r) => conflictResourceIds.has(r.id));
     }
     return list;
-  }, [typeFilter, showConflictsOnly]);
+  }, [resources, allocations, conflictIds, typeFilter, showConflictsOnly]);
 
   const allocationsByResource = useMemo(() => {
     const m = new Map<string, Allocation[]>();
-    ALLOCATIONS.forEach((a) => {
+    allocations.forEach((a) => {
       if (!m.has(a.resourceId)) m.set(a.resourceId, []);
       m.get(a.resourceId)!.push(a);
     });
     return m;
-  }, []);
+  }, [allocations]);
 
-  const conflictCount = CONFLICT_IDS.size;
+  const conflictCount = conflictIds.size;
 
   // Stat strip
-  const totalAllocations = ALLOCATIONS.length;
-  const totalHours = ALLOCATIONS.reduce((s, a) => s + a.durationHours, 0);
-  const avgUtilisation = Math.round(
-    RESOURCES.reduce((s, r) => s + r.utilisationWeek, 0) / RESOURCES.length,
-  );
+  const totalAllocations = allocations.length;
+  const totalHours = allocations.reduce((s, a) => s + a.durationHours, 0);
+  const avgUtilisation = resources.length
+    ? Math.round(resources.reduce((s, r) => s + r.utilisationWeek, 0) / resources.length)
+    : 0;
 
   if (mode === "day") {
     return (
       <DaySchedule
         resources={visibleResources}
+        allResources={resources}
         allocationsByResource={allocationsByResource}
+        conflictIds={conflictIds}
         days={days}
         selectedDayIdx={selectedDayIdx}
         setSelectedDayIdx={setSelectedDayIdx}
@@ -107,7 +109,9 @@ export function ScheduleView({ mode }: ScheduleViewProps) {
   return (
     <WeekSchedule
       resources={visibleResources}
+      allResources={resources}
       allocationsByResource={allocationsByResource}
+      conflictIds={conflictIds}
       days={days}
       weekStart={weekStart}
       setWeekStart={setWeekStart}
@@ -275,7 +279,9 @@ function AllocationPill({
    ============================================================ */
 function WeekSchedule({
   resources,
+  allResources,
   allocationsByResource,
+  conflictIds,
   days,
   weekStart,
   setWeekStart,
@@ -288,7 +294,9 @@ function WeekSchedule({
   stats,
 }: SharedProps & {
   resources: PlanningResource[];
+  allResources: PlanningResource[];
   allocationsByResource: Map<string, Allocation[]>;
+  conflictIds: Set<string>;
   days: ReturnType<typeof dayLabels>;
 }) {
   return (
@@ -372,7 +380,7 @@ function WeekSchedule({
                           </div>
                         )}
                         {dayAllocs.slice(0, 2).map((a) => {
-                          const isConflict = CONFLICT_IDS.has(a.id);
+                          const isConflict = conflictIds.has(a.id);
                           return (
                             <div
                               key={a.id}
@@ -409,6 +417,8 @@ function WeekSchedule({
 
       <AllocationDetailSheet
         allocation={selectedAllocation}
+        allResources={allResources}
+        conflictIds={conflictIds}
         onClose={() => setSelectedAllocation(null)}
       />
 
@@ -426,7 +436,9 @@ function WeekSchedule({
    ============================================================ */
 function DaySchedule({
   resources,
+  allResources,
   allocationsByResource,
+  conflictIds,
   days,
   selectedDayIdx,
   setSelectedDayIdx,
@@ -441,7 +453,9 @@ function DaySchedule({
   stats,
 }: SharedProps & {
   resources: PlanningResource[];
+  allResources: PlanningResource[];
   allocationsByResource: Map<string, Allocation[]>;
+  conflictIds: Set<string>;
   days: ReturnType<typeof dayLabels>;
   selectedDayIdx: number;
   setSelectedDayIdx: (i: number) => void;
@@ -542,7 +556,7 @@ function DaySchedule({
                       />
                     ))}
                     {allocs.map((a) => {
-                      const isConflict = CONFLICT_IDS.has(a.id);
+                      const isConflict = conflictIds.has(a.id);
                       const left = a.startHour * HOUR_COL_WIDTH_PX;
                       const width = Math.max(40, a.durationHours * HOUR_COL_WIDTH_PX - 4);
                       return (
@@ -574,6 +588,8 @@ function DaySchedule({
 
       <AllocationDetailSheet
         allocation={selectedAllocation}
+        allResources={allResources}
+        conflictIds={conflictIds}
         onClose={() => setSelectedAllocation(null)}
       />
 
@@ -590,15 +606,19 @@ function DaySchedule({
    ============================================================ */
 function AllocationDetailSheet({
   allocation,
+  allResources,
+  conflictIds,
   onClose,
 }: {
   allocation: Allocation | null;
+  allResources: PlanningResource[];
+  conflictIds: Set<string>;
   onClose: () => void;
 }) {
   if (!allocation) return null;
-  const resource = RESOURCES.find((r) => r.id === allocation.resourceId);
+  const resource = allResources.find((r) => r.id === allocation.resourceId);
   const statusMeta = allocationStatusBadge(allocation.status);
-  const isConflict = CONFLICT_IDS.has(allocation.id);
+  const isConflict = conflictIds.has(allocation.id);
   const startsAt = `${String(allocation.startHour).padStart(2, "0")}:00`;
   const endsAtHour = (allocation.startHour + allocation.durationHours) % 24;
   const endsAt = `${String(endsAtHour).padStart(2, "0")}:00`;

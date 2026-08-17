@@ -1,15 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getClientIP, rateLimit, sanitize } from "@/lib/security";
-
-// ===== Driver Field App - Location Ping API =====
-// Receives high-frequency GPS pings (watchPosition) and returns the location trail.
+import { getSessionUser } from "@/lib/auth";
+import { hasModuleAccess, unauthorized, forbidden } from "@/lib/permissions";
+import { findDriverForSession, isDriverRole } from "@/lib/driver-session";
 
 const RATE_LIMIT_WINDOW = 60_000;
-const RATE_LIMIT_MAX = 300; // higher - pings are frequent
+const RATE_LIMIT_MAX = 300;
+
+function canReadFleetLocation(role: string): boolean {
+  return hasModuleAccess(role, "trips")
+    || hasModuleAccess(role, "vehicles")
+    || hasModuleAccess(role, "fleet-map");
+}
 
 export async function GET(req: NextRequest) {
   try {
+    const sessionUser = await getSessionUser();
+    if (!sessionUser) return unauthorized();
+
     const ip = getClientIP(req);
     const rl = rateLimit(ip, { limit: RATE_LIMIT_MAX, window: RATE_LIMIT_WINDOW });
     if (!rl.allowed) {
@@ -20,11 +29,25 @@ export async function GET(req: NextRequest) {
     }
 
     const { searchParams } = new URL(req.url);
-    const driverId = sanitize(searchParams.get("driverId") || "", 50);
+    let driverId = sanitize(searchParams.get("driverId") || "", 50);
     const limit = Math.min(parseInt(searchParams.get("limit") || "200", 10), 1000);
 
-    if (!driverId) {
-      return NextResponse.json({ error: "driverId is required" }, { status: 400 });
+    if (isDriverRole(sessionUser.role)) {
+      const me = await findDriverForSession(sessionUser);
+      if (!me) return forbidden("No driver profile is linked to this account.");
+      driverId = me.id;
+    } else {
+      if (!canReadFleetLocation(sessionUser.role)) {
+        return forbidden();
+      }
+      if (!driverId) {
+        return NextResponse.json({ error: "driverId is required" }, { status: 400 });
+      }
+      const driver = await db.driver.findFirst({
+        where: { id: driverId, companyId: sessionUser.companyId },
+        select: { id: true },
+      });
+      if (!driver) return NextResponse.json({ error: "Driver not found." }, { status: 404 });
     }
 
     const pings = await db.driverLocationPing.findMany({
@@ -42,6 +65,9 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const sessionUser = await getSessionUser();
+    if (!sessionUser) return unauthorized();
+
     const ip = getClientIP(req);
     const rl = rateLimit(ip, { limit: RATE_LIMIT_MAX, window: RATE_LIMIT_WINDOW });
     if (!rl.allowed) {
@@ -51,19 +77,16 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const me = await findDriverForSession(sessionUser);
+    if (!me) {
+      return forbidden("No driver profile is linked to this account.");
+    }
+
     let body: Record<string, unknown>;
     try {
       body = await req.json();
     } catch {
       return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
-    }
-
-    const driverId = sanitize(String(body.driverId || ""), 50);
-    const driverName = sanitize(String(body.driverName || ""), 100);
-    const tripId = sanitize(String(body.tripId || ""), 50);
-
-    if (!driverId) {
-      return NextResponse.json({ error: "driverId is required" }, { status: 400 });
     }
 
     const lat = typeof body.lat === "number" ? body.lat : null;
@@ -72,16 +95,25 @@ export async function POST(req: NextRequest) {
     if (lat === null || lng === null) {
       return NextResponse.json({ error: "lat and lng are required" }, { status: 400 });
     }
-
-    // Bounds check (basic sanity - reject obviously invalid coords)
     if (Math.abs(lat) > 90 || Math.abs(lng) > 180) {
       return NextResponse.json({ error: "Invalid coordinates" }, { status: 400 });
     }
 
+    const tripId = sanitize(String(body.tripId || ""), 50);
+    if (tripId) {
+      const trip = await db.trip.findFirst({
+        where: { id: tripId, companyId: sessionUser.companyId, driverId: me.id },
+        select: { id: true },
+      });
+      if (!trip) {
+        return forbidden("That trip is not assigned to you.");
+      }
+    }
+
     const created = await db.driverLocationPing.create({
       data: {
-        driverId,
-        driverName: driverName || null,
+        driverId: me.id,
+        driverName: me.name,
         tripId: tripId || null,
         lat,
         lng,

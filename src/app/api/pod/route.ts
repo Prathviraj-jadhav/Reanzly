@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
 import { requireModuleAccess } from "@/lib/permissions";
+import { findDriverForSession, isDriverRole } from "@/lib/driver-session";
 
 // Real CRUD for the POD module, replacing pod-store.ts's Zustand +
 // localStorage state. Photos stay inline as base64 data URLs (same
@@ -109,8 +110,17 @@ export async function GET() {
   }
   const denied = requireModuleAccess(sessionUser, "pod");
   if (denied) return denied;
+  const me = isDriverRole(sessionUser.role) ? await findDriverForSession(sessionUser) : null;
   const pods = await db.pod.findMany({
-    where: { companyId: sessionUser.companyId },
+    where: isDriverRole(sessionUser.role)
+      ? {
+          companyId: sessionUser.companyId,
+          OR: [
+            ...(me ? [{ driverId: me.id }] : []),
+            { createdByName: sessionUser.name },
+          ],
+        }
+      : { companyId: sessionUser.companyId },
     include: { auditEntries: { orderBy: { timestamp: "asc" } } },
     orderBy: { createdAt: "desc" },
   });
@@ -176,6 +186,9 @@ export async function POST(req: NextRequest) {
         vehicleNumber: body.vehicleNumber || null,
         vehicleHireNumber: body.vehicleHireNumber || null,
         createdByName: sessionUser.name,
+        driverId: isDriverRole(sessionUser.role)
+          ? (await findDriverForSession(sessionUser))?.id ?? null
+          : null,
         auditEntries: { create: { user: sessionUser.name, action: "POD created" } },
       },
       include: { auditEntries: { orderBy: { timestamp: "asc" } } },

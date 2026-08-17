@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { SectionCard } from "@/components/shared/section-card";
 import { Btn } from "@/components/shared/btn";
 import { SearchInput } from "@/components/shared/toolbar";
@@ -21,7 +21,6 @@ import {
   DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import {
-  REANZLY_LANE_RATES,
   VEHICLE_TYPES,
   DEFAULT_MARKUP_PCT,
   formatINR,
@@ -30,7 +29,7 @@ import {
   freightForLane,
   type VehicleType,
 } from "./_helpers";
-import { useAppStore } from "@/lib/store/app-store";
+import { useBrokerProfileData } from "./use-broker-profile-data";
 
 /* ============================================================
    BrokerRateCard - the broker's published resale rate card.
@@ -42,16 +41,19 @@ import { useAppStore } from "@/lib/store/app-store";
    ============================================================ */
 
 export function BrokerRateCard() {
-  const authUser = useAppStore((s) => s.authUser);
-  const [markupPct, setMarkupPct] = useState<number>(
-    authUser?.brokerProfile?.markupPct ?? DEFAULT_MARKUP_PCT,
-  );
+  const { profile, laneRates, updateProfile } = useBrokerProfileData();
+  const [markupPct, setMarkupPct] = useState<number>(DEFAULT_MARKUP_PCT);
   const [search, setSearch] = useState("");
   const [vehicleFilter, setVehicleFilter] = useState<VehicleType | "">("");
 
+  // Sync local draft once the real profile loads (or changes elsewhere).
+  useEffect(() => {
+    if (profile) setMarkupPct(profile.markupPct);
+  }, [profile]);
+
   // ===== Derived: filtered lanes =====
   const filteredLanes = useMemo(() => {
-    let r = REANZLY_LANE_RATES;
+    let r = laneRates;
     if (search.trim()) {
       const q = search.toLowerCase().trim();
       r = r.filter(
@@ -63,26 +65,25 @@ export function BrokerRateCard() {
     }
     if (vehicleFilter) r = r.filter((l) => l.vehicleTypes.includes(vehicleFilter));
     return r;
-  }, [search, vehicleFilter]);
+  }, [laneRates, search, vehicleFilter]);
 
   // ===== Derived: aggregate KPIs =====
-  const avgBaseRate = Math.round(
-    REANZLY_LANE_RATES.reduce((s, l) => s + l.baseRatePerKm, 0) / REANZLY_LANE_RATES.length,
-  );
-  const avgResaleRate = Math.round(
-    REANZLY_LANE_RATES.reduce((s, l) => s + resaleRate(l.baseRatePerKm, markupPct), 0) /
-      REANZLY_LANE_RATES.length,
-  );
-  const totalFreightValue = REANZLY_LANE_RATES.reduce(
-    (s, l) => s + freightForLane(l, markupPct),
-    0,
-  );
+  const avgBaseRate = laneRates.length
+    ? Math.round(laneRates.reduce((s, l) => s + l.baseRatePerKm, 0) / laneRates.length)
+    : 0;
+  const avgResaleRate = laneRates.length
+    ? Math.round(laneRates.reduce((s, l) => s + resaleRate(l.baseRatePerKm, markupPct), 0) / laneRates.length)
+    : 0;
+  const totalFreightValue = laneRates.reduce((s, l) => s + freightForLane(l, markupPct), 0);
   const avgMarkupPerKm = avgResaleRate - avgBaseRate;
 
-  const publishRateCard = () => {
-    toast.success("Rate card published", {
-      description: `Markup ${markupPct}% applied to ${REANZLY_LANE_RATES.length} lanes. Sub-brokers notified.`,
-    });
+  const publishRateCard = async () => {
+    const ok = await updateProfile({ markupPct });
+    if (ok) {
+      toast.success("Rate card published", {
+        description: `Markup ${markupPct}% applied to ${laneRates.length} lanes.`,
+      });
+    }
   };
 
   return (
@@ -100,7 +101,7 @@ export function BrokerRateCard() {
             <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px]">
               <div className="flex items-center gap-1.5">
                 <span className="text-muted-foreground">Lanes</span>
-                <span className="font-medium text-foreground tabular">{REANZLY_LANE_RATES.length}</span>
+                <span className="font-medium text-foreground tabular">{laneRates.length}</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <span className="text-muted-foreground">Markup</span>
@@ -124,7 +125,7 @@ export function BrokerRateCard() {
 
       {/* KPI strip */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-        <KpiTile icon={<Tags className="h-3.5 w-3.5" />} label="Lanes published" value={String(REANZLY_LANE_RATES.length)} hint="across India" />
+        <KpiTile icon={<Tags className="h-3.5 w-3.5" />} label="Lanes published" value={String(laneRates.length)} hint="across India" />
         <KpiTile icon={<Percent className="h-3.5 w-3.5" />} label="Your markup" value={`${markupPct}%`} hint="over Reanzly base" />
         <KpiTile icon={<TrendingUp className="h-3.5 w-3.5" />} label="Avg base rate" value={`${formatINR(avgBaseRate)}/km`} hint="Reanzly published" />
         <KpiTile icon={<Wallet className="h-3.5 w-3.5" />} label="Avg resale rate" value={`${formatINR(avgResaleRate)}/km`} hint={`+${formatINR(avgMarkupPerKm)}/km margin`} />
@@ -222,7 +223,7 @@ export function BrokerRateCard() {
             </DropdownMenuContent>
           </DropdownMenu>
           <div className="ml-auto text-[11px] text-muted-foreground tabular">
-            {filteredLanes.length} of {REANZLY_LANE_RATES.length} lanes
+            {filteredLanes.length} of {laneRates.length} lanes
           </div>
         </div>
         {/* Rate table */}

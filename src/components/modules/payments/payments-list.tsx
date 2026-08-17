@@ -48,8 +48,8 @@ interface PaymentsListProps {
   onCreate: (voucherType: string) => void;
   onOpenReceivables: () => void;
   onOpenCreditDebit: () => void;
-  onUpdate?: (id: string, data: Partial<Payment>) => void;
-  onAdd?: (payment: Payment) => void;
+  onUpdate?: (id: string, data: Partial<Payment>) => void | Promise<unknown>;
+  onAdd?: (payment: Payment) => void | Promise<unknown>;
 }
 
 const VOUCHER_ICON: Record<
@@ -288,10 +288,14 @@ export function PaymentsList({ payments, onCreate, onOpenReceivables, onOpenCred
     },
     {
       label: "Approve",
-      onClick: (p: Payment) =>
-        p.status === "Pending"
-          ? toast.success("Voucher approved", { description: p.referenceNumber })
-          : toast("Cannot approve", { description: `Status is ${p.status}` }),
+      onClick: (p: Payment) => {
+        if (p.status !== "Pending") {
+          toast("Cannot approve", { description: `Status is ${p.status}` });
+          return;
+        }
+        void onUpdate?.(p.id, { status: "Approved" });
+        toast.success("Voucher approved", { description: p.referenceNumber });
+      },
     },
     {
       label: "Download",
@@ -318,8 +322,12 @@ export function PaymentsList({ payments, onCreate, onOpenReceivables, onOpenCred
     },
     {
       label: "Approve",
-      onClick: (selected: Payment[]) =>
-        toast.success(`${selected.length} voucher${selected.length === 1 ? "" : "s"} approved`),
+      onClick: (selected: Payment[]) => {
+        for (const p of selected.filter((x) => x.status === "Pending")) {
+          void onUpdate?.(p.id, { status: "Approved" });
+        }
+        toast.success(`${selected.length} voucher${selected.length === 1 ? "" : "s"} approved`);
+      },
     },
   ];
 

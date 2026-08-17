@@ -211,7 +211,7 @@ export const ROLE_ARCHETYPES: RoleArchetype[] = [
       "dashboard", "reports", "system-design", "chat",
       // New modules - analyst has read-only visibility across the new modules.
       "pod", "rate-cards", "financial-ops", "warehouse", "compliance",
-      "payroll", "workshop", "access-matrix",
+      "workshop", "access-matrix",
     ],
     avatar: "",
     initials: "PI",

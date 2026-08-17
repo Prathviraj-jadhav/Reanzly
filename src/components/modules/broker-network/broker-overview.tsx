@@ -23,7 +23,6 @@ import {
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import {
-  REANZLY_LANE_RATES,
   SEED_SUB_BROKERS,
   SEED_ENQUIRIES,
   SEED_QUOTES,
@@ -40,6 +39,7 @@ import {
   quoteStatusBadge,
   settlementCycleStatusBadge,
 } from "./_helpers";
+import { useBrokerProfileData } from "./use-broker-profile-data";
 
 /* ============================================================
    BrokerOverview - the broker portal landing dashboard.
@@ -57,7 +57,8 @@ interface BrokerOverviewProps {
 }
 
 export function BrokerOverview({ onNavigate }: BrokerOverviewProps) {
-  const markupPct = DEFAULT_MARKUP_PCT;
+  const { profile, laneRates } = useBrokerProfileData();
+  const markupPct = profile?.markupPct ?? DEFAULT_MARKUP_PCT;
 
   // ===== Derived KPIs (from seed data - read-only dashboard) =====
   const activeSubBrokers = SEED_SUB_BROKERS.filter((s) => s.status === "Active").length;
@@ -107,7 +108,7 @@ export function BrokerOverview({ onNavigate }: BrokerOverviewProps) {
     .slice(0, 6);
 
   // Resale rate card preview - first 5 lanes.
-  const topLanes = REANZLY_LANE_RATES.slice(0, 5);
+  const topLanes = laneRates.slice(0, 5);
 
   return (
     <div className="flex flex-col gap-5">

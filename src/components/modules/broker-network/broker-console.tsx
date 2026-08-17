@@ -1,12 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { PageHeader } from "@/components/shared/page-header";
 import { SectionCard } from "@/components/shared/section-card";
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { SearchInput } from "@/components/shared/toolbar";
-import { useAppStore } from "@/lib/store/app-store";
 import {
   Handshake,
   Users,
@@ -23,48 +22,39 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import {
-  REANZLY_LANE_RATES,
-  SEED_SUB_BROKERS,
-  SEED_ENQUIRIES,
-  DEFAULT_COVERAGE_LANES,
   DEFAULT_MARKUP_PCT,
-  type SubBroker,
-  type LoadEnquiry,
-  type VehicleType,
   formatINR,
   formatINRCompact,
-  formatDate,
   relativeTime,
   resaleRate,
   freightForLane,
   enquiryStatusBadge,
   subBrokerStatusBadge,
   KpiTile,
-  FieldLabel,
-  nextBrokerCode,
 } from "./_helpers";
+import { useBrokerProfileData } from "./use-broker-profile-data";
+import { useBrokerSubBrokersData } from "./use-broker-sub-brokers-data";
+import { useBrokerEnquiriesData } from "./use-broker-enquiries-data";
 import { BrokerOnboardingDialog, type OnboardedBroker } from "./broker-onboarding";
 
 export function BrokerConsoleModule() {
-  const authUser = useAppStore((s) => s.authUser);
-  const brokerProfile = authUser?.brokerProfile;
+  const { profile, laneRates, updateProfile } = useBrokerProfileData();
+  const { subBrokers, addSubBroker } = useBrokerSubBrokersData();
+  const { enquiries, quoteEnquiry: quoteEnquiryReal } = useBrokerEnquiriesData();
 
-  // Markup % - editable, defaults from authUser.brokerProfile?.markupPct ?? 8.
-  const [markupPct, setMarkupPct] = useState<number>(
-    brokerProfile?.markupPct ?? DEFAULT_MARKUP_PCT,
-  );
+  // Markup % - editable draft, synced from the real profile once loaded.
+  const [markupPct, setMarkupPct] = useState<number>(DEFAULT_MARKUP_PCT);
+  useEffect(() => {
+    if (profile) setMarkupPct(profile.markupPct);
+  }, [profile]);
 
-  // Sub-brokers - local state so the onboarding dialog can prepend.
-  const [subBrokers, setSubBrokers] = useState<SubBroker[]>(SEED_SUB_BROKERS);
-
-  // Lane coverage - editable tag input. Defaults from brokerProfile or seed.
-  const [coverageLanes, setCoverageLanes] = useState<string[]>(
-    brokerProfile?.coverageLanes ?? DEFAULT_COVERAGE_LANES,
-  );
+  // Lane coverage - editable tag input, synced from the real profile.
+  const [coverageLanes, setCoverageLanes] = useState<string[]>([]);
+  useEffect(() => {
+    if (profile) setCoverageLanes(profile.coverageLanes);
+  }, [profile]);
   const [laneDraft, setLaneDraft] = useState("");
 
-  // Inbound enquiries - Quote button flips New -> Quoted and toasts.
-  const [enquiries, setEnquiries] = useState<LoadEnquiry[]>(SEED_ENQUIRIES);
   const [enquirySearch, setEnquirySearch] = useState("");
 
   // Onboarding dialog open state - wired to the "Add sub-broker" button.
@@ -83,7 +73,7 @@ export function BrokerConsoleModule() {
     const q = enquirySearch.toLowerCase().trim();
     return enquiries.filter(
       (e) =>
-        e.id.toLowerCase().includes(q) ||
+        e.enquiryId.toLowerCase().includes(q) ||
         e.lane.toLowerCase().includes(q) ||
         e.customer.toLowerCase().includes(q) ||
         e.vehicleType.toLowerCase().includes(q),
@@ -91,63 +81,53 @@ export function BrokerConsoleModule() {
   }, [enquiries, enquirySearch]);
 
   // ===== Handlers =====
-  const addLane = () => {
+  const addLane = async () => {
     const v = laneDraft.trim();
     if (!v) return;
     if (coverageLanes.includes(v)) {
       toast("Lane already in coverage");
       return;
     }
-    setCoverageLanes((prev) => [...prev, v]);
+    const next = [...coverageLanes, v];
+    setCoverageLanes(next);
     setLaneDraft("");
+    await updateProfile({ coverageLanes: next });
   };
 
-  const removeLane = (lane: string) =>
-    setCoverageLanes((prev) => prev.filter((l) => l !== lane));
+  const removeLane = async (lane: string) => {
+    const next = coverageLanes.filter((l) => l !== lane);
+    setCoverageLanes(next);
+    await updateProfile({ coverageLanes: next });
+  };
 
-  const quoteEnquiry = (e: LoadEnquiry) => {
-    const lane = REANZLY_LANE_RATES.find((l) => l.lane === e.lane);
+  const quoteEnquiry = async (e: (typeof enquiries)[number]) => {
+    const lane = laneRates.find((l) => l.lane === e.lane);
     const base = lane?.baseRatePerKm ?? e.expectedRatePerKm;
     const rate = resaleRate(base, markupPct);
-    setEnquiries((prev) =>
-      prev.map((x) =>
-        x.id === e.id
-          ? { ...x, status: "Quoted" as const, quotedRate: rate }
-          : x,
-      ),
-    );
-    toast.success(`Quote sent at ${formatINR(rate)}/km`, {
-      description: `${e.id} - ${e.lane} - ${e.customer}`,
-    });
+    const updated = await quoteEnquiryReal(e.id, rate);
+    if (updated) {
+      toast.success(`Quote sent at ${formatINR(rate)}/km`, {
+        description: `${e.enquiryId} - ${e.lane} - ${e.customer}`,
+      });
+    }
   };
 
-  const publishRateCard = () => {
-    toast.success("Rate card published", {
-      description: `Markup ${markupPct}% applied to ${REANZLY_LANE_RATES.length} lanes. Sub-brokers notified.`,
-    });
+  const publishRateCard = async () => {
+    const ok = await updateProfile({ markupPct });
+    if (ok) {
+      toast.success("Rate card published", {
+        description: `Markup ${markupPct}% applied to ${laneRates.length} lanes.`,
+      });
+    }
   };
 
-  const handleOnboarded = (b: OnboardedBroker) => {
-    const newSub: SubBroker = {
-      id: `sb-${String(subBrokers.length + 1).padStart(3, "0")}`,
-      name: b.name,
-      brokerCode: b.brokerCode,
-      contactName: b.contactName,
-      email: b.email,
-      phone: b.phone,
-      markupPct: b.markupPct,
-      coverageLanes: b.coverageLanes,
-      settlementCycle: b.settlementCycle,
-      gstTreatment: b.gstTreatment,
-      gstin: b.gstin,
-      status: "Pending",
-      settlementsDueINR: 0,
-      onboardedAt: new Date().toISOString(),
-    };
-    setSubBrokers((prev) => [newSub, ...prev]);
-    toast.success("Broker onboarded", {
-      description: `${b.name} (${b.brokerCode}) added to your sub-broker network.`,
-    });
+  const handleOnboarded = async (b: OnboardedBroker) => {
+    const created = await addSubBroker(b);
+    if (created) {
+      toast.success("Broker onboarded", {
+        description: `${created.name} (${created.brokerCode}) added to your sub-broker network.`,
+      });
+    }
   };
 
   return (
@@ -156,9 +136,9 @@ export function BrokerConsoleModule() {
         title="Broker Console"
         description="Resell Reanzly capacity under your own brand. Set your markup, manage sub-brokers, declare coverage, quote inbound enquiries."
         meta={[
-          { label: "Broker code", value: brokerProfile?.brokerCode ?? "RZ-BRK-001" },
-          { label: "Settlement", value: brokerProfile?.settlementCycle ?? "Fortnightly" },
-          { label: "GST", value: brokerProfile?.gstTreatment ?? "Forward Charge" },
+          { label: "Broker code", value: profile?.brokerCode ?? "RZ-BRK-001" },
+          { label: "Settlement", value: profile?.settlementCycle ?? "Fortnightly" },
+          { label: "GST", value: profile?.gstTreatment ?? "Forward Charge" },
         ]}
         actions={
           <Btn variant="primary" icon={<Plus className="h-3.5 w-3.5" />} onClick={() => setOnboardingOpen(true)}>
@@ -207,10 +187,10 @@ export function BrokerConsoleModule() {
             />
           </div>
           <span className="text-[11px] text-muted-foreground">
-            Applied across {REANZLY_LANE_RATES.length} lanes - resale rate = base x (1 + markup/100)
+            Applied across {laneRates.length} lanes - resale rate = base x (1 + markup/100)
           </span>
           <div className="ml-auto text-[11px] text-muted-foreground tabular">
-            Avg resale: {formatINR(Math.round(REANZLY_LANE_RATES.reduce((s, l) => s + resaleRate(l.baseRatePerKm, markupPct), 0) / REANZLY_LANE_RATES.length))}/km
+            Avg resale: {formatINR(Math.round(laneRates.reduce((s, l) => s + resaleRate(l.baseRatePerKm, markupPct), 0) / laneRates.length))}/km
           </div>
         </div>
         {/* Rate table */}
@@ -228,7 +208,7 @@ export function BrokerConsoleModule() {
               </tr>
             </thead>
             <tbody>
-              {REANZLY_LANE_RATES.map((l, i) => {
+              {laneRates.map((l, i) => {
                 const resale = resaleRate(l.baseRatePerKm, markupPct);
                 const freight = freightForLane(l, markupPct);
                 return (
@@ -408,7 +388,7 @@ export function BrokerConsoleModule() {
                     className={i % 2 === 0 ? "border-b border-border/60 bg-background" : "border-b border-border/60 bg-muted/10"}
                   >
                     <td className="px-4 py-2.5">
-                      <div className="tabular text-[12.5px] font-medium text-foreground">{e.id}</div>
+                      <div className="tabular text-[12.5px] font-medium text-foreground">{e.enquiryId}</div>
                       <div className="text-[11px] text-muted-foreground">{relativeTime(e.receivedAt)}</div>
                     </td>
                     <td className="px-4 py-2.5 text-left text-foreground">{e.lane}</td>

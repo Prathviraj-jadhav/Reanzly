@@ -7,20 +7,18 @@ import { DataTable, type Column } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Btn } from "@/components/shared/btn";
 import {
-  RESOURCES,
-  ALLOCATIONS,
-  CONFLICT_IDS,
   resourceTypeMeta,
   resourceStatusBadge,
   utilisationMeta,
   type PlanningResource,
 } from "./_helpers";
-import { toastInfo } from "@/lib/toast";
+import type { usePlanningData } from "./use-planning-data";
+import { AddResourceDrawer } from "./add-resource-drawer";
+import { toastInfo, toastSuccess } from "@/lib/toast";
 import {
   Search,
   ChevronDown,
   Plus,
-  Download,
   AlertTriangle,
   User,
   Truck,
@@ -38,15 +36,17 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 interface ResourceListProps {
-  onCreate?: () => void;
+  data: ReturnType<typeof usePlanningData>;
 }
 
-export function ResourceList({ onCreate }: ResourceListProps) {
+export function ResourceList({ data }: ResourceListProps) {
+  const { resources, allocations, conflictIds, updateResource, deleteResource, createResource } = data;
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<Set<string>>(new Set());
+  const [addOpen, setAddOpen] = useState(false);
 
   const filtered = useMemo(() => {
-    let list = RESOURCES;
+    let list = resources;
     if (search.trim()) {
       const q = search.toLowerCase().trim();
       list = list.filter(
@@ -60,7 +60,7 @@ export function ResourceList({ onCreate }: ResourceListProps) {
       list = list.filter((r) => typeFilter.has(r.type));
     }
     return list;
-  }, [search, typeFilter]);
+  }, [resources, search, typeFilter]);
 
   const toggleType = (t: string) => {
     setTypeFilter((s) => {
@@ -71,17 +71,14 @@ export function ResourceList({ onCreate }: ResourceListProps) {
     });
   };
 
-  // KPI metrics
-  const total = RESOURCES.length;
-  const drivers = RESOURCES.filter((r) => r.type === "Driver").length;
-  const vehicles = RESOURCES.filter((r) => r.type === "Vehicle").length;
-  const bays = RESOURCES.filter((r) => r.type === "Bay").length;
-  const allocated = RESOURCES.filter((r) => r.status === "Allocated").length;
-  const available = RESOURCES.filter((r) => r.status === "Available").length;
-  const conflicts = CONFLICT_IDS.size;
-  const avgUtilisation = Math.round(
-    RESOURCES.reduce((s, r) => s + r.utilisationWeek, 0) / RESOURCES.length,
-  );
+  const total = resources.length;
+  const drivers = resources.filter((r) => r.type === "Driver").length;
+  const vehicles = resources.filter((r) => r.type === "Vehicle").length;
+  const bays = resources.filter((r) => r.type === "Bay").length;
+  const allocated = resources.filter((r) => r.status === "Allocated").length;
+  const available = resources.filter((r) => r.status === "Available").length;
+  const conflicts = conflictIds.size;
+  const avgUtilisation = total ? Math.round(resources.reduce((s, r) => s + r.utilisationWeek, 0) / total) : 0;
 
   const typeLabel =
     typeFilter.size === 0
@@ -120,11 +117,7 @@ export function ResourceList({ onCreate }: ResourceListProps) {
       width: "110px",
       render: (r) => {
         const meta = resourceTypeMeta(r.type);
-        return (
-          <StatusBadge variant="muted">
-            {meta.short}
-          </StatusBadge>
-        );
+        return <StatusBadge variant="muted">{meta.short}</StatusBadge>;
       },
     },
     {
@@ -215,32 +208,33 @@ export function ResourceList({ onCreate }: ResourceListProps) {
   const rowActions = [
     {
       label: "View schedule",
-      onClick: (r: PlanningResource) =>
-        toastInfo(`${r.name}`, `${r.allocationsThisWeek} allocations this week · ${r.utilisationWeek}% utilisation.`),
+      onClick: (r: PlanningResource) => {
+        const count = allocations.filter((a) => a.resourceId === r.id).length;
+        toastInfo(`${r.name}`, `${count} allocations this week · ${r.utilisationWeek}% utilisation.`);
+      },
     },
     {
-      label: "Reassign allocation",
-      onClick: (r: PlanningResource) =>
-        toastInfo("Reassignment", `Pick a target slot for ${r.code}.`),
+      label: "Mark available",
+      onClick: async (r: PlanningResource) => {
+        const updated = await updateResource(r.id, { status: "Available" });
+        if (updated) toastSuccess("Marked available", `${r.name} is back on the rota.`);
+      },
     },
     {
       label: "Mark unavailable",
-      onClick: (r: PlanningResource) =>
-        toastInfo("Marked unavailable", `${r.name} taken off the rota.`),
+      onClick: async (r: PlanningResource) => {
+        const updated = await updateResource(r.id, { status: "Off-duty" });
+        if (updated) toastSuccess("Marked unavailable", `${r.name} taken off the rota.`);
+      },
       destructive: true,
     },
-  ];
-
-  const bulkActions = [
     {
-      label: "Export",
-      onClick: (rows: PlanningResource[]) =>
-        toastInfo("Exported", `${rows.length} resource${rows.length === 1 ? "" : "s"} exported to CSV.`),
-    },
-    {
-      label: "Mark off-duty",
-      onClick: (rows: PlanningResource[]) =>
-        toastInfo("Bulk update", `${rows.length} resource${rows.length === 1 ? "" : "s"} marked off-duty.`),
+      label: "Remove resource",
+      onClick: async (r: PlanningResource) => {
+        const ok = await deleteResource(r.id);
+        if (ok) toastSuccess("Removed", `${r.name} removed from the rota.`);
+      },
+      destructive: true,
     },
   ];
 
@@ -256,21 +250,16 @@ export function ResourceList({ onCreate }: ResourceListProps) {
           { label: "Bays", value: bays },
         ]}
         actions={
-          <>
-            <Btn icon={<Download className="h-3.5 w-3.5" />} onClick={() => toastInfo("Exporting", "Resource roster exported to CSV.")}>
-              Export
-            </Btn>
-            <Btn variant="primary" icon={<Plus className="h-3.5 w-3.5" />} onClick={onCreate ?? (() => toastInfo("New resource", "Opening resource onboarding flow."))}>
-              Add Resource
-            </Btn>
-          </>
+          <Btn variant="primary" icon={<Plus className="h-3.5 w-3.5" />} onClick={() => setAddOpen(true)}>
+            Add Resource
+          </Btn>
         }
       />
 
       {/* KPI strip */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         <KpiTile icon={<User className="h-3.5 w-3.5" />} label="Drivers" value={String(drivers)} hint="active roster" />
-        <KpiTile icon={<Truck className="h-3.5 w-3.5" />} label="Vehicles" value={String(vehicles)} hint="across 4 hubs" />
+        <KpiTile icon={<Truck className="h-3.5 w-3.5" />} label="Vehicles" value={String(vehicles)} hint="fleet on rota" />
         <KpiTile icon={<Wrench className="h-3.5 w-3.5" />} label="Bays" value={String(bays)} hint="workshop capacity" />
         <KpiTile icon={<span className="text-[10px]">●</span>} label="Allocated" value={String(allocated)} hint="currently on a job" />
         <KpiTile icon={<span className="text-[10px]">○</span>} label="Available" value={String(available)} hint="ready to deploy" />
@@ -315,10 +304,7 @@ export function ResourceList({ onCreate }: ResourceListProps) {
               {typeFilter.size > 0 && (
                 <>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={() => setTypeFilter(new Set())}
-                    className="text-[12px] text-muted-foreground"
-                  >
+                  <DropdownMenuItem onClick={() => setTypeFilter(new Set())} className="text-[12px] text-muted-foreground">
                     Clear filter
                   </DropdownMenuItem>
                 </>
@@ -335,7 +321,6 @@ export function ResourceList({ onCreate }: ResourceListProps) {
           data={filtered}
           columns={columns}
           rowActions={rowActions}
-          bulkActions={bulkActions}
           onRowClick={(r) =>
             toastInfo(r.name, `${r.code} · ${r.utilisationWeek}% week utilisation · ${r.allocationsThisWeek} allocations.`)
           }
@@ -344,8 +329,10 @@ export function ResourceList({ onCreate }: ResourceListProps) {
       </div>
 
       <p className="text-[11px] text-muted-foreground">
-        {RESOURCES.length} resources · {ALLOCATIONS.length} allocations this week · avg utilisation {avgUtilisation}% · {conflicts} scheduling conflicts.
+        {resources.length} resources · {allocations.length} allocations this week · avg utilisation {avgUtilisation}% · {conflicts} scheduling conflicts.
       </p>
+
+      <AddResourceDrawer open={addOpen} onClose={() => setAddOpen(false)} onCreate={createResource} />
     </div>
   );
 }

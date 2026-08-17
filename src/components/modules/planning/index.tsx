@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { PageHeader } from "@/components/shared/page-header";
 import { cn } from "@/lib/utils";
 import {
@@ -13,25 +13,26 @@ import {
 import {
   PLANNING_TABS,
   type PlanningTab,
-  RESOURCES,
-  ALLOCATIONS,
-  CONFLICT_IDS,
   KpiTile,
+  startOfWeek,
 } from "./_helpers";
+import { usePlanningData } from "./use-planning-data";
 import { ScheduleView } from "./schedule-view";
 import { ResourceList } from "./resource-list";
-import { toastInfo } from "@/lib/toast";
 
 export function PlanningModule() {
   const [tab, setTab] = useState<PlanningTab>("week");
+  const [weekStart, setWeekStart] = useState<Date>(() => startOfWeek());
+  const data = usePlanningData(weekStart);
 
-  const totalResources = RESOURCES.length;
-  const totalAllocations = ALLOCATIONS.length;
-  const conflicts = CONFLICT_IDS.size;
-  const totalHours = ALLOCATIONS.reduce((s, a) => s + a.durationHours, 0);
-  const avgUtilisation = Math.round(
-    RESOURCES.reduce((s, r) => s + r.utilisationWeek, 0) / RESOURCES.length,
-  );
+  const { resources, allocations, conflictIds } = data;
+  const totalResources = resources.length;
+  const totalAllocations = allocations.length;
+  const conflicts = conflictIds.size;
+  const totalHours = allocations.reduce((s, a) => s + a.durationHours, 0);
+  const avgUtilisation = totalResources
+    ? Math.round(resources.reduce((s, r) => s + r.utilisationWeek, 0) / totalResources)
+    : 0;
 
   return (
     <div className="flex min-h-full flex-col gap-4">
@@ -46,7 +47,7 @@ export function PlanningModule() {
         ]}
         actions={
           <span className="hidden text-[11px] text-muted-foreground tabular sm:inline">
-            avg utilisation {avgUtilisation}% · {RESOURCES.filter((r) => r.status === "Available").length} resources available now
+            avg utilisation {avgUtilisation}% · {resources.filter((r) => r.status === "Available").length} resources available now
           </span>
         }
       />
@@ -77,14 +78,14 @@ export function PlanningModule() {
       </div>
 
       <div className="flex-1 pb-8">
-        {tab === "week" && <ScheduleView mode="week" />}
-        {tab === "day" && <ScheduleView mode="day" />}
-        {tab === "resources" && <ResourceList onCreate={() => toastInfo("Add resource", "Opening resource onboarding drawer.")} />}
+        {tab === "week" && <ScheduleView mode="week" data={data} weekStart={weekStart} setWeekStart={setWeekStart} />}
+        {tab === "day" && <ScheduleView mode="day" data={data} weekStart={weekStart} setWeekStart={setWeekStart} />}
+        {tab === "resources" && <ResourceList data={data} />}
       </div>
 
       <p className="text-[11px] text-muted-foreground">
         <CalendarRange className="mr-1 inline h-3 w-3 align-text-bottom" />
-        Planning rota · {RESOURCES.length} resources · {ALLOCATIONS.length} weekly allocations · {conflicts} conflict{conflicts === 1 ? "" : "s"} detected.
+        Planning rota · {totalResources} resources · {totalAllocations} weekly allocations · {conflicts} conflict{conflicts === 1 ? "" : "s"} detected.
       </p>
     </div>
   );

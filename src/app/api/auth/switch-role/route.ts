@@ -22,6 +22,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Not signed in." }, { status: 401 });
   }
 
+  if (sessionUser.role !== "owner" && sessionUser.role !== "superadmin") {
+    return NextResponse.json(
+      { error: "Only an owner or platform admin can switch demo roles." },
+      { status: 403 },
+    );
+  }
+
   const body = await req.json().catch(() => null);
   const roleId = String(body?.roleId || "");
   if (!roleId) {
@@ -34,6 +41,12 @@ export async function POST(req: NextRequest) {
   }
   if (target.status !== "Active") {
     return NextResponse.json({ error: "This account is not active." }, { status: 403 });
+  }
+  if (sessionUser.role === "owner" && target.role === "superadmin") {
+    return NextResponse.json(
+      { error: "Tenant owners cannot switch into the platform admin account." },
+      { status: 403 },
+    );
   }
 
   await destroySession();

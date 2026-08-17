@@ -82,6 +82,8 @@ export function Recruitment({
   const offers = useHrStore((s) => s.offers);
   const setCandidateStage = useHrStore((s) => s.setCandidateStage);
   const setOfferStatus = useHrStore((s) => s.setOfferStatus);
+  const addInterview = useHrStore((s) => s.addInterview);
+  const updatePosition = useHrStore((s) => s.updatePosition);
   const [selected, setSelected] = useState<Position | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("All");
   const [view, setView] = useState<"list" | "kanban" | "interviews" | "offers">("list");
@@ -253,8 +255,35 @@ export function Recruitment({
           rowActions={[
             { label: "View Pipeline", onClick: (p) => setSelected(p) },
             { label: "Add Candidate", onClick: (p) => toast.success("Candidate form", { description: `${p.role} · ${p.branch}` }) },
-            { label: "Schedule Interview", onClick: (p) => toast.success("Interview scheduler", { description: `${p.role} · ${p.branch}` }) },
-            { label: "Close Position", onClick: (p) => toast.success("Position marked closed", { description: p.positionId }) },
+            {
+              label: "Schedule Interview",
+              onClick: async (p) => {
+                const cand = p.candidates.find((c) => c.stage === "Interview" || c.stage === "Screening") ?? p.candidates[0];
+                if (!cand) {
+                  toast.error("No candidate to schedule", { description: `${p.role} has an empty pipeline.` });
+                  return;
+                }
+                const created = await addInterview({
+                  positionId: p.id,
+                  candidateId: cand.id,
+                  candidateName: cand.name,
+                  role: p.role,
+                  round: "Telephonic",
+                  scheduledOn: new Date(Date.now() + 86_400_000).toISOString(),
+                  duration: 45,
+                });
+                if (created) toast.success("Interview scheduled", { description: `${cand.name} · ${p.role} · tomorrow` });
+                else toast.error("Couldn't schedule interview", { description: "Try again." });
+              },
+            },
+            {
+              label: "Close Position",
+              onClick: async (p) => {
+                const ok = await updatePosition(p.id, { status: "Closed" });
+                if (ok) toast.success("Position marked closed", { description: p.positionId });
+                else toast.error("Couldn't close position", { description: "Try again." });
+              },
+            },
           ]}
           pageSize={15}
         />
@@ -268,13 +297,37 @@ export function Recruitment({
         }} onOpenPosition={(p) => setSelected(p)} />
       )}
 
-      {view === "interviews" && <InterviewsView interviews={interviews} />}
+      {view === "interviews" && (
+        <InterviewsView
+          interviews={interviews}
+          positions={positions}
+          onSchedule={async (p) => {
+            const cand = p.candidates.find((c) => c.stage === "Interview" || c.stage === "Screening") ?? p.candidates[0];
+            if (!cand) {
+              toast.error("No candidate to schedule", { description: `${p.role} has an empty pipeline.` });
+              return;
+            }
+            const created = await addInterview({
+              positionId: p.id,
+              candidateId: cand.id,
+              candidateName: cand.name,
+              role: p.role,
+              round: "Telephonic",
+              scheduledOn: new Date(Date.now() + 86_400_000).toISOString(),
+              duration: 45,
+            });
+            if (created) toast.success("Interview scheduled", { description: `${cand.name} · ${p.role} · tomorrow` });
+            else toast.error("Couldn't schedule interview", { description: "Try again." });
+          }}
+        />
+      )}
       {view === "offers" && (
         <OffersView
           offers={offers}
-          onSetStatus={(id, status) => {
-            setOfferStatus(id, status);
-            toast.success(`Offer ${status.toLowerCase()}`);
+          onSetStatus={async (id, status) => {
+            const ok = await setOfferStatus(id, status);
+            if (ok) toast.success(`Offer ${status.toLowerCase()}`);
+            else toast.error("Couldn't update offer", { description: "Try again." });
           }}
           onGenerateOffer={
             onGenerateOffer ||
@@ -393,7 +446,15 @@ function KanbanView({
 // ============================================================
 // Interviews View
 // ============================================================
-function InterviewsView({ interviews }: { interviews: Interview[] }) {
+function InterviewsView({
+  interviews,
+  positions,
+  onSchedule,
+}: {
+  interviews: Interview[];
+  positions: Position[];
+  onSchedule: (p: Position) => void;
+}) {
   const upcoming = interviews.filter((i) => i.status === "Scheduled").sort((a, b) => new Date(a.scheduledOn).getTime() - new Date(b.scheduledOn).getTime());
   const completed = interviews.filter((i) => i.status === "Completed");
   return (
@@ -405,7 +466,19 @@ function InterviewsView({ interviews }: { interviews: Interview[] }) {
         flush
         bodyClassName="p-0"
         action={
-          <Btn variant="primary" size="sm" icon={<Plus className="h-3.5 w-3.5" />} onClick={() => toast.info("Schedule Interview", { description: "Open the interview scheduler." })}>
+          <Btn
+            variant="primary"
+            size="sm"
+            icon={<Plus className="h-3.5 w-3.5" />}
+            onClick={() => {
+              const p = positions.find((x) => x.status === "Open" && x.candidates.length > 0) ?? positions.find((x) => x.candidates.length > 0);
+              if (!p) {
+                toast.error("No candidates to schedule");
+                return;
+              }
+              onSchedule(p);
+            }}
+          >
             Schedule
           </Btn>
         }

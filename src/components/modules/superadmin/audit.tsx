@@ -19,7 +19,7 @@ import {
 import { Btn } from "@/components/shared/btn";
 import { KpiCard } from "@/components/shared/kpi-card";
 import { DataTable, type Column } from "@/components/shared/data-table";
-import { useSuperadminStore } from "./_store";
+import { useSuperadminAuditData } from "./use-superadmin-audit-data";
 import type { AuditEntry } from "./_data";
 import { formatDateTime, relativeTime } from "./_helpers";
 
@@ -82,7 +82,7 @@ function exportAuditCsv(rows: AuditEntry[]): void {
 /* ── main view ──────────────────────────────────────────── */
 
 export function AuditView() {
-  const auditLog = useSuperadminStore((s) => s.auditLog);
+  const { auditLog, reload } = useSuperadminAuditData();
 
   const [search, setSearch] = useState("");
   const [moduleFilter, setModuleFilter] = useState("All");
@@ -235,7 +235,10 @@ export function AuditView() {
           </Btn>
           <Btn
             size="sm" variant="outline" icon={<RefreshCw className="h-3.5 w-3.5" />}
-            onClick={() => toast("Audit log refreshed", { description: `${auditLog.length} entries up to date` })}
+            onClick={async () => {
+              await reload();
+              toast("Audit log refreshed", { description: `${auditLog.length} entries up to date` });
+            }}
           >
             Refresh
           </Btn>

@@ -513,7 +513,13 @@ export const useAppStore = create<AppState>()(
           }
           // data.user.role holds the ROLE_ARCHETYPES id (see seed-users.ts) -
           // resolve it here rather than trusting anything from the client.
-          get().login(data.user.email, data.user.role, portal, orgName);
+          const resolvedPortal =
+            data.user.role === "superadmin"
+              ? "superadmin"
+              : portal === "superadmin"
+                ? "app"
+                : portal;
+          get().login(data.user.email, data.user.role, resolvedPortal, orgName);
           return { ok: true };
         } catch {
           return { ok: false, error: "Could not reach the server. Try again." };
@@ -528,14 +534,21 @@ export const useAppStore = create<AppState>()(
           }
           const { user } = await res.json();
           const role = ROLE_ARCHETYPES.find((r) => r.id === user.role) || ROLE_ARCHETYPES[0];
+          const portal =
+            user.role === "superadmin"
+              ? "superadmin"
+              : get().portal === "superadmin"
+                ? "app"
+                : get().portal;
           set({
             isAuthenticated: true,
+            portal,
             authUser: {
               email: user.email,
               name: user.name,
               roleId: role.id,
               loggedInAt: new Date().toISOString(),
-              portal: get().portal,
+              portal,
             },
             currentRole: role,
           });

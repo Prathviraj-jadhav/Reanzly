@@ -124,7 +124,13 @@ export const SEED_ACCOUNTS: Account[] = [
 
   // ── Equity (30000-30999) ──
   { id: "acc-capital", code: "30000", name: "Capital Account", group: "Equity", subgroup: "Equity Capital", openingBalance: 5000000, openingNature: "Cr", system: true },
-  { id: "acc-reserves", code: "30010", name: "Reserves & Surplus", group: "Equity", subgroup: "Equity Capital", openingBalance: 1240000, openingNature: "Cr" },
+  // 1,134,000 (not the original 1,240,000): the opening Chart of Accounts
+  // didn't satisfy Assets = Liabilities + Equity as authored - total Dr
+  // opening balances were Rs 106,000 short of total Cr. Reserves & Surplus
+  // is the conventional balancing/plug account, so it absorbs the Rs
+  // 106,000 correction rather than an asset or liability figure that's
+  // meant to represent something specific.
+  { id: "acc-reserves", code: "30010", name: "Reserves & Surplus", group: "Equity", subgroup: "Equity Capital", openingBalance: 1134000, openingNature: "Cr" },
   { id: "acc-drawings", code: "30020", name: "Drawings Account", group: "Equity", subgroup: "Equity Capital", openingBalance: 0, openingNature: "Dr" },
 
   // ── Operating Income (40000-40999) ──

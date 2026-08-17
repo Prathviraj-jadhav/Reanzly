@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
+import { assignDemoTripsIfEmpty, ensureDriverForSession } from "@/lib/driver-session";
 
 // Real identity + assignment resolver for the Driver Field App
 // (src/components/modules/driver-field). Previously the field app used a
@@ -50,53 +51,14 @@ export async function GET() {
     return NextResponse.json({ error: "Not signed in." }, { status: 401 });
   }
 
-  let driver = await db.driver.findFirst({
-    where: { companyId: sessionUser.companyId, email: sessionUser.email },
-  });
+  const driver = await ensureDriverForSession(sessionUser);
+  await assignDemoTripsIfEmpty(sessionUser.companyId, driver.id);
 
-  if (!driver) {
-    driver = await db.driver.create({
-      data: {
-        companyId: sessionUser.companyId,
-        name: sessionUser.name,
-        email: sessionUser.email,
-        role: "Driver",
-        status: "Active",
-      },
-    });
-  }
-
-  let trips = await db.trip.findMany({
+  const trips = await db.trip.findMany({
     where: { companyId: sessionUser.companyId, driverId: driver.id },
     include: TRIP_INCLUDE,
     orderBy: { createdAt: "desc" },
   });
-
-  // Freshly-provisioned driver with nothing staffed yet - stage them onto a
-  // couple of real trips still in Planned/Active status (a real
-  // reassignment, not client-side fabrication) so the field app has
-  // something genuine to show on first login.
-  if (trips.length === 0) {
-    const unstaffed = await db.trip.findMany({
-      where: {
-        companyId: sessionUser.companyId,
-        status: { in: ["Planned", "Active"] },
-      },
-      orderBy: { createdAt: "desc" },
-      take: 2,
-    });
-    if (unstaffed.length > 0) {
-      await db.trip.updateMany({
-        where: { id: { in: unstaffed.map((t) => t.id) } },
-        data: { driverId: driver.id },
-      });
-      trips = await db.trip.findMany({
-        where: { companyId: sessionUser.companyId, driverId: driver.id },
-        include: TRIP_INCLUDE,
-        orderBy: { createdAt: "desc" },
-      });
-    }
-  }
 
   return NextResponse.json({
     driver: {

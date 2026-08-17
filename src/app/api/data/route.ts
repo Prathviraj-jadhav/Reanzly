@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getClientIP, rateLimit, sanitize } from "@/lib/security";
+import { getSessionUser } from "@/lib/auth";
+import { hasModuleAccess, requireModuleAccess, unauthorized } from "@/lib/permissions";
 
 // ===== Generic Data API with Rate Limiting + Parameterized Queries =====
 
@@ -18,17 +20,30 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    const sessionUser = await getSessionUser();
+    if (!sessionUser) return unauthorized();
+
     const { searchParams } = new URL(req.url);
     const entity = sanitize(searchParams.get("entity") || "", 50);
-    const companyId = sanitize(searchParams.get("companyId") || "", 50);
     const limit = Math.min(parseInt(searchParams.get("limit") || "50", 10), 200);
 
-    const allowed = ["vehicles", "drivers", "customers", "vendors", "trips", "invoices"];
-    if (!allowed.includes(entity)) {
+    const allowed: Record<string, string> = {
+      vehicles: "vehicles",
+      drivers: "hr",
+      customers: "crm",
+      vendors: "crm",
+      trips: "trips",
+      invoices: "invoice",
+    };
+    const moduleId = allowed[entity];
+    if (!moduleId) {
       return NextResponse.json({ error: "Invalid entity" }, { status: 400 });
     }
+    if (!hasModuleAccess(sessionUser.role, moduleId)) {
+      return requireModuleAccess(sessionUser, moduleId)!;
+    }
 
-    const where = companyId ? { companyId } : {};
+    const where = { companyId: sessionUser.companyId };
     let data: unknown;
 
     switch (entity) {

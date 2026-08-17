@@ -19,71 +19,43 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   Users, Plus, Eye, Pencil, Ban, BookText, Filter, ChevronDown,
-  TrendingUp, Banknote, Percent, MapPin, UserCheck, Truck, Mail, Phone, Building2,
-  Clock,
+  Banknote, Percent, MapPin, UserCheck, Mail, Phone, Building2,
+  Clock, Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
-  SEED_SUB_BROKERS,
   REANZLY_LANE_RATES,
   SETTLEMENT_CYCLE_TYPES,
   GST_TREATMENTS,
   formatINR,
   formatINRCompact,
-  formatNumber,
   formatDate,
   relativeTime,
   KpiTile,
   FieldLabel,
-  nextBrokerCode,
   subBrokerStatusBadge,
   type SettlementCycleType,
   type GstTreatment,
   type SubBrokerStatus,
 } from "./_helpers";
+import { useBrokerSubBrokersData, type SubBrokerDTO } from "./use-broker-sub-brokers-data";
 
 /* ============================================================
    BrokerSubBrokers - the brokerage network page.
    Onboard, manage, and track sub-broker performance.
+
+   The real SubBroker model has no city/bookings30d/commissionEarnedINR/
+   PAN fields (those were fabricated in the old mock) - dropped rather
+   than kept fake. settlementsDueINR is a real field the mock never
+   surfaced; used here in its place.
    ============================================================ */
 
-interface SubBrokerRow extends
-  Omit<import("./_helpers").SubBroker,
-    "email" | "phone" | "settlementsDueINR" | "gstTreatment"> {
-  city: string;
-  bookings30d: number;
-  commissionEarnedINR: number;
-  email: string;
-  phone: string;
-  gstin: string;
-  pan: string;
-  gstTreatment: GstTreatment;
-  settlementsDueINR: number;
-  status: SubBrokerStatus;
-}
-
-const CITIES = ["Mumbai", "Pune", "Delhi", "Bengaluru", "Chennai", "Kolkata", "Ahmedabad", "Jaipur"];
-
-function genPan(seed: number): string {
-  // Mock PAN-like string (5 letters + 4 digits + 1 letter)
-  const letters = "ABCDE";
-  return `${letters[seed % 5]}${letters[(seed * 2) % 5]}${letters[(seed * 3) % 5]}${letters[(seed * 5) % 5]}${letters[(seed * 7) % 5]}${String(1000 + seed * 17).slice(0, 4)}${letters[seed % 5]}`;
-}
-
-const INITIAL_SUB_BROKERS: SubBrokerRow[] = SEED_SUB_BROKERS.map((sb, i) => ({
-  ...sb,
-  city: CITIES[i % CITIES.length],
-  bookings30d: [12, 18, 9, 22, 0][i] ?? Math.floor(Math.random() * 25),
-  commissionEarnedINR: [38400, 57600, 28800, 76800, 0][i] ?? Math.floor(Math.random() * 80000),
-  pan: genPan(i + 1),
-}));
-
 export function BrokerSubBrokers() {
-  const [rows, setRows] = useState<SubBrokerRow[]>(INITIAL_SUB_BROKERS);
+  const { subBrokers: rows, addSubBroker, updateSubBroker, removeSubBroker } = useBrokerSubBrokersData();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<SubBrokerStatus | "">("");
-  const [viewing, setViewing] = useState<SubBrokerRow | null>(null);
-  const [editing, setEditing] = useState<SubBrokerRow | null>(null);
+  const [viewing, setViewing] = useState<SubBrokerDTO | null>(null);
+  const [editing, setEditing] = useState<SubBrokerDTO | null>(null);
   const [adding, setAdding] = useState(false);
 
   const [addForm, setAddForm] = useState({
@@ -91,9 +63,7 @@ export function BrokerSubBrokers() {
     contactName: "",
     email: "",
     phone: "",
-    city: CITIES[0],
     gstin: "",
-    pan: "",
     markupPct: 8,
     settlementCycle: SETTLEMENT_CYCLE_TYPES[1] as SettlementCycleType,
     gstTreatment: GST_TREATMENTS[0] as GstTreatment,
@@ -110,8 +80,7 @@ export function BrokerSubBrokers() {
         (s) =>
           s.name.toLowerCase().includes(q) ||
           s.brokerCode.toLowerCase().includes(q) ||
-          s.contactName.toLowerCase().includes(q) ||
-          s.city.toLowerCase().includes(q),
+          s.contactName.toLowerCase().includes(q),
       );
     }
     return r;
@@ -120,49 +89,28 @@ export function BrokerSubBrokers() {
   // ===== KPIs =====
   const active = rows.filter((r) => r.status === "Active").length;
   const pending = rows.filter((r) => r.status === "Pending").length;
-  const totalBookings = rows.reduce((s, r) => s + r.bookings30d, 0);
-  const totalCommission = rows.reduce((s, r) => s + r.commissionEarnedINR, 0);
+  const totalDue = rows.reduce((s, r) => s + r.settlementsDueINR, 0);
   const avgMarkup = rows.length === 0 ? 0 : Math.round((rows.reduce((s, r) => s + r.markupPct, 0) / rows.length) * 10) / 10;
   const totalLanes = new Set(rows.flatMap((r) => r.coverageLanes)).size;
 
   // ===== Handlers =====
-  const submitAdd = () => {
-    if (!addForm.name.trim() || !addForm.contactName.trim()) {
-      toast.error("Missing fields", { description: "Name and contact name are required." });
+  const submitAdd = async () => {
+    if (!addForm.name.trim() || !addForm.contactName.trim() || !addForm.email.trim() || !addForm.phone.trim()) {
+      toast.error("Missing fields", { description: "Name, contact name, email, and phone are required." });
       return;
     }
-    const newRow: SubBrokerRow = {
-      id: `sb-${String(rows.length + 1).padStart(3, "0")}`,
-      name: addForm.name,
-      brokerCode: nextBrokerCode(rows.length),
-      contactName: addForm.contactName,
-      email: addForm.email || `${addForm.contactName.toLowerCase().replace(/\s+/g, ".")}@rezsb.in`,
-      phone: addForm.phone || "+91 90000 00000",
-      markupPct: Number(addForm.markupPct) || 0,
-      coverageLanes: addForm.coverageLanes,
-      settlementCycle: addForm.settlementCycle,
-      gstTreatment: addForm.gstTreatment,
-      gstin: addForm.gstin,
-      pan: addForm.pan,
-      city: addForm.city,
-      bookings30d: 0,
-      commissionEarnedINR: 0,
-      settlementsDueINR: 0,
-      status: "Pending",
-      onboardedAt: new Date().toISOString(),
-    };
-    setRows((p) => [newRow, ...p]);
+    const created = await addSubBroker(addForm);
+    if (!created) return;
     setAdding(false);
     setAddForm({
-      name: "", contactName: "", email: "", phone: "",
-      city: CITIES[0], gstin: "", pan: "",
+      name: "", contactName: "", email: "", phone: "", gstin: "",
       markupPct: 8,
       settlementCycle: SETTLEMENT_CYCLE_TYPES[1] as SettlementCycleType,
       gstTreatment: GST_TREATMENTS[0] as GstTreatment,
       coverageLanes: [],
     });
     toast.success("Sub-broker onboarded", {
-      description: `${newRow.name} (${newRow.brokerCode}) added with ${newRow.coverageLanes.length} lanes.`,
+      description: `${created.name} (${created.brokerCode}) added with ${created.coverageLanes.length} lanes.`,
     });
   };
 
@@ -175,22 +123,36 @@ export function BrokerSubBrokers() {
     }));
   };
 
-  const suspend = (s: SubBrokerRow) => {
-    setRows((p) => p.map((x) => x.id === s.id ? { ...x, status: "Suspended" as SubBrokerStatus } : x));
-    toast.success("Sub-broker suspended", { description: `${s.name} (${s.brokerCode}) can no longer quote on your behalf.` });
+  const suspend = async (s: SubBrokerDTO) => {
+    const ok = await updateSubBroker(s.id, { status: "Suspended" });
+    if (ok) toast.success("Sub-broker suspended", { description: `${s.name} (${s.brokerCode}) can no longer quote on your behalf.` });
   };
-  const reactivate = (s: SubBrokerRow) => {
-    setRows((p) => p.map((x) => x.id === s.id ? { ...x, status: "Active" as SubBrokerStatus } : x));
-    toast.success("Sub-broker reactivated", { description: `${s.name} (${s.brokerCode}) is active again.` });
+  const reactivate = async (s: SubBrokerDTO) => {
+    const ok = await updateSubBroker(s.id, { status: "Active" });
+    if (ok) toast.success("Sub-broker reactivated", { description: `${s.name} (${s.brokerCode}) is active again.` });
   };
-  const viewLedger = (s: SubBrokerRow) => {
+  const remove = async (s: SubBrokerDTO) => {
+    const ok = await removeSubBroker(s.id);
+    if (ok) toast.success("Sub-broker removed", { description: `${s.name} (${s.brokerCode}) removed from your network.` });
+  };
+  const viewLedger = (s: SubBrokerDTO) => {
     toast("Opening ledger (demo)", { description: `Would navigate to ledger filtered by ${s.name}.` });
   };
 
-  const saveEdit = (s: SubBrokerRow) => {
-    setRows((p) => p.map((x) => x.id === s.id ? s : x));
-    setEditing(null);
-    toast.success("Sub-broker updated", { description: `${s.name} saved.` });
+  const saveEdit = async (s: SubBrokerDTO) => {
+    const ok = await updateSubBroker(s.id, {
+      contactName: s.contactName,
+      email: s.email,
+      phone: s.phone,
+      markupPct: s.markupPct,
+      settlementCycle: s.settlementCycle,
+      gstTreatment: s.gstTreatment,
+      gstin: s.gstin,
+    });
+    if (ok) {
+      setEditing(null);
+      toast.success("Sub-broker updated", { description: `${s.name} saved.` });
+    }
   };
 
   return (
@@ -211,11 +173,10 @@ export function BrokerSubBrokers() {
       />
 
       {/* KPI strip */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         <KpiTile icon={<UserCheck className="h-3.5 w-3.5" />} label="Active sub-brokers" value={String(active)} hint={`${rows.length} total`} />
         <KpiTile icon={<Clock className="h-3.5 w-3.5" />} label="Pending onboarding" value={String(pending)} hint="awaiting verification" />
-        <KpiTile icon={<Truck className="h-3.5 w-3.5" />} label="Bookings (30d)" value={formatNumber(totalBookings)} hint="across network" />
-        <KpiTile icon={<Banknote className="h-3.5 w-3.5" />} label="Commission earned" value={formatINRCompact(totalCommission)} hint="last 30d" />
+        <KpiTile icon={<Banknote className="h-3.5 w-3.5" />} label="Settlements due" value={formatINRCompact(totalDue)} hint="across network" />
         <KpiTile icon={<Percent className="h-3.5 w-3.5" />} label="Avg markup" value={`${avgMarkup}%`} hint="across network" />
         <KpiTile icon={<MapPin className="h-3.5 w-3.5" />} label="Network coverage" value={`${totalLanes} lanes`} hint="unique lanes covered" />
       </div>
@@ -223,7 +184,7 @@ export function BrokerSubBrokers() {
       {/* Sub-brokers table */}
       <SectionCard
         title="Sub-brokers"
-        description="Every broker onboarded under you - search by name, code, contact, or city."
+        description="Every broker onboarded under you - search by name, code, or contact."
         icon={<Users className="h-4 w-4" />}
         action={
           <Btn variant="primary" size="sm" icon={<Plus className="h-3.5 w-3.5" />} onClick={() => setAdding(true)}>
@@ -236,7 +197,7 @@ export function BrokerSubBrokers() {
           <SearchInput
             value={search}
             onChange={setSearch}
-            placeholder="Search name, code, contact, city..."
+            placeholder="Search name, code, contact..."
             className="max-w-[280px]"
           />
           <DropdownMenu>
@@ -269,10 +230,8 @@ export function BrokerSubBrokers() {
                 <th className="px-4 py-2 text-left font-medium">Code</th>
                 <th className="px-4 py-2 text-left font-medium">Name</th>
                 <th className="hidden px-4 py-2 text-left font-medium md:table-cell">Contact</th>
-                <th className="hidden px-4 py-2 text-left font-medium sm:table-cell">City</th>
                 <th className="hidden px-4 py-2 text-left font-medium lg:table-cell">Lanes</th>
-                <th className="px-4 py-2 text-right font-medium">Bookings</th>
-                <th className="hidden px-4 py-2 text-right font-medium sm:table-cell">Commission</th>
+                <th className="hidden px-4 py-2 text-right font-medium sm:table-cell">Settlements due</th>
                 <th className="hidden px-4 py-2 text-right font-medium md:table-cell">Markup</th>
                 <th className="px-4 py-2 text-left font-medium">Status</th>
                 <th className="hidden px-4 py-2 text-right font-medium lg:table-cell">Joined</th>
@@ -304,12 +263,10 @@ export function BrokerSubBrokers() {
                       <div className="text-[11.5px] tabular">{s.email}</div>
                       <div className="text-[11px] tabular text-muted-foreground">{s.phone}</div>
                     </td>
-                    <td className="hidden px-4 py-2.5 text-left text-muted-foreground sm:table-cell">{s.city}</td>
                     <td className="hidden px-4 py-2.5 text-left text-muted-foreground lg:table-cell">
                       <span className="text-[11.5px]">{s.coverageLanes.length} lanes</span>
                     </td>
-                    <td className="px-4 py-2.5 text-right tabular font-medium text-foreground">{s.bookings30d}</td>
-                    <td className="hidden px-4 py-2.5 text-right tabular text-muted-foreground sm:table-cell">{formatINRCompact(s.commissionEarnedINR)}</td>
+                    <td className="hidden px-4 py-2.5 text-right tabular text-muted-foreground sm:table-cell">{formatINRCompact(s.settlementsDueINR)}</td>
                     <td className="hidden px-4 py-2.5 text-right tabular text-muted-foreground md:table-cell">{s.markupPct}%</td>
                     <td className="px-4 py-2.5"><StatusBadge variant={b.variant} pulse={b.pulse}>{s.status}</StatusBadge></td>
                     <td className="hidden px-4 py-2.5 text-right tabular text-muted-foreground lg:table-cell">{relativeTime(s.onboardedAt)}</td>
@@ -354,6 +311,10 @@ export function BrokerSubBrokers() {
                             <DropdownMenuItem onClick={() => viewLedger(s)} className="text-[13px]">
                               <BookText className="h-3.5 w-3.5" /> View ledger
                             </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => remove(s)} className="text-[13px] text-destructive">
+                              <Trash2 className="h-3.5 w-3.5" /> Remove
+                            </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </div>
@@ -363,7 +324,7 @@ export function BrokerSubBrokers() {
               })}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={11} className="px-4 py-8 text-center text-[12px] text-muted-foreground">
+                  <td colSpan={9} className="px-4 py-8 text-center text-[12px] text-muted-foreground">
                     No sub-brokers match your filters.
                   </td>
                 </tr>
@@ -392,12 +353,12 @@ export function BrokerSubBrokers() {
                   <StatusBadge variant={subBrokerStatusBadge(viewing.status).variant} pulse={subBrokerStatusBadge(viewing.status).pulse}>
                     {viewing.status}
                   </StatusBadge>
-                  <span className="text-[11px] text-muted-foreground">{viewing.city} - {viewing.gstTreatment}</span>
+                  <span className="text-[11px] text-muted-foreground">{viewing.gstTreatment}</span>
                 </div>
 
                 <div className="grid grid-cols-3 gap-2">
-                  <StatCell label="Bookings (30d)" value={String(viewing.bookings30d)} />
-                  <StatCell label="Commission" value={formatINRCompact(viewing.commissionEarnedINR)} />
+                  <StatCell label="Lanes" value={String(viewing.coverageLanes.length)} />
+                  <StatCell label="Due" value={formatINRCompact(viewing.settlementsDueINR)} />
                   <StatCell label="Markup" value={`${viewing.markupPct}%`} />
                 </div>
 
@@ -420,7 +381,6 @@ export function BrokerSubBrokers() {
                     <ContactRow icon={Users} label="Contact" value={viewing.contactName} />
                     <ContactRow icon={Mail} label="Email" value={viewing.email} mono />
                     <ContactRow icon={Phone} label="Phone" value={viewing.phone} mono />
-                    <ContactRow icon={Building2} label="City" value={viewing.city} />
                   </div>
                 </div>
 
@@ -428,19 +388,8 @@ export function BrokerSubBrokers() {
                   <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Compliance</div>
                   <div className="mt-2 space-y-1.5 text-[12px]">
                     <ContactRow icon={Building2} label="GSTIN" value={viewing.gstin || "-"} mono />
-                    <ContactRow icon={Building2} label="PAN" value={viewing.pan || "-"} mono />
                     <ContactRow icon={Banknote} label="Settlement" value={viewing.settlementCycle} />
-                    <ContactRow icon={TrendingUp} label="Due" value={formatINR(viewing.settlementsDueINR)} mono />
-                  </div>
-                </div>
-
-                <div className="rounded-[6px] border border-border bg-muted/30 p-3">
-                  <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Commission breakdown (last 30d)</div>
-                  <div className="mt-2 space-y-1 text-[12px]">
-                    <BreakdownRow label="Gross bookings" value={String(viewing.bookings30d)} />
-                    <BreakdownRow label="Avg margin / booking" value={viewing.bookings30d === 0 ? "-" : formatINR(Math.round(viewing.commissionEarnedINR / Math.max(1, viewing.bookings30d)))} />
-                    <div className="my-1 border-t border-border" />
-                    <BreakdownRow label="Total earned" value={formatINR(viewing.commissionEarnedINR)} strong />
+                    <ContactRow icon={Banknote} label="Due" value={formatINR(viewing.settlementsDueINR)} mono />
                   </div>
                 </div>
               </div>
@@ -492,14 +441,6 @@ export function BrokerSubBrokers() {
                     className="h-9 rounded-[5px] text-[13px] tabular"
                   />
                 </Field>
-                <Field>
-                  <FieldLabel>City</FieldLabel>
-                  <Input
-                    value={editing.city}
-                    onChange={(e) => setEditing({ ...editing, city: e.target.value })}
-                    className="h-9 rounded-[5px] text-[13px]"
-                  />
-                </Field>
                 <div className="grid grid-cols-2 gap-3">
                   <Field>
                     <FieldLabel hint="0-50">Markup %</FieldLabel>
@@ -542,7 +483,7 @@ export function BrokerSubBrokers() {
                 <Field>
                   <FieldLabel>GSTIN</FieldLabel>
                   <Input
-                    value={editing.gstin}
+                    value={editing.gstin ?? ""}
                     onChange={(e) => setEditing({ ...editing, gstin: e.target.value.toUpperCase() })}
                     maxLength={15}
                     className="h-9 rounded-[5px] text-[13px] tabular"
@@ -568,25 +509,15 @@ export function BrokerSubBrokers() {
             </SheetDescription>
           </SheetHeader>
           <div className="flex flex-col gap-3 px-4 pb-4">
-            <div className="grid grid-cols-2 gap-3">
-              <Field>
-                <FieldLabel required>Brokerage name</FieldLabel>
-                <Input
-                  value={addForm.name}
-                  onChange={(e) => setAddForm({ ...addForm, name: e.target.value })}
-                  placeholder="Patel Freight Links"
-                  className="h-9 rounded-[5px] text-[13px]"
-                />
-              </Field>
-              <Field>
-                <FieldLabel hint="auto">Broker code</FieldLabel>
-                <Input
-                  readOnly
-                  value={nextBrokerCode(rows.length)}
-                  className="h-9 rounded-[5px] text-[13px] tabular text-muted-foreground"
-                />
-              </Field>
-            </div>
+            <Field>
+              <FieldLabel required>Brokerage name</FieldLabel>
+              <Input
+                value={addForm.name}
+                onChange={(e) => setAddForm({ ...addForm, name: e.target.value })}
+                placeholder="Patel Freight Links"
+                className="h-9 rounded-[5px] text-[13px]"
+              />
+            </Field>
             <Field>
               <FieldLabel required>Contact name</FieldLabel>
               <Input
@@ -598,7 +529,7 @@ export function BrokerSubBrokers() {
             </Field>
             <div className="grid grid-cols-2 gap-3">
               <Field>
-                <FieldLabel>Email</FieldLabel>
+                <FieldLabel required>Email</FieldLabel>
                 <Input
                   value={addForm.email}
                   onChange={(e) => setAddForm({ ...addForm, email: e.target.value })}
@@ -607,7 +538,7 @@ export function BrokerSubBrokers() {
                 />
               </Field>
               <Field>
-                <FieldLabel>Phone</FieldLabel>
+                <FieldLabel required>Phone</FieldLabel>
                 <Input
                   value={addForm.phone}
                   onChange={(e) => setAddForm({ ...addForm, phone: e.target.value })}
@@ -617,38 +548,15 @@ export function BrokerSubBrokers() {
               </Field>
             </div>
             <Field>
-              <FieldLabel>City</FieldLabel>
-              <Select value={addForm.city} onValueChange={(v) => setAddForm({ ...addForm, city: v })}>
-                <SelectTrigger className="h-9 w-full rounded-[5px] text-[13px]"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {CITIES.map((c) => (
-                    <SelectItem key={c} value={c}>{c}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <FieldLabel>GSTIN</FieldLabel>
+              <Input
+                value={addForm.gstin}
+                onChange={(e) => setAddForm({ ...addForm, gstin: e.target.value.toUpperCase() })}
+                maxLength={15}
+                placeholder="27ABCDE1234F1Z5"
+                className="h-9 rounded-[5px] text-[13px] tabular"
+              />
             </Field>
-            <div className="grid grid-cols-2 gap-3">
-              <Field>
-                <FieldLabel>GSTIN</FieldLabel>
-                <Input
-                  value={addForm.gstin}
-                  onChange={(e) => setAddForm({ ...addForm, gstin: e.target.value.toUpperCase() })}
-                  maxLength={15}
-                  placeholder="27ABCDE1234F1Z5"
-                  className="h-9 rounded-[5px] text-[13px] tabular"
-                />
-              </Field>
-              <Field>
-                <FieldLabel>PAN</FieldLabel>
-                <Input
-                  value={addForm.pan}
-                  onChange={(e) => setAddForm({ ...addForm, pan: e.target.value.toUpperCase() })}
-                  maxLength={10}
-                  placeholder="ABCDE1234F"
-                  className="h-9 rounded-[5px] text-[13px] tabular"
-                />
-              </Field>
-            </div>
             <div className="grid grid-cols-2 gap-3">
               <Field>
                 <FieldLabel hint="0-50">Default markup %</FieldLabel>
@@ -734,15 +642,6 @@ function ContactRow({
         <Icon className="h-3 w-3" /> {label}
       </span>
       <span className={"text-right font-medium text-foreground " + (mono ? "tabular" : "")}>{value}</span>
-    </div>
-  );
-}
-
-function BreakdownRow({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
-  return (
-    <div className="flex items-center justify-between">
-      <span className="text-muted-foreground">{label}</span>
-      <span className={"tabular " + (strong ? "font-medium text-foreground" : "text-muted-foreground")}>{value}</span>
     </div>
   );
 }

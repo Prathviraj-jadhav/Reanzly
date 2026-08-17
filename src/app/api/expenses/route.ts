@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
       description: body.description || null,
       amount: Math.round((Number.isFinite(body.amount) ? body.amount : 0) * 100),
       payMode: body.paymentMode || "Cash",
-      submittedBy: body.submittedBy || null,
+      submittedBy: sessionUser.name,
       receiptStatus: body.receiptStatus || "Missing",
       incurredAt: body.date ? new Date(body.date) : new Date(),
       status: "Pending",

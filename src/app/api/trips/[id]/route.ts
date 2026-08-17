@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
-import { requireModuleAccess } from "@/lib/permissions";
+import { requireModuleAccess, forbidden } from "@/lib/permissions";
+import { isDriverRole } from "@/lib/driver-session";
 
 const EDITABLE_FIELDS = [
   "consignor", "consignee", "origin", "destination", "status", "orderMode",
@@ -22,6 +23,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
   const denied = requireModuleAccess(sessionUser, "trips");
   if (denied) return denied;
+  if (isDriverRole(sessionUser.role)) {
+    return forbidden("Drivers cannot edit trips from this API.");
+  }
   const { id } = await params;
 
   const existing = await db.trip.findUnique({ where: { id } });
@@ -82,6 +86,9 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   }
   const denied = requireModuleAccess(sessionUser, "trips");
   if (denied) return denied;
+  if (isDriverRole(sessionUser.role)) {
+    return forbidden("Drivers cannot delete trips from this API.");
+  }
   const { id } = await params;
 
   const existing = await db.trip.findUnique({ where: { id } });

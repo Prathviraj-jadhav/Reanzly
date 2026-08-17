@@ -33,7 +33,7 @@ import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { SectionCard } from "@/components/shared/section-card";
 import { DataTable, type Column } from "@/components/shared/data-table";
-import { useLedgerStore } from "@/lib/store/ledger-store";
+import { useLedgerData } from "./use-ledger-data";
 import {
   GROUPS,
   SUBGROUPS,
@@ -63,11 +63,7 @@ import {
    ============================================================ */
 
 export function ChartOfAccountsView() {
-  const accounts = useLedgerStore((s) => s.accounts);
-  const entries = useLedgerStore((s) => s.entries);
-  const addAccount = useLedgerStore((s) => s.addAccount);
-  const updateAccount = useLedgerStore((s) => s.updateAccount);
-  const deleteAccount = useLedgerStore((s) => s.deleteAccount);
+  const { accounts, entries, addAccount, updateAccount, deleteAccount } = useLedgerData();
 
   const [addOpen, setAddOpen] = useState(false);
   const [editAccount, setEditAccount] = useState<Account | null>(null);
@@ -273,6 +269,7 @@ export function ChartOfAccountsView() {
 
       <AccountDrawer
         open={addOpen}
+        accounts={accounts}
         onClose={() => setAddOpen(false)}
         onSave={(data) => {
           addAccount(data);
@@ -287,6 +284,7 @@ export function ChartOfAccountsView() {
         key={editAccount?.id ?? "none"}
         open={!!editAccount}
         account={editAccount ?? undefined}
+        accounts={accounts}
         onClose={() => setEditAccount(null)}
         onSave={(data) => {
           if (editAccount) {
@@ -332,10 +330,10 @@ interface AccountDrawerProps {
   onClose: () => void;
   account?: Account;
   onSave: (data: Omit<Account, "id">) => void;
+  accounts: Account[];
 }
 
-function AccountDrawer({ open, onClose, account, onSave }: AccountDrawerProps) {
-  const accounts = useLedgerStore((s) => s.accounts);
+function AccountDrawer({ open, onClose, account, onSave, accounts }: AccountDrawerProps) {
 
   const [name, setName] = useState(account?.name ?? "");
   const [code, setCode] = useState(account?.code ?? "");

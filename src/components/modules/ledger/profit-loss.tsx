@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Btn } from "@/components/shared/btn";
 import { SectionCard } from "@/components/shared/section-card";
 import { EmptyState } from "@/components/shared/empty-state";
-import { useLedgerStore } from "@/lib/store/ledger-store";
+import { useLedgerData } from "./use-ledger-data";
 import {
   formatINR,
   formatINRCompact,
@@ -29,7 +29,7 @@ import {
    ============================================================ */
 
 export function ProfitLossView() {
-  const getProfitLoss = useLedgerStore((s) => s.getProfitLoss);
+  const { getProfitLoss } = useLedgerData();
 
   const [from, setFrom] = useState<string>(monthStartISO());
   const [to, setTo] = useState<string>(todayISO());

@@ -31,7 +31,18 @@ const SEED_FILES = [
   "seed-payroll-bank-advice.ts",
   "seed-payroll-reimbursements.ts",
   "seed-payroll-bonuses.ts",
-  "seed-payroll-loans.ts"
+  "seed-payroll-loans.ts",
+  // Real-data conversion for Ledger / Treasury / Planning / Superadmin / HR
+  // recruitment extras. Planning needs Vehicle/Driver rows from
+  // seed-business-data.ts; HR docs/interviews/offers need Employee/
+  // HrPosition/Candidate rows from seed-hr-full.ts.
+  "seed-ledger.ts",
+  "seed-gst.ts",
+  "seed-treasury.ts",
+  "seed-planning.ts",
+  "seed-hr-docs-recruitment.ts",
+  "seed-backups.ts",
+  "seed-superadmin-audit.ts",
 ];
 
 async function main() {

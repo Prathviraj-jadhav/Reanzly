@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { answerLocally } from "@/lib/slm/local-engine";
+import { requireSuperadmin } from "@/lib/permissions";
 
 // ===== Reanzly SLM Chat endpoint =====
 // Powers the SuperAdmin SLM Playground "Run agent" button with a REAL
@@ -59,6 +60,9 @@ import { superpositionReason, retrieveRelevantMemories } from "@/lib/slm/self-le
 
 export async function POST(req: NextRequest) {
   try {
+    const auth = await requireSuperadmin();
+    if (auth instanceof NextResponse) return auth;
+
     const ip = getClientIP(req);
     const rl = rateLimit(ip);
     if (!rl.allowed) {
@@ -72,7 +76,7 @@ export async function POST(req: NextRequest) {
     const agentName = sanitize(body.agentName || "Reanzly Agent", 80);
     const agentCategory = sanitize(body.agentCategory || "custom", 40);
     const input = sanitize(body.input || "", 3000);
-    const companyId = body.companyId || "default-tenant";
+    const companyId = auth.companyId;
 
     if (!input) {
       return NextResponse.json({ error: "Input is required" }, { status: 400 });
@@ -119,7 +123,7 @@ Answer:`;
     const feedback = await db.slmFeedback.create({
       data: {
         companyId,
-        userId: "playground",
+        userId: auth.id,
         agentId: agentCategory,
         query: input,
         response: reasoning,

@@ -67,8 +67,8 @@ interface AddVoucherDrawerProps {
   onClose: () => void;
   initialVoucherType?: string;
   record?: Payment;
-  onAdd?: (payment: Payment) => void;
-  onUpdate?: (id: string, data: Partial<Payment>) => void;
+  onAdd?: (payment: Payment) => void | Promise<unknown>;
+  onUpdate?: (id: string, data: Partial<Payment>) => void | Promise<unknown>;
 }
 
 function recordToForm(record: Payment): VoucherForm {
@@ -186,10 +186,10 @@ export function AddVoucherDrawer({
     if (step > 1) setStep(step - 1);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const payload = formToData(form, record);
     if (record && onUpdate) {
-      onUpdate(record.id, payload);
+      await onUpdate(record.id, payload);
       toast.success("Voucher updated", {
         description: `${record.referenceNumber} · ${form.voucherType} · ${formatINR(Number(form.amount) || 0)}`,
       });
@@ -206,7 +206,8 @@ export function AddVoucherDrawer({
         linkedInvoice: payload.linkedInvoice,
         linkedTrip: payload.linkedTrip,
       };
-      onAdd(newPayment);
+      const createdId = await onAdd(newPayment);
+      if (createdId === "") return;
       toast.success("Voucher created", {
         description: `${newPayment.referenceNumber} · ${form.voucherType} · ${formatINR(Number(form.amount) || 0)}`,
       });

@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
         title,
         description: body.description || null,
         status: body.status || "Open",
-        reportedBy: body.reporter || null,
+        reportedBy: sessionUser.name,
         assignee: body.assignee || null,
         source: body.source || "Manual",
       },

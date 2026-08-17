@@ -391,23 +391,23 @@ export function Issuances({
             { label: "Resend Email", onClick: (r) => toast.success("Email resent", { description: `To ${r.employeeName}` }) },
             {
               label: "Mark Accepted",
-              onClick: (r) => {
-                updateIssuanceStatus(r.id, "Accepted");
-                toast.success("Marked accepted", { description: r.documentId });
+              onClick: async (r) => {
+                const ok = await updateIssuanceStatus(r.id, "Accepted");
+                if (ok) toast.success("Marked accepted", { description: r.documentId });
               },
             },
             {
               label: "Mark E-Signed",
-              onClick: (r) => {
-                updateIssuanceStatus(r.id, "E-Signed");
-                toast.success("Marked e-signed", { description: r.documentId });
+              onClick: async (r) => {
+                const ok = await updateIssuanceStatus(r.id, "E-Signed");
+                if (ok) toast.success("Marked e-signed", { description: r.documentId });
               },
             },
             {
               label: "Revoke",
-              onClick: (r) => {
-                revokeIssuance(r.id);
-                toast.success("Issuance revoked", { description: r.documentId });
+              onClick: async (r) => {
+                const ok = await revokeIssuance(r.id);
+                if (ok) toast.success("Issuance revoked", { description: r.documentId });
               },
               destructive: true,
             },
@@ -424,16 +424,20 @@ export function Issuances({
         onClose={onCloseDrawer}
         presetTemplate={presetTemplate}
         presetEmployee={presetEmployee}
-        onCreate={(issuance, action) => {
-          addIssuance(issuance);
+        onCreate={async (issuance, action) => {
+          const created = await addIssuance(issuance);
+          if (!created) {
+            toast.error("Couldn't create document", { description: "Try again." });
+            return;
+          }
           if (action === "draft") {
-            toast.success("Saved as draft", { description: issuance.documentId });
+            toast.success("Saved as draft", { description: created.documentId });
           } else if (action === "send") {
-            toast.success("Document sent via email", { description: `${issuance.documentId} → ${issuance.employeeName}` });
+            toast.success("Document sent via email", { description: `${created.documentId} → ${created.employeeName}` });
           } else if (action === "download") {
             toast.success("PDF ready", { description: "Opening print preview - choose 'Save as PDF'." });
           } else if (action === "esign") {
-            toast.success("Sent for e-sign", { description: `${issuance.documentId} → ${issuance.employeeName}` });
+            toast.success("Sent for e-sign", { description: `${created.documentId} → ${created.employeeName}` });
           }
           onCloseDrawer();
         }}
@@ -442,18 +446,22 @@ export function Issuances({
       <ViewIssuanceDialog
         issuance={viewIssuance}
         onClose={() => setViewIssuance(null)}
-        onStatusChange={(status) => {
+        onStatusChange={async (status) => {
           if (viewIssuance) {
-            updateIssuanceStatus(viewIssuance.id, status);
-            setViewIssuance({ ...viewIssuance, status });
-            toast.success(`Marked ${status}`, { description: viewIssuance.documentId });
+            const ok = await updateIssuanceStatus(viewIssuance.id, status);
+            if (ok) {
+              setViewIssuance({ ...viewIssuance, status });
+              toast.success(`Marked ${status}`, { description: viewIssuance.documentId });
+            }
           }
         }}
-        onRevoke={() => {
+        onRevoke={async () => {
           if (viewIssuance) {
-            revokeIssuance(viewIssuance.id);
-            setViewIssuance({ ...viewIssuance, status: "Revoked", eSignPending: false });
-            toast.success("Issuance revoked", { description: viewIssuance.documentId });
+            const ok = await revokeIssuance(viewIssuance.id);
+            if (ok) {
+              setViewIssuance({ ...viewIssuance, status: "Revoked", eSignPending: false });
+              toast.success("Issuance revoked", { description: viewIssuance.documentId });
+            }
           }
         }}
       />

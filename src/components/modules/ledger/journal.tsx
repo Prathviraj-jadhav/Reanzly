@@ -45,7 +45,7 @@ import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { SectionCard } from "@/components/shared/section-card";
 import { DataTable, type Column } from "@/components/shared/data-table";
-import { useLedgerStore } from "@/lib/store/ledger-store";
+import { useLedgerData } from "./use-ledger-data";
 import type { Account, JournalEntry, EntryStatus } from "./_data";
 import {
   FieldLabel,
@@ -67,11 +67,7 @@ import {
    ============================================================ */
 
 export function JournalView() {
-  const entries = useLedgerStore((s) => s.entries);
-  const accounts = useLedgerStore((s) => s.accounts);
-  const addEntry = useLedgerStore((s) => s.addEntry);
-  const updateEntry = useLedgerStore((s) => s.updateEntry);
-  const deleteEntry = useLedgerStore((s) => s.deleteEntry);
+  const { entries, accounts, addEntry, updateEntry, deleteEntry } = useLedgerData();
 
   const [newOpen, setNewOpen] = useState(false);
   const [editEntry, setEditEntry] = useState<JournalEntry | null>(null);
@@ -257,10 +253,11 @@ export function JournalView() {
 
       <EntryDrawer
         open={newOpen}
+        accounts={accounts}
         onClose={() => setNewOpen(false)}
-        onSave={(data) => {
+        onSave={async (data) => {
           try {
-            addEntry(data);
+            await addEntry(data);
             toast.success("Entry saved", {
               description: `${data.voucherNo ?? "New voucher"} created with ${data.lines.length} line item${data.lines.length === 1 ? "" : "s"}.`,
             });
@@ -277,6 +274,7 @@ export function JournalView() {
         key={editEntry?.id ?? "none"}
         open={!!editEntry}
         entry={editEntry ?? undefined}
+        accounts={accounts}
         onClose={() => setEditEntry(null)}
         onSave={(data) => {
           if (editEntry) {
@@ -388,10 +386,13 @@ interface EntryDrawerProps {
   onClose: () => void;
   entry?: JournalEntry;
   onSave: (data: Omit<JournalEntry, "id" | "createdAt">) => void;
+  accounts: Account[];
 }
 
-function EntryDrawer({ open, onClose, entry, onSave }: EntryDrawerProps) {
-  const accounts = useLedgerStore((s) => s.accounts);
+function EntryDrawer({ open, onClose, entry, onSave, accounts }: EntryDrawerProps) {
+  // Quick-template presets reference accounts by their stable code, not the
+  // real DB's opaque cuid, so they keep working regardless of id values.
+  const byCode = (code: string) => accounts.find((a) => a.code === code)?.id ?? "";
 
   const [date, setDate] = useState<string>(
     entry?.date ? entry.date.slice(0, 10) : todayISO(),
@@ -695,8 +696,8 @@ function EntryDrawer({ open, onClose, entry, onSave }: EntryDrawerProps) {
                     label="Receipt (Customer)"
                     onClick={() => {
                       setLines([
-                        { accountId: "acc-bank-hdfc", debit: "50000", credit: "" },
-                        { accountId: "acc-ar", debit: "", credit: "50000" },
+                        { accountId: byCode("10010"), debit: "50000", credit: "" },
+                        { accountId: byCode("11000"), debit: "", credit: "50000" },
                       ]);
                       setNarration("Receipt - customer NEFT settlement against freight invoice");
                     }}
@@ -705,9 +706,9 @@ function EntryDrawer({ open, onClose, entry, onSave }: EntryDrawerProps) {
                     label="Fuel fill"
                     onClick={() => {
                       setLines([
-                        { accountId: "acc-fuel-exp", debit: "15000", credit: "" },
-                        { accountId: "acc-gst-input", debit: "2700", credit: "" },
-                        { accountId: "acc-bank-hdfc", debit: "", credit: "17700" },
+                        { accountId: byCode("50000"), debit: "15000", credit: "" },
+                        { accountId: byCode("22010"), debit: "2700", credit: "" },
+                        { accountId: byCode("10010"), debit: "", credit: "17700" },
                       ]);
                       setNarration("Diesel fill - HP pump, vehicle refuel");
                     }}
@@ -716,8 +717,8 @@ function EntryDrawer({ open, onClose, entry, onSave }: EntryDrawerProps) {
                     label="Salary payout"
                     onClick={() => {
                       setLines([
-                        { accountId: "acc-driver-sal", debit: "42000", credit: "" },
-                        { accountId: "acc-bank-hdfc", debit: "", credit: "42000" },
+                        { accountId: byCode("50010"), debit: "42000", credit: "" },
+                        { accountId: byCode("10010"), debit: "", credit: "42000" },
                       ]);
                       setNarration("Driver salary payout - bank transfer");
                     }}
@@ -726,9 +727,9 @@ function EntryDrawer({ open, onClose, entry, onSave }: EntryDrawerProps) {
                     label="Vendor bill"
                     onClick={() => {
                       setLines([
-                        { accountId: "acc-maint", debit: "12000", credit: "" },
-                        { accountId: "acc-gst-input", debit: "2160", credit: "" },
-                        { accountId: "acc-ap", debit: "", credit: "14160" },
+                        { accountId: byCode("50030"), debit: "12000", credit: "" },
+                        { accountId: byCode("22010"), debit: "2160", credit: "" },
+                        { accountId: byCode("20000"), debit: "", credit: "14160" },
                       ]);
                       setNarration("Workshop bill - clutch + brake overhaul");
                     }}

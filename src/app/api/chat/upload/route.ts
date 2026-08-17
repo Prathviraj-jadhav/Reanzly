@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createHash } from "node:crypto";
 import { getStorage, objectUrl } from "@/lib/storage/object-storage";
+import { getSessionUser } from "@/lib/auth";
+import { unauthorized } from "@/lib/permissions";
 
 // ===== Chat Attachment Upload =====
 // Accepts a multipart/form-data POST with a single "file" field, stores it in
@@ -59,6 +61,9 @@ function chatAttachmentKey(body: Buffer, originalName: string): string {
 
 export async function POST(req: NextRequest) {
   try {
+    const sessionUser = await getSessionUser();
+    if (!sessionUser) return unauthorized();
+
     const ip = getClientIP(req);
     const rl = rateLimit(ip);
     if (!rl.allowed) {

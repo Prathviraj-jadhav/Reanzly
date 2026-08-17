@@ -1,13 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { SectionCard } from "@/components/shared/section-card";
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Input } from "@/components/ui/input";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
 import {
   Banknote,
   Landmark,
@@ -25,14 +22,12 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import {
-  SEED_BANK_DETAILS,
-  SEED_LEDGER,
-  SEED_SETTLEMENT_CYCLES,
   formatINR,
   formatINRCompact,
   formatDate,
   relativeTime,
 } from "./_helpers";
+import { useBrokerFinanceData, type BankDetailsDTO } from "./use-broker-finance-data";
 
 /* ============================================================
    BrokerBankDetails - the broker's NACH-registered bank
@@ -40,26 +35,41 @@ import {
    advice download.
    ============================================================ */
 
-const ACCOUNT_TYPES = ["Current", "Savings", "NRE", "NRO"] as const;
+const EMPTY: BankDetailsDTO = {
+  bankName: "", bankBranch: "", bankAccountName: "", bankAccountNumber: "",
+  bankIfsc: "", nachUmr: "", nextPayoutDate: null, nextPayoutAmount: 0,
+  brokerCode: "", companyName: "",
+};
 
 export function BrokerBankDetails() {
+  const { ledger, settlements, bankDetails, updateBankDetails } = useBrokerFinanceData();
   const [editing, setEditing] = useState(false);
-  const [saved, setSaved] = useState<typeof SEED_BANK_DETAILS>(SEED_BANK_DETAILS);
-  const [form, setForm] = useState(SEED_BANK_DETAILS);
+  const [form, setForm] = useState<BankDetailsDTO>(EMPTY);
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
-  const runningBalance = SEED_LEDGER[0]?.runningBalanceINR ?? 0;
-  const lastPayout = SEED_LEDGER.find((e) => e.type === "Debit");
-  const pendingPayouts = SEED_SETTLEMENT_CYCLES
+  useEffect(() => {
+    if (bankDetails) setForm(bankDetails);
+  }, [bankDetails]);
+
+  const saved = bankDetails ?? EMPTY;
+
+  // Real ledger/settlements come back oldest-first, so the latest balance
+  // and latest payout are at the END of the array, not the start.
+  const runningBalance = ledger.length ? ledger[ledger.length - 1].runningBalanceINR : 0;
+  const debits = ledger.filter((e) => e.type === "Debit");
+  const lastPayout = debits.length ? debits[debits.length - 1] : undefined;
+  const pendingPayouts = settlements
     .filter((c) => c.status === "Approved")
     .reduce((s, c) => s + c.netPayableINR, 0);
 
-  const save = () => {
-    setSaved(form);
-    setEditing(false);
-    toast.success("Bank details updated", {
-      description: `${form.bankName} ****${form.accountNumber.slice(-4)} - NACH mandate re-verification may take up to 5 business days.`,
-    });
+  const save = async () => {
+    const ok = await updateBankDetails(form);
+    if (ok) {
+      setEditing(false);
+      toast.success("Bank details updated", {
+        description: `${form.bankName} ****${(form.bankAccountNumber ?? "").slice(-4)} - NACH mandate re-verification may take up to 5 business days.`,
+      });
+    }
   };
 
   const cancel = () => {
@@ -84,7 +94,7 @@ export function BrokerBankDetails() {
 
   const downloadAdvice = () => {
     toast.success("Bank advice (NACH) downloaded", {
-      description: `${saved.accountName} - ${saved.ifsc} - ${formatINR(saved.nextPayoutAmountINR)}`,
+      description: `${saved.bankAccountName} - ${saved.bankIfsc} - ${formatINR(saved.nextPayoutAmount)}`,
     });
   };
 
@@ -107,7 +117,7 @@ export function BrokerBankDetails() {
               </div>
               <div className="flex items-center gap-1.5">
                 <span className="text-muted-foreground">Account</span>
-                <span className="font-medium text-foreground tabular">****{saved.accountNumber.slice(-4)}</span>
+                <span className="font-medium text-foreground tabular">****{(saved.bankAccountNumber ?? "").slice(-4)}</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <span className="text-muted-foreground">NACH UMR</span>
@@ -146,7 +156,7 @@ export function BrokerBankDetails() {
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <KpiTile icon={<Wallet className="h-3.5 w-3.5" />} label="Ledger balance" value={formatINRCompact(runningBalance)} hint="unpaid commission" />
         <KpiTile icon={<Clock className="h-3.5 w-3.5" />} label="Pending payouts" value={formatINRCompact(pendingPayouts)} hint="approved, awaiting NACH" />
-        <KpiTile icon={<Banknote className="h-3.5 w-3.5" />} label="Next payout" value={formatINR(saved.nextPayoutAmountINR)} hint={formatDate(saved.nextPayoutDate)} />
+        <KpiTile icon={<Banknote className="h-3.5 w-3.5" />} label="Next payout" value={formatINR(saved.nextPayoutAmount)} hint={formatDate(saved.nextPayoutDate ?? undefined)} />
         <KpiTile icon={<Calendar className="h-3.5 w-3.5" />} label="Last payout" value={lastPayout ? formatINR(lastPayout.amountINR) : "-"} hint={lastPayout ? relativeTime(lastPayout.date) : "no payouts yet"} />
       </div>
 
@@ -165,71 +175,55 @@ export function BrokerBankDetails() {
       >
         {!editing ? (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <ReadField icon={Landmark} label="Bank name" value={saved.bankName} onCopy={() => copyField("Bank name", saved.bankName)} copied={copiedField === "Bank name"} />
-            <ReadField icon={Building2} label="Branch" value={saved.branch} onCopy={() => copyField("Branch", saved.branch)} copied={copiedField === "Branch"} />
-            <ReadField icon={FileText} label="Account name" value={saved.accountName} onCopy={() => copyField("Account name", saved.accountName)} copied={copiedField === "Account name"} />
-            <ReadField icon={Hash} label="Account number" value={saved.accountNumber} mono onCopy={() => copyField("Account number", saved.accountNumber)} copied={copiedField === "Account number"} />
-            <ReadField icon={Hash} label="IFSC" value={saved.ifsc} mono onCopy={() => copyField("IFSC", saved.ifsc)} copied={copiedField === "IFSC"} />
-            <ReadField icon={Banknote} label="Account type" value={saved.accountType} />
-            <ReadField icon={Hash} label="NACH UMR" value={saved.nachUmr} mono onCopy={() => copyField("NACH UMR", saved.nachUmr)} copied={copiedField === "NACH UMR"} />
-            <ReadField icon={Calendar} label="Next payout date" value={formatDate(saved.nextPayoutDate)} />
+            <ReadField icon={Landmark} label="Bank name" value={saved.bankName ?? "-"} onCopy={() => copyField("Bank name", saved.bankName ?? "")} copied={copiedField === "Bank name"} />
+            <ReadField icon={Building2} label="Branch" value={saved.bankBranch ?? "-"} onCopy={() => copyField("Branch", saved.bankBranch ?? "")} copied={copiedField === "Branch"} />
+            <ReadField icon={FileText} label="Account name" value={saved.bankAccountName ?? "-"} onCopy={() => copyField("Account name", saved.bankAccountName ?? "")} copied={copiedField === "Account name"} />
+            <ReadField icon={Hash} label="Account number" value={saved.bankAccountNumber ?? "-"} mono onCopy={() => copyField("Account number", saved.bankAccountNumber ?? "")} copied={copiedField === "Account number"} />
+            <ReadField icon={Hash} label="IFSC" value={saved.bankIfsc ?? "-"} mono onCopy={() => copyField("IFSC", saved.bankIfsc ?? "")} copied={copiedField === "IFSC"} />
+            <ReadField icon={Hash} label="NACH UMR" value={saved.nachUmr ?? "-"} mono onCopy={() => copyField("NACH UMR", saved.nachUmr ?? "")} copied={copiedField === "NACH UMR"} />
+            <ReadField icon={Calendar} label="Next payout date" value={formatDate(saved.nextPayoutDate ?? undefined)} />
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Field label="Bank name" required>
               <Input
-                value={form.bankName}
+                value={form.bankName ?? ""}
                 onChange={(e) => setForm({ ...form, bankName: e.target.value })}
                 className="h-9 rounded-[5px] text-[13px]"
               />
             </Field>
             <Field label="Branch">
               <Input
-                value={form.branch}
-                onChange={(e) => setForm({ ...form, branch: e.target.value })}
+                value={form.bankBranch ?? ""}
+                onChange={(e) => setForm({ ...form, bankBranch: e.target.value })}
                 className="h-9 rounded-[5px] text-[13px]"
               />
             </Field>
             <Field label="Account name" required>
               <Input
-                value={form.accountName}
-                onChange={(e) => setForm({ ...form, accountName: e.target.value })}
+                value={form.bankAccountName ?? ""}
+                onChange={(e) => setForm({ ...form, bankAccountName: e.target.value })}
                 className="h-9 rounded-[5px] text-[13px]"
               />
             </Field>
             <Field label="Account number" required mono>
               <Input
-                value={form.accountNumber}
-                onChange={(e) => setForm({ ...form, accountNumber: e.target.value })}
+                value={form.bankAccountNumber ?? ""}
+                onChange={(e) => setForm({ ...form, bankAccountNumber: e.target.value })}
                 className="h-9 rounded-[5px] text-[13px] tabular"
               />
             </Field>
             <Field label="IFSC" required mono>
               <Input
-                value={form.ifsc}
-                onChange={(e) => setForm({ ...form, ifsc: e.target.value.toUpperCase() })}
+                value={form.bankIfsc ?? ""}
+                onChange={(e) => setForm({ ...form, bankIfsc: e.target.value.toUpperCase() })}
                 className="h-9 rounded-[5px] text-[13px] tabular"
                 maxLength={11}
               />
             </Field>
-            <Field label="Account type">
-              <Select
-                value={form.accountType}
-                onValueChange={(v) => setForm({ ...form, accountType: v })}
-              >
-                <SelectTrigger className="h-9 rounded-[5px] text-[13px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {ACCOUNT_TYPES.map((t) => (
-                    <SelectItem key={t} value={t}>{t}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
             <Field label="NACH UMR" mono hint="Mandate Unique Reference">
               <Input
-                value={form.nachUmr}
+                value={form.nachUmr ?? ""}
                 onChange={(e) => setForm({ ...form, nachUmr: e.target.value })}
                 className="h-9 rounded-[5px] text-[13px] tabular"
               />
@@ -251,11 +245,11 @@ export function BrokerBankDetails() {
               Amount
             </div>
             <div className="mt-1 text-[28px] font-medium tabular text-foreground">
-              {formatINR(saved.nextPayoutAmountINR)}
+              {formatINR(saved.nextPayoutAmount)}
             </div>
             <div className="mt-2 flex items-center gap-2 text-[12px] text-muted-foreground">
               <Calendar className="h-3 w-3" />
-              Scheduled for {formatDate(saved.nextPayoutDate)}
+              Scheduled for {formatDate(saved.nextPayoutDate ?? undefined)}
             </div>
             <div className="mt-3 flex items-center gap-1.5 text-[11px] text-muted-foreground">
               <Clock className="h-3 w-3" />
@@ -293,7 +287,7 @@ export function BrokerBankDetails() {
                 </tr>
               </thead>
               <tbody>
-                {SEED_LEDGER.filter((e) => e.type === "Debit").slice(0, 5).map((e, i) => (
+                {[...debits].reverse().slice(0, 5).map((e, i) => (
                   <tr
                     key={e.id}
                     className={i % 2 === 0 ? "border-b border-border/60 bg-background" : "border-b border-border/60 bg-muted/10"}
@@ -301,7 +295,7 @@ export function BrokerBankDetails() {
                     <td className="px-4 py-2.5 text-left text-muted-foreground">{formatDate(e.date)}</td>
                     <td className="px-4 py-2.5 text-left tabular text-foreground">{e.refId}</td>
                     <td className="hidden px-4 py-2.5 text-left tabular text-muted-foreground sm:table-cell">
-                      {saved.bankName} ****{saved.accountNumber.slice(-4)}
+                      {saved.bankName} ****{(saved.bankAccountNumber ?? "").slice(-4)}
                     </td>
                     <td className="px-4 py-2.5 text-right tabular font-medium text-foreground">{formatINR(e.amountINR)}</td>
                     <td className="px-4 py-2.5">
@@ -311,7 +305,7 @@ export function BrokerBankDetails() {
                     </td>
                   </tr>
                 ))}
-                {SEED_LEDGER.filter((e) => e.type === "Debit").length === 0 && (
+                {debits.length === 0 && (
                   <tr>
                     <td colSpan={5} className="px-4 py-8 text-center text-[12px] text-muted-foreground">
                       No payouts yet. Run a settlement cycle to receive your first commission.

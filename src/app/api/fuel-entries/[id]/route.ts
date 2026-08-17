@@ -3,8 +3,10 @@ import { db } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
 import { requireModuleAccess } from "@/lib/permissions";
 
+// totalCost intentionally excluded - it's always server-derived from
+// quantity * unitPrice below, never independently client-settable.
 const EDITABLE_FIELDS = [
-  "fuelType", "quantity", "unitPrice", "totalCost", "odometer", "efficiency",
+  "fuelType", "quantity", "unitPrice", "odometer", "efficiency",
   "station", "anomaly", "anomalyNote",
 ] as const;
 
@@ -36,6 +38,14 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const name = String(body.driver || "").trim();
     const matched = name ? await db.driver.findFirst({ where: { companyId: sessionUser.companyId, name } }) : null;
     data.driverId = matched?.id ?? null;
+  }
+  // Server-computed, not client-trusted (see POST for why): recompute
+  // whenever either factor changes, using the existing value for whichever
+  // one wasn't part of this partial update.
+  if ("quantity" in body || "unitPrice" in body) {
+    const quantity = "quantity" in body ? Number(data.quantity) : existing.quantity;
+    const unitPrice = "unitPrice" in body ? Number(data.unitPrice) : existing.unitPrice;
+    data.totalCost = Math.round(quantity * unitPrice);
   }
 
   const updated = await db.fuelEntry.update({ where: { id }, data, include: INCLUDE });

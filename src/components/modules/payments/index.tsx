@@ -1,13 +1,12 @@
 "use client";
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import { useAppStore } from "@/lib/store/app-store";
-import { PAYMENTS } from "@/lib/mock-data";
-import type { Payment } from "@/lib/types";
 import { PaymentsList } from "./payments-list";
 import { VoucherDetail } from "./voucher-detail";
 import { AddVoucherDrawer } from "./add-voucher-drawer";
 import { ReceivablesDashboard } from "./receivables-dashboard";
 import { CreditDebitNotes } from "./credit-debit-notes";
+import { usePaymentsData } from "./use-payments-data";
 
 type View = "list" | "receivables" | "credit-debit";
 
@@ -15,16 +14,7 @@ export function PaymentsModule() {
   const { activeView, navigate } = useAppStore();
   const [view, setView] = useState<View>("list");
   const [initialVoucherType, setInitialVoucherType] = useState<string>("Advance");
-  // Lift PAYMENTS into state so in-session adds/edits persist across list ↔ detail.
-  const [payments, setPayments] = useState<Payment[]>(PAYMENTS);
-
-  const addPayment = useCallback((p: Payment) => {
-    setPayments((prev) => [p, ...prev]);
-  }, []);
-
-  const updatePayment = useCallback((id: string, data: Partial<Payment>) => {
-    setPayments((prev) => prev.map((p) => (p.id === id ? { ...p, ...data } : p)));
-  }, []);
+  const { payments, loaded, addPayment, updatePayment } = usePaymentsData();
 
   // Detail view
   if (
@@ -32,7 +22,14 @@ export function PaymentsModule() {
     activeView.view === "detail" &&
     activeView.id
   ) {
-    return <VoucherDetail voucherId={activeView.id} />;
+    return (
+      <VoucherDetail
+        voucherId={activeView.id}
+        payments={payments}
+        loaded={loaded}
+        onUpdate={updatePayment}
+      />
+    );
   }
 
   // Drawer visibility is derived from active view

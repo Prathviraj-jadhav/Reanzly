@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { answerLocally } from "@/lib/slm/local-engine";
+import { getSessionUser } from "@/lib/auth";
+import { unauthorized } from "@/lib/permissions";
 
 // ===== Rate limiting (in-memory, per-IP) =====
 const requestCounts = new Map<string, { count: number; resetTime: number }>();
@@ -54,6 +56,9 @@ function inferModelFromIdentifier(identifier: string): string | null {
 
 export async function POST(req: NextRequest) {
   try {
+    const sessionUser = await getSessionUser();
+    if (!sessionUser) return unauthorized();
+
     const ip = getClientIP(req);
     const rl = rateLimit(ip);
     if (!rl.allowed) {
@@ -65,8 +70,8 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
     const message = sanitize(body.message || "");
-    const role = sanitize(body.role || "User");
-    const companyId = body.companyId || "default-tenant";
+    const role = sessionUser.role;
+    const companyId = sessionUser.companyId;
 
     if (!message) {
       return NextResponse.json({ error: "Message is required" }, { status: 400 });

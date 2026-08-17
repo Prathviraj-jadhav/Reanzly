@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
       type: body.type || "Note",
       title,
       description: body.description || null,
-      ownerId: body.owner || null,
+      ownerId: body.owner || sessionUser.name,
       durationMinutes: Number.isFinite(body.duration) ? body.duration : null,
       leadId: body.leadId || null,
       dealId: body.dealId || null,

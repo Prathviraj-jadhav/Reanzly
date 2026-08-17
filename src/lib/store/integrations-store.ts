@@ -349,11 +349,22 @@ function buildSeedSyncState(connections: IntegrationConnection[]): Record<string
   return out;
 }
 
+// SEED_CONNECTIONS (IntegrationSeedConnection[]) has no `id` - only
+// providerId. Stamp each with the same `providerId-epoch` convention
+// connect() uses (see IntegrationConnection.id doc comment) so every seed
+// connection gets a real, unique id instead of `undefined` on first render
+// (previously caused every ConnectionCard/CategoryChip to share key=undefined
+// - a duplicate-key React warning, until the real API fetch replaced them).
+const SEEDED_CONNECTIONS: IntegrationConnection[] = SEED_CONNECTIONS.map((c) => ({
+  ...c,
+  id: `${c.providerId}-${new Date(c.connectedAt).getTime()}`,
+}));
+
 export const useIntegrationsStore = create<IntegrationsState>()(
   persist(
     (set, get) => ({
-      connections: SEED_CONNECTIONS as IntegrationConnection[],
-      syncState: buildSeedSyncState(SEED_CONNECTIONS as IntegrationConnection[]),
+      connections: SEEDED_CONNECTIONS,
+      syncState: buildSeedSyncState(SEEDED_CONNECTIONS),
       lastRefreshedAt: new Date().toISOString(),
       syncing: false,
       syncOutcome: null,
@@ -541,8 +552,8 @@ export const useIntegrationsStore = create<IntegrationsState>()(
 
       reset: () => {
         set({
-          connections: SEED_CONNECTIONS as IntegrationConnection[],
-          syncState: buildSeedSyncState(SEED_CONNECTIONS as IntegrationConnection[]),
+          connections: SEEDED_CONNECTIONS,
+          syncState: buildSeedSyncState(SEEDED_CONNECTIONS),
           lastRefreshedAt: new Date().toISOString(),
         });
       },

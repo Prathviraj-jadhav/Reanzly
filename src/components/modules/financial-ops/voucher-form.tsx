@@ -21,7 +21,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  useFinOpsStore,
   FIN_OPS_PAYMENT_MODES,
   FIN_OPS_STATUSES,
   type FinOpsType,
@@ -29,6 +28,7 @@ import {
   type FinOpsStatus,
   type FinOpsVoucher,
 } from "@/lib/store/financial-ops-store";
+import { useTreasuryData } from "./use-treasury-data";
 import { DRIVERS, TRIPS, VEHICLES, VENDORS } from "@/lib/mock-data";
 import { FieldLabel, formatINR, formatDate } from "./_helpers";
 
@@ -53,6 +53,9 @@ export interface VoucherFormProps {
   type: FinOpsType;
   /** When provided the form operates in edit mode for this voucher. */
   voucher?: FinOpsVoucher;
+  /** Shared hook instance from the parent, so a save here is immediately
+   *  reflected in the parent's voucher list without a second fetch. */
+  data: ReturnType<typeof useTreasuryData>;
 }
 
 interface FormState {
@@ -139,9 +142,8 @@ function fromVoucher(v: FinOpsVoucher): FormState {
   };
 }
 
-export function VoucherForm({ open, onClose, type, voucher }: VoucherFormProps) {
-  const addVoucher = useFinOpsStore((s) => s.addVoucher);
-  const updateVoucher = useFinOpsStore((s) => s.updateVoucher);
+export function VoucherForm({ open, onClose, type, voucher, data }: VoucherFormProps) {
+  const { addVoucher, updateVoucher } = data;
   const [step, setStep] = useState(1);
   const [form, setForm] = useState<FormState>(emptyForm);
 
@@ -200,7 +202,7 @@ export function VoucherForm({ open, onClose, type, voucher }: VoucherFormProps) 
   };
   const goBack = () => setStep(1);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const amt = Number(form.amount) || 0;
     const base: Omit<FinOpsVoucher, "id" | "number" | "createdAt" | "updatedAt"> = {
       type,
@@ -228,16 +230,17 @@ export function VoucherForm({ open, onClose, type, voucher }: VoucherFormProps) 
       createdBy: voucher?.createdBy ?? "Current user",
     };
     if (voucher) {
-      updateVoucher(voucher.id, base);
+      await updateVoucher(voucher.id, base);
       toast.success("Voucher updated", {
         description: `${type} · ${formatINR(amt)} · ${voucher.number}`,
       });
       onClose();
       return;
     }
-    const id = addVoucher(base);
+    const id = await addVoucher(base);
+    if (!id) return; // addVoucher already toasted the error
     toast.success("Voucher created", {
-      description: `${type} · ${formatINR(amt)} · ${id.slice(0, 12)}`,
+      description: `${type} · ${formatINR(amt)}`,
     });
     onClose();
   };

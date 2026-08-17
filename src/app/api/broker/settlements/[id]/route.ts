@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { cacheInvalidate } from "@/lib/cache";
 import { getSessionUser } from "@/lib/auth";
 import { requireModuleAccess } from "@/lib/permissions";
-import { getSessionBrokerProfile, requireBrokerProfile } from "@/lib/broker";
+import { getSessionBrokerProfile, requireBrokerProfile, appendBrokerLedgerEntry } from "@/lib/broker";
 
 // ===== Settlement Cycle Detail API =====
 // PATCH - advance a settlement cycle through its lifecycle
@@ -97,7 +97,35 @@ export async function PATCH(
       data,
     });
 
-    cacheInvalidate("broker:settlements", "broker:dashboard", "broker:ledger");
+    // Commission credit on Draft->Approved, payout debit on Approved->Paid -
+    // this is the write path the route's own cache-tag invalidation already
+    // implied but never actually performed.
+    if (existing.status === "Draft" && updated.status === "Approved") {
+      await appendBrokerLedgerEntry(profile!.id, {
+        type: "Credit",
+        description: `Commission - ${updated.cycleId}`,
+        refId: updated.cycleId,
+        amountINR: updated.netPayableINR,
+      });
+      await db.brokerProfile.update({
+        where: { id: profile!.id },
+        data: { nextPayoutDate: new Date(Date.now() + 7 * 86_400_000), nextPayoutAmount: updated.netPayableINR },
+      });
+    } else if (existing.status === "Approved" && updated.status === "Paid") {
+      const payRef = `PAY-${new Date().toISOString().slice(0, 10)}`;
+      await appendBrokerLedgerEntry(profile!.id, {
+        type: "Debit",
+        description: `Payout - NACH credit to ${profile!.bankName ?? "registered account"}${profile!.bankAccountNumber ? " ****" + profile!.bankAccountNumber.slice(-4) : ""}`,
+        refId: payRef,
+        amountINR: updated.netPayableINR,
+      });
+      await db.brokerProfile.update({
+        where: { id: profile!.id },
+        data: { nextPayoutDate: null, nextPayoutAmount: 0 },
+      });
+    }
+
+    cacheInvalidate("broker:settlements", "broker:dashboard", "broker:ledger", "broker:bank-details", "broker:profile");
 
     return NextResponse.json(updated);
   } catch (error) {

@@ -9,7 +9,7 @@ import {
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { useAppStore } from "@/lib/store/app-store";
-import { PAYMENTS, INVOICES, TRIPS, DRIVERS } from "@/lib/mock-data";
+import { INVOICES, TRIPS, DRIVERS } from "@/lib/mock-data";
 import type { Payment, Invoice, Trip, Driver } from "@/lib/types";
 import {
   Banknote,
@@ -53,21 +53,16 @@ const TABS = [
 
 interface VoucherDetailProps {
   voucherId: string;
+  payments: Payment[];
+  loaded?: boolean;
+  onUpdate: (id: string, data: Partial<Payment>) => void | Promise<unknown>;
 }
 
-export function VoucherDetail({ voucherId }: VoucherDetailProps) {
+export function VoucherDetail({ voucherId, payments, loaded = true, onUpdate }: VoucherDetailProps) {
   const { navigate, navigateDetail } = useAppStore();
   const [activeTab, setActiveTab] = useState("overview");
-  const [record, setRecord] = useState<Payment | undefined>(
-    () => PAYMENTS.find((p) => p.id === voucherId),
-  );
+  const payment = payments.find((p) => p.id === voucherId);
   const [editing, setEditing] = useState(false);
-
-  const payment = record;
-
-  const handleUpdate = (id: string, data: Partial<Payment>) => {
-    setRecord((prev) => (prev ? { ...prev, ...data } : prev));
-  };
 
   const linkedInvoice = useMemo(
     () =>
@@ -89,6 +84,13 @@ export function VoucherDetail({ voucherId }: VoucherDetailProps) {
   );
 
   if (!payment) {
+    if (!loaded) {
+      return (
+        <div className="flex items-center justify-center py-20">
+          <p className="text-[14px] text-muted-foreground">Loading voucher…</p>
+        </div>
+      );
+    }
     return (
       <div className="flex flex-col items-center justify-center gap-3 py-20">
         <p className="text-[14px] text-muted-foreground">
@@ -131,7 +133,10 @@ export function VoucherDetail({ voucherId }: VoucherDetailProps) {
         <Btn
           variant="primary"
           icon={<Check className="h-3.5 w-3.5" />}
-          onClick={() => toast.success("Voucher approved", { description: payment.referenceNumber })}
+          onClick={() => {
+            void onUpdate(payment.id, { status: "Approved" });
+            toast.success("Voucher approved", { description: payment.referenceNumber });
+          }}
         >
           Approve
         </Btn>
@@ -150,7 +155,10 @@ export function VoucherDetail({ voucherId }: VoucherDetailProps) {
     },
     {
       label: "Mark as Completed",
-      onClick: () => toast.success("Marked completed", { description: payment.referenceNumber }),
+      onClick: () => {
+        void onUpdate(payment.id, { status: "Completed" });
+        toast.success("Marked completed", { description: payment.referenceNumber });
+      },
     },
     {
       label: "Duplicate",
@@ -224,7 +232,7 @@ export function VoucherDetail({ voucherId }: VoucherDetailProps) {
         open={editing}
         record={payment}
         onClose={() => setEditing(false)}
-        onUpdate={handleUpdate}
+        onUpdate={onUpdate}
       />
     </DetailLayout>
   );

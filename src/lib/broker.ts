@@ -44,3 +44,37 @@ export function toJsonString(value: unknown): string {
     return "[]";
   }
 }
+
+/**
+ * Appends a real BrokerLedgerEntry row, chaining runningBalanceINR off the
+ * broker's last entry. Used by the settlement cycle lifecycle (commission
+ * credit on Approve, payout debit on Paid) - the settlements PATCH route's
+ * own comment already documented this write path, but it was never
+ * actually implemented anywhere until now.
+ */
+export async function appendBrokerLedgerEntry(
+  brokerProfileId: string,
+  entry: { type: "Credit" | "Debit"; description: string; refId: string; amountINR: number; date?: Date },
+) {
+  const last = await db.brokerLedgerEntry.findFirst({
+    where: { brokerProfileId },
+    orderBy: { date: "desc" },
+  });
+  const count = await db.brokerLedgerEntry.count({ where: { brokerProfileId } });
+  const entryId = `led-${String(count + 1).padStart(3, "0")}`;
+  const delta = entry.type === "Credit" ? entry.amountINR : -entry.amountINR;
+  const runningBalanceINR = (last?.runningBalanceINR ?? 0) + delta;
+
+  return db.brokerLedgerEntry.create({
+    data: {
+      brokerProfileId,
+      entryId,
+      date: entry.date ?? new Date(),
+      type: entry.type,
+      description: entry.description,
+      refId: entry.refId,
+      amountINR: entry.amountINR,
+      runningBalanceINR,
+    },
+  });
+}

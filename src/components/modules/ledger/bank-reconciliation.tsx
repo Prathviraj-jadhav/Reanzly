@@ -26,7 +26,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useLedgerTallyStore } from "@/lib/store/ledger-tally-store";
-import { useLedgerStore } from "@/lib/store/ledger-store";
+import { useLedgerData } from "@/components/modules/ledger/use-ledger-data";
 import type { BrsLine, BankAccount, BrsLineStatus } from "@/components/modules/ledger/_tally-data";
 import {
   formatINR,
@@ -66,7 +66,13 @@ export function BankReconciliationView() {
   const brsLines = useLedgerTallyStore((s) => s.brsLines);
   const matchBrsLine = useLedgerTallyStore((s) => s.matchBrsLine);
   const unmatchBrsLine = useLedgerTallyStore((s) => s.unmatchBrsLine);
-  const ledgerEntries = useLedgerStore((s) => s.entries);
+  // Real accounts+entries (was the dead useLedgerStore mock store, matching
+  // against phantom entries nobody else in the app could see - see the
+  // tracked regression). The mock BankAccount.id values ("acc-bank-hdfc" etc)
+  // don't correspond to real Ledger Account cuids, so candidates are resolved
+  // by account NAME instead, which the mock and real Chart of Accounts share
+  // verbatim ("HDFC Bank - Current A/C", "ICICI Bank - Current A/C").
+  const { accounts: realAccounts, entries: ledgerEntries } = useLedgerData();
 
   const [activeBankId, setActiveBankId] = useState(bankAccounts[0]?.id ?? "");
   const [filter, setFilter] = useState<"All" | BrsLineStatus>("All");
@@ -85,13 +91,21 @@ export function BankReconciliationView() {
     [bankLines, filter],
   );
 
+  // The real Chart of Accounts account backing the active (mock) bank account,
+  // resolved by name since the two id spaces don't correspond.
+  const realBankAccount = useMemo(
+    () => realAccounts.find((a) => a.name === activeBank?.name),
+    [realAccounts, activeBank],
+  );
+
   // Ledger entries that touch the active bank account - candidates for matching.
   const matchCandidates = useMemo(() => {
     const out: { id: string; voucherNo: string; date: string; narration: string; amount: number }[] = [];
+    if (!realBankAccount) return out;
     for (const e of ledgerEntries) {
       if (e.status !== "Posted") continue;
       for (const l of e.lines) {
-        if (l.accountId === activeBank?.id && (l.debit !== 0 || l.credit !== 0)) {
+        if (l.accountId === realBankAccount.id && (l.debit !== 0 || l.credit !== 0)) {
           out.push({
             id: e.id,
             voucherNo: e.voucherNo,
@@ -103,7 +117,7 @@ export function BankReconciliationView() {
       }
     }
     return out.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [ledgerEntries, activeBank]);
+  }, [ledgerEntries, realBankAccount]);
 
   // Summary KPIs
   const summary = useMemo(() => {

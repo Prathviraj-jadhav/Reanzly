@@ -79,7 +79,7 @@ export async function POST(req: NextRequest) {
       issueDate: body.issueDate ? new Date(body.issueDate) : null,
       expiryDate: body.expiryDate ? new Date(body.expiryDate) : null,
       status: body.status || "Valid",
-      uploadedBy: body.uploadedBy || null,
+      uploadedBy: sessionUser.name,
       uploadDate: body.uploadDate ? new Date(body.uploadDate) : new Date(),
     },
     include: INCLUDE,

@@ -8,13 +8,13 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { SearchInput } from "@/components/shared/toolbar";
 import { SectionCard } from "@/components/shared/section-card";
 import {
-  useFinOpsStore,
   FIN_OPS_TYPES,
   FIN_OPS_STATUSES,
   type FinOpsType,
   type FinOpsVoucher,
   type FinOpsStatus,
 } from "@/lib/store/financial-ops-store";
+import { useTreasuryData } from "@/components/modules/financial-ops/use-treasury-data";
 import {
   Plus,
   Download,
@@ -65,9 +65,9 @@ function voucherStatusVariant(status: FinOpsStatus): "solid" | "outline" | "mute
 }
 
 export function TreasuryOpsView() {
-  const vouchers = useFinOpsStore((s) => s.vouchers);
-  const hasHydrated = useFinOpsStore((s) => s.hasHydrated);
-  const setVoucherStatus = useFinOpsStore((s) => s.setVoucherStatus);
+  const treasuryData = useTreasuryData();
+  const { vouchers, loaded, setVoucherStatus } = treasuryData;
+  const hasHydrated = loaded;
   const [selectedVoucher, setSelectedVoucher] = useState<FinOpsVoucher | null>(null);
   const [editVoucher, setEditVoucher] = useState<FinOpsVoucher | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
@@ -427,6 +427,7 @@ export function TreasuryOpsView() {
           open={createOpen}
           onClose={() => setCreateOpen(false)}
           type={activeType}
+          data={treasuryData}
         />
       )}
 
@@ -437,6 +438,7 @@ export function TreasuryOpsView() {
           onClose={() => setEditVoucher(null)}
           type={editVoucher.type}
           voucher={editVoucher}
+          data={treasuryData}
         />
       )}
 
