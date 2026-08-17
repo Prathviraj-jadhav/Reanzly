@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState } from "react";
 import { SectionCard } from "@/components/shared/section-card";
 import { Btn } from "@/components/shared/btn";
 import { SearchInput } from "@/components/shared/toolbar";
@@ -46,10 +46,11 @@ export function BrokerRateCard() {
   const [search, setSearch] = useState("");
   const [vehicleFilter, setVehicleFilter] = useState<VehicleType | "">("");
 
-  // Sync local draft once the real profile loads (or changes elsewhere).
-  useEffect(() => {
+  const [loadedProfile, setLoadedProfile] = useState(profile);
+  if (profile !== loadedProfile) {
+    setLoadedProfile(profile);
     if (profile) setMarkupPct(profile.markupPct);
-  }, [profile]);
+  }
 
   // ===== Derived: filtered lanes =====
   const filteredLanes = useMemo(() => {

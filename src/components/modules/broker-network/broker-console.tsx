@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState } from "react";
 import { PageHeader } from "@/components/shared/page-header";
 import { SectionCard } from "@/components/shared/section-card";
 import { Btn } from "@/components/shared/btn";
@@ -42,17 +42,17 @@ export function BrokerConsoleModule() {
   const { subBrokers, addSubBroker } = useBrokerSubBrokersData();
   const { enquiries, quoteEnquiry: quoteEnquiryReal } = useBrokerEnquiriesData();
 
-  // Markup % - editable draft, synced from the real profile once loaded.
+  // Markup % and coverage - editable drafts, synced when the real profile loads.
   const [markupPct, setMarkupPct] = useState<number>(DEFAULT_MARKUP_PCT);
-  useEffect(() => {
-    if (profile) setMarkupPct(profile.markupPct);
-  }, [profile]);
-
-  // Lane coverage - editable tag input, synced from the real profile.
   const [coverageLanes, setCoverageLanes] = useState<string[]>([]);
-  useEffect(() => {
-    if (profile) setCoverageLanes(profile.coverageLanes);
-  }, [profile]);
+  const [loadedProfile, setLoadedProfile] = useState(profile);
+  if (profile !== loadedProfile) {
+    setLoadedProfile(profile);
+    if (profile) {
+      setMarkupPct(profile.markupPct);
+      setCoverageLanes(profile.coverageLanes);
+    }
+  }
   const [laneDraft, setLaneDraft] = useState("");
 
   const [enquirySearch, setEnquirySearch] = useState("");

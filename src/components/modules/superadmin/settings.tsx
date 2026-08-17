@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import {
@@ -448,7 +448,11 @@ function GatewayField({
   // keystroke - onChange (the real PATCH) only commits on blur, matching
   // how every other real-data text field in this app persists.
   const [draft, setDraft] = useState(value);
-  useEffect(() => setDraft(value), [value]);
+  const [prevValue, setPrevValue] = useState(value);
+  if (value !== prevValue) {
+    setPrevValue(value);
+    setDraft(value);
+  }
   return (
     <div className="flex flex-col gap-1">
       <label className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">

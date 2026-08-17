@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { SectionCard } from "@/components/shared/section-card";
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -91,10 +91,11 @@ export function BrokerSettings() {
   const [laneDraft, setLaneDraft] = useState("");
   const [dirty, setDirty] = useState(false);
 
-  // Load the real saved form once the profile arrives.
-  useEffect(() => {
+  const [loadedProfile, setLoadedProfile] = useState(profile);
+  if (profile !== loadedProfile) {
+    setLoadedProfile(profile);
     if (profile) setForm(formFromProfile(profile));
-  }, [profile]);
+  }
 
   const set = <K extends keyof BrokerSettingsForm>(k: K, v: BrokerSettingsForm[K]) => {
     setForm((p) => ({ ...p, [k]: v }));

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { SectionCard } from "@/components/shared/section-card";
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -46,10 +46,11 @@ export function BrokerBankDetails() {
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<BankDetailsDTO>(EMPTY);
   const [copiedField, setCopiedField] = useState<string | null>(null);
-
-  useEffect(() => {
+  const [loadedBank, setLoadedBank] = useState(bankDetails);
+  if (bankDetails !== loadedBank) {
+    setLoadedBank(bankDetails);
     if (bankDetails) setForm(bankDetails);
-  }, [bankDetails]);
+  }
 
   const saved = bankDetails ?? EMPTY;
 
