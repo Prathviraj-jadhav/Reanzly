@@ -318,8 +318,25 @@ export function SignupScreen() {
   const [form, setForm] = useState<FormState>(INITIAL);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  // Subdomain & Signuptype states
+  const [signupSubdomain, setSignupSubdomain] = useState<"app" | "freight">("app");
+  const [signupType, setSignupType] = useState<"business" | "driver" | "shipper" | "broker">("business");
+
+  // Subdomain detection on mount
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const host = window.location.hostname.toLowerCase();
+      if (host.startsWith("freight.")) {
+        setSignupSubdomain("freight");
+        setSignupType("shipper");
+      } else {
+        setSignupSubdomain("app");
+        setSignupType("business");
+      }
+    }
+  }, []);
+
   // Driver/Individual tab state
-  const [signupType, setSignupType] = useState<"business" | "driver">("business");
   const [driverForm, setDriverForm] = useState({
     name: "",
     email: "",
@@ -330,6 +347,29 @@ export function SignupScreen() {
   });
   const [driverSubmitting, setDriverSubmitting] = useState(false);
   const [driverError, setDriverError] = useState<string | null>(null);
+
+  // Shipper form state
+  const [shipperForm, setShipperForm] = useState({
+    companyName: "",
+    name: "",
+    email: "",
+    phone: "",
+    password: "",
+  });
+  const [shipperSubmitting, setShipperSubmitting] = useState(false);
+  const [shipperError, setShipperError] = useState<string | null>(null);
+
+  // Broker form state
+  const [brokerForm, setBrokerForm] = useState({
+    companyName: "",
+    name: "",
+    email: "",
+    phone: "",
+    gstin: "",
+    password: "",
+  });
+  const [brokerSubmitting, setBrokerSubmitting] = useState(false);
+  const [brokerError, setBrokerError] = useState<string | null>(null);
 
   const isSegmentSelected = (seg: typeof ONBOARDING_SEGMENTS[0]) => {
     const count = seg.moduleIds.filter((id) => form.selectedModules.includes(id)).length;
@@ -406,6 +446,112 @@ export function SignupScreen() {
       setDriverError("Could not reach the server. Try again.");
     } finally {
       setDriverSubmitting(false);
+    }
+  }
+
+  async function handleShipperSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (shipperSubmitting) return;
+    setShipperError(null);
+
+    if (!shipperForm.companyName.trim()) {
+      setShipperError("Company name is required.");
+      return;
+    }
+    if (!shipperForm.name.trim()) {
+      setShipperError("Full name is required.");
+      return;
+    }
+    if (!shipperForm.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(shipperForm.email.trim())) {
+      setShipperError("Valid work email is required.");
+      return;
+    }
+    const cleanPhone = shipperForm.phone.replace(/\D/g, "");
+    if (cleanPhone.length < 10) {
+      setShipperError("Please enter a valid 10-digit mobile number.");
+      return;
+    }
+    if (shipperForm.password.length < 4) {
+      setShipperError("Password needs at least 4 characters.");
+      return;
+    }
+
+    setShipperSubmitting(true);
+    try {
+      const res = await fetch("/api/auth/signup-shipper", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...shipperForm,
+          phone: cleanPhone.slice(-10),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setShipperError(data.error || "Shipper signup failed.");
+      } else {
+        toast.success("Shipper account created successfully!");
+        useAppStore.getState().login(shipperForm.email.trim(), "customer", "vendor", shipperForm.companyName.trim());
+      }
+    } catch (err) {
+      setShipperError("Could not reach the server. Try again.");
+    } finally {
+      setShipperSubmitting(false);
+    }
+  }
+
+  async function handleBrokerSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (brokerSubmitting) return;
+    setBrokerError(null);
+
+    if (!brokerForm.companyName.trim()) {
+      setBrokerError("Brokerage company name is required.");
+      return;
+    }
+    if (!brokerForm.name.trim()) {
+      setBrokerError("Full name is required.");
+      return;
+    }
+    if (!brokerForm.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(brokerForm.email.trim())) {
+      setBrokerError("Valid work email is required.");
+      return;
+    }
+    const cleanPhone = brokerForm.phone.replace(/\D/g, "");
+    if (cleanPhone.length < 10) {
+      setBrokerError("Please enter a valid 10-digit mobile number.");
+      return;
+    }
+    if (!brokerForm.gstin.trim()) {
+      setBrokerError("GSTIN / License number is required.");
+      return;
+    }
+    if (brokerForm.password.length < 4) {
+      setBrokerError("Password needs at least 4 characters.");
+      return;
+    }
+
+    setBrokerSubmitting(true);
+    try {
+      const res = await fetch("/api/auth/signup-broker", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...brokerForm,
+          phone: cleanPhone.slice(-10),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setBrokerError(data.error || "Broker signup failed.");
+      } else {
+        toast.success("Broker account created successfully!");
+        useAppStore.getState().login(brokerForm.email.trim(), "broker", "broker", brokerForm.companyName.trim());
+      }
+    } catch (err) {
+      setBrokerError("Could not reach the server. Try again.");
+    } finally {
+      setBrokerSubmitting(false);
     }
   }
   const [showPw, setShowPw] = useState(false);
@@ -742,30 +888,61 @@ export function SignupScreen() {
           {/* Signup Type Selection Tabs */}
           <div className="z-20 border-b border-border bg-background/95 px-4 py-2 backdrop-blur sm:px-8 flex justify-center shrink-0">
             <div className="grid grid-cols-2 gap-1 rounded-[6px] border border-border bg-muted/30 p-1 w-full max-w-[400px]">
-              <button
-                type="button"
-                onClick={() => setSignupType("business")}
-                className={cn(
-                  "rounded-[4px] px-3 py-1.5 text-[12px] font-medium transition-colors text-center",
-                  signupType === "business"
-                    ? "bg-foreground text-background"
-                    : "text-muted-foreground hover:bg-accent hover:text-foreground"
-                )}
-              >
-                Logistics Business
-              </button>
-              <button
-                type="button"
-                onClick={() => setSignupType("driver")}
-                className={cn(
-                  "rounded-[4px] px-3 py-1.5 text-[12px] font-medium transition-colors text-center",
-                  signupType === "driver"
-                    ? "bg-foreground text-background"
-                    : "text-muted-foreground hover:bg-accent hover:text-foreground"
-                )}
-              >
-                Individual Driver
-              </button>
+              {signupSubdomain === "freight" ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setSignupType("shipper")}
+                    className={cn(
+                      "rounded-[4px] px-3 py-1.5 text-[12px] font-medium transition-colors text-center",
+                      signupType === "shipper"
+                        ? "bg-foreground text-background"
+                        : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                    )}
+                  >
+                    Shipper / Customer
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSignupType("broker")}
+                    className={cn(
+                      "rounded-[4px] px-3 py-1.5 text-[12px] font-medium transition-colors text-center",
+                      signupType === "broker"
+                        ? "bg-foreground text-background"
+                        : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                    )}
+                  >
+                    Freight Broker
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setSignupType("business")}
+                    className={cn(
+                      "rounded-[4px] px-3 py-1.5 text-[12px] font-medium transition-colors text-center",
+                      signupType === "business"
+                        ? "bg-foreground text-background"
+                        : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                    )}
+                  >
+                    Logistics Business
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSignupType("driver")}
+                    className={cn(
+                      "rounded-[4px] px-3 py-1.5 text-[12px] font-medium transition-colors text-center",
+                      signupType === "driver"
+                        ? "bg-foreground text-background"
+                        : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                    )}
+                  >
+                    Individual Driver
+                  </button>
+                </>
+              )}
             </div>
           </div>
 
@@ -1563,6 +1740,286 @@ export function SignupScreen() {
                     ) : (
                       <>
                         Join Reanzly &amp; List Vehicle
+                        <ArrowRight className="h-4 w-4" />
+                      </>
+                    )}
+                  </button>
+                </form>
+
+                {/* Switch to login footer */}
+                <p className="mt-6 text-center text-[11px] text-muted-foreground">
+                  Already have an account?{" "}
+                  <button
+                    onClick={() => setAuthMode("signin")}
+                    className="font-medium text-foreground hover:underline"
+                  >
+                    Sign in
+                  </button>
+                </p>
+              </div>
+            </div>
+          )}
+
+          {signupType === "shipper" && (
+            <div className="flex-1 overflow-y-auto scrollbar-thin animate-fade-in">
+              <div className="mx-auto w-full max-w-[480px] px-4 py-8 sm:px-8">
+                <div className="mb-6">
+                  <h2 className="text-[22px] font-semibold tracking-tight">Shipper Registration</h2>
+                  <p className="mt-1 text-[13px] text-muted-foreground leading-relaxed">
+                    Join the Reanzly Marketplace as a Shipper. Post loads, find verified vehicles, request instant bookings, and track your shipments end-to-end.
+                  </p>
+                </div>
+
+                <form onSubmit={handleShipperSubmit} className="space-y-4" noValidate>
+                  {/* Company Name */}
+                  <label className="block">
+                    <span className="mb-1.5 block text-[11px] font-medium text-muted-foreground">
+                      Company / Shipper Name
+                    </span>
+                    <input
+                      type="text"
+                      value={shipperForm.companyName}
+                      onChange={(e) => setShipperForm({ ...shipperForm, companyName: e.target.value })}
+                      placeholder="e.g. Acme Logistics India"
+                      className="h-10 w-full rounded-[6px] border border-border bg-background px-3 text-[13px] outline-none transition-colors focus:border-foreground"
+                    />
+                  </label>
+
+                  {/* Name */}
+                  <label className="block">
+                    <span className="mb-1.5 block text-[11px] font-medium text-muted-foreground">
+                      Contact Person Full Name
+                    </span>
+                    <input
+                      type="text"
+                      value={shipperForm.name}
+                      onChange={(e) => setShipperForm({ ...shipperForm, name: e.target.value })}
+                      placeholder="e.g. Vikram Deshmukh"
+                      className="h-10 w-full rounded-[6px] border border-border bg-background px-3 text-[13px] outline-none transition-colors focus:border-foreground"
+                    />
+                  </label>
+
+                  {/* Email */}
+                  <label className="block">
+                    <span className="mb-1.5 block text-[11px] font-medium text-muted-foreground">
+                      Work Email
+                    </span>
+                    <input
+                      type="email"
+                      value={shipperForm.email}
+                      onChange={(e) => setShipperForm({ ...shipperForm, email: e.target.value })}
+                      placeholder="e.g. you@acme.in"
+                      className="h-10 w-full rounded-[6px] border border-border bg-background px-3 text-[13px] outline-none transition-colors focus:border-foreground"
+                    />
+                  </label>
+
+                  {/* Phone */}
+                  <label className="block">
+                    <span className="mb-1.5 block text-[11px] font-medium text-muted-foreground">
+                      Contact Phone
+                    </span>
+                    <input
+                      type="tel"
+                      value={shipperForm.phone}
+                      onChange={(e) => setShipperForm({ ...shipperForm, phone: e.target.value })}
+                      placeholder="10-digit mobile number"
+                      className="h-10 w-full rounded-[6px] border border-border bg-background px-3 text-[13px] outline-none transition-colors focus:border-foreground"
+                    />
+                  </label>
+
+                  {/* Password */}
+                  <label className="block">
+                    <span className="mb-1.5 block text-[11px] font-medium text-muted-foreground">
+                      Password
+                    </span>
+                    <input
+                      type="password"
+                      value={shipperForm.password}
+                      onChange={(e) => setShipperForm({ ...shipperForm, password: e.target.value })}
+                      placeholder="Minimum 4 characters"
+                      className="h-10 w-full rounded-[6px] border border-border bg-background px-3 text-[13px] outline-none transition-colors focus:border-foreground"
+                    />
+                  </label>
+
+                  {shipperError && (
+                    <p className="rounded-[5px] border border-border bg-accent/40 px-3 py-2 text-[12px] text-foreground">
+                      {shipperError}
+                    </p>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={shipperSubmitting}
+                    className="tap mt-3 flex h-11 w-full items-center justify-center gap-2 rounded-[6px] bg-foreground text-[14px] font-medium text-background transition-colors hover:bg-foreground/90 disabled:opacity-60"
+                  >
+                    {shipperSubmitting ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Creating shipper profile...
+                      </>
+                    ) : (
+                      <>
+                        Join Reanzly as Shipper
+                        <ArrowRight className="h-4 w-4" />
+                      </>
+                    )}
+                  </button>
+                </form>
+
+                {/* Switch to login footer */}
+                <p className="mt-6 text-center text-[11px] text-muted-foreground">
+                  Already have an account?{" "}
+                  <button
+                    onClick={() => setAuthMode("signin")}
+                    className="font-medium text-foreground hover:underline"
+                  >
+                    Sign in
+                  </button>
+                </p>
+              </div>
+            </div>
+          )}
+
+          {signupType === "broker" && (
+            <div className="flex-1 overflow-y-auto scrollbar-thin animate-fade-in">
+              <div className="mx-auto w-full max-w-[480px] px-4 py-8 sm:px-8">
+                <div className="mb-6">
+                  <h2 className="text-[22px] font-semibold tracking-tight">Freight Broker Registration</h2>
+                  <p className="mt-1 text-[13px] text-muted-foreground leading-relaxed">
+                    Resell Reanzly capacity with your own markup. Build your network, manage enquiries, coordinate transportation, and automate settlements.
+                  </p>
+                </div>
+
+                {/* Visual Listing of Broker Features */}
+                <div className="mb-6 rounded-[6px] border border-border bg-muted/30 p-4 space-y-3">
+                  <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground font-semibold">
+                    Features Unlocked with Broker Account
+                  </p>
+                  <ul className="space-y-2">
+                    {[
+                      "Broker Console - manage multiple loads & bookings from one dashboard.",
+                      "Custom Markup - automatically apply your commission rate (default 8%).",
+                      "Sub-Broker Program - onboard & coordinate capacity across sub-agents.",
+                      "Marketplace Integration - match shippers with available vehicles in real-time.",
+                      "Automated NACH Settlements - get paid and settle trip payouts seamlessly.",
+                    ].map((feature) => {
+                      const [title, desc] = feature.split(" - ");
+                      return (
+                        <li key={title} className="flex items-start gap-2 text-[12px] leading-relaxed text-muted-foreground">
+                          <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-foreground" />
+                          <div>
+                            <span className="font-semibold text-foreground">{title}</span>: {desc}
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+
+                <form onSubmit={handleBrokerSubmit} className="space-y-4" noValidate>
+                  {/* Company Name */}
+                  <label className="block">
+                    <span className="mb-1.5 block text-[11px] font-medium text-muted-foreground">
+                      Brokerage Company Name
+                    </span>
+                    <input
+                      type="text"
+                      value={brokerForm.companyName}
+                      onChange={(e) => setBrokerForm({ ...brokerForm, companyName: e.target.value })}
+                      placeholder="e.g. Eagle Freight Solutions"
+                      className="h-10 w-full rounded-[6px] border border-border bg-background px-3 text-[13px] outline-none transition-colors focus:border-foreground"
+                    />
+                  </label>
+
+                  {/* Name */}
+                  <label className="block">
+                    <span className="mb-1.5 block text-[11px] font-medium text-muted-foreground">
+                      Broker Name (Full Name)
+                    </span>
+                    <input
+                      type="text"
+                      value={brokerForm.name}
+                      onChange={(e) => setBrokerForm({ ...brokerForm, name: e.target.value })}
+                      placeholder="e.g. Vikram Deshmukh"
+                      className="h-10 w-full rounded-[6px] border border-border bg-background px-3 text-[13px] outline-none transition-colors focus:border-foreground"
+                    />
+                  </label>
+
+                  {/* Email */}
+                  <label className="block">
+                    <span className="mb-1.5 block text-[11px] font-medium text-muted-foreground">
+                      Work Email
+                    </span>
+                    <input
+                      type="email"
+                      value={brokerForm.email}
+                      onChange={(e) => setBrokerForm({ ...brokerForm, email: e.target.value })}
+                      placeholder="e.g. you@eaglefreight.in"
+                      className="h-10 w-full rounded-[6px] border border-border bg-background px-3 text-[13px] outline-none transition-colors focus:border-foreground"
+                    />
+                  </label>
+
+                  {/* Phone */}
+                  <label className="block">
+                    <span className="mb-1.5 block text-[11px] font-medium text-muted-foreground">
+                      Contact Phone
+                    </span>
+                    <input
+                      type="tel"
+                      value={brokerForm.phone}
+                      onChange={(e) => setBrokerForm({ ...brokerForm, phone: e.target.value })}
+                      placeholder="10-digit mobile number"
+                      className="h-10 w-full rounded-[6px] border border-border bg-background px-3 text-[13px] outline-none transition-colors focus:border-foreground"
+                    />
+                  </label>
+
+                  {/* GSTIN */}
+                  <label className="block">
+                    <span className="mb-1.5 block text-[11px] font-medium text-muted-foreground">
+                      GSTIN / Brokerage License
+                    </span>
+                    <input
+                      type="text"
+                      value={brokerForm.gstin}
+                      onChange={(e) => setBrokerForm({ ...brokerForm, gstin: e.target.value })}
+                      placeholder="e.g. 27AAAAA1111A1Z1"
+                      className="h-10 w-full rounded-[6px] border border-border bg-background px-3 text-[13px] outline-none transition-colors focus:border-foreground"
+                    />
+                  </label>
+
+                  {/* Password */}
+                  <label className="block">
+                    <span className="mb-1.5 block text-[11px] font-medium text-muted-foreground">
+                      Password
+                    </span>
+                    <input
+                      type="password"
+                      value={brokerForm.password}
+                      onChange={(e) => setBrokerForm({ ...brokerForm, password: e.target.value })}
+                      placeholder="Minimum 4 characters"
+                      className="h-10 w-full rounded-[6px] border border-border bg-background px-3 text-[13px] outline-none transition-colors focus:border-foreground"
+                    />
+                  </label>
+
+                  {brokerError && (
+                    <p className="rounded-[5px] border border-border bg-accent/40 px-3 py-2 text-[12px] text-foreground">
+                      {brokerError}
+                    </p>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={brokerSubmitting}
+                    className="tap mt-3 flex h-11 w-full items-center justify-center gap-2 rounded-[6px] bg-foreground text-[14px] font-medium text-background transition-colors hover:bg-foreground/90 disabled:opacity-60"
+                  >
+                    {brokerSubmitting ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Creating broker profile...
+                      </>
+                    ) : (
+                      <>
+                        Join Reanzly as Broker
                         <ArrowRight className="h-4 w-4" />
                       </>
                     )}

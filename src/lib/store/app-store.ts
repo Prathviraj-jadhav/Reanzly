@@ -18,11 +18,9 @@ import { ONBOARDING_MODULES } from "@/lib/onboarding/module-catalog";
 // gates correctly once those entries land.
 // PortalType - multi-tenant product surface. Each subdomain maps to a portal:
 //   admin.reanzly.com   → "superadmin"  (Reanzly internal team)
-//   app.reanzly.com     → "app"         (organisation users - full desktop shell)
-//   driver.reanzly.com  → "driver"      (field drivers - mobile driver app)
-//   vendor.reanzly.com  → "vendor"      (vendors/customers - read-only tracking)
-//   broker.reanzly.com  → "broker"      (freight brokers - own panel, markup + sub-brokers)
-export type PortalType = "superadmin" | "app" | "driver" | "vendor" | "broker";
+//   app.reanzly.com     → "app"         (organisation users - full desktop shell + drivers)
+//   freight.reanzly.com → "freight"     (shippers + brokers)
+export type PortalType = "superadmin" | "app" | "driver" | "vendor" | "broker" | "freight";
 
 export type ModuleId =
   | "dashboard"
@@ -518,7 +516,9 @@ export const useAppStore = create<AppState>()(
               ? "superadmin"
               : portal === "superadmin"
                 ? "app"
-                : portal;
+                : (portal as any) === "freight"
+                  ? (data.user.role === "broker" ? "broker" : "vendor")
+                  : portal;
           get().login(data.user.email, data.user.role, resolvedPortal, orgName);
           return { ok: true };
         } catch {

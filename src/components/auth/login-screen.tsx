@@ -75,7 +75,7 @@ const PORTALS: {
     label: "Admin",
     domain: "admin.reanzly.com",
     icon: Building2,
-    blurb: "Reanzly internal team - onboard tenants, manage billing, backups & platform health.",
+    blurb: "Reanzly Command Center - onboard tenants, manage billing, backups & platform health.",
     roles: ["superadmin"],
   },
   {
@@ -83,32 +83,16 @@ const PORTALS: {
     label: "App",
     domain: "app.reanzly.com",
     icon: Users,
-    blurb: "Organisation users - the full logistics operating system across every department.",
-    roles: ["owner", "ops-manager", "fleet-manager", "finance-manager", "dispatcher"],
+    blurb: "Reanzly Fleet App - logistics business owners and individual drivers moving the network.",
+    roles: ["owner", "ops-manager", "fleet-manager", "finance-manager", "dispatcher", "driver", "warehouse-crew"],
   },
   {
-    id: "driver",
-    label: "Field",
-    domain: "driver.reanzly.com",
-    icon: Truck,
-    blurb: "Field workers - drivers and warehouse crews. Job orders, POD, tasks, captures. Mobile only.",
-    roles: ["driver", "warehouse-crew"],
-  },
-  {
-    id: "vendor",
-    label: "Vendor",
-    domain: "vendor.reanzly.com",
-    icon: Globe,
-    blurb: "Vendors & customers - live shipment tracking, invoices, PODs. Read-only.",
-    roles: ["customer"],
-  },
-  {
-    id: "broker",
-    label: "Broker",
-    domain: "broker.reanzly.com",
+    id: "freight",
+    label: "Freight",
+    domain: "freight.reanzly.com",
     icon: Handshake,
-    blurb: "Freight brokers - resell Reanzly capacity with your own markup. Manage sub-brokers, enquiries, settlements.",
-    roles: ["broker"],
+    blurb: "Reanzly Marketplace - shippers post loads and brokers connect shippers with vehicles.",
+    roles: ["customer", "broker"],
   },
 ];
 
@@ -159,17 +143,9 @@ export function LoginScreen() {
         setPortal("app");
         useAppStore.getState().setPortal("app");
         setIsSubdomainLocked(true);
-      } else if (host.startsWith("driver.")) {
-        setPortal("driver");
-        useAppStore.getState().setPortal("driver");
-        setIsSubdomainLocked(true);
-      } else if (host.startsWith("vendor.")) {
-        setPortal("vendor");
-        useAppStore.getState().setPortal("vendor");
-        setIsSubdomainLocked(true);
-      } else if (host.startsWith("broker.")) {
-        setPortal("broker");
-        useAppStore.getState().setPortal("broker");
+      } else if (host.startsWith("freight.")) {
+        setPortal("freight");
+        useAppStore.getState().setPortal("freight");
         setIsSubdomainLocked(true);
       }
     }
@@ -288,9 +264,9 @@ export function LoginScreen() {
     { tag: string; title: string; body: string; stats: { k: string; v: string }[] }
   > = {
     superadmin: {
-      tag: "Multi-tenant control plane",
-      title: "Onboard, bill, back up & monitor every tenant from one console.",
-      body: "Self-serve or assisted onboarding. Permission matrix per org. Offline-sync health. Daily backups. Audit log. The whole platform, governed.",
+      tag: "Reanzly Command Center",
+      title: "Where Reanzly controls the network.",
+      body: "Onboard, bill, back up & monitor every tenant from one console. Self-serve or assisted onboarding. Offline-sync health. Daily backups. Audit log.",
       stats: [
         { k: "Tenants", v: "48" },
         { k: "MRR", v: "₹38L" },
@@ -298,45 +274,29 @@ export function LoginScreen() {
       ],
     },
     app: {
-      tag: "The logistics operating system",
-      title: "Run every truck, trip & rupee from one black box.",
-      body: "22+ modules. Job orders to POD. Rate cards to GST. Live fleet map. Driver field app. Finance engine. CRM, HR, internal chat with Rean AI. All in monochrome.",
+      tag: "Reanzly Fleet App",
+      title: "Where fleet owners and drivers move the network.",
+      body: "Business owners manage fleet, loads, drivers, bookings, operations. Drivers join Reanzly, list vehicles, receive & accept loads.",
       stats: [
         { k: "Trips / day", v: "1,284" },
         { k: "On-time", v: "94.2%" },
         { k: "Fleet", v: "312" },
       ],
     },
-    driver: {
-      tag: "Field-first, offline-first",
-      title: "Your trucks. Your floor. Your captures. Even with no signal.",
-      body: "Drivers get job orders, e-POD with photo + GPS, fuel logs, inspections, expenses. Warehouse crews get putaway, picking & dispatch tasks with SKU scan + photo confirmation. Autosaved offline, synced the moment you're back online. One-thumb operable.",
+    freight: {
+      tag: "Reanzly Marketplace",
+      title: "Where loads meet vehicles.",
+      body: "Shippers post loads, find vehicles, and manage shipments. Brokers coordinate transportation, manage sub-brokers, and connect Shippers with vehicles. Fully isolated, zero noise.",
       stats: [
-        { k: "Avg sync", v: "1.2s" },
-        { k: "Offline", v: "∞" },
-        { k: "Captures", v: "100%" },
+        { k: "Active Shippers", v: "140+" },
+        { k: "Marketplace Loads", v: "8.5k" },
+        { k: "Avg. Match Time", v: "12m" },
       ],
     },
-    vendor: {
-      tag: "Track only what's yours",
-      title: "Your shipments, live. No noise, no dashboards you'll never use.",
-      body: "Share a link, get a portal. Live map, ETA, POD the second it's captured, invoices, ledger. Read-only by design - your vendors see exactly what you want them to.",
-      stats: [
-        { k: "Live", v: "24×7" },
-        { k: "ETAs", v: "Auto" },
-        { k: "POD", v: "Instant" },
-      ],
-    },
-    broker: {
-      tag: "Freight brokerage, scaled",
-      title: "Resell Reanzly capacity. Set your markup. Build your network.",
-      body: "Tap into Reanzly's published rate card, apply your own markup, and resell to your sub-brokers and customers. Manage enquiries, quote on marketplace loads, run settlement cycles, and get paid via NACH. Your own brokerage, on Reanzly rails.",
-      stats: [
-        { k: "Lanes", v: "10+" },
-        { k: "Markup", v: "8% avg" },
-        { k: "Settlement", v: "Auto" },
-      ],
-    },
+    // Keep driver/vendor/broker as deprecated values mapping to app/freight for TS safety
+    driver: { tag: "", title: "", body: "", stats: [] },
+    vendor: { tag: "", title: "", body: "", stats: [] },
+    broker: { tag: "", title: "", body: "", stats: [] },
   };
   const copy = portalCopy[portal];
 
@@ -497,7 +457,7 @@ export function LoginScreen() {
               <p className="mb-2 text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
                 Sign in to
               </p>
-              <div className="grid grid-cols-5 gap-1 rounded-[6px] border border-border bg-muted/30 p-1">
+              <div className="grid grid-cols-3 gap-1 rounded-[6px] border border-border bg-muted/30 p-1">
                 {PORTALS.map((p) => {
                   const Icon = p.icon;
                   const active = portal === p.id;
