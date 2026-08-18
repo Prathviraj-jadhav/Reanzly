@@ -140,6 +140,81 @@ export function LoginScreen() {
   const [pwPh, setPwPh] = useState(PASSWORD_PLACEHOLDERS[0]);
   const [error, setError] = useState<string | null>(null);
 
+  // Forgot password form states
+  const [mode, setMode] = useState<"login" | "forgot">("login");
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetNewPassword, setResetNewPassword] = useState("");
+  const [resetSuccessMsg, setResetSuccessMsg] = useState<string | null>(null);
+  const [isSubdomainLocked, setIsSubdomainLocked] = useState(false);
+
+  // Subdomain detection on mount
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const host = window.location.hostname.toLowerCase();
+      if (host.startsWith("admin.")) {
+        setPortal("superadmin");
+        useAppStore.getState().setPortal("superadmin");
+        setIsSubdomainLocked(true);
+      } else if (host.startsWith("app.")) {
+        setPortal("app");
+        useAppStore.getState().setPortal("app");
+        setIsSubdomainLocked(true);
+      } else if (host.startsWith("driver.")) {
+        setPortal("driver");
+        useAppStore.getState().setPortal("driver");
+        setIsSubdomainLocked(true);
+      } else if (host.startsWith("vendor.")) {
+        setPortal("vendor");
+        useAppStore.getState().setPortal("vendor");
+        setIsSubdomainLocked(true);
+      } else if (host.startsWith("broker.")) {
+        setPortal("broker");
+        useAppStore.getState().setPortal("broker");
+        setIsSubdomainLocked(true);
+      }
+    }
+  }, []);
+
+  async function handleForgotPasswordSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (submitting) return;
+    setError(null);
+    setResetSuccessMsg(null);
+
+    if (!resetEmail.trim()) {
+      setError("Email address is required.");
+      return;
+    }
+    if (!resetNewPassword.trim() || resetNewPassword.length < 4) {
+      setError("Password needs at least 4 characters.");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: resetEmail.trim(), newPassword: resetNewPassword.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Failed to reset password.");
+      } else {
+        setResetSuccessMsg("Password reset successfully! Redirecting...");
+        setTimeout(() => {
+          setEmail(resetEmail);
+          setMode("login");
+          setResetSuccessMsg(null);
+        }, 1500);
+      }
+    } catch (err) {
+      setError("Could not reach the server. Try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   const currentPortal = PORTALS.find((p) => p.id === portal)!;
 
   // Derive the effective role during render (no effect). If the persisted
@@ -417,6 +492,7 @@ export function LoginScreen() {
             </div>
 
             {/* Portal selector - 5-tab segmented control (Hick's: limited choice) */}
+            {!isSubdomainLocked && (
             <div className="mb-5">
               <p className="mb-2 text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
                 Sign in to
@@ -454,6 +530,7 @@ export function LoginScreen() {
                 </p>
               </div>
             </div>
+            )}
 
             <div className="mb-5">
               <h2 className="text-[22px] font-semibold tracking-tight">Sign in</h2>
@@ -617,7 +694,7 @@ export function LoginScreen() {
             </div>
             )}
 
-            {portal !== "superadmin" && (
+            {portal !== "superadmin" && mode === "login" && (
             <form onSubmit={handleSubmit} className="space-y-3" noValidate>
               {/* Email */}
               <label className="block">
@@ -693,9 +770,10 @@ export function LoginScreen() {
                 </label>
                 <button
                   type="button"
-                  onClick={() =>
-                    setError("Demo build - password resets aren't wired. Use any 4+ char password.")
-                  }
+                  onClick={() => {
+                    setMode("forgot");
+                    setError(null);
+                  }}
                   className="flex items-center gap-1 text-[12px] font-medium text-muted-foreground hover:text-foreground"
                 >
                   <KeyRound className="h-3.5 w-3.5" />
@@ -719,6 +797,101 @@ export function LoginScreen() {
                 ) : (
                   <>
                     Sign in to {currentPortal.label}
+                    <ArrowRight className="h-4 w-4" />
+                  </>
+                )}
+              </button>
+            </form>
+            )}
+
+            {portal !== "superadmin" && mode === "forgot" && (
+            <form onSubmit={handleForgotPasswordSubmit} className="space-y-3" noValidate>
+              <div className="mb-2">
+                <h3 className="text-[14px] font-semibold text-foreground">Reset Password</h3>
+                <p className="text-[12px] text-muted-foreground leading-relaxed">
+                  Enter your email and choose a new password to recover access.
+                </p>
+              </div>
+
+              {/* Reset Email */}
+              <label className="block">
+                <span className="mb-1.5 block text-[11px] font-medium text-muted-foreground">
+                  Work email
+                </span>
+                <div className="relative">
+                  <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <input
+                    type="email"
+                    value={resetEmail}
+                    onChange={(e) => {
+                      setResetEmail(e.target.value);
+                      if (error) setError(null);
+                    }}
+                    placeholder="e.g. vikram.deshmukh@reanzly.in"
+                    className="h-11 w-full rounded-[6px] border border-border bg-background pl-9 pr-3 text-[14px] outline-none transition-colors focus:border-foreground"
+                  />
+                </div>
+              </label>
+
+              {/* Reset New Password */}
+              <label className="block">
+                <span className="mb-1.5 block text-[11px] font-medium text-muted-foreground">
+                  New password
+                </span>
+                <div className="relative">
+                  <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <input
+                    type="password"
+                    value={resetNewPassword}
+                    onChange={(e) => {
+                      setResetNewPassword(e.target.value);
+                      if (error) setError(null);
+                    }}
+                    placeholder="Minimum 4 characters"
+                    className="h-11 w-full rounded-[6px] border border-border bg-background pl-9 pr-3 text-[14px] outline-none transition-colors focus:border-foreground"
+                  />
+                </div>
+              </label>
+
+              {error && (
+                <p className="rounded-[5px] border border-border bg-accent/40 px-3 py-2 text-[12px] text-foreground">
+                  {error}
+                </p>
+              )}
+
+              {resetSuccessMsg && (
+                <p className="rounded-[5px] border border-green-500/20 bg-green-500/5 px-3 py-2 text-[12px] text-green-600">
+                  {resetSuccessMsg}
+                </p>
+              )}
+
+              <div className="flex items-center justify-between pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode("login");
+                    setError(null);
+                    setResetSuccessMsg(null);
+                  }}
+                  className="text-[12px] font-medium text-muted-foreground hover:text-foreground hover:underline"
+                >
+                  Back to sign in
+                </button>
+              </div>
+
+              <button
+                type="submit"
+                disabled={submitting}
+                className="tap mt-2 flex h-11 w-full items-center justify-center gap-2 rounded-[6px] bg-foreground text-[14px] font-medium text-background transition-colors hover:bg-foreground/90 disabled:opacity-60"
+              >
+                {submitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Resetting password…
+                  </>
+                ) : (
+                  <>
+                    Reset Password &amp; Continue
                     <ArrowRight className="h-4 w-4" />
                   </>
                 )}

@@ -51,7 +51,7 @@ export function MarketingPricing() {
           <p className="mt-4 text-base leading-relaxed text-muted-foreground">
             Flat SaaS for fleet owners. Commission for marketplace partners.
             Master for network operators who want it all. Every plan starts
-            with a 7-day free trial - no card required.
+            with a 15-day free trial - no card required.
           </p>
         </div>
 
@@ -155,7 +155,7 @@ function PricingCard({
                 : "border border-border bg-background text-foreground hover:bg-accent")
             }
           >
-            Start 7-day free trial
+            Start 15-day free trial
             <ArrowRight className="h-3.5 w-3.5" />
           </button>
         </div>

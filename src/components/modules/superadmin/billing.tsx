@@ -91,14 +91,15 @@ export function BillingView() {
     let commissionCount = 0;
     let masterCount = 0;
     for (const o of active) {
-      if (o.subscriptionModel === "saas") {
-        saas += o.mrr;
+      const model = o.subscriptionModel;
+      if (model === "saas" || ["starter", "standard", "enterprise"].includes(model)) {
+        saas += o.mrr || subscriptionModelById(model as any).flatMonthly;
         saasCount += 1;
-      } else if (o.subscriptionModel === "commission") {
-        commission += EST_COMMISSION_MRR_PER_ORG;
+      } else if (model === "commission" || ["freemium", "partner"].includes(model)) {
+        commission += o.mrr || (subscriptionModelById(model as any).commissionPct ? EST_COMMISSION_MRR_PER_ORG : 0);
         commissionCount += 1;
-      } else if (o.subscriptionModel === "master") {
-        master += o.mrr;
+      } else if (model === "master") {
+        master += o.mrr || subscriptionModelById("enterprise").flatMonthly;
         masterCount += 1;
       }
     }

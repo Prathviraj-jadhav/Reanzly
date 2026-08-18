@@ -15,8 +15,7 @@ import {
  * items. Constrained to max-w-3xl and centred. Closes with a "Still have
  * questions? Talk to us →" link to #contact.
  *
- * FAQs sourced from REAL_FAQS so the answers reflect the actual platform
- * (live demo, 7-day trial, business-type packs, SaaS / Commission /
+ * (live demo, 15-day trial, business-type packs, SaaS / Commission /
  * Master, broker program, public directory, compliance, mobile).
  */
 

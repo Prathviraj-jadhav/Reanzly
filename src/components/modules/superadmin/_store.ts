@@ -921,7 +921,7 @@ export const useSuperadminStore = create<SuperadminState>()(
         const cap = plan ?? PLANS[0];
         const now = NOW();
         const trialEndsAt = new Date(
-          new Date(now).getTime() + 7 * 86_400_000,
+          new Date(now).getTime() + 15 * 86_400_000,
         ).toISOString();
         // Smart-onboarding: every assisted onboarding starts as a Trial.
         // MRR is zero until the trial converts to paid (see convertToPaid).
@@ -982,7 +982,7 @@ export const useSuperadminStore = create<SuperadminState>()(
         const audit = auditEntry(
           get() as SuperadminState,
           "anand.kumar@reanzly.com",
-          `Created org via assisted onboarding · ${sm?.label ?? form.subscriptionModel} · 7d trial`,
+          `Created org via assisted onboarding · ${sm?.label ?? form.subscriptionModel} · 15d trial`,
           `${id} · ${form.legalName}`,
           "Organizations",
         );
@@ -1052,7 +1052,7 @@ export const useSuperadminStore = create<SuperadminState>()(
           const audit = auditEntry(
             s,
             "anand.kumar@reanzly.com",
-            "Approved self-serve signup · 7d trial",
+            "Approved self-serve signup · 15d trial",
             `${id} · ${org.legalName}`,
             "Organizations",
           );
@@ -1065,7 +1065,7 @@ export const useSuperadminStore = create<SuperadminState>()(
                     mrr: 0,
                     pendingApprovalAt: undefined,
                     trialStartedAt: o.trialStartedAt ?? new Date(now).toISOString(),
-                    trialEndsAt: new Date(now + 7 * 86_400_000).toISOString(),
+                    trialEndsAt: new Date(now + 15 * 86_400_000).toISOString(),
                     usage: o.usage && plan
                       ? { ...o.usage, vehiclesCap: 50, storageCapGB: 25, apiCallsCap: 50_000 }
                       : o.usage,

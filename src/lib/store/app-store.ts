@@ -215,7 +215,7 @@ export type BusinessType =
 //                     Gets the marketplace + operations stack, no flat fee.
 //   - "master"      → Master Subscription: SaaS + commission + broker tools
 //                     bundled. The all-in-one tier for network operators.
-export type SubscriptionModel = "saas" | "commission" | "master";
+export type SubscriptionModel = "saas" | "commission" | "master" | "freemium" | "starter" | "standard" | "enterprise" | "partner";
 
 export type SignupRoleChoice =
   | "owner"
@@ -331,7 +331,7 @@ interface AppState {
   // can list/approve/reject them. Persisted via partialize so they survive
   // reloads - the SuperAdmin reviewer may open the panel hours later.
   signupRequests: SignupRequest[];
-  signup: (payload: SignupPayload) => void;
+  signup: (payload: SignupPayload) => Promise<{ ok: boolean; error?: string }>;
   setSignupRequestStatus: (id: string, status: SignupRequest["status"]) => void;
 
   activeView: ViewState;
@@ -576,9 +576,9 @@ export const useAppStore = create<AppState>()(
       authMode: "signin",
       setAuthMode: (m) => set({ authMode: m }),
       signupRequests: [],
-      signup: (payload) => {
+      signup: async (payload) => {
         const now = new Date();
-        const trialEnd = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+        const trialEnd = new Date(now.getTime() + 15 * 24 * 60 * 60 * 1000);
         const req: SignupRequest = {
           id: `sgr_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`,
           createdAt: now.toISOString(),
@@ -587,20 +587,29 @@ export const useAppStore = create<AppState>()(
           trialEndsAt: trialEnd.toISOString(),
           ...payload,
         };
-        set((s) => ({ signupRequests: [req, ...s.signupRequests] }));
-        // Auto-login on the App portal so the user can start their trial
-        // immediately - the request remains pending for SuperAdmin review.
-        get().login(payload.workEmail, payload.roleChoice, "app", payload.companyName);
-        // Patch authUser to carry the contact phone + the real contact name
-        // (the login() helper defaults name to the role archetype's display
-        // name - we want the user's typed name on the auth record instead).
-        // Also propagate smart-onboarding context (modules, subscription
-        // model, trial window, broker profile, directory opt-in) so the app
-        // shell + sidebar + billing surface can gate features accordingly.
-        set((s) =>
-          s.authUser
-            ? {
-                authUser: {
+        try {
+          const res = await fetch("/api/auth/signup", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ...req }),
+          });
+          const data = await res.json();
+          if (!res.ok) {
+            return { ok: false, error: data?.error || "Failed to create account." };
+          }
+          // Auto-login on the App portal so the user can start their trial
+          // immediately - the request remains pending for SuperAdmin review.
+          get().login(payload.workEmail, payload.roleChoice, "app", payload.companyName);
+          // Patch authUser to carry the contact phone + the real contact name
+          // (the login() helper defaults name to the role archetype's display
+          // name - we want the user's typed name on the auth record instead).
+          // Also propagate smart-onboarding context (modules, subscription
+          // model, trial window, broker profile, directory opt-in) so the app
+          // shell + sidebar + billing surface can gate features accordingly.
+          set((s) => ({
+            signupRequests: [req, ...s.signupRequests],
+            authUser: s.authUser
+              ? {
                   ...s.authUser,
                   name: payload.contactName,
                   phone: payload.phone,
@@ -611,10 +620,14 @@ export const useAppStore = create<AppState>()(
                   businessType: payload.businessType,
                   brokerProfile: payload.brokerProfile,
                   directoryListed: payload.directoryOptIn,
-                },
-              }
-            : {},
-        );
+                }
+              : null,
+          }));
+          return { ok: true };
+        } catch (err: any) {
+          console.error("Signup error:", err);
+          return { ok: false, error: "Could not reach the server. Try again." };
+        }
       },
       setSignupRequestStatus: (id, status) =>
         set((s) => ({

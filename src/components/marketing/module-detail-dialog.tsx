@@ -116,7 +116,7 @@ export function ProductDetailDialog({
                   )}
                 </p>
                 <p className="mt-0.5 text-xs text-muted-foreground">
-                  Billed monthly · 7-day free trial · cancel anytime
+                  Billed monthly · 15-day free trial · cancel anytime
                 </p>
               </div>
               <div className="ml-auto flex items-center gap-1.5 rounded-[4px] border border-border bg-background px-2 py-1 text-[10px] uppercase tracking-wider text-muted-foreground">

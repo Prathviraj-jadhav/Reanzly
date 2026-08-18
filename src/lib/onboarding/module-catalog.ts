@@ -456,64 +456,96 @@ export interface SubscriptionModelDef {
 
 export const SUBSCRIPTION_MODELS: SubscriptionModelDef[] = [
   {
-    id: "saas",
-    label: "SaaS Subscription",
-    tagline: "Flat monthly fee. Full platform.",
-    description:
-      "Pay a predictable monthly or annual subscription. Get the full Reanzly operations platform with no per-trip commission. Best for fleet owners and transport operators who run their own book of business.",
-    flatMonthly: 14999,
-    commissionPct: 0,
-    highlight: "Predictable cost",
+    id: "freemium",
+    label: "Freemium",
+    tagline: "Zero flat fee, 10% commission.",
+    description: "Start for free with no fixed monthly commitment. Pay a 10% commission on booked trips.",
+    flatMonthly: 0,
+    commissionPct: 10,
+    highlight: "Zero risk starter",
     features: [
-      "Full operations + finance platform",
-      "Unlimited users on your plan",
-      "No per-trip commission",
-      "Annual billing saves ~17%",
+      "No fixed monthly charge",
+      "10% commission per trip",
+      "Basic tracking & dispatch",
+      "Public directory listing",
+      "Standard support",
+    ],
+  },
+  {
+    id: "starter",
+    label: "Starter Plan",
+    tagline: "₹999/mo + 5% commission.",
+    description: "Predictable low monthly fee with a reduced 5% commission on trips.",
+    flatMonthly: 999,
+    commissionPct: 5,
+    highlight: "Grow your business",
+    features: [
+      "Low flat monthly rate",
+      "5% commission per trip",
+      "Full tracking & dispatch",
+      "Billing & invoicing",
+      "Standard support",
+    ],
+  },
+  {
+    id: "standard",
+    label: "Standard Plan",
+    tagline: "₹2,999/mo + 4% commission.",
+    description: "Best for established operators. Flat monthly fee with 4% commission.",
+    flatMonthly: 2999,
+    commissionPct: 4,
+    highlight: "Most Popular",
+    recommended: true,
+    features: [
+      "Predictable monthly fee",
+      "4% commission per trip",
+      "Operations Hub & CRM",
+      "Warehouse (WMS) integration",
       "Priority support",
     ],
   },
   {
-    id: "commission",
-    label: "Logistics Partner (Commission)",
-    tagline: "Zero flat fee. Pay per booked trip.",
-    description:
-      "Listed as a logistics partner on the Reanzly marketplace. Pay a commission only on trips booked through Reanzly. Best for brokers and fleet owners who want inbound load enquiries without a fixed commitment.",
-    flatMonthly: 0,
-    commissionPct: 7,
-    highlight: "Pay only when you earn",
-    recommended: true,
+    id: "enterprise",
+    label: "Enterprise Plan",
+    tagline: "₹9,999/mo + 2% commission.",
+    description: "For large logistics providers. Minimum commission of 2% per trip.",
+    flatMonthly: 9999,
+    commissionPct: 2,
+    highlight: "Scale Operations",
     features: [
-      "No flat monthly fee",
-      "7% commission on marketplace trips",
-      "Public directory listing (SEO-ranked)",
-      "Inbound load enquiries",
-      "Marketplace rate-card visibility",
-      "Broker console + settlements",
+      "Flat monthly subscription",
+      "2% commission per trip",
+      "Dedicated account manager",
+      "Custom integrations & API access",
+      "24/7 priority SLA support",
     ],
   },
   {
-    id: "master",
-    label: "Master Subscription",
-    tagline: "SaaS + Commission + Broker tools. All-in-one.",
-    description:
-      "The all-in-one tier for network operators. Full SaaS platform + marketplace listing + broker console to resell Reanzly capacity under your own brand + sub-broker management. One subscription, every revenue stream.",
-    flatMonthly: 29999,
-    commissionPct: 4, // reduced commission since they also pay flat
-    highlight: "Every revenue stream, one plan",
+    id: "partner",
+    label: "Logistics Partner (Free)",
+    tagline: "Free management. Co-branded vehicle required.",
+    description: "Zero flat fee and zero commission. We manage your fleet and vehicles for you. Requires placing Reanzly branding logos on your vehicles.",
+    flatMonthly: 0,
+    commissionPct: 0,
+    highlight: "Zero cost fleet management",
     features: [
-      "Everything in SaaS + Commission",
-      "Broker console (resell with your markup)",
-      "Sub-broker onboarding + management",
-      "White-label marketplace listing",
-      "Reduced 4% marketplace commission",
-      "Dedicated success manager",
-      "API access + webhooks",
+      "No monthly charge & 0% commission",
+      "We manage your vehicles & compliance",
+      "Requires Reanzly logos on your vehicles",
+      "Access to Reanzly load board",
+      "Standard support",
     ],
-  },
+  }
 ];
 
 export function subscriptionModelById(id: SubscriptionModel): SubscriptionModelDef {
-  return SUBSCRIPTION_MODELS.find((s) => s.id === id) ?? SUBSCRIPTION_MODELS[0];
+  const found = SUBSCRIPTION_MODELS.find((s) => s.id === id);
+  if (found) return found;
+  // Fallbacks for legacy/seeded database records
+  if (id === "saas") return subscriptionModelById("standard");
+  if (id === "commission") return subscriptionModelById("freemium");
+  if (id === "master") return subscriptionModelById("enterprise");
+  return SUBSCRIPTION_MODELS[0];
 }
 
 // ── Helpers ────────────────────────────────────────────────

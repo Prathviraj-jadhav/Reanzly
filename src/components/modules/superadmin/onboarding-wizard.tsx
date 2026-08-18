@@ -305,7 +305,7 @@ export function OnboardingWizard({
       const id = createOrg(form);
       setSubmitting(false);
       toast.success("Organization onboarded", {
-        description: `${form.legalName} · 7-day trial · Invite sent to ${form.adminEmail}`,
+        description: `${form.legalName} · 15-day trial · Invite sent to ${form.adminEmail}`,
       });
       onCreated?.(id);
       onClose();
@@ -324,7 +324,7 @@ export function OnboardingWizard({
         <DialogTitle className="sr-only">Onboard Organization</DialogTitle>
         <DialogDescription className="sr-only">
           Five-step smart wizard to create a new tenant, recommend a module
-          pack based on business type, and start a 7-day trial.
+          pack based on business type, and start a 15-day trial.
         </DialogDescription>
 
         {/* Header */}
@@ -334,7 +334,7 @@ export function OnboardingWizard({
               Onboard Organization
             </h2>
             <p className="text-[12px] text-muted-foreground">
-              Five steps · Reanzly smart assisted onboarding · 7-day trial
+              Five steps · Reanzly smart assisted onboarding · 15-day trial
             </p>
           </div>
           <button
@@ -1109,7 +1109,7 @@ function Step4Subscription({
           : form.billingCycle === "Annual"
             ? `${formatINR(planById(form.plan)?.annual ?? 0)} billed annually · ${subscriptionModelById(form.subscriptionModel).label}`
             : `${formatINR(subscriptionModelById(form.subscriptionModel).flatMonthly)} flat / mo · ${subscriptionModelById(form.subscriptionModel).label}`}{" "}
-        · First invoice issues when the 7-day trial converts to paid.
+        · First invoice issues when the 15-day trial converts to paid.
       </div>
     </div>
   );
@@ -1135,7 +1135,7 @@ function Step5Review({
     <div className="space-y-4">
       <div className="rounded-[6px] border border-border bg-muted/30 p-3 text-[12px] text-muted-foreground">
         Review the onboarding details below. The org gets a{" "}
-        <span className="text-foreground font-medium">7-day free trial</span>{" "}
+        <span className="text-foreground font-medium">15-day free trial</span>{" "}
         starting from creation. An invite email will be sent to{" "}
         <span className="text-foreground font-medium">{form.adminEmail}</span>.
       </div>
@@ -1221,7 +1221,7 @@ function Step5Review({
         />
         <div className="rounded-[5px] border border-border bg-muted/30 px-3 py-2 text-[12px] text-muted-foreground leading-relaxed">
           <span className="font-medium text-foreground">Trial note: </span>
-          Org gets a 7-day free trial starting from creation. MRR stays at{" "}
+          Org gets a 15-day free trial starting from creation. MRR stays at{" "}
           <span className="font-medium text-foreground">₹0</span> until the
           trial converts to paid (use the “Convert to paid” action in the
           Organizations view).

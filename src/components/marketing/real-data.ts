@@ -653,7 +653,7 @@ export interface OnboardingStep {
 export const REAL_ONBOARDING_FLOW: OnboardingStep[] = [
   { num: "01", title: "Pick your business type", description: "Choose from Transport, Freight Broker, Warehouse, 3PL, Fleet Owner or Reanzly Broker. Each maps to a curated starter pack - no manual module selection.", moduleId: "settings" },
   { num: "02", title: "Auto-provisioned modules", description: "We auto-select the modules your business type needs. Add or remove any module from the catalog before you confirm - every change reflects on the Superadmin reviewer's screen.", moduleId: "superadmin" },
-  { num: "03", title: "Choose how you pay", description: "SaaS flat fee, commission per booked trip, or Master all-in-one. Every plan starts with a 7-day free trial - no card required.", moduleId: "superadmin" },
+  { num: "03", title: "Choose how you pay", description: "SaaS flat fee, commission per booked trip, or Master all-in-one. Every plan starts with a 15-day free trial - no card required.", moduleId: "superadmin" },
   { num: "04", title: "Land in your dashboard", description: "Auto-login on the App portal. The sidebar shows only your provisioned modules. The header shows your trial countdown. Start logging trips, vehicles and invoices immediately.", moduleId: "dashboard" },
   { num: "05", title: "SuperAdmin approves + scales", description: "Your signup request lands in the SuperAdmin queue. On approval, your trial converts to a paid plan and you can list on the public directory, add brokers, and resell capacity.", moduleId: "superadmin" },
 ];
@@ -793,8 +793,8 @@ export const REAL_FAQS: { q: string; a: string }[] = [
     a: "Yes. Every product card on this page has an 'Open live demo' button. It signs you in as a demo owner and routes you straight into that module - no signup, no card, no email verification.",
   },
   {
-    q: "How does the 7-day free trial work?",
-    a: "Pick a business type in the signup wizard. We auto-provision the recommended module pack. You land in the dashboard immediately with a 7-day trial countdown in the header. The SuperAdmin team reviews your request in parallel; on approval, your trial converts to a paid plan.",
+    q: "How does the 15-day free trial work?",
+    a: "Pick a business type in the signup wizard. We auto-provision the recommended module pack. You land in the dashboard immediately with a 15-day trial countdown in the header. The SuperAdmin team reviews your request in parallel; on approval, your trial converts to a paid plan.",
   },
   {
     q: "Do I have to take all 36 modules?",

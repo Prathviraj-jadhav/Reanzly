@@ -245,9 +245,9 @@ export function OrganizationsView() {
         // palette only - the dot is just a filled/outlined/hatched circle
         // to aid quick scanning.
         const dotClass =
-          r.subscriptionModel === "saas"
+          ["saas", "starter", "standard", "enterprise"].includes(r.subscriptionModel)
             ? "bg-foreground"
-            : r.subscriptionModel === "commission"
+            : ["commission", "freemium"].includes(r.subscriptionModel)
               ? "border border-foreground bg-background"
               : "bg-foreground/40";
         return (
@@ -677,7 +677,7 @@ export function OrganizationsView() {
               Use this path when a customer has emailed sales or signed an offline
               contract. The smart wizard walks you through org basics + business
               type, recommended module pack, admin user, subscription model, and
-              a final review before starting a 7-day trial.
+              a final review before starting a 15-day trial.
             </p>
             <div className="grid grid-cols-5 gap-1.5">
               {[

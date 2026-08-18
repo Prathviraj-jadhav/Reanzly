@@ -179,6 +179,45 @@ const STEPS = [
 
 type StepId = 1 | 2 | 3 | 4 | 5;
 
+const ONBOARDING_SEGMENTS = [
+  {
+    id: "tms",
+    name: "Transport Management Software (TMS)",
+    description: "Trip Management, Operations Hub, Lorry Receipts (LR), Proof of Delivery (POD), and Planning.",
+    moduleIds: ["trips", "operations-hub", "lorry-receipts", "pod", "planning", "dashboard", "chat"],
+  },
+  {
+    id: "fleet",
+    name: "Fleet Management Software",
+    description: "Vehicle records, GPS Tracking & Live Map, Fuel Management, Maintenance, Inspections, and Compliance.",
+    moduleIds: ["vehicles", "fleet-map", "fuel-energy", "maintenance", "inspection", "compliance", "workshop", "documents", "issues", "reminders"],
+  },
+  {
+    id: "billing",
+    name: "Billing & Invoicing",
+    description: "GST-compliant invoicing, payments, receivables, expenses, rate cards, and double-entry accounting ledger.",
+    moduleIds: ["invoice", "payments", "expenses", "ledger", "financial-ops", "rate-cards"],
+  },
+  {
+    id: "wms",
+    name: "Warehouse Management Software (WMS)",
+    description: "Inbound stock, storage management, outbound, picking, packing, stock alerts, and multi-warehouse synchronization.",
+    moduleIds: ["warehouse"],
+  },
+  {
+    id: "crm",
+    name: "Customer Relationship Management (CRM)",
+    description: "Lead capture, client quotes, rate negotiation tracking, contract management, and sales pipelines.",
+    moduleIds: ["crm"],
+  },
+  {
+    id: "hrms",
+    name: "HRMS & Payroll",
+    description: "Driver profiles, attendance, wages, recruitment, interview scheduling, offer letters, and statutory payroll filings.",
+    moduleIds: ["hr", "payroll", "drivers-staff"],
+  },
+];
+
 const MODULE_CATEGORIES: OnboardingModule["category"][] = [
   "Operations",
   "Fleet",
@@ -278,6 +317,97 @@ export function SignupScreen() {
   const [maxStep, setMaxStep] = useState<StepId>(1);
   const [form, setForm] = useState<FormState>(INITIAL);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Driver/Individual tab state
+  const [signupType, setSignupType] = useState<"business" | "driver">("business");
+  const [driverForm, setDriverForm] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    vehicleType: "FTL Truck",
+    vehiclePlate: "",
+    password: "",
+  });
+  const [driverSubmitting, setDriverSubmitting] = useState(false);
+  const [driverError, setDriverError] = useState<string | null>(null);
+
+  const isSegmentSelected = (seg: typeof ONBOARDING_SEGMENTS[0]) => {
+    const count = seg.moduleIds.filter((id) => form.selectedModules.includes(id)).length;
+    return count >= Math.max(1, seg.moduleIds.length / 2);
+  };
+
+  const toggleSegment = (seg: typeof ONBOARDING_SEGMENTS[0]) => {
+    const isCurrentlySelected = isSegmentSelected(seg);
+    setForm((f) => {
+      let nextModules = new Set(f.selectedModules);
+      if (isCurrentlySelected) {
+        seg.moduleIds.forEach((id) => nextModules.delete(id));
+      } else {
+        seg.moduleIds.forEach((id) => nextModules.add(id));
+      }
+      nextModules.add("dashboard");
+      nextModules.add("chat");
+      nextModules.add("settings");
+      return { ...f, selectedModules: Array.from(nextModules) };
+    });
+    setErrors((e) => {
+      if (!e.selectedModules) return e;
+      const next = { ...e };
+      delete next.selectedModules;
+      return next;
+    });
+  };
+
+  async function handleDriverSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (driverSubmitting) return;
+    setDriverError(null);
+
+    if (!driverForm.name.trim()) {
+      setDriverError("Full name is required.");
+      return;
+    }
+    if (!driverForm.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(driverForm.email.trim())) {
+      setDriverError("Valid email is required.");
+      return;
+    }
+    const cleanPhone = driverForm.phone.replace(/\D/g, "");
+    if (cleanPhone.length < 10) {
+      setDriverError("Please enter a valid 10-digit mobile number.");
+      return;
+    }
+    if (!driverForm.vehiclePlate.trim()) {
+      setDriverError("Vehicle plate number is required.");
+      return;
+    }
+    if (driverForm.password.length < 4) {
+      setDriverError("Password needs at least 4 characters.");
+      return;
+    }
+
+    setDriverSubmitting(true);
+    try {
+      const res = await fetch("/api/auth/signup-driver", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...driverForm,
+          phone: cleanPhone.slice(-10),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setDriverError(data.error || "Driver signup failed.");
+      } else {
+        toast.success("Driver account and vehicle listed successfully!");
+        useAppStore.getState().login(driverForm.email.trim(), "driver", "app", `Driver: ${driverForm.name.trim()}`);
+      }
+    } catch (err) {
+      setDriverError("Could not reach the server. Try again.");
+    } finally {
+      setDriverSubmitting(false);
+    }
+  }
   const [showPw, setShowPw] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -426,7 +556,7 @@ export function SignupScreen() {
     if (step > 1) setStep((step - 1) as StepId);
   }
 
-  function handleSubmit() {
+  async function handleSubmit() {
     if (submitting) return;
     if (!validateStep5()) return;
     if (!form.businessType) return;
@@ -451,14 +581,16 @@ export function SignupScreen() {
       roleChoice: form.roleChoice,
       agreedToTerms: form.agreedToTerms,
     };
-    // Doherty threshold - keep the success feedback under 600ms before the
-    // store's auto-login redirect kicks in.
-    setTimeout(() => {
-      signup(payload);
-      toast.success("Account created. Your 7-day free trial is live.", {
+
+    const res = await signup(payload);
+    if (res.ok) {
+      toast.success("Account created. Your 15-day free trial is live.", {
         description: "Reanzly staff will review your request in the SuperAdmin panel.",
       });
-    }, 600);
+    } else {
+      setSubmitting(false);
+      setErrors((e) => ({ ...e, api: res.error || "Failed to create account." }));
+    }
   }
 
   // First error on the current step (for the bottom validation strip).
@@ -539,7 +671,7 @@ export function SignupScreen() {
           <div className="flex items-center gap-2">
             <Truck className="h-5 w-5" />
             <span className="text-[13px] font-medium uppercase tracking-[0.16em]">
-              Start your 7-day free trial
+              Start your 15-day free trial
             </span>
           </div>
 
@@ -550,7 +682,7 @@ export function SignupScreen() {
             <p className="max-w-md text-[14px] leading-relaxed text-background/70">
               We auto-recommend the modules, subscription model and broker tools
               that fit how you move freight. Edit anything you like. Trial
-              includes every module you pick for 7 days, free.
+              includes every module you pick for 15 days, free.
             </p>
 
             <div className="grid grid-cols-3 gap-px overflow-hidden rounded-[6px] border border-background/20 bg-background/20">
@@ -564,7 +696,7 @@ export function SignupScreen() {
                 <p className="text-[10px] uppercase tracking-[0.14em] text-background/60">
                   Free trial
                 </p>
-                <p className="mt-1 text-[22px] font-semibold tabular-nums">7 days</p>
+                <p className="mt-1 text-[22px] font-semibold tabular-nums">15 days</p>
               </div>
               <div className="bg-foreground p-4">
                 <p className="text-[10px] uppercase tracking-[0.14em] text-background/60">
@@ -607,6 +739,38 @@ export function SignupScreen() {
 
         {/* Form panel */}
         <section className="relative flex flex-1 flex-col overflow-hidden">
+          {/* Signup Type Selection Tabs */}
+          <div className="z-20 border-b border-border bg-background/95 px-4 py-2 backdrop-blur sm:px-8 flex justify-center shrink-0">
+            <div className="grid grid-cols-2 gap-1 rounded-[6px] border border-border bg-muted/30 p-1 w-full max-w-[400px]">
+              <button
+                type="button"
+                onClick={() => setSignupType("business")}
+                className={cn(
+                  "rounded-[4px] px-3 py-1.5 text-[12px] font-medium transition-colors text-center",
+                  signupType === "business"
+                    ? "bg-foreground text-background"
+                    : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                )}
+              >
+                Logistics Business
+              </button>
+              <button
+                type="button"
+                onClick={() => setSignupType("driver")}
+                className={cn(
+                  "rounded-[4px] px-3 py-1.5 text-[12px] font-medium transition-colors text-center",
+                  signupType === "driver"
+                    ? "bg-foreground text-background"
+                    : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                )}
+              >
+                Individual Driver
+              </button>
+            </div>
+          </div>
+
+          {signupType === "business" && (
+          <>
           {/* Stepper - sits at top of the right panel (sticky-feeling via flex column) */}
           <div className="z-10 border-b border-border bg-background/95 px-4 py-3 backdrop-blur sm:px-8">
             <div className="mx-auto flex max-w-[640px] items-center gap-1 overflow-x-auto no-scrollbar sm:gap-0">
@@ -859,47 +1023,33 @@ export function SignupScreen() {
                     </div>
                   )}
 
-                  {/* Module catalog by category - collapsible sections */}
-                  <div className="space-y-2">
-                    {MODULE_CATEGORIES.map((cat) => {
-                      const mods = ONBOARDING_MODULES.filter((m) => m.category === cat);
-                      if (mods.length === 0) return null;
-                      const selectedInCat = mods.filter((m) =>
-                        form.selectedModules.includes(m.id),
-                      ).length;
-                      const allSelected = selectedInCat === mods.length;
+                  {/* Onboarding Segments list */}
+                  <div className="space-y-3">
+                    {ONBOARDING_SEGMENTS.map((seg) => {
+                      const isSelected = isSegmentSelected(seg);
                       return (
-                        <ModuleCategorySection
-                          key={cat}
-                          category={cat}
-                          modules={mods}
-                          selectedCount={selectedInCat}
-                          allSelected={allSelected}
-                          selectedIds={form.selectedModules}
-                          onToggle={(id) => {
-                            setForm((f) => {
-                              const has = f.selectedModules.includes(id);
-                              const next = has
-                                ? f.selectedModules.filter((x) => x !== id)
-                                : [...f.selectedModules, id];
-                              return { ...f, selectedModules: next };
-                            });
-                            setErrors((e) => {
-                              if (!e.selectedModules) return e;
-                              const next = { ...e };
-                              delete next.selectedModules;
-                              return next;
-                            });
-                          }}
-                          onToggleAll={(ids, checked) => {
-                            setForm((f) => {
-                              const set = new Set(f.selectedModules);
-                              if (checked) ids.forEach((id) => set.add(id));
-                              else ids.forEach((id) => set.delete(id));
-                              return { ...f, selectedModules: Array.from(set) };
-                            });
-                          }}
-                        />
+                        <div
+                          key={seg.id}
+                          onClick={() => toggleSegment(seg)}
+                          className={cn(
+                            "flex items-start gap-3 rounded-[8px] border p-4 cursor-pointer transition-colors tap",
+                            isSelected
+                              ? "border-foreground bg-foreground/[0.03]"
+                              : "border-border bg-background hover:bg-accent"
+                          )}
+                        >
+                          <div className="mt-0.5 flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded-[3px] border border-foreground/30 bg-background">
+                            {isSelected && <Check className="h-3 w-3 text-foreground" />}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-[13px] font-semibold text-foreground leading-snug">
+                              {seg.name}
+                            </p>
+                            <p className="mt-1 text-[11.5px] text-muted-foreground leading-relaxed">
+                              {seg.description}
+                            </p>
+                          </div>
+                        </div>
                       );
                     })}
                   </div>
@@ -907,20 +1057,9 @@ export function SignupScreen() {
                   {/* Live summary + reset footer */}
                   <div className="sticky bottom-0 -mx-4 mt-2 flex items-center justify-between gap-2 border-t border-border bg-background/95 px-4 py-3 backdrop-blur sm:mx-0 sm:rounded-[6px] sm:border sm:px-3">
                     <div className="flex items-baseline gap-2">
-                      <span className="text-[12px] text-muted-foreground">Selected</span>
-                      <span className="text-[16px] font-semibold tabular-nums">
-                        {form.selectedModules.length}
-                      </span>
-                      <span className="text-[12px] text-muted-foreground">modules</span>
-                      <span className="mx-1 hidden text-muted-foreground sm:inline">·</span>
-                      <span className="hidden text-[12px] text-muted-foreground sm:inline">
-                        est.{" "}
-                      </span>
-                      <span className="hidden text-[14px] font-semibold tabular-nums sm:inline">
-                        {formatINR(monthlyEstimate)}
-                      </span>
-                      <span className="hidden text-[11px] text-muted-foreground sm:inline">
-                        /mo after trial
+                      <span className="text-[12px] text-muted-foreground">Pricing Tier:</span>
+                      <span className="text-[14px] font-semibold text-foreground">
+                        {chosenSubscription?.label || "Freemium"}
                       </span>
                     </div>
                     <Btn
@@ -1193,8 +1332,16 @@ export function SignupScreen() {
                         value={`${form.selectedModules.length} modules`}
                       />
                       <ReviewRow
-                        label="Est. after trial"
-                        value={`${formatINR(monthlyEstimate)}/mo`}
+                        label="Plan Pricing"
+                        value={
+                          chosenSubscription
+                            ? chosenSubscription.flatMonthly > 0
+                              ? `${formatINR(chosenSubscription.flatMonthly)}/mo + ${chosenSubscription.commissionPct}% commission`
+                              : chosenSubscription.commissionPct > 0
+                                ? `₹0 flat + ${chosenSubscription.commissionPct}% commission`
+                                : "Free (Co-branded)"
+                            : "Billed under chosen plan"
+                        }
                         mono
                       />
                       <ReviewRow label="Subscription" value={chosenSubscription?.label ?? form.subscriptionModel} />
@@ -1210,7 +1357,7 @@ export function SignupScreen() {
                             : "Not applicable"
                         }
                       />
-                      <ReviewRow label="Trial" value="7 days free" />
+                      <ReviewRow label="Trial" value="15 days free" />
                     </ReviewSection>
                     <div className="h-px bg-border" />
                     <ReviewSection title="Primary contact" icon={User}>
@@ -1249,6 +1396,12 @@ export function SignupScreen() {
                   </div>
 
                   {/* Submit */}
+                  {errors.api && (
+                    <p className="rounded-[5px] border border-border bg-accent/40 px-3 py-2 text-[12px] text-foreground">
+                      {errors.api}
+                    </p>
+                  )}
+
                   <button
                     type="button"
                     onClick={handleSubmit}
@@ -1263,7 +1416,7 @@ export function SignupScreen() {
                     ) : (
                       <>
                         <PartyPopper className="h-4 w-4" />
-                        Create account &amp; start 7-day free trial
+                        Create account &amp; start 15-day free trial
                       </>
                     )}
                   </button>
@@ -1289,6 +1442,146 @@ export function SignupScreen() {
               </p>
             </div>
           </div>
+          </>
+          )}
+
+          {signupType === "driver" && (
+            <div className="flex-1 overflow-y-auto scrollbar-thin">
+              <div className="mx-auto w-full max-w-[480px] px-4 py-8 sm:px-8">
+                <div className="mb-6">
+                  <h2 className="text-[22px] font-semibold tracking-tight">Driver Registration</h2>
+                  <p className="mt-1 text-[13px] text-muted-foreground leading-relaxed">
+                    Join the Reanzly marketplace as an individual driver. Register your profile, list your vehicle and get loads instantly.
+                  </p>
+                </div>
+
+                <form onSubmit={handleDriverSubmit} className="space-y-4" noValidate>
+                  {/* Name */}
+                  <label className="block">
+                    <span className="mb-1.5 block text-[11px] font-medium text-muted-foreground">
+                      Full Name
+                    </span>
+                    <input
+                      type="text"
+                      value={driverForm.name}
+                      onChange={(e) => setDriverForm({ ...driverForm, name: e.target.value })}
+                      placeholder="e.g. Kuldeep Singh"
+                      className="h-10 w-full rounded-[6px] border border-border bg-background px-3 text-[13px] outline-none transition-colors focus:border-foreground"
+                    />
+                  </label>
+
+                  {/* Email */}
+                  <label className="block">
+                    <span className="mb-1.5 block text-[11px] font-medium text-muted-foreground">
+                      Work Email
+                    </span>
+                    <input
+                      type="email"
+                      value={driverForm.email}
+                      onChange={(e) => setDriverForm({ ...driverForm, email: e.target.value })}
+                      placeholder="e.g. kuldeep.singh@reanzly.in"
+                      className="h-10 w-full rounded-[6px] border border-border bg-background px-3 text-[13px] outline-none transition-colors focus:border-foreground"
+                    />
+                  </label>
+
+                  {/* Phone */}
+                  <label className="block">
+                    <span className="mb-1.5 block text-[11px] font-medium text-muted-foreground">
+                      Contact Phone
+                    </span>
+                    <input
+                      type="tel"
+                      value={driverForm.phone}
+                      onChange={(e) => setDriverForm({ ...driverForm, phone: e.target.value })}
+                      placeholder="10-digit mobile number"
+                      className="h-10 w-full rounded-[6px] border border-border bg-background px-3 text-[13px] outline-none transition-colors focus:border-foreground"
+                    />
+                  </label>
+
+                  {/* Vehicle Type */}
+                  <label className="block">
+                    <span className="mb-1.5 block text-[11px] font-medium text-muted-foreground">
+                      Vehicle Type
+                    </span>
+                    <select
+                      value={driverForm.vehicleType}
+                      onChange={(e) => setDriverForm({ ...driverForm, vehicleType: e.target.value })}
+                      className="h-10 w-full rounded-[6px] border border-border bg-background px-3 text-[13px] outline-none transition-colors focus:border-foreground"
+                    >
+                      <option value="FTL Truck">Full Truck Load (FTL) Truck</option>
+                      <option value="LTL Tempo">Light Commercial (LTL) Tempo</option>
+                      <option value="Tanker">Chemical/Liquid Tanker</option>
+                      <option value="Flatbed">Flatbed Trailer</option>
+                      <option value="Container">Intermodal Container</option>
+                    </select>
+                  </label>
+
+                  {/* Vehicle Plate */}
+                  <label className="block">
+                    <span className="mb-1.5 block text-[11px] font-medium text-muted-foreground">
+                      Vehicle License Plate Number
+                    </span>
+                    <input
+                      type="text"
+                      value={driverForm.vehiclePlate}
+                      onChange={(e) => setDriverForm({ ...driverForm, vehiclePlate: e.target.value })}
+                      placeholder="e.g. MH 12 AB 1234"
+                      className="h-10 w-full rounded-[6px] border border-border bg-background px-3 text-[13px] outline-none transition-colors focus:border-foreground"
+                    />
+                  </label>
+
+                  {/* Password */}
+                  <label className="block">
+                    <span className="mb-1.5 block text-[11px] font-medium text-muted-foreground">
+                      Password
+                    </span>
+                    <input
+                      type="password"
+                      value={driverForm.password}
+                      onChange={(e) => setDriverForm({ ...driverForm, password: e.target.value })}
+                      placeholder="Minimum 4 characters"
+                      className="h-10 w-full rounded-[6px] border border-border bg-background px-3 text-[13px] outline-none transition-colors focus:border-foreground"
+                    />
+                  </label>
+
+                  {driverError && (
+                    <p className="rounded-[5px] border border-border bg-accent/40 px-3 py-2 text-[12px] text-foreground">
+                      {driverError}
+                    </p>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={driverSubmitting}
+                    className="tap mt-3 flex h-11 w-full items-center justify-center gap-2 rounded-[6px] bg-foreground text-[14px] font-medium text-background transition-colors hover:bg-foreground/90 disabled:opacity-60"
+                  >
+                    {driverSubmitting ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Creating driver profile...
+                      </>
+                    ) : (
+                      <>
+                        Join Reanzly &amp; List Vehicle
+                        <ArrowRight className="h-4 w-4" />
+                      </>
+                    )}
+                  </button>
+                </form>
+
+                {/* Switch to login footer */}
+                <p className="mt-6 text-center text-[11px] text-muted-foreground">
+                  Already have an account?{" "}
+                  <button
+                    onClick={() => setAuthMode("signin")}
+                    className="font-medium text-foreground hover:underline"
+                  >
+                    Sign in
+                  </button>
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* Validation strip - bottom of right panel */}
           {firstError && (

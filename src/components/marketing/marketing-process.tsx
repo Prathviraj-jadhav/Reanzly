@@ -101,7 +101,7 @@ export function MarketingProcess() {
             onClick={startTrial}
             className="tap flex h-11 items-center justify-center gap-1.5 rounded-md bg-foreground px-5 text-sm font-medium uppercase tracking-wider text-background transition-colors hover:bg-foreground/90"
           >
-            Start 7-day free trial
+            Start 15-day free trial
             <ArrowRight className="h-4 w-4" />
           </button>
         </div>
