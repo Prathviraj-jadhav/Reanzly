@@ -321,17 +321,23 @@ export function SignupScreen() {
   // Subdomain & Signuptype states
   const [signupSubdomain, setSignupSubdomain] = useState<"app" | "freight">("app");
   const [signupType, setSignupType] = useState<"business" | "driver" | "shipper" | "broker">("business");
+  const [isSubdomainLocked, setIsSubdomainLocked] = useState(false);
 
   // Subdomain detection on mount
   useEffect(() => {
     if (typeof window !== "undefined") {
       const host = window.location.hostname.toLowerCase();
-      if (host.startsWith("freight.")) {
-        setSignupSubdomain("freight");
-        setSignupType("shipper");
+      if (host.includes("reanzly.com")) {
+        setIsSubdomainLocked(true);
+        if (host.startsWith("freight.")) {
+          setSignupSubdomain("freight");
+          setSignupType("shipper");
+        } else {
+          setSignupSubdomain("app");
+          setSignupType("business");
+        }
       } else {
-        setSignupSubdomain("app");
-        setSignupType("business");
+        setIsSubdomainLocked(false);
       }
     }
   }, []);
@@ -779,6 +785,37 @@ export function SignupScreen() {
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-background text-foreground">
+      {!isSubdomainLocked && (
+        <div className="z-50 flex items-center justify-center gap-2 border-b border-yellow-500/20 bg-yellow-500/5 py-1 text-[11px] text-yellow-600 dark:text-yellow-400">
+          <span className="font-semibold uppercase tracking-wider">Preview Subdomain:</span>
+          <button
+            type="button"
+            onClick={() => {
+              setSignupSubdomain("app");
+              setSignupType("business");
+            }}
+            className={cn(
+              "px-2 py-0.5 rounded transition-colors font-mono",
+              signupSubdomain === "app" ? "bg-yellow-500 text-background font-semibold" : "hover:bg-yellow-500/20"
+            )}
+          >
+            app.reanzly.com (Fleet App)
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setSignupSubdomain("freight");
+              setSignupType("shipper");
+            }}
+            className={cn(
+              "px-2 py-0.5 rounded transition-colors font-mono",
+              signupSubdomain === "freight" ? "bg-yellow-500 text-background font-semibold" : "hover:bg-yellow-500/20"
+            )}
+          >
+            freight.reanzly.com (Marketplace)
+          </button>
+        </div>
+      )}
       {/* Top hairline brand bar */}
       <header className="flex h-12 shrink-0 items-center justify-between border-b border-border px-4">
         <div className="flex items-center gap-2">
