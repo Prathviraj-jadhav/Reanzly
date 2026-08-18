@@ -24,64 +24,81 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing required shipper registration fields." }, { status: 400 });
     }
 
+    // Strict validation
+    const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!EMAIL_REGEX.test(email)) {
+      return NextResponse.json({ error: "Invalid email address format." }, { status: 400 });
+    }
+    const cleanPhone = phone.replace(/\D/g, "");
+    if (cleanPhone.length < 10) {
+      return NextResponse.json({ error: "Phone number must be a valid 10-digit number." }, { status: 400 });
+    }
+    if (password.length < 4) {
+      return NextResponse.json({ error: "Password must be at least 4 characters long." }, { status: 400 });
+    }
+
     // Prevent duplicate accounts
     const existingUser = await db.user.findUnique({ where: { email } });
     if (existingUser) {
       return NextResponse.json({ error: "An account with this email already exists." }, { status: 409 });
     }
 
-    // 1. Create the Company
-    const company = await db.company.create({
-      data: {
-        legalName: companyName,
-        tradeName: companyName,
-        gstin: `GST-TEMP-${Date.now().toString(36).toUpperCase()}`,
-        phone,
-        email,
-        status: "Active",
-      },
-    });
+    const result = await db.$transaction(async (tx) => {
+      // 1. Create the Company
+      const company = await tx.company.create({
+        data: {
+          legalName: companyName,
+          tradeName: companyName,
+          gstin: `GST-TEMP-${Date.now().toString(36).toUpperCase()}`,
+          phone: cleanPhone.slice(-10),
+          email,
+          status: "Active",
+        },
+      });
 
-    // 2. Hash the user password
-    const { hash, salt } = hashPassword(password);
+      // 2. Hash the user password
+      const { hash, salt } = hashPassword(password);
 
-    // 3. Create the User linked to Company
-    const user = await db.user.create({
-      data: {
-        companyId: company.id,
-        email,
-        name,
-        role: "customer", // Shipper role archetype is customer
-        status: "Active",
-        phone,
-        passwordHash: hash,
-        salt,
-      },
-    });
+      // 3. Create the User linked to Company
+      const user = await tx.user.create({
+        data: {
+          companyId: company.id,
+          email,
+          name,
+          role: "customer", // Shipper role archetype is customer
+          status: "Active",
+          phone: cleanPhone.slice(-10),
+          passwordHash: hash,
+          salt,
+        },
+      });
 
-    // 4. Create the linked Customer profile
-    await db.customer.create({
-      data: {
-        companyId: company.id,
-        companyName,
-        contactPerson: name,
-        phone,
-        email,
-        userId: user.id,
-        status: "Active",
-      },
+      // 4. Create the linked Customer profile
+      await tx.customer.create({
+        data: {
+          companyId: company.id,
+          companyName,
+          contactPerson: name,
+          phone: cleanPhone.slice(-10),
+          email,
+          userId: user.id,
+          status: "Active",
+        },
+      });
+
+      return user;
     });
 
     // 5. Set the session cookie
-    await createSession(user.id);
+    await createSession(result.id);
 
     return NextResponse.json({
       user: {
-        id: user.id,
-        companyId: user.companyId,
-        email: user.email,
-        name: user.name,
-        role: user.role,
+        id: result.id,
+        companyId: result.companyId,
+        email: result.email,
+        name: result.name,
+        role: result.role,
       },
     });
   } catch (error: any) {
