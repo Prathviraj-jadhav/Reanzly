@@ -61,22 +61,27 @@
 	# 2. Web Application Firewall (WAF) Attack Vector Filtering
 	# -------------------------------------------------------------------------
 
-	# SQL Injection (SQLi) attack signatures
+	# SQL Injection (SQLi) — encoded characters & operator-based signatures only.
+	# IMPORTANT: We do NOT match plain words like select/create/delete because those
+	# appear in legitimate app URLs (e.g. ?action=create, ?status=selected).
+	# We match actual attack signatures: URL-encoded quotes, comment sequences,
+	# UNION SELECT combos, and stacked queries.
 	@sqli_attack {
-		query "(?i)(select|insert|update|delete|drop|union|create|alter|truncate|exec|execute|concat|information_schema|pg_sleep|benchmark|waitfor|delay|xp_cmdshell|char|hex|unhex)"
-		path_regexp "(?i)(\%27|\%22|\%3B|\-\-|\%23|/\*|\*/)"
+		query "(?i)((\%27|\%22|\%60).*(\%27|\%22|\%60)|(\-\-|\%23|/\*|\*/)|\bunion\s+(?:all\s+)?select\b|;\s*(?:drop|alter|truncate|exec)\b|xp_cmdshell|information_schema|pg_sleep|benchmark\s*\(|waitfor\s+delay)"
+		path_regexp "(?i)(\%27|\%22|\%60|\%3B\%20|\-\-\%20)"
 	}
 	respond @sqli_attack "Forbidden: Security Violation (SQLi Detected)" 403
 
 	# Cross-Site Scripting (XSS) attack signatures
 	@xss_attack {
-		query "(?i)(<script|javascript:|onerror=|onload=|eval\(|document\.cookie|document\.location|window\.location)"
+		query "(?i)(<script|javascript:|onerror\s*=|onload\s*=|eval\s*\(|document\.cookie|document\.location|window\.location)"
 	}
 	respond @xss_attack "Forbidden: Security Violation (XSS Detected)" 403
 
 	# Remote Code Execution (RCE) & Path Traversal attack signatures
+	# Note: .env removed — Next.js internal refs to env config trigger false positives
 	@rce_traversal {
-		path_regexp "(?i)(\.\./|\.\.\\|/etc/passwd|/etc/shadow|/proc/self|/bin/sh|/bin/bash|\.env)"
+		path_regexp "(?i)(\.\.\/|\.\.\\|/etc/passwd|/etc/shadow|/proc/self|/bin/sh|/bin/bash)"
 	}
 	respond @rce_traversal "Forbidden: Security Violation (Traversal/RCE Detected)" 403
 

@@ -16,10 +16,10 @@ services:
     tmpfs:
       - /tmp
       - /var/log/caddy
-      - /config
     volumes:
       - ./Caddyfile.prod:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
+      - caddy_config:/config
     networks:
       - reanzly-prod-network
     depends_on:
@@ -57,12 +57,12 @@ services:
       NODE_ENV: production
       PORT: "3000"
       CHAT_SERVICE_PORT: "3003"
-      DATABASE_URL: ${DATABASE_URL:-file:/app/db/custom.db}
+      DATABASE_URL: ${DATABASE_URL}
+      DIRECT_URL: ${DIRECT_URL:-}
       DATABASE_REPLICA_URL: ${DATABASE_REPLICA_URL:-}
       NEXTAUTH_URL: ${NEXTAUTH_URL:-https://reanzly.com}
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
     volumes:
-      - reanzly-prod-db:/app/db
       - reanzly-prod-storage:/app/storage
     networks:
       - reanzly-prod-network
@@ -94,6 +94,7 @@ networks:
     driver: bridge
 
 volumes:
-  reanzly-prod-db:
   reanzly-prod-storage:
   caddy_data:
+  caddy_config:
+

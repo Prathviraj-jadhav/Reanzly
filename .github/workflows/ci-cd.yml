@@ -47,7 +47,7 @@ jobs:
         env:
           NODE_ENV: production
           NEXT_TELEMETRY_DISABLED: 1
-          DATABASE_URL: "file:./db/test.db"
+          DATABASE_URL: "postgresql://postgres:ci-test@localhost:5432/test"
           NEXTAUTH_SECRET: "ci-cd-test-secret-value-32-characters-minimum"
 
       - name: Set up Docker Buildx
@@ -132,7 +132,8 @@ jobs:
             NODE_ENV=production
             PORT=3000
             CHAT_SERVICE_PORT=3003
-            DATABASE_URL=${{ secrets.DATABASE_URL || 'file:/app/db/custom.db' }}
+            DATABASE_URL=${{ secrets.DATABASE_URL }}
+            DIRECT_URL=${{ secrets.DIRECT_URL }}
             NEXTAUTH_URL=${{ secrets.NEXTAUTH_URL || 'https://reanzly.com' }}
             NEXTAUTH_SECRET=${{ secrets.NEXTAUTH_SECRET }}
             STORAGE_DRIVER=local
@@ -212,7 +213,8 @@ jobs:
           NODE_ENV=production
           PORT=3000
           CHAT_SERVICE_PORT=3003
-          DATABASE_URL=${{ secrets.DATABASE_URL || 'file:/app/db/custom.db' }}
+          DATABASE_URL=${{ secrets.DATABASE_URL }}
+          DIRECT_URL=${{ secrets.DIRECT_URL }}
           NEXTAUTH_URL=${{ secrets.NEXTAUTH_URL || 'https://reanzly.com' }}
           NEXTAUTH_SECRET=${{ secrets.NEXTAUTH_SECRET }}
           STORAGE_DRIVER=local
