@@ -20,9 +20,6 @@ import {
   SEED_LANE_PROFIT,
   SEED_COMMISSION_TREND,
   SEED_TOP_CUSTOMERS,
-  SEED_ENQUIRIES,
-  SEED_QUOTES,
-  SEED_SETTLEMENT_CYCLES,
   type LaneProfitRow,
   formatINR,
   formatINRCompact,
@@ -30,6 +27,9 @@ import {
   formatDate,
   KpiTile,
 } from "./_helpers";
+import { useBrokerEnquiriesData } from "./use-broker-enquiries-data";
+import { useBrokerQuotesData } from "./use-broker-quotes-data";
+import { useBrokerFinanceData } from "./use-broker-finance-data";
 
 /* ============================================================
    BrokerAnalytics - brokerage performance trends.
@@ -53,6 +53,9 @@ const RANGES: { key: RangeKey; label: string; days: number }[] = [
 
 export function BrokerAnalytics() {
   const [range, setRange] = useState<RangeKey>("90d");
+  const { enquiries } = useBrokerEnquiriesData();
+  const { quotes } = useBrokerQuotesData();
+  const { settlements: cycles } = useBrokerFinanceData();
 
   // ===== Derived: lane profitability (filter by range using commission trend?) =====
   // The seed lane-profit table is YTD-ish; we keep it as-is but expose the
@@ -65,18 +68,18 @@ export function BrokerAnalytics() {
   const avgMargin = totalGross === 0 ? 0 : (totalCommission / totalGross) * 100;
   const totalTrips = laneRows.reduce((s, r) => s + r.trips, 0);
 
-  // ===== Funnel =====
-  const enquiryCount = SEED_ENQUIRIES.length;
-  const quotedCount = SEED_ENQUIRIES.filter((e) => e.status !== "New").length;
-  const quoteCount = SEED_QUOTES.length;
-  const acceptedCount = SEED_QUOTES.filter((q) => q.status === "Accepted").length;
-  const rejectedCount = SEED_QUOTES.filter((q) => q.status === "Rejected").length;
-  const expiredCount = SEED_QUOTES.filter((q) => q.status === "Expired").length;
-  const pendingCount = SEED_QUOTES.filter((q) => q.status === "Pending").length;
+  // ===== Funnel - real data =====
+  const enquiryCount = enquiries.length;
+  const quotedCount = enquiries.filter((e) => e.status !== "New").length;
+  const quoteCount = quotes.length;
+  const acceptedCount = quotes.filter((q) => q.status === "Accepted").length;
+  const rejectedCount = quotes.filter((q) => q.status === "Rejected").length;
+  const expiredCount = quotes.filter((q) => q.status === "Expired").length;
+  const pendingCount = quotes.filter((q) => q.status === "Pending").length;
   const decidedQuotes = acceptedCount + rejectedCount + expiredCount;
   const quoteWinRate = decidedQuotes === 0 ? 0 : Math.round((acceptedCount / decidedQuotes) * 100);
 
-  // ===== 30-day commission trend (CSS-width bars) =====
+  // ===== 30-day commission trend (CSS-width bars - seeded) =====
   const trend = SEED_COMMISSION_TREND;
   const trendMax = Math.max(...trend.map((t) => t.amountINR));
   const trendTotal = trend.reduce((s, t) => s + t.amountINR, 0);
@@ -91,8 +94,8 @@ export function BrokerAnalytics() {
     .slice(0, 5);
   const maxLaneCommission = Math.max(...topLanesByMargin.map((l) => l.commissionINR));
 
-  // ===== YTD commission from settlement cycles =====
-  const ytdCommission = SEED_SETTLEMENT_CYCLES.reduce((s, c) => s + c.commissionEarnedINR, 0);
+  // ===== YTD commission from real settlement cycles =====
+  const ytdCommission = cycles.reduce((s, c) => s + c.commissionEarnedINR, 0);
 
   // ===== Columns for lane profitability DataTable =====
   const laneColumns: Column<LaneProfitRow>[] = [

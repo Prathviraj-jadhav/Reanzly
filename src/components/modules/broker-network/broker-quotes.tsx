@@ -24,9 +24,6 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import {
-  SEED_QUOTES,
-  SEED_ENQUIRIES,
-  REANZLY_LANE_RATES,
   VEHICLE_TYPES,
   DEFAULT_MARKUP_PCT,
   formatINR,
@@ -42,6 +39,8 @@ import {
   FieldLabel,
   type VehicleType,
 } from "./_helpers";
+import { useBrokerQuotesData } from "./use-broker-quotes-data";
+import { useBrokerEnquiriesData } from "./use-broker-enquiries-data";
 
 /* ============================================================
    BrokerQuotes - Quotes the broker has sent (to inbound
@@ -71,8 +70,6 @@ interface BrokerQuoteRow {
 
 const TAX_SLABS = [0, 5, 12, 18, 28] as const;
 
-const ENQUIRY_REFS = SEED_ENQUIRIES.map((e) => e.id);
-
 function quoteExtendedStatusBadge(s: QuoteStatusExt): { variant: "solid" | "outline" | "muted" | "dot"; pulse?: boolean } {
   switch (s) {
     case "Draft": return { variant: "muted" };
@@ -84,34 +81,33 @@ function quoteExtendedStatusBadge(s: QuoteStatusExt): { variant: "solid" | "outl
   }
 }
 
-const INITIAL_QUOTES: BrokerQuoteRow[] = SEED_QUOTES.map((q, i) => {
-  const lane = REANZLY_LANE_RATES.find((l) => l.lane === q.lane);
-  const status: QuoteStatusExt =
-    q.status === "Pending" ? "Sent" :
-    q.status === "Accepted" ? "Accepted" :
-    q.status === "Rejected" ? "Rejected" :
-    q.status === "Expired" ? "Expired" : "Sent";
-  return {
-    id: q.id,
-    enquiryRef: ENQUIRY_REFS[i % ENQUIRY_REFS.length],
-    lane: q.lane,
-    origin: lane?.origin ?? q.lane.split(" - ")[0],
-    destination: lane?.destination ?? q.lane.split(" - ")[1] ?? q.lane,
-    vehicleType: q.vehicleType,
-    customer: q.customer,
-    baseRatePerKm: q.baseRatePerKm,
-    markupPct: q.markupPct,
-    quotedRatePerKm: q.quotedRatePerKm,
-    taxPct: TAX_SLABS[i % TAX_SLABS.length],
-    validUntil: daysAhead(7 - (i % 5)),
-    sentAt: q.quotedAt,
-    status,
-    terms: "Quoted rate valid for 7 days from issue. Pickup confirmation subject to vehicle availability. Late payment charges @ 18% p.a. after 30 days.",
-  };
-});
-
 export function BrokerQuotes() {
-  const [quotes, setQuotes] = useState<BrokerQuoteRow[]>(INITIAL_QUOTES);
+  const { quotes: rawQuotes, loaded: quotesLoaded, updateStatus } = useBrokerQuotesData();
+  const { enquiries } = useBrokerEnquiriesData();
+
+  // Enrich real DTO → local display row (fill gaps with sensible defaults)
+  const [localOverrides, setLocalOverrides] = useState<Record<string, Partial<BrokerQuoteRow>>>({});
+  const quotes: BrokerQuoteRow[] = useMemo(() => [
+    ...rawQuotes.map((q, i): BrokerQuoteRow => ({
+      id: q.id,
+      enquiryRef: enquiries[i % Math.max(enquiries.length, 1)]?.id ?? "",
+      lane: q.lane,
+      origin: q.lane.split(" - ")[0] ?? q.lane,
+      destination: q.lane.split(" - ")[1] ?? q.lane,
+      vehicleType: q.vehicleType as VehicleType,
+      customer: q.customer,
+      baseRatePerKm: q.baseRatePerKm,
+      markupPct: q.markupPct,
+      quotedRatePerKm: q.quotedRatePerKm,
+      taxPct: TAX_SLABS[i % TAX_SLABS.length],
+      validUntil: daysAhead(7),
+      sentAt: q.quotedAt,
+      status: (q.status === "Pending" ? "Sent" : q.status) as QuoteStatusExt,
+      terms: "Quoted rate valid for 7 days from issue. Pickup confirmation subject to vehicle availability. Late payment charges @ 18% p.a. after 30 days.",
+      ...localOverrides[q.id],
+    })),
+  ], [rawQuotes, enquiries, localOverrides]);
+
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<QuoteStatusExt | "">("");
   const [viewing, setViewing] = useState<BrokerQuoteRow | null>(null);
@@ -119,7 +115,7 @@ export function BrokerQuotes() {
 
   // ===== Create-quote form state =====
   const [form, setForm] = useState({
-    enquiryRef: ENQUIRY_REFS[0] ?? "",
+    enquiryRef: "",
     customer: "",
     origin: "",
     destination: "",
@@ -169,7 +165,9 @@ export function BrokerQuotes() {
     const markup = Number(form.markupPct) || 0;
     const resale = resaleRate(base, markup);
     const lane = `${form.origin} - ${form.destination}`;
-    const newId = `qte-${String(6201 + quotes.length).padStart(5, "0")}`;
+    const newId = `qte-draft-${Date.now()}`;
+    // Local draft only - no real loadId available in this UI flow yet.
+    // ponytail: upgrade when the marketplace load selection UX lands.
     const row: BrokerQuoteRow = {
       id: newId,
       enquiryRef: form.enquiryRef,
@@ -187,10 +185,10 @@ export function BrokerQuotes() {
       status: "Draft",
       terms: form.terms,
     };
-    setQuotes((p) => [row, ...p]);
+    setLocalOverrides((p) => ({ ...p, [newId]: row }));
     setCreating(false);
     toast.success("Quote drafted", {
-      description: `${newId} - ${lane} - ${form.customer} - ${formatINR(resale)}/km. Send when ready.`,
+      description: `${lane} - ${form.customer} - ${formatINR(resale)}/km. Send when ready.`,
     });
   };
 
@@ -198,28 +196,27 @@ export function BrokerQuotes() {
     toast.success("Quote resent", {
       description: `${q.id} re-sent to ${q.customer}. Validity extended 3 days.`,
     });
-    setQuotes((p) => p.map((x) =>
-      x.id === q.id
-        ? { ...x, sentAt: new Date().toISOString(), validUntil: daysAhead(7), status: "Sent" as QuoteStatusExt }
-        : x,
-    ));
+    setLocalOverrides((p) => ({
+      ...p,
+      [q.id]: { ...p[q.id], sentAt: new Date().toISOString(), validUntil: daysAhead(7), status: "Sent" },
+    }));
   };
 
-  const convertToBooking = (q: BrokerQuoteRow) => {
-    toast.success("Converted to booking", {
-      description: `${q.id} -> booking created for ${q.customer} on ${q.lane}.`,
-    });
-    setQuotes((p) => p.map((x) =>
-      x.id === q.id ? { ...x, status: "Accepted" as QuoteStatusExt } : x,
-    ));
+  const convertToBooking = async (q: BrokerQuoteRow) => {
+    const updated = await updateStatus(q.id, "Accepted");
+    if (updated) {
+      toast.success("Converted to booking", {
+        description: `${q.id} -> booking created for ${q.customer} on ${q.lane}.`,
+      });
+    }
   };
 
-  const withdraw = (q: BrokerQuoteRow) => {
-    toast.success("Quote withdrawn", {
-      description: `${q.id} withdrawn from ${q.customer}.`,
-    });
-    setQuotes((p) => p.filter((x) => x.id !== q.id));
-    if (viewing?.id === q.id) setViewing(null);
+  const withdraw = async (q: BrokerQuoteRow) => {
+    const updated = await updateStatus(q.id, "Rejected");
+    if (updated) {
+      toast.success("Quote withdrawn", { description: `${q.id} withdrawn from ${q.customer}.` });
+      if (viewing?.id === q.id) setViewing(null);
+    }
   };
 
   return (
@@ -472,8 +469,8 @@ export function BrokerQuotes() {
               <Select value={form.enquiryRef} onValueChange={(v) => setForm((f) => ({ ...f, enquiryRef: v }))}>
                 <SelectTrigger className="h-9 w-full rounded-[5px] text-[13px]"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {ENQUIRY_REFS.map((r) => (
-                    <SelectItem key={r} value={r}>{r}</SelectItem>
+                  {enquiries.map((e) => (
+                    <SelectItem key={e.id} value={e.id}>{e.id} – {e.customer} ({e.lane})</SelectItem>
                   ))}
                 </SelectContent>
               </Select>

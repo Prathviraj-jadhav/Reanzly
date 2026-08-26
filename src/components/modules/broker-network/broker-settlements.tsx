@@ -11,7 +11,6 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import {
-  SEED_QUOTES,
   DEFAULT_MARKUP_PCT,
   formatINR,
   formatINRCompact,
@@ -23,6 +22,7 @@ import {
 } from "./_helpers";
 import { useBrokerProfileData } from "./use-broker-profile-data";
 import { useBrokerFinanceData } from "./use-broker-finance-data";
+import { useBrokerQuotesData } from "./use-broker-quotes-data";
 
 export function BrokerSettlementsModule() {
   const { profile } = useBrokerProfileData();
@@ -38,8 +38,9 @@ export function BrokerSettlementsModule() {
     .filter((c) => c.status === "Approved")
     .reduce((s, c) => s + c.netPayableINR, 0);
   const ytdCommission = cycles.reduce((s, c) => s + c.commissionEarnedINR, 0);
-  const acceptedQuotes = SEED_QUOTES.filter((q) => q.status === "Accepted").length;
-  const decidedQuotes = SEED_QUOTES.filter((q) => q.status === "Accepted" || q.status === "Rejected").length;
+  const { quotes } = useBrokerQuotesData();
+  const acceptedQuotes = quotes.filter((q) => q.status === "Accepted").length;
+  const decidedQuotes = quotes.filter((q) => q.status === "Accepted" || q.status === "Rejected").length;
   const winRate = decidedQuotes === 0 ? 0 : Math.round((acceptedQuotes / decidedQuotes) * 100);
 
   // Real ledger comes back oldest-first.
