@@ -126,7 +126,7 @@ const CONSOLE_TABS: ConsoleTab[] = [
   {
     id: "broker",
     name: "Broker Console",
-    moduleId: "broker",
+    moduleId: "broker-console",
     icon: Network,
     tagline: "Multiply capacity, control margins",
     description: "A centralized dashboard for freight brokers to distribute loads, manage sub-brokers, apply rate-markup profiles, and share public listings with vehicle owners.",

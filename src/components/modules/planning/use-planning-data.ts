@@ -77,7 +77,7 @@ export function usePlanningData(weekStart: Date) {
     }
     const { resource } = await res.json();
     setResources((prev) => [...prev, resource]);
-    toast.success("Resource added", `${resource.name} added to the rota.`);
+    toast.success("Resource added", { description: `${resource.name} added to the rota.` });
     return resource;
   }, []);
 

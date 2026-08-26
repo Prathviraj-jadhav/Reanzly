@@ -183,7 +183,7 @@ function ScheduleToolbar({
           <ChevronRight className="h-3.5 w-3.5" />
         </button>
         <button
-          onClick={() => setWeekStart(startOfWeek())}
+          onClick={() => { const t = new Date(); t.setDate(t.getDate() - ((t.getDay() + 6) % 7)); t.setHours(0,0,0,0); setWeekStart(t); }}
           className="tap flex h-8 items-center gap-1.5 rounded-[5px] border border-border px-2.5 text-[12px] font-medium text-foreground hover:bg-accent"
         >
           <Calendar className="h-3 w-3 text-muted-foreground" />

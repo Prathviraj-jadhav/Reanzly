@@ -326,7 +326,7 @@ export function BrokerBankDetails() {
         icon={<ShieldCheck className="h-4 w-4" />}
       >
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <InfoTile icon={Hash} label="UMR number" value={saved.nachUmr} hint="Mandate Unique Reference" />
+          <InfoTile icon={Hash} label="UMR number" value={saved.nachUmr ?? ""} hint="Mandate Unique Reference" />
           <InfoTile icon={Calendar} label="Registered on" value="12 Aug 2024" hint="Active for 31 years" />
           <InfoTile icon={Banknote} label="Max debit per cycle" value="₹10,00,000" hint="auto-scaling" />
         </div>

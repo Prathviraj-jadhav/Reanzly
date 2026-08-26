@@ -123,7 +123,7 @@ export function resaleRate(baseRatePerKm: number, markupPct: number): number {
 }
 
 /** Total freight for a lane = resale rate x distance, rounded. */
-export function freightForLane(lane: LaneRate, markupPct: number): number {
+export function freightForLane(lane: Pick<LaneRate, "baseRatePerKm" | "distanceKm">, markupPct: number): number {
   return resaleRate(lane.baseRatePerKm, markupPct) * lane.distanceKm;
 }
 
