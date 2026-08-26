@@ -23,12 +23,6 @@ import {
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import {
-  SEED_SUB_BROKERS,
-  SEED_ENQUIRIES,
-  SEED_QUOTES,
-  SEED_SETTLEMENT_CYCLES,
-  SEED_LEDGER,
-  SEED_LISTING,
   DEFAULT_MARKUP_PCT,
   formatINR,
   formatINRCompact,
@@ -40,6 +34,10 @@ import {
   settlementCycleStatusBadge,
 } from "./_helpers";
 import { useBrokerProfileData } from "./use-broker-profile-data";
+import { useBrokerSubBrokersData } from "./use-broker-sub-brokers-data";
+import { useBrokerEnquiriesData } from "./use-broker-enquiries-data";
+import { useBrokerQuotesData } from "./use-broker-quotes-data";
+import { useBrokerFinanceData } from "./use-broker-finance-data";
 
 /* ============================================================
    BrokerOverview - the broker portal landing dashboard.
@@ -58,48 +56,52 @@ interface BrokerOverviewProps {
 
 export function BrokerOverview({ onNavigate }: BrokerOverviewProps) {
   const { profile, laneRates } = useBrokerProfileData();
+  const { subBrokers } = useBrokerSubBrokersData();
+  const { enquiries } = useBrokerEnquiriesData();
+  const { quotes } = useBrokerQuotesData();
+  const { ledger, settlements: cycles } = useBrokerFinanceData();
   const markupPct = profile?.markupPct ?? DEFAULT_MARKUP_PCT;
 
-  // ===== Derived KPIs (from seed data - read-only dashboard) =====
-  const activeSubBrokers = SEED_SUB_BROKERS.filter((s) => s.status === "Active").length;
-  const pendingEnquiries = SEED_ENQUIRIES.filter((e) => e.status === "New").length;
-  const wonEnquiries = SEED_ENQUIRIES.filter((e) => e.status === "Won").length;
-  const decided = SEED_ENQUIRIES.filter((e) => e.status === "Won" || e.status === "Lost").length;
+  // ===== Derived KPIs =====
+  const activeSubBrokers = subBrokers.filter((s) => s.status === "Active").length;
+  const pendingEnquiries = enquiries.filter((e) => e.status === "New").length;
+  const wonEnquiries = enquiries.filter((e) => e.status === "Won").length;
+  const decided = enquiries.filter((e) => e.status === "Won" || e.status === "Lost").length;
   const enquiryWinRate = decided === 0 ? 0 : Math.round((wonEnquiries / decided) * 100);
 
-  const acceptedQuotes = SEED_QUOTES.filter((q) => q.status === "Accepted").length;
-  const decidedQuotes = SEED_QUOTES.filter((q) => q.status === "Accepted" || q.status === "Rejected").length;
+  const acceptedQuotes = quotes.filter((q) => q.status === "Accepted").length;
+  const decidedQuotes = quotes.filter((q) => q.status === "Accepted" || q.status === "Rejected").length;
   const quoteWinRate = decidedQuotes === 0 ? 0 : Math.round((acceptedQuotes / decidedQuotes) * 100);
 
-  const settlementsDueTotal = SEED_SUB_BROKERS.reduce((s, b) => s + b.settlementsDueINR, 0);
-  const pendingPayouts = SEED_SETTLEMENT_CYCLES
+  const pendingPayouts = cycles
     .filter((c) => c.status === "Approved")
     .reduce((s, c) => s + c.netPayableINR, 0);
-  const ytdCommission = SEED_SETTLEMENT_CYCLES.reduce((s, c) => s + c.commissionEarnedINR, 0);
-  const runningBalance = SEED_LEDGER[0]?.runningBalanceINR ?? 0;
+  const ytdCommission = cycles.reduce((s, c) => s + c.commissionEarnedINR, 0);
+  // Ledger comes back oldest-first, last entry has the real running balance.
+  const runningBalance = ledger.length ? ledger[ledger.length - 1].runningBalanceINR : 0;
 
   // Recent activity feed (combine enquiries + quotes + settlements, sort by date).
-  const recentEnquiries = SEED_ENQUIRIES.slice(0, 3).map((e) => ({
+  const recentEnquiries = enquiries.slice(0, 3).map((e) => ({
     id: e.id,
-    title: `${e.id} - ${e.lane}`,
+    title: `${e.enquiryId} - ${e.lane}`,
     sub: `${e.customer} - ${e.weightTon}T - ${e.vehicleType}`,
     at: e.receivedAt,
     badge: enquiryStatusBadge(e.status),
     badgeLabel: e.status,
   }));
-  const recentQuotes = SEED_QUOTES.slice(0, 2).map((q) => ({
+  const recentQuotes = quotes.slice(0, 2).map((q) => ({
     id: q.id,
-    title: `${q.id} - ${q.lane}`,
+    title: `${q.quoteId} - ${q.lane}`,
     sub: `${q.customer} - ${formatINR(q.quotedRatePerKm)}/km - ${q.markupPct}% markup`,
     at: q.quotedAt,
-    badge: quoteStatusBadge(q.status),
+    badge: quoteStatusBadge(q.status === "Pending" ? "Pending" : q.status),
     badgeLabel: q.status,
   }));
-  const recentCycles = SEED_SETTLEMENT_CYCLES.slice(0, 2).map((c) => ({
+  const recentCycles = cycles.slice(0, 2).map((c) => ({
     id: c.id,
     title: `${c.cycleId} - ${c.grossTrips} trips`,
     sub: `Commission ${formatINRCompact(c.commissionEarnedINR)} - net ${formatINR(c.netPayableINR)}`,
-    at: c.createdAt,
+    at: c.periodEnd,
     badge: settlementCycleStatusBadge(c.status),
     badgeLabel: c.status,
   }));
@@ -150,19 +152,19 @@ export function BrokerOverview({ onNavigate }: BrokerOverviewProps) {
 
         {/* Inline stats row */}
         <div className="mt-5 grid grid-cols-2 gap-px overflow-hidden rounded-[5px] border border-background/20 bg-background/20 sm:grid-cols-4">
-          <StatCell label="Active sub-brokers" value={String(activeSubBrokers)} hint={`${SEED_SUB_BROKERS.length} total`} />
+          <StatCell label="Active sub-brokers" value={String(activeSubBrokers)} hint={`${subBrokers.length} total`} />
           <StatCell label="Pending enquiries" value={String(pendingEnquiries)} hint="awaiting your quote" />
           <StatCell label="Quote win rate" value={`${quoteWinRate}%`} hint={`${acceptedQuotes} won / ${decidedQuotes} decided`} />
-          <StatCell label="YTD commission" value={formatINRCompact(ytdCommission)} hint={`${SEED_SETTLEMENT_CYCLES.length} cycles run`} />
+          <StatCell label="YTD commission" value={formatINRCompact(ytdCommission)} hint={`${cycles.length} cycles run`} />
         </div>
       </div>
 
       {/* KPI strip */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-        <KpiTile icon={<Handshake className="h-3.5 w-3.5" />} label="Sub-brokers" value={String(activeSubBrokers)} hint={`${SEED_SUB_BROKERS.length} total`} />
+        <KpiTile icon={<Handshake className="h-3.5 w-3.5" />} label="Sub-brokers" value={String(activeSubBrokers)} hint={`${subBrokers.length} total`} />
         <KpiTile icon={<Inbox className="h-3.5 w-3.5" />} label="New enquiries" value={String(pendingEnquiries)} hint="awaiting your quote" />
         <KpiTile icon={<TrendingUp className="h-3.5 w-3.5" />} label="Enquiry win rate" value={`${enquiryWinRate}%`} hint={`${wonEnquiries} won / ${decided} decided`} />
-        <KpiTile icon={<Banknote className="h-3.5 w-3.5" />} label="Settlements due" value={formatINRCompact(settlementsDueTotal)} hint="from sub-brokers" />
+        <KpiTile icon={<Banknote className="h-3.5 w-3.5" />} label="Settlements due" value={formatINRCompact(pendingPayouts)} hint="from approved cycles" />
         <KpiTile icon={<Clock className="h-3.5 w-3.5" />} label="Pending payouts" value={formatINRCompact(pendingPayouts)} hint="approved, awaiting NACH" />
         <KpiTile icon={<Wallet className="h-3.5 w-3.5" />} label="Ledger balance" value={formatINRCompact(runningBalance)} hint="unpaid commission" />
       </div>
@@ -278,31 +280,31 @@ export function BrokerOverview({ onNavigate }: BrokerOverviewProps) {
             </Btn>
           }
         >
-          <div className="flex items-start gap-3">
+              <div className="flex items-start gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[5px] bg-foreground text-background">
               <Store className="h-4 w-4" />
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
-                <h4 className="truncate text-[14px] font-medium text-foreground">{SEED_LISTING.name}</h4>
-                {SEED_LISTING.verified && (
+                <h4 className="truncate text-[14px] font-medium text-foreground">{profile?.companyName ?? "Your Brokerage"}</h4>
+                {profile && (
                   <StatusBadge variant="solid" pulse>
-                    <CheckCircle2 className="h-3 w-3" /> Verified
+                    <CheckCircle2 className="h-3 w-3" /> Active
                   </StatusBadge>
                 )}
               </div>
-              <p className="mt-1 text-[12px] text-muted-foreground">{SEED_LISTING.tagline}</p>
+              <p className="mt-1 text-[12px] text-muted-foreground">{profile?.email ?? "Reanzly Broker Network"}</p>
               <div className="mt-2 flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
                 <span className="inline-flex items-center gap-1">
                   <Star className="h-3 w-3" />
-                  <span className="tabular font-medium text-foreground">{SEED_LISTING.rating}</span>
-                  <span>({SEED_LISTING.reviewCount})</span>
+                  <span className="tabular font-medium text-foreground">{markupPct}%</span>
+                  <span>markup applied</span>
                 </span>
                 <span className="inline-flex items-center gap-1">
                   <Truck className="h-3 w-3" />
-                  {SEED_LISTING.coverageLanes.length} lanes
+                  {profile?.coverageLanes?.length ?? 0} lanes
                 </span>
-                <span>Est. {SEED_LISTING.yearEstablished}</span>
+                <span>{profile?.gstTreatment ?? "GST"}</span>
               </div>
             </div>
           </div>
@@ -316,10 +318,10 @@ export function BrokerOverview({ onNavigate }: BrokerOverviewProps) {
           className="lg:col-span-2"
         >
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            <SummaryTile label="YTD commission" value={formatINRCompact(ytdCommission)} hint={`${SEED_SETTLEMENT_CYCLES.length} cycles run`} />
+            <SummaryTile label="YTD commission" value={formatINRCompact(ytdCommission)} hint={`${cycles.length} cycles run`} />
             <SummaryTile label="Pending payouts" value={formatINRCompact(pendingPayouts)} hint="approved, awaiting NACH" />
             <SummaryTile label="Ledger balance" value={formatINRCompact(runningBalance)} hint="unpaid commission" />
-            <SummaryTile label="Settlements due" value={formatINRCompact(settlementsDueTotal)} hint="from sub-brokers" />
+            <SummaryTile label="Settlements due" value={formatINRCompact(pendingPayouts)} hint="from approved cycles" />
             <SummaryTile label="Quote win rate" value={`${quoteWinRate}%`} hint={`${acceptedQuotes} of ${decidedQuotes} decided`} />
             <SummaryTile label="Markup" value={`${markupPct}%`} hint="over Reanzly base" />
           </div>
