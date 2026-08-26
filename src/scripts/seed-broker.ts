@@ -302,6 +302,135 @@ async function main() {
   }
   console.log(`[seed-broker] LedgerEntries inserted: ${ledgerCount}`);
 
+  // 8. Upsert Broker Documents (12 rows)
+  const DOCS_BASE = [
+    { name: "Broker Agreement 2025", type: "Broker Agreement", fileName: "broker-agreement-2025.pdf", uploadedDaysAgo: 95, expiresDaysAhead: 270, status: "Valid" },
+    { name: "GST Certificate - 27ABCDE1234F1Z5", type: "GST Certificate", fileName: "gst-certificate-2024.pdf", uploadedDaysAgo: 180, expiresDaysAhead: 185, status: "Valid" },
+    { name: "PAN Card - Reanzly Broker OPC", type: "PAN Card", fileName: "pan-card.pdf", uploadedDaysAgo: 220, expiresDaysAhead: null, status: "Valid" },
+    { name: "Aadhaar - Faisal Ahmed", type: "Aadhaar (Proprietor)", fileName: "aadhaar-proprietor.pdf", uploadedDaysAgo: 190, expiresDaysAhead: null, status: "Valid" },
+    { name: "Cancelled Cheque - HDFC ****1240", type: "Cancelled Cheque", fileName: "cancelled-cheque.pdf", uploadedDaysAgo: 120, expiresDaysAhead: null, status: "Valid" },
+    { name: "Commission Statement - Mar 2025", type: "Commission Statement", fileName: "commission-mar-2025.pdf", uploadedDaysAgo: 12, expiresDaysAhead: null, status: "Valid" },
+    { name: "Commission Statement - Feb 2025", type: "Commission Statement", fileName: "commission-feb-2025.pdf", uploadedDaysAgo: 42, expiresDaysAhead: null, status: "Valid" },
+    { name: "Commission Statement - Jan 2025", type: "Commission Statement", fileName: "commission-jan-2025.pdf", uploadedDaysAgo: 72, expiresDaysAhead: null, status: "Valid" },
+    { name: "IRGT License 2024-25", type: "IRGT License", fileName: "irgt-license-2024.pdf", uploadedDaysAgo: 260, expiresDaysAhead: 18, status: "Expiring Soon" },
+    { name: "MSME Udyam Registration", type: "MSME Registration", fileName: "msme-udyam.pdf", uploadedDaysAgo: 310, expiresDaysAhead: -8, status: "Expired" },
+    { name: "Commission Statement - Dec 2024", type: "Commission Statement", fileName: "commission-dec-2024.pdf", uploadedDaysAgo: 102, expiresDaysAhead: null, status: "Valid" },
+    { name: "Commission Statement - Nov 2024", type: "Commission Statement", fileName: "commission-nov-2024.pdf", uploadedDaysAgo: 132, expiresDaysAhead: null, status: "Valid" },
+  ];
+  let docCount = 0;
+  const existingDocs = await db.brokerDocument.count({ where: { brokerProfileId: profile.id } });
+  if (existingDocs === 0) {
+    for (const d of DOCS_BASE) {
+      await db.brokerDocument.create({
+        data: {
+          brokerProfileId: profile.id,
+          name: d.name,
+          type: d.type,
+          fileName: d.fileName,
+          status: d.status,
+          uploadedAt: new Date(daysAgoMs(d.uploadedDaysAgo)),
+          expiresAt: d.expiresDaysAhead !== null ? new Date(daysAheadMs(d.expiresDaysAhead)) : null,
+        },
+      });
+      docCount++;
+    }
+  }
+  console.log(`[seed-broker] BrokerDocuments inserted: ${docCount}`);
+
+  // 9. Upsert Tax Returns (GST + TDS)
+  let taxCount = 0;
+  const existingTaxes = await db.brokerTaxReturn.count({ where: { brokerProfileId: profile.id } });
+  if (existingTaxes === 0) {
+    // Generate last 6 quarters of GST
+    for (let q = 5; q >= 0; q--) {
+      const start = new Date();
+      start.setMonth(start.getMonth() - q * 3 - 2);
+      start.setDate(1);
+      const end = new Date(start);
+      end.setMonth(end.getMonth() + 3);
+      const periodLabel = `${start.toLocaleDateString("en-IN", { month: "short" })} - ${end.toLocaleDateString("en-IN", { month: "short", year: "numeric" })}`;
+      const due = new Date(end);
+      due.setDate(20);
+      const now = new Date();
+      let status = "Due";
+      if (q >= 2) status = "Filed";
+      else if (q === 1) status = due.getTime() < now.getTime() ? "Overdue" : "Due";
+      
+      for (const formType of ["GSTR-1", "GSTR-3B"]) {
+        const liability = formType === "GSTR-1" ? 0 : 84000 + q * 4200;
+        await db.brokerTaxReturn.create({
+          data: {
+            brokerProfileId: profile.id,
+            taxType: "GST",
+            period: periodLabel,
+            formType,
+            dueDate: due,
+            status,
+            ackNo: status === "Filed" ? `ACK${String(20250000 + q * 11 + (formType === "GSTR-1" ? 1 : 2))}` : null,
+            filedDate: status === "Filed" ? new Date(due.getTime() - 3 * 86400000) : null,
+            liabilityINR: liability,
+          },
+        });
+        taxCount++;
+      }
+    }
+    // Generate TDS returns
+    const TDS_BASE = [
+      { formType: "26Q", period: "Q1 2025-26", daysAgo: 72, status: "Filed", liability: 18400, ackNo: "ACK26Q001" },
+      { formType: "24Q", period: "Q1 2025-26", daysAgo: 72, status: "Filed", liability: 9200, ackNo: "ACK24Q001" },
+      { formType: "26Q", period: "Q2 2025-26", daysAgo: -18, status: "Due", liability: 21200, ackNo: null },
+      { formType: "24Q", period: "Q2 2025-26", daysAgo: -18, status: "Due", liability: 9600, ackNo: null },
+      { formType: "26Q", period: "Q3 2024-25", daysAgo: 98, status: "Filed", liability: 16800, ackNo: "ACK26Q04" },
+      { formType: "24Q", period: "Q3 2024-25", daysAgo: 98, status: "Filed", liability: 8400, ackNo: "ACK24Q04" },
+    ];
+    for (const tds of TDS_BASE) {
+      const due = new Date(daysAgoMs(tds.daysAgo));
+      await db.brokerTaxReturn.create({
+        data: {
+          brokerProfileId: profile.id,
+          taxType: "TDS",
+          period: tds.period,
+          formType: tds.formType,
+          dueDate: due,
+          status: tds.status,
+          liabilityINR: tds.liability,
+          ackNo: tds.ackNo,
+          filedDate: tds.status === "Filed" ? new Date(due.getTime() - 3 * 86400000) : null,
+        }
+      });
+      taxCount++;
+    }
+  }
+  console.log(`[seed-broker] BrokerTaxReturns inserted: ${taxCount}`);
+
+  // 10. Upsert Licenses (5 rows)
+  let licenseCount = 0;
+  const existingLicenses = await db.brokerLicense.count({ where: { brokerProfileId: profile.id } });
+  if (existingLicenses === 0) {
+    const LICENSES_BASE = [
+      { name: "IRGT License", auth: "IRGT / MoRTH", issuedDaysAgo: 260, expiresDaysAhead: 18, status: "Expiring Soon", ref: "IRGT-MH-09-2024-1142" },
+      { name: "GST Registration", auth: "CBIC / GSTN", issuedDaysAgo: 540, expiresDaysAhead: 180, status: "Valid", ref: "27ABCDE1234F1Z5" },
+      { name: "MSME Udyam", auth: "Ministry of MSME", issuedDaysAgo: 400, expiresDaysAhead: -8, status: "Expired", ref: "UDYAM-MH-12-0012345" },
+      { name: "NACH Mandate", auth: "HDFC Bank / NPCI", issuedDaysAgo: 120, expiresDaysAhead: 245, status: "Valid", ref: "HDFC01234567" },
+      { name: "Trade License", auth: "Mumbai Municipal Corp", issuedDaysAgo: 300, expiresDaysAhead: 64, status: "Valid", ref: "TL-MUM-E-9921" },
+    ];
+    for (const lic of LICENSES_BASE) {
+      await db.brokerLicense.create({
+        data: {
+          brokerProfileId: profile.id,
+          licenseType: lic.name,
+          issuedBy: lic.auth,
+          issueDate: new Date(daysAgoMs(lic.issuedDaysAgo)),
+          expiresAt: new Date(daysAheadMs(lic.expiresDaysAhead)),
+          status: lic.status,
+          licenseNumber: lic.ref,
+        }
+      });
+      licenseCount++;
+    }
+  }
+  console.log(`[seed-broker] BrokerLicenses inserted: ${licenseCount}`);
+
   console.log("[seed-broker] done.");
 }
 

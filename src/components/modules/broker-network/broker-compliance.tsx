@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useMemo, useState } from "react";
 import { PageHeader } from "@/components/shared/page-header";
@@ -35,77 +35,88 @@ import {
   daysAgo,
   KpiTile,
 } from "./_helpers";
+import { useBrokerComplianceData, BrokerTaxReturnDTO, BrokerLicenseDTO } from "./use-broker-compliance-data";
 
 /* ============================================================
    BrokerCompliance - broker compliance dashboard.
    ------------------------------------------------------------
    Single source of truth for statutory filings:
-   • GST returns (GSTR-1 + GSTR-3B) for last 6 quarters
-   • TDS quarterly returns (26Q for non-salary, 24Q for salary)
-   • Broker license validity (IRGT, GST, MSME, NACH, Trade License)
+   â€¢ GST returns (GSTR-1 + GSTR-3B) for last 6 quarters
+   â€¢ TDS quarterly returns (26Q for non-salary, 24Q for salary)
+   â€¢ Broker license validity (IRGT, GST, MSME, NACH, Trade License)
    Includes a calendar-style grid view + status tables.
    ============================================================ */
 
 type View = "table" | "calendar";
 
 export function BrokerCompliance() {
+  const { taxReturns, licenses, fileTaxReturn, renewLicense: triggerRenew, loaded } = useBrokerComplianceData();
   const [view, setView] = useState<View>("table");
   const [statusFilter, setStatusFilter] = useState<ComplianceStatus | "All">("All");
 
+  const gstReturns = taxReturns.filter(r => r.taxType === "GST");
+  const tdsReturns = taxReturns.filter(r => r.taxType === "TDS");
+
   // ===== Derived: GST returns =====
   const gstFiltered = useMemo(() => {
-    if (statusFilter === "All") return SEED_GST_RETURNS;
-    return SEED_GST_RETURNS.filter((r) => r.status === statusFilter);
-  }, [statusFilter]);
+    if (statusFilter === "All") return gstReturns;
+    return gstReturns.filter((r) => r.status === statusFilter);
+  }, [statusFilter, gstReturns]);
 
   // Group GST by period for the calendar grid view.
   const gstByPeriod = useMemo(() => {
-    const map = new Map<string, GstReturnRow[]>();
-    for (const r of SEED_GST_RETURNS) {
+    const map = new Map<string, BrokerTaxReturnDTO[]>();
+    for (const r of gstReturns) {
       const arr = map.get(r.period) ?? [];
       arr.push(r);
       map.set(r.period, arr);
     }
     return Array.from(map.entries());
-  }, []);
+  }, [gstReturns]);
 
   // ===== Derived: counts =====
-  const filed = SEED_GST_RETURNS.filter((r) => r.status === "Filed").length + SEED_TDS_RETURNS.filter((r) => r.status === "Filed").length;
-  const due = SEED_GST_RETURNS.filter((r) => r.status === "Due").length + SEED_TDS_RETURNS.filter((r) => r.status === "Due").length;
-  const overdue = SEED_GST_RETURNS.filter((r) => r.status === "Overdue").length + SEED_TDS_RETURNS.filter((r) => r.status === "Overdue").length;
-  const totalGstLiability = SEED_GST_RETURNS
+  const filed = taxReturns.filter((r) => r.status === "Filed").length;
+  const due = taxReturns.filter((r) => r.status === "Due").length;
+  const overdue = taxReturns.filter((r) => r.status === "Overdue").length;
+  const totalGstLiability = gstReturns
     .filter((r) => r.status !== "Filed")
     .reduce((s, r) => s + r.liabilityINR, 0);
-  const totalTdsLiability = SEED_TDS_RETURNS
+  const totalTdsLiability = tdsReturns
     .filter((r) => r.status !== "Filed")
-    .reduce((s, r) => s + r.amountINR, 0);
+    .reduce((s, r) => s + r.liabilityINR, 0);
 
   // ===== License validity =====
-  const validLicenses = SEED_LICENSES.filter((l) => l.status === "Valid").length;
-  const expiringLicenses = SEED_LICENSES.filter((l) => l.status === "Expiring Soon").length;
-  const expiredLicenses = SEED_LICENSES.filter((l) => l.status === "Expired").length;
-  const nextExpiry = [...SEED_LICENSES]
+  const validLicenses = licenses.filter((l) => l.status === "Valid").length;
+  const expiringLicenses = licenses.filter((l) => l.status === "Expiring Soon").length;
+  const expiredLicenses = licenses.filter((l) => l.status === "Expired").length;
+  const nextExpiry = [...licenses]
     .filter((l) => new Date(l.expiresAt).getTime() > Date.now())
     .sort((a, b) => new Date(a.expiresAt).getTime() - new Date(b.expiresAt).getTime())[0];
 
   // ===== Handlers =====
-  const fileReturn = (r: GstReturnRow | TdsReturnRow) => {
-    toastSuccess(
-      "Return filed",
-      `${r.formType} for ${"period" in r ? r.period : (r as TdsReturnRow).quarter} - acknowledgment ${r.ackNo ?? `ACK${Math.floor(Math.random() * 900000 + 100000)}`}.`,
-    );
+  const fileReturn = async (r: BrokerTaxReturnDTO) => {
+    const ok = await fileTaxReturn(r.id);
+    if (ok) {
+      toastSuccess(
+        "Return filed",
+        `${r.formType} for ${r.period} filed successfully.`,
+      );
+    }
   };
 
-  const downloadAck = (r: GstReturnRow | TdsReturnRow) => {
+  const downloadAck = (r: BrokerTaxReturnDTO) => {
     toastInfo("Downloading acknowledgment", `${r.formType} - ACK receipt PDF will be saved.`);
   };
 
-  const renewLicense = (l: LicenseValidityRow) => {
-    toastInfo("Renewal initiated", `${l.name} - renewal form sent to ${l.issuingAuthority}.`);
+  const renewLicense = async (l: BrokerLicenseDTO) => {
+    const ok = await triggerRenew(l.id);
+    if (ok) {
+      toastInfo("Renewal initiated", `${l.licenseType} - renewal form sent to ${l.issuedBy}.`);
+    }
   };
 
   // ===== GST columns =====
-  const gstColumns: Column<GstReturnRow>[] = [
+  const gstColumns: Column<BrokerTaxReturnDTO>[] = [
     {
       key: "formType",
       header: "Form",
@@ -215,7 +226,7 @@ export function BrokerCompliance() {
   ];
 
   // ===== TDS columns =====
-  const tdsColumns: Column<TdsReturnRow>[] = [
+  const tdsColumns: Column<BrokerTaxReturnDTO>[] = [
     {
       key: "formType",
       header: "Form",
@@ -232,12 +243,12 @@ export function BrokerCompliance() {
       ),
     },
     {
-      key: "quarter",
-      header: "Quarter",
+      key: "period",
+      header: "Period",
       sortable: true,
       align: "left",
-      sortValue: (r) => r.quarter,
-      render: (r) => <span className="text-[12px] text-foreground">{r.quarter}</span>,
+      sortValue: (r) => r.period,
+      render: (r) => <span className="text-[12px] text-foreground">{r.period}</span>,
     },
     {
       key: "dueDate",
@@ -266,8 +277,8 @@ export function BrokerCompliance() {
       header: "TDS amount",
       sortable: true,
       align: "right",
-      sortValue: (r) => r.amountINR,
-      render: (r) => <span className="tabular text-foreground">{formatINR(r.amountINR)}</span>,
+      sortValue: (r) => r.liabilityINR,
+      render: (r) => <span className="tabular text-foreground">{formatINR(r.liabilityINR)}</span>,
     },
     {
       key: "ackNo",
@@ -342,7 +353,7 @@ export function BrokerCompliance() {
         <KpiTile icon={<AlertCircle className="h-3.5 w-3.5" />} label="Overdue" value={String(overdue)} hint="penalty risk" />
         <KpiTile icon={<Receipt className="h-3.5 w-3.5" />} label="GST liability" value={formatINRCompact(totalGstLiability)} hint="unfiled periods" />
         <KpiTile icon={<Banknote className="h-3.5 w-3.5" />} label="TDS liability" value={formatINRCompact(totalTdsLiability)} hint="unfiled quarters" />
-        <KpiTile icon={<ShieldCheck className="h-3.5 w-3.5" />} label="Licenses valid" value={`${validLicenses}/${SEED_LICENSES.length}`} hint={`${expiringLicenses} expiring · ${expiredLicenses} expired`} />
+        <KpiTile icon={<ShieldCheck className="h-3.5 w-3.5" />} label="Licenses valid" value={`${validLicenses}/${SEED_LICENSES.length}`} hint={`${expiringLicenses} expiring Â· ${expiredLicenses} expired`} />
       </div>
 
       {/* Compliance score banner */}
@@ -374,7 +385,7 @@ export function BrokerCompliance() {
                 <span>{overdue} overdue</span>
               </div>
             )}
-            <div className="hidden text-background/60 sm:inline">·</div>
+            <div className="hidden text-background/60 sm:inline">Â·</div>
             <div className="text-background/60 tabular">Updated {relativeTime(daysAgo(0))}</div>
           </div>
         </div>
@@ -506,7 +517,7 @@ export function BrokerCompliance() {
               <Clock className="h-3 w-3 text-muted-foreground" />
               <span className="text-muted-foreground">Next expiry:</span>
               <span className="font-medium text-foreground">{nextExpiry.name}</span>
-              <span className="tabular text-muted-foreground">· {formatDate(nextExpiry.expiresAt)}</span>
+              <span className="tabular text-muted-foreground">Â· {formatDate(nextExpiry.expiresAt)}</span>
             </div>
           ) : undefined
         }
@@ -523,14 +534,14 @@ export function BrokerCompliance() {
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-2 min-w-0">
                     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[5px] border border-border bg-card text-muted-foreground">
-                      {l.name.toLowerCase().includes("gst") ? <Receipt className="h-4 w-4" /> :
-                       l.name.toLowerCase().includes("nach") ? <Banknote className="h-4 w-4" /> :
-                       l.name.toLowerCase().includes("trade") ? <Building2 className="h-4 w-4" /> :
+                      {l.licenseType.toLowerCase().includes("gst") ? <Receipt className="h-4 w-4" /> :
+                       l.licenseType.toLowerCase().includes("nach") ? <Banknote className="h-4 w-4" /> :
+                       l.licenseType.toLowerCase().includes("trade") ? <Building2 className="h-4 w-4" /> :
                        <ShieldCheck className="h-4 w-4" />}
                     </div>
                     <div className="min-w-0">
-                      <div className="truncate text-[12.5px] font-medium text-foreground">{l.name}</div>
-                      <div className="truncate text-[10px] text-muted-foreground">{l.issuingAuthority}</div>
+                      <div className="truncate text-[12.5px] font-medium text-foreground">{l.licenseType}</div>
+                      <div className="truncate text-[10px] text-muted-foreground">{l.issuedBy}</div>
                     </div>
                   </div>
                   <StatusBadge variant={b.variant} pulse={b.pulse}>{l.status}</StatusBadge>
@@ -562,11 +573,11 @@ export function BrokerCompliance() {
       {/* Footer */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
         <span className="inline-flex items-center gap-1"><ShieldCheck className="h-3 w-3" /> Auto-synced with GSTN + TRACES</span>
-        <span>·</span>
+        <span>Â·</span>
         <span>TDS @ 1% u/s 194H on broker commission</span>
-        <span>·</span>
+        <span>Â·</span>
         <span>IRGT renewal 30 days before expiry</span>
-        <span>·</span>
+        <span>Â·</span>
         <span className="tabular">Last refreshed {relativeTime(daysAgo(0))}</span>
       </div>
     </div>

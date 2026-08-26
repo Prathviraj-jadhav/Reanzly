@@ -55,33 +55,39 @@ import {
   FieldLabel,
 } from "./_helpers";
 
+import { useBrokerEnquiriesData } from "./use-broker-enquiries-data";
+import { useBrokerQuotesData } from "./use-broker-quotes-data";
+import { useBrokerProfileData } from "./use-broker-profile-data";
+
 type PostingTimeFilter = "any" | "24h" | "48h" | "7d";
 
 export function BrokerMarketplaceModule() {
-  const authUser = useAppStore((s) => s.authUser);
-  const brokerProfile = authUser?.brokerProfile;
-  const markupPct = brokerProfile?.markupPct ?? DEFAULT_MARKUP_PCT;
+  const { enquiries: loads, loaded: loadsLoaded } = useBrokerEnquiriesData();
+  const { quotes, addQuote } = useBrokerQuotesData();
+  const { profile, updateProfile, laneRates } = useBrokerProfileData();
+
+  const markupPct = profile?.markupPct ?? DEFAULT_MARKUP_PCT;
 
   // Marketplace listing (editable via drawer)
-  const [listing, setListing] = useState<MarketplaceListing>(SEED_LISTING);
+  const [listing, setListing] = useState<MarketplaceListing>(profile?.marketplaceListingJson || SEED_LISTING);
   const [listingOpen, setListingOpen] = useState(false);
   const [profilePreviewOpen, setProfilePreviewOpen] = useState(false);
 
+  // Sync listing from profile when loaded
+  useEffect(() => {
+    if (profile?.marketplaceListingJson && Object.keys(profile.marketplaceListingJson).length > 0) {
+      setListing(profile.marketplaceListingJson);
+    }
+  }, [profile]);
+
   // Active load board - filters + search + Quote action.
-  // `filters` is the active set of removable filter pills (lane + vehicle +
-  // posting-time). The dropdowns above the table push into this set; each
-  // pill has an X to remove it.
   const [loadSearch, setLoadSearch] = useState("");
   const [laneFilter, setLaneFilter] = useState<string>("");
   const [vehicleFilter, setVehicleFilter] = useState<string>("");
   const [postingTimeFilter, setPostingTimeFilter] = useState<PostingTimeFilter>("any");
-  const [loads, setLoads] = useState<MarketplaceLoad[]>(SEED_MARKETPLACE_LOADS);
-
-  // Quotes list (local state - quoting a load prepends to it)
-  const [quotes, setQuotes] = useState<BrokerQuote[]>(SEED_QUOTES);
 
   // Quote drawer - opens when "Quote" button is clicked on a load row.
-  const [quoteTarget, setQuoteTarget] = useState<MarketplaceLoad | null>(null);
+  const [quoteTarget, setQuoteTarget] = useState<any | null>(null);
 
   // ===== Derived: filtered loads =====
   const filteredLoads = useMemo(() => {
@@ -100,7 +106,7 @@ export function BrokerMarketplaceModule() {
     if (postingTimeFilter !== "any") {
       const now = Date.now();
       const cutoff = postingTimeFilter === "24h" ? 1 : postingTimeFilter === "48h" ? 2 : 7;
-      r = r.filter((l) => now - new Date(l.postedAt).getTime() <= cutoff * 86400000);
+      r = r.filter((l) => now - new Date(l.receivedAt).getTime() <= cutoff * 86400000);
     }
     return r;
   }, [loads, loadSearch, laneFilter, vehicleFilter, postingTimeFilter]);
@@ -111,7 +117,7 @@ export function BrokerMarketplaceModule() {
   const decided = quotes.filter((q) => q.status === "Accepted" || q.status === "Rejected").length;
   const winRate = decided === 0 ? 0 : Math.round((acceptedQuotes / decided) * 100);
   const totalQuotedValue = quotes.reduce(
-    (s, q) => s + q.quotedRatePerKm * (REANZLY_LANE_RATES.find((l) => l.lane === q.lane)?.distanceKm ?? 0),
+    (s, q) => s + q.quotedRatePerKm * (laneRates.find((l) => l.lane === q.lane)?.distanceKm ?? 0),
     0,
   );
 
@@ -122,42 +128,40 @@ export function BrokerMarketplaceModule() {
   );
 
   // ===== Handlers =====
-  const quoteLoad = (load: MarketplaceLoad) => setQuoteTarget(load);
+  const quoteLoad = (load: any) => setQuoteTarget(load);
 
-  const submitQuote = (input: {
-    load: MarketplaceLoad;
+  const submitQuote = async (input: {
+    load: any;
     markupPct: number;
     etaHours: number;
     terms: string;
   }) => {
-    const { load, markupPct: appliedMarkup, etaHours } = input;
-    const rate = resaleRate(load.baseRatePerKm, appliedMarkup);
-    const newQuote: BrokerQuote = {
-      id: `qte-${String(6200 + quotes.length).padStart(5, "0")}`,
-      loadId: load.id,
+    const { load, markupPct: appliedMarkup, etaHours, terms } = input;
+    const rate = resaleRate(load.expectedRatePerKm, appliedMarkup);
+
+    const newQuote = await addQuote({
+      loadId: load.enquiryId, // mkt- load id maps to enquiryId
       lane: load.lane,
       vehicleType: load.vehicleType,
       customer: load.customer,
       quotedRatePerKm: rate,
-      baseRatePerKm: load.baseRatePerKm,
+      baseRatePerKm: load.expectedRatePerKm,
       markupPct: appliedMarkup,
-      quotedAt: new Date().toISOString(),
-      status: "Pending",
-    };
-    setQuotes((prev) => [newQuote, ...prev]);
-    setLoads((prev) => prev.filter((l) => l.id !== load.id));
-    setQuoteTarget(null);
-    toast.success(`Quote sent at ${formatINR(rate)}/km`, {
-      description: `${load.id} · ${load.lane} · ${load.customer} · ETA ${etaHours}h`,
     });
+
+    if (newQuote) {
+      setQuoteTarget(null);
+      toast.success("Quote submitted successfully.");
+    }
   };
 
-  const saveListing = (next: MarketplaceListing) => {
-    setListing(next);
-    setListingOpen(false);
-    toast.success("Marketplace listing updated", {
-      description: "Public profile changes are live on the directory.",
-    });
+  const saveListing = async (next: MarketplaceListing) => {
+    const success = await updateProfile({ marketplaceListingJson: next });
+    if (success) {
+      setListing(next);
+      setListingOpen(false);
+      toast.success("Marketplace profile updated.");
+    }
   };
 
   const followUpQuote = (q: BrokerQuote) => {

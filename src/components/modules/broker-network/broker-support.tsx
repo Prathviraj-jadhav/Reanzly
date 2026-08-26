@@ -40,6 +40,8 @@ import {
   KpiTile,
 } from "./_helpers";
 
+import { useBrokerSupportData, type SupportTicketDTO } from "./use-broker-support-data";
+
 /* ============================================================
    BrokerSupport - raise support tickets to Reanzly.
    ------------------------------------------------------------
@@ -50,8 +52,8 @@ import {
 
 interface NewTicketForm {
   subject: string;
-  category: TicketCategory;
-  priority: TicketPriority;
+  category: TicketCategory | string;
+  priority: TicketPriority | string;
   description: string;
 }
 
@@ -63,19 +65,19 @@ const EMPTY_FORM: NewTicketForm = {
 };
 
 export function BrokerSupport() {
-  const [tickets, setTickets] = useState<SupportTicket[]>(SEED_SUPPORT_TICKETS);
+  const { tickets, loaded, addTicket, addMessage } = useBrokerSupportData();
   const [createOpen, setCreateOpen] = useState(false);
-  const [viewing, setViewing] = useState<SupportTicket | null>(null);
-  const [statusFilter, setStatusFilter] = useState<TicketStatus | "All">("All");
-  const [priorityFilter, setPriorityFilter] = useState<TicketPriority | "All">("All");
+  const [viewing, setViewing] = useState<SupportTicketDTO | null>(null);
+  const [statusFilter, setStatusFilter] = useState<TicketStatus | string | "All">("All");
+  const [priorityFilter, setPriorityFilter] = useState<TicketPriority | string | "All">("All");
   const [replyText, setReplyText] = useState("");
   const [form, setForm] = useState<NewTicketForm>(EMPTY_FORM);
 
   // ===== Derived counts =====
-  const openCount = tickets.filter((t) => t.status === "Open" || t.status === "Awaiting Reply").length;
-  const inProgressCount = tickets.filter((t) => t.status === "In Progress").length;
+  const openCount = tickets.filter((t) => t.status === "New" || t.status === "Open" || t.status === "Awaiting Reply" || t.status === "Assigned").length;
+  const inProgressCount = tickets.filter((t) => t.status === "In Progress" || t.status === "Waiting").length;
   const resolvedCount = tickets.filter((t) => t.status === "Resolved" || t.status === "Closed").length;
-  const urgentCount = tickets.filter((t) => t.priority === "Urgent" && (t.status === "Open" || t.status === "Awaiting Reply")).length;
+  const urgentCount = tickets.filter((t) => t.priority === "Urgent" && (t.status === "New" || t.status === "Open" || t.status === "Awaiting Reply" || t.status === "Assigned")).length;
 
   const filtered = useMemo(() => {
     let r = tickets;
@@ -85,7 +87,7 @@ export function BrokerSupport() {
   }, [tickets, statusFilter, priorityFilter]);
 
   // ===== Handlers =====
-  const submitCreate = () => {
+  const submitCreate = async () => {
     if (!form.subject.trim()) {
       toastInfo("Subject required", "Please describe the issue in a short subject.");
       return;
@@ -94,65 +96,66 @@ export function BrokerSupport() {
       toastInfo("Description required", "Please provide a few lines of detail.");
       return;
     }
-    const newTicket: SupportTicket = {
-      id: `TKT-2025-${String(150 + tickets.length).padStart(4, "0")}`,
+    
+    const newTicket = await addTicket({
       subject: form.subject.trim(),
       category: form.category,
       priority: form.priority,
-      status: "Open",
-      createdAt: new Date().toISOString(),
-      lastReplyAt: new Date().toISOString(),
-      lastReplyBy: "You",
-      replyCount: 1,
       description: form.description.trim(),
-    };
-    setTickets((p) => [newTicket, ...p]);
-    setForm(EMPTY_FORM);
-    setCreateOpen(false);
-    toastSuccess("Ticket raised", `${newTicket.id} - ${newTicket.subject}. Reanzly support will reply within 4 business hours.`);
-  };
+    });
 
-  const sendReply = () => {
-    if (!viewing || !replyText.trim()) return;
-    const updated = {
-      ...viewing,
-      replyCount: viewing.replyCount + 1,
-      lastReplyAt: new Date().toISOString(),
-      lastReplyBy: "You" as const,
-      status: (viewing.status === "Open" ? "Awaiting Reply" : viewing.status) as TicketStatus,
-    };
-    setTickets((p) => p.map((t) => (t.id === viewing.id ? updated : t)));
-    setViewing(updated);
-    setReplyText("");
-    toastSuccess("Reply sent", "Your message has been added to the thread.");
-  };
-
-  const closeTicket = (t: SupportTicket) => {
-    setTickets((p) => p.map((x) => (x.id === t.id ? { ...x, status: "Closed" as TicketStatus } : x)));
-    if (viewing?.id === t.id) {
-      setViewing({ ...t, status: "Closed" });
+    if (newTicket) {
+      setForm(EMPTY_FORM);
+      setCreateOpen(false);
+      toastSuccess("Ticket raised", `${newTicket.ticketId} - ${newTicket.subject}. Reanzly support will reply within 4 business hours.`);
     }
-    toastSuccess("Ticket closed", `${t.id} marked as resolved.`);
   };
 
-  const escalate = (t: SupportTicket) => {
-    toastInfo("Escalated to senior support", `${t.id} - a senior agent will pick this up within 2 hours.`);
+  const sendReply = async () => {
+    if (!viewing || !replyText.trim()) return;
+    const success = await addMessage(viewing.id, replyText);
+    if (success) {
+      // Refresh the viewing ticket in place optimistically
+      const newMessage = {
+        id: `msg-${Date.now()}`,
+        author: "You",
+        role: "customer" as const,
+        text: replyText,
+        ts: new Date().toISOString(),
+      };
+      setViewing({
+        ...viewing,
+        status: "New",
+        messages: [...viewing.messages, newMessage],
+      });
+      setReplyText("");
+      toastSuccess("Reply sent", "Your message has been added to the thread.");
+    }
+  };
+
+  const closeTicket = (t: SupportTicketDTO) => {
+    // Mock for now, would typically hit PATCH /api/broker/support/[id] with status=Closed
+    toastInfo("Ticket closed", `${t.ticketId} marked as resolved.`);
+  };
+
+  const escalate = (t: SupportTicketDTO) => {
+    toastInfo("Escalated to senior support", `${t.ticketId} - a senior agent will pick this up within 2 hours.`);
   };
 
   // ===== Columns =====
-  const columns: Column<SupportTicket>[] = [
+  const columns: Column<SupportTicketDTO>[] = [
     {
       key: "id",
       header: "Ticket ID",
       sortable: true,
       align: "left",
-      sortValue: (t) => t.id,
+      sortValue: (t) => t.ticketId,
       render: (t) => (
         <div className="flex items-center gap-2">
           <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[5px] border border-border bg-background text-muted-foreground">
             <Ticket className="h-3.5 w-3.5" />
           </div>
-          <span className="text-[12px] tabular font-medium text-foreground">{t.id}</span>
+          <span className="text-[12px] tabular font-medium text-foreground">{t.ticketId}</span>
         </div>
       ),
     },
@@ -165,7 +168,7 @@ export function BrokerSupport() {
       render: (t) => (
         <div className="min-w-0">
           <div className="truncate text-[12.5px] font-medium text-foreground">{t.subject}</div>
-          <div className="truncate text-[11px] text-muted-foreground">{t.category} · {t.replyCount} replies</div>
+          <div className="truncate text-[11px] text-muted-foreground">{t.category} · {t.messages?.length || 0} replies</div>
         </div>
       ),
     },
@@ -177,7 +180,7 @@ export function BrokerSupport() {
       sortValue: (t) => t.priority,
       hideable: true,
       render: (t) => {
-        const b = ticketPriorityBadge(t.priority);
+        const b = ticketPriorityBadge(t.priority as any);
         return <StatusBadge variant={b.variant} pulse={b.pulse}>{t.priority}</StatusBadge>;
       },
     },
@@ -188,7 +191,7 @@ export function BrokerSupport() {
       align: "left",
       sortValue: (t) => t.status,
       render: (t) => {
-        const b = ticketStatusBadge(t.status);
+        const b = ticketStatusBadge(t.status as any);
         return <StatusBadge variant={b.variant} pulse={b.pulse}>{t.status}</StatusBadge>;
       },
     },
@@ -211,15 +214,20 @@ export function BrokerSupport() {
       header: "Last reply",
       sortable: true,
       align: "left",
-      sortValue: (t) => t.lastReplyAt,
-      render: (t) => (
-        <div className="text-[12px] tabular">
-          <div className="text-foreground">{formatDate(t.lastReplyAt)}</div>
-          <div className="text-[10px] text-muted-foreground">
-            {relativeTime(t.lastReplyAt)} · {t.lastReplyBy}
+      sortValue: (t) => t.messages?.length ? t.messages[t.messages.length - 1].ts : t.createdAt,
+      render: (t) => {
+        const lastMsg = t.messages?.length ? t.messages[t.messages.length - 1] : null;
+        const ts = lastMsg ? lastMsg.ts : t.createdAt;
+        const author = lastMsg ? lastMsg.author : t.subject;
+        return (
+          <div className="text-[12px] tabular">
+            <div className="text-foreground">{formatDate(ts)}</div>
+            <div className="text-[10px] text-muted-foreground">
+              {relativeTime(ts)} · {author}
+            </div>
           </div>
-        </div>
-      ),
+        );
+      },
     },
     {
       key: "actions",
@@ -233,27 +241,15 @@ export function BrokerSupport() {
     },
   ];
 
-  // ===== Mock reply thread for the viewing drawer =====
+  // ===== Reply thread for the viewing drawer =====
   const replyThread = useMemo(() => {
-    if (!viewing) return [];
-    const thread: { author: "You" | "Reanzly Support"; at: string; body: string }[] = [
-      { author: "You", at: viewing.createdAt, body: viewing.description },
-    ];
-    // Mock a back-and-forth from Reanzly Support based on replyCount.
-    const supportReplies = [
-      "Thanks for raising this. We're looking into the issue and will get back within SLA.",
-      "Update: the engineering team has reproduced the issue on staging. Working on a fix.",
-      "We've deployed a patch to the broker portal. Could you verify and let us know?",
-      "Closing this out - please reopen if you see the issue again. Thanks!",
-    ];
-    for (let i = 1; i < viewing.replyCount; i++) {
-      thread.push({
-        author: i % 2 === 1 ? "Reanzly Support" : "You",
-        at: new Date(new Date(viewing.createdAt).getTime() + i * 6 * 3600000).toISOString(),
-        body: supportReplies[(i - 1) % supportReplies.length],
-      });
-    }
-    return thread;
+    if (!viewing || !viewing.messages) return [];
+    return viewing.messages.map(m => ({
+      author: m.author,
+      at: m.ts,
+      body: m.text,
+      role: m.role,
+    }));
   }, [viewing]);
 
   return (
@@ -503,17 +499,17 @@ export function BrokerSupport() {
               <SheetHeader className="flex flex-row items-start justify-between gap-2 border-b border-border px-5 py-4">
                 <div className="min-w-0 space-y-1">
                   <div className="flex items-center gap-2">
-                    <span className="text-[11px] tabular text-muted-foreground">{viewing.id}</span>
-                    <StatusBadge variant={ticketPriorityBadge(viewing.priority).variant} pulse={ticketPriorityBadge(viewing.priority).pulse}>
+                    <span className="text-[11px] tabular text-muted-foreground">{viewing.ticketId}</span>
+                    <StatusBadge variant={ticketPriorityBadge(viewing.priority as any).variant} pulse={ticketPriorityBadge(viewing.priority as any).pulse}>
                       {viewing.priority}
                     </StatusBadge>
-                    <StatusBadge variant={ticketStatusBadge(viewing.status).variant} pulse={ticketStatusBadge(viewing.status).pulse}>
+                    <StatusBadge variant={ticketStatusBadge(viewing.status as any).variant} pulse={ticketStatusBadge(viewing.status as any).pulse}>
                       {viewing.status}
                     </StatusBadge>
                   </div>
                   <SheetTitle className="text-[15px] font-medium leading-tight tracking-tight">{viewing.subject}</SheetTitle>
                   <SheetDescription className="text-[11px] text-muted-foreground">
-                    {viewing.category} · opened {relativeTime(viewing.createdAt)} · {viewing.replyCount} replies
+                    {viewing.category} · opened {relativeTime(viewing.createdAt)} · {viewing.messages?.length || 0} replies
                   </SheetDescription>
                 </div>
                 <button

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useMemo, useState } from "react";
 import { PageHeader } from "@/components/shared/page-header";
@@ -38,6 +38,7 @@ import {
   daysAhead,
   KpiTile,
 } from "./_helpers";
+import { useBrokerDocumentsData, BrokerDocumentDTO } from "./use-broker-documents-data";
 
 /* ============================================================
    BrokerDocuments - broker document vault.
@@ -66,9 +67,9 @@ const EMPTY_FORM: UploadForm = {
 };
 
 export function BrokerDocuments() {
-  const [docs, setDocs] = useState<BrokerDocument[]>(SEED_BROKER_DOCUMENTS);
+  const { documents: docs, loaded, addDocument } = useBrokerDocumentsData();
   const [uploadOpen, setUploadOpen] = useState(false);
-  const [viewing, setViewing] = useState<BrokerDocument | null>(null);
+  const [viewing, setViewing] = useState<BrokerDocumentDTO | null>(null);
   const [statusFilter, setStatusFilter] = useState<DocumentStatus | "All">("All");
   const [form, setForm] = useState<UploadForm>(EMPTY_FORM);
 
@@ -92,33 +93,33 @@ export function BrokerDocuments() {
     toastInfo("File selected", `${fakeName} - 248 KB`);
   };
 
-  const submitUpload = () => {
+  const submitUpload = async () => {
     if (!form.name.trim()) {
       toastInfo("Document name required", "Please give the document a friendly name.");
       return;
     }
-    const newDoc: BrokerDocument = {
-      id: `doc-${String(docs.length + 1).padStart(3, "0")}`,
+    
+    const newDoc = await addDocument({
       name: form.name.trim(),
       type: form.type,
       fileName: form.fileName || form.name.toLowerCase().replace(/\s+/g, "-") + ".pdf",
-      sizeKB: 200 + Math.floor(Math.random() * 100),
-      uploadedAt: new Date().toISOString(),
+      notes: form.notes,
       expiresAt: form.expiresAt || undefined,
-      status: form.expiresAt ? licenseStatusFromExpiry(form.expiresAt) : "Valid",
-    };
-    setDocs((p) => [newDoc, ...p]);
-    setForm(EMPTY_FORM);
-    setUploadOpen(false);
-    toastSuccess("Document uploaded", `${newDoc.name} added to the vault.`);
+    });
+    
+    if (newDoc) {
+      setForm(EMPTY_FORM);
+      setUploadOpen(false);
+      toastSuccess("Document uploaded", `${newDoc.name} added to the vault.`);
+    }
   };
 
-  const downloadDoc = (d: BrokerDocument) => {
-    toastInfo("Download started", `${d.fileName} - ${d.sizeKB} KB`);
+  const downloadDoc = (d: BrokerDocumentDTO) => {
+    toastInfo("Download started", `${d.fileName}`);
   };
 
   // ===== Columns =====
-  const columns: Column<BrokerDocument>[] = [
+  const columns: Column<BrokerDocumentDTO>[] = [
     {
       key: "name",
       header: "Document",
@@ -132,7 +133,7 @@ export function BrokerDocuments() {
           </div>
           <div className="min-w-0">
             <div className="truncate text-[12.5px] font-medium text-foreground">{d.name}</div>
-            <div className="truncate text-[11px] text-muted-foreground tabular">{d.fileName} · {d.sizeKB} KB</div>
+            <div className="truncate text-[11px] text-muted-foreground tabular">{d.fileName}</div>
           </div>
         </div>
       ),
@@ -249,7 +250,7 @@ export function BrokerDocuments() {
         <KpiTile icon={<Clock className="h-3.5 w-3.5" />} label="Expiring soon" value={String(counts["Expiring Soon"])} hint="within 30 days" />
         <KpiTile icon={<AlertCircle className="h-3.5 w-3.5" />} label="Expired" value={String(counts.Expired)} hint="needs renewal" />
         <KpiTile icon={<FileCheck className="h-3.5 w-3.5" />} label="Statements" value={String(docs.filter((d) => d.type === "Commission Statement").length)} hint="monthly PDFs" />
-        <KpiTile icon={<Paperclip className="h-3.5 w-3.5" />} label="Storage used" value={`${(docs.reduce((s, d) => s + d.sizeKB, 0) / 1024).toFixed(1)} MB`} hint="of 1 GB quota" />
+        <KpiTile icon={<Paperclip className="h-3.5 w-3.5" />} label="Total Documents" value={`${docs.length}`} hint="Stored securely" />
       </div>
 
       {/* Document table */}
@@ -400,7 +401,7 @@ export function BrokerDocuments() {
                   <div className="text-[12px] font-medium text-foreground">
                     {form.fileName ? form.fileName : "Click to choose a file"}
                   </div>
-                  <div className="text-[10px] text-muted-foreground">PDF, JPG, or PNG · up to 5 MB</div>
+                  <div className="text-[10px] text-muted-foreground">PDF, JPG, or PNG Â· up to 5 MB</div>
                 </button>
               </div>
 
@@ -452,7 +453,7 @@ export function BrokerDocuments() {
                 <div className="space-y-1">
                   <SheetTitle className="text-[16px] font-medium tracking-tight">{viewing.name}</SheetTitle>
                   <SheetDescription className="text-[12px] text-muted-foreground">
-                    {viewing.type} · {viewing.fileName}
+                    {viewing.type} Â· {viewing.fileName}
                   </SheetDescription>
                 </div>
                 <button
@@ -469,7 +470,7 @@ export function BrokerDocuments() {
                   <StatusBadge variant={documentStatusBadge(viewing.status).variant} pulse={documentStatusBadge(viewing.status).pulse}>
                     {viewing.status}
                   </StatusBadge>
-                  <span className="text-[11px] text-muted-foreground tabular">{viewing.sizeKB} KB</span>
+                  <span className="text-[11px] text-muted-foreground tabular">PDF</span>
                 </div>
 
                 {/* Preview placeholder */}
@@ -486,7 +487,7 @@ export function BrokerDocuments() {
                   <MetaTile label="Uploaded" value={formatDate(viewing.uploadedAt)} hint={relativeTime(viewing.uploadedAt)} />
                   <MetaTile label="Expires" value={viewing.expiresAt ? formatDate(viewing.expiresAt) : "No expiry"} hint={viewing.expiresAt ? relativeTime(viewing.expiresAt) : undefined} />
                   <MetaTile label="Type" value={viewing.type} />
-                  <MetaTile label="File size" value={`${viewing.sizeKB} KB`} mono />
+                  
                 </div>
               </div>
               <SheetFooter className="flex-row gap-2 border-t border-border">

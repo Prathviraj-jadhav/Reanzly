@@ -1,4 +1,4 @@
-// Garage Plus — Logistics Operating System
+// Garage Plus â€” Logistics Operating System
 // Multi-tenant schema with RLS-style tenant isolation via companyId.
 // All tables carry tenant key + audit fields. Append-only audit log.
 //
@@ -7,7 +7,7 @@
 // - Monolith-first: the Next.js app + Prisma + SQLite (swap to Postgres in
 //   prod) handle 95% of the load. The only candidate for extraction to a
 //   microservice is the GPS ingestion path (DriverLocationPing), which is
-//   write-heavy + high-frequency — it can be split to a dedicated service
+//   write-heavy + high-frequency â€” it can be split to a dedicated service
 //   with its own queue + time-series store without touching the monolith.
 // - Vertical scaling first (bigger box), horizontal when a single module
 //   becomes the bottleneck (read-replicas for reports, sharding for trips).
@@ -22,37 +22,36 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-
 // ===== TENANCY =====
 
 model Company {
-  id          String   @id @default(cuid())
-  legalName   String
-  tradeName   String?
-  gstin       String   @unique
-  pan         String?
-  address     String?
-  city        String?
-  state       String?
-  pin         String?
-  country     String   @default("India")
-  phone       String?
-  email       String?
-  website     String?
-  status      String   @default("Active") // Active | Inactive
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(cuid())
+  legalName String
+  tradeName String?
+  gstin     String   @unique
+  pan       String?
+  address   String?
+  city      String?
+  state     String?
+  pin       String?
+  country   String   @default("India")
+  phone     String?
+  email     String?
+  website   String?
+  status    String   @default("Active") // Active | Inactive
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  branches    Branch[]
-  users       User[]
-  vehicles    Vehicle[]
-  drivers     Driver[]
-  customers   Customer[]
-  vendors     Vendor[]
-  trips       Trip[]
-  invoices    Invoice[]
-  auditLogs   AuditLog[]
-  notifications Notification[]
+  branches          Branch[]
+  users             User[]
+  vehicles          Vehicle[]
+  drivers           Driver[]
+  customers         Customer[]
+  vendors           Vendor[]
+  trips             Trip[]
+  invoices          Invoice[]
+  auditLogs         AuditLog[]
+  notifications     Notification[]
   fieldServiceTasks FieldServiceTask[]
   knowledgeArticles KnowledgeArticle[]
   helpdeskTickets   HelpdeskTicket[]
@@ -74,20 +73,20 @@ model Branch {
 // ===== IDENTITY & ACCESS =====
 
 model User {
-  id           String   @id @default(cuid())
-  companyId    String
-  email        String   @unique
-  name         String
-  role         String   @default("Staff") // Super Admin | Operations Manager | Fleet Manager | Finance Manager | Dispatcher | Driver | Analyst
-  department   String?
-  jobTitle     String?
-  branchId     String?
-  status       String   @default("Active") // Active | Inactive | On Leave
-  phone        String?
-  passwordHash String?
-  salt         String?
-  twoFactorEnabled Boolean @default(false)
-  lastActive   DateTime?
+  id               String    @id @default(cuid())
+  companyId        String
+  email            String    @unique
+  name             String
+  role             String    @default("Staff") // Super Admin | Operations Manager | Fleet Manager | Finance Manager | Dispatcher | Driver | Analyst
+  department       String?
+  jobTitle         String?
+  branchId         String?
+  status           String    @default("Active") // Active | Inactive | On Leave
+  phone            String?
+  passwordHash     String?
+  salt             String?
+  twoFactorEnabled Boolean   @default(false)
+  lastActive       DateTime?
   // Self-service profile fields (Settings > Profile) - real, user-editable,
   // distinct from the identity/auth fields above.
   altEmail         String?
@@ -98,14 +97,14 @@ model User {
   reportingManager String?
   language         String?
   timezone         String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
-  company      Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  auditLogs    AuditLog[] @relation("AuditActor")
+  company       Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  auditLogs     AuditLog[]     @relation("AuditActor")
   notifications Notification[]
-  sessions     Session[]
-  customer     Customer?
+  sessions      Session[]
+  customer      Customer?
   brokerProfile BrokerProfile?
 }
 
@@ -119,7 +118,7 @@ model Session {
   expiresAt DateTime
   createdAt DateTime @default(now())
 
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
 }
@@ -128,7 +127,7 @@ model Role {
   id          String   @id @default(cuid())
   name        String   @unique
   description String?
-  permissions String   // JSON string of permission matrix
+  permissions String // JSON string of permission matrix
   isTemplate  Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -137,297 +136,297 @@ model Role {
 // ===== FLEET =====
 
 model Vehicle {
-  id              String   @id @default(cuid())
-  companyId       String
-  name            String
-  licensePlate    String   @unique
-  vin             String?
-  make            String?
-  model           String?
-  year            Int?
-  type            String?
-  group           String?
-  status          String   @default("Idle") // Active | Idle | In Maintenance | Offline
-  ownership       String   @default("Owned") // Owned | Leased | Attached
-  fuelType        String   @default("Diesel")
-  currentMeter    Int      @default(0)
-  location        String?
+  id                 String    @id @default(cuid())
+  companyId          String
+  name               String
+  licensePlate       String    @unique
+  vin                String?
+  make               String?
+  model              String?
+  year               Int?
+  type               String?
+  group              String?
+  status             String    @default("Idle") // Active | Idle | In Maintenance | Offline
+  ownership          String    @default("Owned") // Owned | Leased | Attached
+  fuelType           String    @default("Diesel")
+  currentMeter       Int       @default(0)
+  location           String?
   // Real, persisted fields matching the UI's existing Vehicle contract
   // (src/lib/types.ts) - previously only ever held in client-side state.
-  operator        String?
-  watchers        String   @default("[]") // JSON string array of userIds
-  distanceThisPeriod Int   @default(0)
-  assignedTripId  String?
-  gpsSpeed        Float?
-  lastGpsUpdate   DateTime?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  operator           String?
+  watchers           String    @default("[]") // JSON string array of userIds
+  distanceThisPeriod Int       @default(0)
+  assignedTripId     String?
+  gpsSpeed           Float?
+  lastGpsUpdate      DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
-  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  trips           Trip[]
-  fuelEntries     FuelEntry[]
-  inspections     Inspection[]
-  workOrders      WorkOrder[]
-  documents       Document[]
+  company           Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  trips             Trip[]
+  fuelEntries       FuelEntry[]
+  inspections       Inspection[]
+  workOrders        WorkOrder[]
+  documents         Document[]
   // Back-relations from the operational models (RateCard/LR/POD/Expense/Issue/Service/Reminder).
-  expenses        Expense[]         @relation("VehicleExpenses")
-  issues          Issue[]           @relation("VehicleIssues")
-  servicePrograms ServiceProgram[]  @relation("VehicleServicePrograms")
-  reminders       Reminder[]        @relation("VehicleReminders")
+  expenses          Expense[]          @relation("VehicleExpenses")
+  issues            Issue[]            @relation("VehicleIssues")
+  servicePrograms   ServiceProgram[]   @relation("VehicleServicePrograms")
+  reminders         Reminder[]         @relation("VehicleReminders")
   planningResources PlanningResource[]
 }
 
 // ===== PEOPLE =====
 
 model Driver {
-  id              String   @id @default(cuid())
+  id              String    @id @default(cuid())
   companyId       String
   name            String
   email           String?
   phone           String?
-  role            String   @default("Driver") // Driver | Staff
+  role            String    @default("Driver") // Driver | Staff
   department      String?
-  status          String   @default("Active")
+  status          String    @default("Active")
   licenseNumber   String?
   licenseExpiry   DateTime?
-  rating          Float    @default(0)
-  tripsCompleted  Int      @default(0)
-  onTimeRate      Float    @default(0)
+  rating          Float     @default(0)
+  tripsCompleted  Int       @default(0)
+  onTimeRate      Float     @default(0)
   city            String?
   // Real, persisted fields matching the UI's existing Driver contract
   // (src/lib/types.ts) - previously only ever held in client-side state.
   assignedVehicle String?
   lastActive      DateTime?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
-  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  trips           Trip[]
-  documents       Document[]
+  company           Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  trips             Trip[]
+  documents         Document[]
   // Back-relations: PODs captured by this driver, expenses & issues filed by them,
   // and the Employee record(s) when the driver is also on the HR payroll (a
   // driver may have multiple employment records over time, so one-to-many).
-  pods            Pod[]     @relation("DriverPODs")
-  expenses        Expense[] @relation("DriverExpenses")
-  issues          Issue[]   @relation("DriverIssues")
-  employees       Employee[]
-  fuelEntries     FuelEntry[]
-  inspections     Inspection[]
-  reminders       Reminder[]
+  pods              Pod[]              @relation("DriverPODs")
+  expenses          Expense[]          @relation("DriverExpenses")
+  issues            Issue[]            @relation("DriverIssues")
+  employees         Employee[]
+  fuelEntries       FuelEntry[]
+  inspections       Inspection[]
+  reminders         Reminder[]
   planningResources PlanningResource[]
 }
 
 model Customer {
-  id              String   @id @default(cuid())
-  companyId       String
-  companyName     String
-  contactPerson   String?
-  designation     String?
-  phone           String?
-  email           String?
-  gstin           String?
-  pan             String?
-  legalEntity     String?
-  city            String?
-  state           String?
-  pincode         String?
-  billingAddress  String?
-  status          String   @default("Active")
-  paymentTerms    String?
-  creditLimit     Int      @default(0)
-  outstandingBalance Int   @default(0)
-  accountManager  String?
+  id                 String    @id @default(cuid())
+  companyId          String
+  companyName        String
+  contactPerson      String?
+  designation        String?
+  phone              String?
+  email              String?
+  gstin              String?
+  pan                String?
+  legalEntity        String?
+  city               String?
+  state              String?
+  pincode            String?
+  billingAddress     String?
+  status             String    @default("Active")
+  paymentTerms       String?
+  creditLimit        Int       @default(0)
+  outstandingBalance Int       @default(0)
+  accountManager     String?
   // Links this Customer to the real User who logs into the Vendor Portal
   // (src/components/layout/vendor-shell.tsx) as this company's self-service
   // contact - lets a real session resolve "which customer am I" instead of
   // the portal hardcoding a single demo customer for every viewer.
-  userId          String?  @unique
-  user            User?    @relation(fields: [userId], references: [id])
+  userId             String?   @unique
+  user               User?     @relation(fields: [userId], references: [id])
   // CRM "Account" fields - the CRM module's Accounts tab is the same real
   // Customer record as the Customers module (both are now CRM-cluster
   // tabs), just presented with a CRM-flavoured column set. These fields
   // exist for that view only; revenueYTD/lastShipment stay computed live
   // from real Invoice/Trip relations rather than stored (same pattern as
   // Customer.activeTrips/totalRevenue elsewhere in this schema).
-  crmType         String?  // Shipper | Consignee | Broker | 3PL
-  lanes           String?  // comma-separated lane names
-  contractStatus  String?  // Active | Under Renewal | Expired | None
-  onboardingDate  DateTime?
-  notes           String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  crmType            String? // Shipper | Consignee | Broker | 3PL
+  lanes              String? // comma-separated lane names
+  contractStatus     String? // Active | Under Renewal | Expired | None
+  onboardingDate     DateTime?
+  notes              String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
-  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  trips           Trip[]
-  invoices        Invoice[]
-  // CRM + Lorry-receipt back-relations — closes the customer → deal / LR loop.
-  deals           Deal[]
-  crmContacts     CrmContact[]
-  crmActivities   CrmActivity[]
-  rateCards       RateCard[]
-  lorryReceipts   LorryReceipt[] @relation("CustomerLRs")
+  company       Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  trips         Trip[]
+  invoices      Invoice[]
+  // CRM + Lorry-receipt back-relations â€” closes the customer â†’ deal / LR loop.
+  deals         Deal[]
+  crmContacts   CrmContact[]
+  crmActivities CrmActivity[]
+  rateCards     RateCard[]
+  lorryReceipts LorryReceipt[] @relation("CustomerLRs")
 }
 
 model Vendor {
-  id              String   @id @default(cuid())
-  companyId       String
-  companyName     String
-  contactPerson   String?
-  phone           String?
-  email           String?
-  gstin           String?
-  city            String?
-  type            String?
-  status          String   @default("Active")
-  paymentTerms    String?
-  rating          Float    @default(0)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id            String   @id @default(cuid())
+  companyId     String
+  companyName   String
+  contactPerson String?
+  phone         String?
+  email         String?
+  gstin         String?
+  city          String?
+  type          String?
+  status        String   @default("Active")
+  paymentTerms  String?
+  rating        Float    @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 }
 
 // ===== OPERATIONS =====
 
 model Trip {
-  id              String   @id @default(cuid())
-  companyId       String
-  tripId          String   @unique
-  lrNumber        String   @unique
-  customerId      String?
-  vehicleId       String?
-  driverId        String?
-  consignor       String
-  consignee       String
-  origin          String
-  destination     String
-  status          String   @default("Planned") // Planned | Active | In Transit | Delivered | Cancelled | Breakdown
-  orderMode       String   @default("FTL") // FTL | LTL | Part Load
-  freightAmount   Int      @default(0)
-  paymentStatus   String   @default("Unpaid") // Unpaid | Partially Paid | Paid | Overdue
-  distanceKm      Int      @default(0)
-  eWayBill        String?
-  createdDate     DateTime @default(now())
+  id               String    @id @default(cuid())
+  companyId        String
+  tripId           String    @unique
+  lrNumber         String    @unique
+  customerId       String?
+  vehicleId        String?
+  driverId         String?
+  consignor        String
+  consignee        String
+  origin           String
+  destination      String
+  status           String    @default("Planned") // Planned | Active | In Transit | Delivered | Cancelled | Breakdown
+  orderMode        String    @default("FTL") // FTL | LTL | Part Load
+  freightAmount    Int       @default(0)
+  paymentStatus    String    @default("Unpaid") // Unpaid | Partially Paid | Paid | Overdue
+  distanceKm       Int       @default(0)
+  eWayBill         String?
+  createdDate      DateTime  @default(now())
   expectedDelivery DateTime?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
-  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  customer        Customer? @relation(fields: [customerId], references: [id])
-  vehicle         Vehicle? @relation(fields: [vehicleId], references: [id])
-  driver          Driver?  @relation(fields: [driverId], references: [id])
-  invoices        Invoice[]
+  company       Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customer      Customer?      @relation(fields: [customerId], references: [id])
+  vehicle       Vehicle?       @relation(fields: [vehicleId], references: [id])
+  driver        Driver?        @relation(fields: [driverId], references: [id])
+  invoices      Invoice[]
   // Operational back-relations: the rate card applied, LRs raised, POD captured,
   // expenses incurred, and issues filed against this trip.
-  rateCards       RateCard[]     @relation("TripRateCard")
-  lorryReceipts   LorryReceipt[] @relation("TripLRs")
-  pods            Pod[]          @relation("TripPOD")
-  expenses        Expense[]      @relation("TripExpenses")
-  issues          Issue[]        @relation("TripIssues")
+  rateCards     RateCard[]     @relation("TripRateCard")
+  lorryReceipts LorryReceipt[] @relation("TripLRs")
+  pods          Pod[]          @relation("TripPOD")
+  expenses      Expense[]      @relation("TripExpenses")
+  issues        Issue[]        @relation("TripIssues")
 }
 
 // ===== FINANCE =====
 
 model Invoice {
-  id              String   @id @default(cuid())
-  companyId       String
-  invoiceNumber   String   @unique
-  customerId      String?
-  tripId          String?
-  customer        String
-  amount          Int      @default(0)
-  taxAmount       Int      @default(0)
-  totalAmount     Int      @default(0)
-  status          String   @default("Draft") // Draft | Sent | Partially Paid | Paid | Overdue | Cancelled | Credit Note
-  paymentStatus   String   @default("Unpaid")
-  invoiceDate     DateTime @default(now())
-  dueDate         DateTime?
-  igst            Int?
-  cgst            Int?
-  sgst            Int?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id            String    @id @default(cuid())
+  companyId     String
+  invoiceNumber String    @unique
+  customerId    String?
+  tripId        String?
+  customer      String
+  amount        Int       @default(0)
+  taxAmount     Int       @default(0)
+  totalAmount   Int       @default(0)
+  status        String    @default("Draft") // Draft | Sent | Partially Paid | Paid | Overdue | Cancelled | Credit Note
+  paymentStatus String    @default("Unpaid")
+  invoiceDate   DateTime  @default(now())
+  dueDate       DateTime?
+  igst          Int?
+  cgst          Int?
+  sgst          Int?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
-  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  customer_rel    Customer? @relation(fields: [customerId], references: [id])
-  trip            Trip?    @relation(fields: [tripId], references: [id])
+  company      Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customer_rel Customer? @relation(fields: [customerId], references: [id])
+  trip         Trip?     @relation(fields: [tripId], references: [id])
 }
 
 model FuelEntry {
-  id              String   @id @default(cuid())
-  companyId       String
-  vehicleId       String?
-  driverId        String?
-  fuelType        String   @default("Diesel")
-  date            DateTime @default(now())
-  quantity        Float
-  unitPrice       Float
-  totalCost       Int
-  odometer        Int
-  efficiency      Float?
-  station         String?
-  anomaly         Boolean  @default(false)
-  anomalyNote     String?
-  vehicle         Vehicle? @relation(fields: [vehicleId], references: [id])
-  driver          Driver?  @relation(fields: [driverId], references: [id])
-  createdAt       DateTime @default(now())
+  id          String   @id @default(cuid())
+  companyId   String
+  vehicleId   String?
+  driverId    String?
+  fuelType    String   @default("Diesel")
+  date        DateTime @default(now())
+  quantity    Float
+  unitPrice   Float
+  totalCost   Int
+  odometer    Int
+  efficiency  Float?
+  station     String?
+  anomaly     Boolean  @default(false)
+  anomalyNote String?
+  vehicle     Vehicle? @relation(fields: [vehicleId], references: [id])
+  driver      Driver?  @relation(fields: [driverId], references: [id])
+  createdAt   DateTime @default(now())
 }
 
 model Inspection {
-  id              String   @id @default(cuid())
-  companyId       String
-  inspectionId    String   @unique
-  vehicleId       String?
-  driverId        String?
-  type            String
-  inspector       String
-  date            DateTime @default(now())
-  result          String   // Pass | Fail | Conditional
-  odometer        Int      @default(0)
-  vehicle         Vehicle? @relation(fields: [vehicleId], references: [id])
-  driver          Driver?  @relation(fields: [driverId], references: [id])
-  createdAt       DateTime @default(now())
+  id           String   @id @default(cuid())
+  companyId    String
+  inspectionId String   @unique
+  vehicleId    String?
+  driverId     String?
+  type         String
+  inspector    String
+  date         DateTime @default(now())
+  result       String // Pass | Fail | Conditional
+  odometer     Int      @default(0)
+  vehicle      Vehicle? @relation(fields: [vehicleId], references: [id])
+  driver       Driver?  @relation(fields: [driverId], references: [id])
+  createdAt    DateTime @default(now())
 }
 
 model WorkOrder {
-  id              String   @id @default(cuid())
-  companyId       String
-  workOrderId     String   @unique
-  vehicleId       String?
-  title           String
-  type            String   // Scheduled | Unscheduled | Recall | Warranty
-  priority        String   // Urgent | High | Medium | Low
-  status          String   @default("Open") // Open | In Progress | Completed | Cancelled
-  vendor          String?
-  technician      String?
-  estimatedCost   Int      @default(0)
-  actualCost      Int?
-  createdDate     DateTime @default(now())
+  id                  String    @id @default(cuid())
+  companyId           String
+  workOrderId         String    @unique
+  vehicleId           String?
+  title               String
+  type                String // Scheduled | Unscheduled | Recall | Warranty
+  priority            String // Urgent | High | Medium | Low
+  status              String    @default("Open") // Open | In Progress | Completed | Cancelled
+  vendor              String?
+  technician          String?
+  estimatedCost       Int       @default(0)
+  actualCost          Int?
+  createdDate         DateTime  @default(now())
   estimatedCompletion DateTime?
-  vehicle         Vehicle? @relation(fields: [vehicleId], references: [id])
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  vehicle             Vehicle?  @relation(fields: [vehicleId], references: [id])
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 }
 
 // ===== COMPLIANCE =====
 
 model Document {
-  id              String   @id @default(cuid())
-  companyId       String
-  name            String
-  type            String
-  entityType      String   // Vehicle | Driver | Customer | Vendor | Company
-  entityId        String?
-  vehicleId       String?
-  driverId        String?
-  issueDate       DateTime?
-  expiryDate      DateTime?
-  status          String   @default("Valid") // Valid | Expiring Soon | Expired
-  uploadedBy      String?
-  uploadDate      DateTime @default(now())
-  vehicle         Vehicle? @relation(fields: [vehicleId], references: [id])
-  driver          Driver?  @relation(fields: [driverId], references: [id])
-  createdAt       DateTime @default(now())
+  id         String    @id @default(cuid())
+  companyId  String
+  name       String
+  type       String
+  entityType String // Vehicle | Driver | Customer | Vendor | Company
+  entityId   String?
+  vehicleId  String?
+  driverId   String?
+  issueDate  DateTime?
+  expiryDate DateTime?
+  status     String    @default("Valid") // Valid | Expiring Soon | Expired
+  uploadedBy String?
+  uploadDate DateTime  @default(now())
+  vehicle    Vehicle?  @relation(fields: [vehicleId], references: [id])
+  driver     Driver?   @relation(fields: [driverId], references: [id])
+  createdAt  DateTime  @default(now())
 }
 
 // ===== AUDIT (append-only, immutable) =====
@@ -437,16 +436,16 @@ model AuditLog {
   companyId String?
   actorId   String?
   actor     User?    @relation("AuditActor", fields: [actorId], references: [id])
-  action    String   // CREATE | UPDATE | DELETE | LOGIN | LOGOUT | EXPORT
+  action    String // CREATE | UPDATE | DELETE | LOGIN | LOGOUT | EXPORT
   entity    String
   entityId  String?
-  oldValue  String?  // JSON
-  newValue  String?  // JSON
+  oldValue  String? // JSON
+  newValue  String? // JSON
   ipAddress String?
   userAgent String?
   timestamp DateTime @default(now())
 
-  company   Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
 }
 
 // ===== NOTIFICATIONS (real, per-user, real trigger points) =====
@@ -457,19 +456,19 @@ model AuditLog {
 model Notification {
   id          String   @id @default(cuid())
   companyId   String
-  userId      String   // recipient
-  category    String   // Compliance | Invoice | Trip | Vehicle | Payment | HR | Automation | Rean
+  userId      String // recipient
+  category    String // Compliance | Invoice | Trip | Vehicle | Payment | HR | Automation | Rean
   severity    String   @default("info") // critical | warning | info
   title       String
   description String?
   linkModule  String?
   linkId      String?
-  dedupeKey   String?  // stable key for idempotent alert-scan jobs, e.g. "overdue-invoice:{invoiceId}"
+  dedupeKey   String? // stable key for idempotent alert-scan jobs, e.g. "overdue-invoice:{invoiceId}"
   read        Boolean  @default(false)
   createdAt   DateTime @default(now())
 
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@index([userId, read])
   @@index([dedupeKey])
@@ -491,7 +490,7 @@ model FieldServiceTask {
   companyId         String
   taskId            String    @unique // display code, e.g. FS-4001
   title             String
-  type              String    // Repair | Inspection | Survey | Installation | Maintenance
+  type              String // Repair | Inspection | Survey | Installation | Maintenance
   customerId        String?
   customer          String
   customerCode      String?
@@ -507,7 +506,7 @@ model FieldServiceTask {
   contactName       String
   contactPhone      String
   description       String
-  notes             String?   // technician notes - real field; the old "Save notes" button had nowhere to save to
+  notes             String? // technician notes - real field; the old "Save notes" button had nowhere to save to
   checklistJson     String    @default("[]") // JSON: {id,label,done,ts?}[]
   partsJson         String    @default("[]") // JSON: {id,name,partNo,qty,unitCost}[]
   timeEntriesJson   String    @default("[]") // JSON: {id,label,start,end?,minutes}[]
@@ -517,7 +516,7 @@ model FieldServiceTask {
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
-  company           Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@index([companyId, status])
 }
@@ -534,13 +533,13 @@ model PlanningResource {
   companyId   String
   code        String
   name        String
-  type        String   // Driver | Vehicle | Bay
+  type        String // Driver | Vehicle | Bay
   designation String?
   homeBase    String
   status      String   @default("Available") // Available | Allocated | Off-duty | Maintenance
   shiftStart  String   @default("06:00")
   shiftEnd    String   @default("18:00")
-  skills      String?  // comma-separated
+  skills      String? // comma-separated
   driverId    String?
   driver      Driver?  @relation(fields: [driverId], references: [id])
   vehicleId   String?
@@ -558,7 +557,7 @@ model PlanningAllocation {
   companyId     String
   resourceId    String
   resource      PlanningResource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
-  type          String           // Trip | Maintenance | Inspection | Loading | Unloading | Rest | Training
+  type          String // Trip | Maintenance | Inspection | Loading | Unloading | Rest | Training
   title         String
   refNo         String
   startAt       DateTime
@@ -585,15 +584,15 @@ model LedgerAccount {
   companyId      String
   code           String
   name           String
-  group          String   // Asset | Liability | Income | Expense | Equity
-  subgroup       String   // Current Asset | Fixed Asset | Bank & Cash | Current Liability | Long Term Liability | Equity Capital | Operating Income | Other Income | Direct Expense | Indirect Expense | Duties & Taxes
+  group          String // Asset | Liability | Income | Expense | Equity
+  subgroup       String // Current Asset | Fixed Asset | Bank & Cash | Current Liability | Long Term Liability | Equity Capital | Operating Income | Other Income | Direct Expense | Indirect Expense | Duties & Taxes
   openingBalance Int      @default(0) // whole rupees
   openingNature  String   @default("Dr") // Dr | Cr
   isSystem       Boolean  @default(false) // protected seed account, UI blocks delete
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  lines          LedgerJournalLine[]
+  lines LedgerJournalLine[]
 
   @@unique([companyId, code])
   @@index([companyId, group])
@@ -610,7 +609,7 @@ model LedgerJournalEntry {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  lines     LedgerJournalLine[]
+  lines LedgerJournalLine[]
 
   @@unique([companyId, voucherNo])
   @@index([companyId, date])
@@ -640,28 +639,28 @@ model LedgerJournalLine {
 model TreasuryVoucher {
   id            String   @id @default(cuid())
   companyId     String
-  type          String   // Advance | Add Money | Withdrawal | Movement | Truck Forwarding | Settlement | Recovery Voucher
+  type          String // Advance | Add Money | Withdrawal | Movement | Truck Forwarding | Settlement | Recovery Voucher
   number        String
   party         String
   amount        Int
-  mode          String   // Cash | UPI | Bank | NEFT | RTGS | Cheque | Card
+  mode          String // Cash | UPI | Bank | NEFT | RTGS | Cheque | Card
   reference     String?
   date          DateTime
   status        String   @default("Draft") // Draft | Pending | Approved | Rejected
   against       String?
-  fromAccount   String?  // Movement only
-  toAccount     String?  // Movement only
-  vehicle       String?  // Truck Forwarding only
-  vendor        String?  // Truck Forwarding only
-  lrNumber      String?  // Truck Forwarding only
-  fromCity      String?  // Truck Forwarding only
-  toCity        String?  // Truck Forwarding only
-  totalAdvance  Int?     // Settlement only
-  totalExpense  Int?     // Settlement only
-  netPayable    Int?     // Settlement only
-  settledAmount Int?     // Settlement only
-  balance       Int?     // Settlement only
-  approvedBy    String?  // Withdrawal only
+  fromAccount   String? // Movement only
+  toAccount     String? // Movement only
+  vehicle       String? // Truck Forwarding only
+  vendor        String? // Truck Forwarding only
+  lrNumber      String? // Truck Forwarding only
+  fromCity      String? // Truck Forwarding only
+  toCity        String? // Truck Forwarding only
+  totalAdvance  Int? // Settlement only
+  totalExpense  Int? // Settlement only
+  netPayable    Int? // Settlement only
+  settledAmount Int? // Settlement only
+  balance       Int? // Settlement only
+  approvedBy    String? // Withdrawal only
   remarks       String?
   createdBy     String
   createdAt     DateTime @default(now())
@@ -675,8 +674,8 @@ model TreasuryVoucher {
 model LedgerGstReturn {
   id             String    @id @default(cuid())
   companyId      String
-  type           String    // GSTR-1 | GSTR-3B | GSTR-2B
-  period         String    // e.g. "Oct 2024"
+  type           String // GSTR-1 | GSTR-3B | GSTR-2B
+  period         String // e.g. "Oct 2024"
   dueDate        DateTime
   filingDate     DateTime?
   status         String    @default("Draft") // Draft | Prepared | Filed | Reconciling
@@ -735,7 +734,7 @@ model HrDocumentRequest {
 model HrIssuance {
   id           String    @id @default(cuid())
   companyId    String
-  documentId   String    // human-readable like ISS-2025-0001
+  documentId   String // human-readable like ISS-2025-0001
   type         String
   category     String
   employeeId   String
@@ -770,7 +769,7 @@ model HrInterview {
   candidateId   String
   candidateName String
   role          String
-  round         String   // Telephonic | Technical | HR | Final
+  round         String // Telephonic | Technical | HR | Final
   scheduledOn   DateTime
   duration      Int
   interviewer   String
@@ -813,7 +812,7 @@ model HrOfferLetter {
 model Backup {
   id          String    @id @default(cuid())
   companyId   String
-  type        String    // Full | Incremental (see route comment: both produce a full VACUUM INTO snapshot)
+  type        String // Full | Incremental (see route comment: both produce a full VACUUM INTO snapshot)
   status      String    @default("Running") // Running | Completed | Failed | Restored
   startedAt   DateTime  @default(now())
   completedAt DateTime?
@@ -892,7 +891,7 @@ model KnowledgeArticle {
   companyId       String
   slug            String
   title           String
-  category        String   // SOPs | Policies | Lane Playbooks | Safety | Compliance | Troubleshooting | Onboarding
+  category        String // SOPs | Policies | Lane Playbooks | Safety | Compliance | Troubleshooting | Onboarding
   tagsJson        String   @default("[]") // JSON: string[]
   summary         String
   author          String
@@ -911,7 +910,7 @@ model KnowledgeArticle {
   revisionsJson   String   @default("[]") // JSON: {id,version,ts,author,summary}[]
   createdAt       DateTime @default(now())
 
-  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@index([companyId, status])
 }
@@ -949,7 +948,7 @@ model HelpdeskTicket {
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
-  company        Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@index([companyId, status])
 }
@@ -963,20 +962,20 @@ model HelpdeskTicket {
 // run-history concept existed for automations at all.
 
 model Automation {
-  id          String   @id @default(cuid())
-  companyId   String
-  name        String
-  description String?
-  trigger     String
+  id              String    @id @default(cuid())
+  companyId       String
+  name            String
+  description     String?
+  trigger         String
   triggerCategory String
-  conditions  String   // JSON
-  actions     String   // JSON
-  status      String   @default("Active") // Active | Paused
-  lastRun     DateTime?
-  runCount    Int      @default(0)
-  createdBy   String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  conditions      String // JSON
+  actions         String // JSON
+  status          String    @default("Active") // Active | Paused
+  lastRun         DateTime?
+  runCount        Int       @default(0)
+  createdBy       String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   // Recurring execution ("loop") - a real, durable schedule powered by the
   // existing SQLite job queue (src/lib/queue), not a fake cron label. Each
@@ -985,7 +984,7 @@ model Automation {
   scheduleIntervalMinutes Int?
   nextRunAt               DateTime?
 
-  runLogs     AutomationRunLog[]
+  runLogs AutomationRunLog[]
 
   @@index([companyId])
 }
@@ -995,12 +994,12 @@ model AutomationRunLog {
   companyId           String
   automationId        String
   automation          Automation @relation(fields: [automationId], references: [id], onDelete: Cascade)
-  automationName      String     // denormalized snapshot - survives automation rename/delete
-  triggerEntity       String?    // human label of what matched, e.g. "Invoice RZ-INV-02147" or "3 invoices matched"
+  automationName      String // denormalized snapshot - survives automation rename/delete
+  triggerEntity       String? // human label of what matched, e.g. "Invoice RZ-INV-02147" or "3 invoices matched"
   conditionsEvaluated String?
-  result              String     // Success | Failed | Unsupported
+  result              String // Success | Failed | Unsupported
   error               String?
-  notes               String?    // real Rean-generated analysis text, when the "Trigger Rean Analysis" action ran
+  notes               String? // real Rean-generated analysis text, when the "Trigger Rean Analysis" action ran
   matchedCount        Int        @default(0)
   durationMs          Int
   createdAt           DateTime   @default(now())
@@ -1012,21 +1011,21 @@ model AutomationRunLog {
 // ===== DRIVER FIELD APP =====
 // Append-only activity log (POD, fuel, expense, issue, inspection, status, notes, duty)
 model DriverActivity {
-  id            String   @id @default(cuid())
-  driverId      String
-  driverName    String?
-  tripId        String?
-  vehicleId     String?
-  type          String   // STATUS_UPDATE | FUEL_LOG | EXPENSE | ISSUE | INSPECTION | POD | CHECK_IN | CHECK_OUT | NOTE
-  payload       String   // JSON blob (type-specific fields)
-  photoDataUrl  String?  // downsampled base64 JPEG (capped ~2MB)
-  lat           Float?
-  lng           Float?
-  accuracy      Float?
-  address       String?
-  note          String?
-  synced        Boolean  @default(true)
-  createdAt     DateTime @default(now())
+  id           String   @id @default(cuid())
+  driverId     String
+  driverName   String?
+  tripId       String?
+  vehicleId    String?
+  type         String // STATUS_UPDATE | FUEL_LOG | EXPENSE | ISSUE | INSPECTION | POD | CHECK_IN | CHECK_OUT | NOTE
+  payload      String // JSON blob (type-specific fields)
+  photoDataUrl String? // downsampled base64 JPEG (capped ~2MB)
+  lat          Float?
+  lng          Float?
+  accuracy     Float?
+  address      String?
+  note         String?
+  synced       Boolean  @default(true)
+  createdAt    DateTime @default(now())
 
   @@index([driverId, createdAt])
   @@index([type, createdAt])
@@ -1034,20 +1033,20 @@ model DriverActivity {
 
 // High-frequency GPS pings from driver app (watchPosition)
 model DriverLocationPing {
-  id          String   @id @default(cuid())
-  driverId    String
-  driverName  String?
-  tripId      String?
-  lat         Float
-  lng         Float
-  accuracy    Float?
-  speed       Float?
-  heading     Float?
-  altitude    Float?
-  address     String?
-  ignition    Boolean?
-  battery     Int?
-  createdAt   DateTime @default(now())
+  id         String   @id @default(cuid())
+  driverId   String
+  driverName String?
+  tripId     String?
+  lat        Float
+  lng        Float
+  accuracy   Float?
+  speed      Float?
+  heading    Float?
+  altitude   Float?
+  address    String?
+  ignition   Boolean?
+  battery    Int?
+  createdAt  DateTime @default(now())
 
   @@index([driverId, createdAt])
 }
@@ -1057,41 +1056,41 @@ model DriverLocationPing {
 // notification dispatch, report generation, audit logging, cache invalidation).
 // Survives server restarts. Polled by in-process workers; swap to Redis/SQS in prod.
 model Job {
-  id           String    @id
-  type         String    // photo.process | location.batch | notification.dispatch | report.generate | audit.log | cache.invalidate
-  payload      String    // JSON
-  status       String    @default("pending") // pending | running | completed | failed | dead
-  attempts     Int       @default(0)
-  maxAttempts  Int       @default(5)
-  priority     Int       @default(0)
-  runAfter     DateTime  @default(now())
-  lockedBy     String?
-  error        String?
-  result       String?
-  createdAt    DateTime  @default(now())
-  startedAt    DateTime?
-  completedAt  DateTime?
+  id          String    @id
+  type        String // photo.process | location.batch | notification.dispatch | report.generate | audit.log | cache.invalidate
+  payload     String // JSON
+  status      String    @default("pending") // pending | running | completed | failed | dead
+  attempts    Int       @default(0)
+  maxAttempts Int       @default(5)
+  priority    Int       @default(0)
+  runAfter    DateTime  @default(now())
+  lockedBy    String?
+  error       String?
+  result      String?
+  createdAt   DateTime  @default(now())
+  startedAt   DateTime?
+  completedAt DateTime?
 
   @@index([status, runAfter, priority])
   @@index([type, status])
 }
 
-// ════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // PLATFORM LAYER (Superadmin / multi-tenant control plane)
-// admin.garageplus.com — Garage Plus internal team. These models live
+// admin.garageplus.com â€” Garage Plus internal team. These models live
 // OUTSIDE the tenant boundary: they govern the tenants themselves.
-// ════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 model Plan {
   id           String   @id @default(cuid())
   code         String   @unique // starter | growth | enterprise
   name         String
-  priceMonthly Int      // paise
-  priceAnnual  Int      // paise
+  priceMonthly Int // paise
+  priceAnnual  Int // paise
   vehicleCap   Int
   userCap      Int
   storageMb    Int
-  features     String   // JSON array of module ids
+  features     String // JSON array of module ids
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -1099,18 +1098,18 @@ model Plan {
 }
 
 model Subscription {
-  id           String   @id @default(cuid())
-  companyId    String   @unique
+  id           String            @id @default(cuid())
+  companyId    String            @unique
   planId       String
-  status       String   @default("Active") // Active | Trial | Suspended | Cancelled
-  billingCycle String   @default("monthly") // monthly | annual
-  startedAt    DateTime @default(now())
+  status       String            @default("Active") // Active | Trial | Suspended | Cancelled
+  billingCycle String            @default("monthly") // monthly | annual
+  startedAt    DateTime          @default(now())
   renewsAt     DateTime?
-  mrr          Int      // monthly recurring revenue in paise
-  plan         Plan     @relation(fields: [planId], references: [id])
+  mrr          Int // monthly recurring revenue in paise
+  plan         Plan              @relation(fields: [planId], references: [id])
   invoices     PlatformInvoice[]
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
 }
 
 // A tenant's saved card, referenced only by its safe display attributes -
@@ -1121,101 +1120,101 @@ model Subscription {
 // This models "a card is on file for this org", the same safe pattern
 // every real billing UI displays, without processing any real payment.
 model PaymentMethod {
-  id          String   @id @default(cuid())
-  companyId   String
-  brand       String   // Visa | Mastercard | Amex | RuPay
-  last4       String
-  expMonth    Int
-  expYear     Int
-  holderName  String
-  isDefault   Boolean  @default(false)
-  createdAt   DateTime @default(now())
+  id         String   @id @default(cuid())
+  companyId  String
+  brand      String // Visa | Mastercard | Amex | RuPay
+  last4      String
+  expMonth   Int
+  expYear    Int
+  holderName String
+  isDefault  Boolean  @default(false)
+  createdAt  DateTime @default(now())
 
   @@index([companyId])
 }
 
 model PlatformInvoice {
-  id             String   @id @default(cuid())
+  id             String       @id @default(cuid())
   subscriptionId String
-  amount         Int      // paise
+  amount         Int // paise
   periodStart    DateTime
   periodEnd      DateTime
-  status         String   @default("Pending") // Paid | Pending | Failed
+  status         String       @default("Pending") // Paid | Pending | Failed
   paidAt         DateTime?
   subscription   Subscription @relation(fields: [subscriptionId], references: [id])
-  createdAt      DateTime @default(now())
+  createdAt      DateTime     @default(now())
 
   @@index([subscriptionId])
   @@index([status])
 }
 
 model PlatformUser {
-  // Garage Plus internal staff (not tenant users — those are in User).
-  id         String   @id @default(cuid())
-  email      String   @unique
+  // Garage Plus internal staff (not tenant users â€” those are in User).
+  id         String    @id @default(cuid())
+  email      String    @unique
   name       String
-  role       String   @default("staff") // staff | billing | support | superadmin
-  status     String   @default("Active")
-  twoFactor  Boolean  @default(false)
+  role       String    @default("staff") // staff | billing | support | superadmin
+  status     String    @default("Active")
+  twoFactor  Boolean   @default(false)
   lastActive DateTime?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 
   auditEvents PlatformAuditLog[]
 }
 
 model PlatformAuditLog {
-  id        String   @id @default(cuid())
+  id        String        @id @default(cuid())
   actorId   String?
   actor     PlatformUser? @relation(fields: [actorId], references: [id])
-  action    String   // tenant.onboard | tenant.suspend | user.invite | backup.run …
-  target    String?  // companyId / userId / backupId
-  meta      String?  // JSON
+  action    String // tenant.onboard | tenant.suspend | user.invite | backup.run â€¦
+  target    String? // companyId / userId / backupId
+  meta      String? // JSON
   ip        String?
-  createdAt DateTime @default(now())
+  createdAt DateTime      @default(now())
 
   @@index([actorId])
   @@index([action, createdAt])
 }
 
-// ════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // OFFLINE-FIRST SYNC + BACKUPS
 // Every mutation a user makes offline is queued here and flushed when
 // connectivity returns. The superadmin "Offline Sync Health" view monitors
 // this table across tenants.
-// ════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 model SyncQueueItem {
-  id         String   @id @default(cuid())
-  companyId  String
-  userId     String?
-  device     String?  // device fingerprint / label
-  type       String   // pod.create | fuel.create | trip.update | expense.create …
-  module     String
-  payload    String   // JSON — the mutation body
-  status     String   @default("pending") // pending | syncing | failed | applied
-  attempts   Int      @default(0)
-  lastError  String?
-  createdAt  DateTime @default(now())
-  appliedAt  DateTime?
+  id        String    @id @default(cuid())
+  companyId String
+  userId    String?
+  device    String? // device fingerprint / label
+  type      String // pod.create | fuel.create | trip.update | expense.create â€¦
+  module    String
+  payload   String // JSON â€” the mutation body
+  status    String    @default("pending") // pending | syncing | failed | applied
+  attempts  Int       @default(0)
+  lastError String?
+  createdAt DateTime  @default(now())
+  appliedAt DateTime?
 
   @@index([companyId, status])
   @@index([status, createdAt])
 }
 
 model ConflictRecord {
-  // Same record edited on two devices while offline — needs manual resolution.
-  id          String   @id @default(cuid())
-  companyId   String
-  module      String
-  recordId    String
-  deviceA     String
-  deviceB     String
-  payloadA    String   // JSON
-  payloadB    String   // JSON
-  resolvedAt  DateTime?
-  resolution  String?  // JSON of the merged record
-  createdAt   DateTime @default(now())
+  // Same record edited on two devices while offline â€” needs manual resolution.
+  id         String    @id @default(cuid())
+  companyId  String
+  module     String
+  recordId   String
+  deviceA    String
+  deviceB    String
+  payloadA   String // JSON
+  payloadB   String // JSON
+  resolvedAt DateTime?
+  resolution String? // JSON of the merged record
+  createdAt  DateTime  @default(now())
 
   @@index([companyId, resolvedAt])
 }
@@ -1226,7 +1225,7 @@ model BackupSnapshot {
   label      String
   type       String   @default("Full") // Full | Incremental
   sizeBytes  Int
-  storeKeys  String   // JSON array of localStorage/store keys snapshotted
+  storeKeys  String // JSON array of localStorage/store keys snapshotted
   status     String   @default("Completed") // Running | Completed | Failed
   durationMs Int?
   createdAt  DateTime @default(now())
@@ -1234,191 +1233,191 @@ model BackupSnapshot {
   @@index([companyId, createdAt])
 }
 
-// ════════════════════════════════════════════════════════════════
-// CRM — Customer Relationship Management
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// CRM â€” Customer Relationship Management
 // Connects to Customer (Account = enriched customer view) + Trip + Invoice.
-// ════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 model Lead {
-  id          String   @id @default(cuid())
-  leadId      String   @unique // display code, e.g. RZ-LEAD-1001
-  companyId   String
-  name        String
-  company     String?  // lead's organisation (free text until converted)
-  email       String?
-  phone       String?
-  city        String?
-  source      String   // Inbound | Referral | ColdCall | Exhibition | Website
+  id           String        @id @default(cuid())
+  leadId       String        @unique // display code, e.g. RZ-LEAD-1001
+  companyId    String
+  name         String
+  company      String? // lead's organisation (free text until converted)
+  email        String?
+  phone        String?
+  city         String?
+  source       String // Inbound | Referral | ColdCall | Exhibition | Website
   laneInterest String?
-  status      String   @default("New") // New | Contacted | Qualified | Converted | Lost
-  score       Int      @default(0) // 0-100
-  ownerId     String?  // assigned sales rep (free-text name)
+  status       String        @default("New") // New | Contacted | Qualified | Converted | Lost
+  score        Int           @default(0) // 0-100
+  ownerId      String? // assigned sales rep (free-text name)
   nextFollowUp DateTime?
-  notes       String?
-  // The deal this lead was converted into (back-relation only — the FK lives
+  notes        String?
+  // The deal this lead was converted into (back-relation only â€” the FK lives
   // on Deal.leadId so a lead can exist before conversion without a dangling id).
-  deal        Deal?    @relation("LeadToDeal")
-  activities  CrmActivity[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  deal         Deal?         @relation("LeadToDeal")
+  activities   CrmActivity[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
 
   @@index([companyId, status])
   @@index([ownerId])
 }
 
 model Deal {
-  id           String   @id @default(cuid())
-  dealId       String   @unique // display code, e.g. RZ-DEAL-1001
-  companyId    String
-  name         String   // shown to users as "title"
-  company      String?  // free-text org name until tied to a real Customer
-  customerId   String?  // FK to Customer once the deal is tied to an account
-  customer     Customer? @relation(fields: [customerId], references: [id])
-  contactId    String?
-  contact      CrmContact? @relation(fields: [contactId], references: [id])
-  leadId       String?  @unique
-  lead         Lead?    @relation("LeadToDeal", fields: [leadId], references: [id])
-  lane         String?
-  value        Int      // paise
-  stage        String   @default("New Lead") // matches the CRM UI's real vocabulary: New Lead | Qualified | Quotation Sent | Negotiation | Won | Lost
-  probability  Int      @default(10) // %
+  id            String      @id @default(cuid())
+  dealId        String      @unique // display code, e.g. RZ-DEAL-1001
+  companyId     String
+  name          String // shown to users as "title"
+  company       String? // free-text org name until tied to a real Customer
+  customerId    String? // FK to Customer once the deal is tied to an account
+  customer      Customer?   @relation(fields: [customerId], references: [id])
+  contactId     String?
+  contact       CrmContact? @relation(fields: [contactId], references: [id])
+  leadId        String?     @unique
+  lead          Lead?       @relation("LeadToDeal", fields: [leadId], references: [id])
+  lane          String?
+  value         Int // paise
+  stage         String      @default("New Lead") // matches the CRM UI's real vocabulary: New Lead | Qualified | Quotation Sent | Negotiation | Won | Lost
+  probability   Int         @default(10) // %
   expectedClose DateTime?
-  ownerId      String?
-  wonAt        DateTime?
-  lostReason   String?
-  winReason    String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  ownerId       String?
+  wonAt         DateTime?
+  lostReason    String?
+  winReason     String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
 
-  activities   CrmActivity[]
+  activities CrmActivity[]
 
   @@index([companyId, stage])
   @@index([customerId])
 }
 
 model CrmContact {
-  id          String   @id @default(cuid())
-  contactId   String   @unique // display code, e.g. RZ-CONTACT-1001
-  companyId   String
-  customerId  String?
-  customer    Customer? @relation(fields: [customerId], references: [id])
-  name        String
-  title       String?
-  email       String?
-  phone       String?
-  city        String?
-  linkedIn    String?
-  decisionMaker Boolean @default(false)
+  id              String    @id @default(cuid())
+  contactId       String    @unique // display code, e.g. RZ-CONTACT-1001
+  companyId       String
+  customerId      String?
+  customer        Customer? @relation(fields: [customerId], references: [id])
+  name            String
+  title           String?
+  email           String?
+  phone           String?
+  city            String?
+  linkedIn        String?
+  decisionMaker   Boolean   @default(false)
   lastContactedAt DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
-  activities  CrmActivity[]
-  deals       Deal[]
+  activities CrmActivity[]
+  deals      Deal[]
 
   @@index([companyId, customerId])
 }
 
 model CrmActivity {
-  id          String   @id @default(cuid())
-  activityId  String   @unique // display code, e.g. RZ-ACT-1001
-  companyId   String
-  type        String   // Call | Email | Meeting | SiteVisit | FollowUp | Quotation | Note
-  title       String
-  description String?
-  ownerId     String?
+  id              String      @id @default(cuid())
+  activityId      String      @unique // display code, e.g. RZ-ACT-1001
+  companyId       String
+  type            String // Call | Email | Meeting | SiteVisit | FollowUp | Quotation | Note
+  title           String
+  description     String?
+  ownerId         String?
   durationMinutes Int?
-  leadId      String?
-  lead        Lead?    @relation(fields: [leadId], references: [id])
-  dealId      String?
-  deal        Deal?    @relation(fields: [dealId], references: [id])
-  contactId   String?
-  contact     CrmContact? @relation(fields: [contactId], references: [id])
-  customerId  String?
-  customer    Customer? @relation(fields: [customerId], references: [id])
-  outcome     String?
-  nextStep    String?
-  scheduledAt DateTime?
-  completedAt DateTime?
-  createdAt   DateTime @default(now())
+  leadId          String?
+  lead            Lead?       @relation(fields: [leadId], references: [id])
+  dealId          String?
+  deal            Deal?       @relation(fields: [dealId], references: [id])
+  contactId       String?
+  contact         CrmContact? @relation(fields: [contactId], references: [id])
+  customerId      String?
+  customer        Customer?   @relation(fields: [customerId], references: [id])
+  outcome         String?
+  nextStep        String?
+  scheduledAt     DateTime?
+  completedAt     DateTime?
+  createdAt       DateTime    @default(now())
 
   @@index([companyId, type, createdAt])
   @@index([leadId])
   @@index([dealId])
 }
 
-// ════════════════════════════════════════════════════════════════
-// HR — Human Resources
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// HR â€” Human Resources
 // Driver exists separately (fleet-specific); Employee covers ALL staff
 // (drivers, helpers, mechanics, dispatchers, office). An Employee can
 // link to a Driver record when the person is a driver.
-// ════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 model Employee {
-  id            String   @id @default(cuid())
-  companyId     String
-  code          String   // employee code
-  name          String
-  designation   String   // Driver | Helper | Mechanic | Dispatcher | Accountant | BranchManager | HRExec | …
-  department    String?
-  branchId      String?
-  branchName    String?  // free-text branch label the UI already worked with
-  employmentType String  @default("Permanent") // Permanent | Contract | Daily
-  doj           DateTime
-  status        String   @default("Active") // matches the HR UI's real vocabulary: Active | On Leave | Notice | Exited
-  exitDate      DateTime?
-  ctcAnnual     Int      // paise
-  esiEnrolled   Boolean  @default(false)
-  pfEnrolled    Boolean  @default(false)
-  uan           String?  // PF UAN
-  esiNumber     String?
-  pan           String?
-  aadhaar       String?
-  bankName      String?
-  bankAccount   String?
-  bankIfsc      String?
-  driverId      String?  // link to Driver when the employee is a driver
-  driver        Driver?  @relation(fields: [driverId], references: [id])
+  id                String           @id @default(cuid())
+  companyId         String
+  code              String // employee code
+  name              String
+  designation       String // Driver | Helper | Mechanic | Dispatcher | Accountant | BranchManager | HRExec | â€¦
+  department        String?
+  branchId          String?
+  branchName        String? // free-text branch label the UI already worked with
+  employmentType    String           @default("Permanent") // Permanent | Contract | Daily
+  doj               DateTime
+  status            String           @default("Active") // matches the HR UI's real vocabulary: Active | On Leave | Notice | Exited
+  exitDate          DateTime?
+  ctcAnnual         Int // paise
+  esiEnrolled       Boolean          @default(false)
+  pfEnrolled        Boolean          @default(false)
+  uan               String? // PF UAN
+  esiNumber         String?
+  pan               String?
+  aadhaar           String?
+  bankName          String?
+  bankAccount       String?
+  bankIfsc          String?
+  driverId          String? // link to Driver when the employee is a driver
+  driver            Driver?          @relation(fields: [driverId], references: [id])
   // Profile - real fields the UI already collects, previously discarded
-  phone         String?
-  email         String?
-  city          String?
-  gender        String?
-  dob           DateTime?
-  bloodGroup    String?
-  address       String?
-  emergencyContact String?
-  basicMonthly  Int?     // paise
-  hraMonthly    Int?     // paise
-  reportingTo   String?
-  managerId     String?
-  buddy         String?
-  probationEndDate DateTime?
-  confirmDate   DateTime?
+  phone             String?
+  email             String?
+  city              String?
+  gender            String?
+  dob               DateTime?
+  bloodGroup        String?
+  address           String?
+  emergencyContact  String?
+  basicMonthly      Int? // paise
+  hraMonthly        Int? // paise
+  reportingTo       String?
+  managerId         String?
+  buddy             String?
+  probationEndDate  DateTime?
+  confirmDate       DateTime?
   lastIncrementDate DateTime?
-  lastIncrementPct Float?
-  lastRating    String?
-  skills        String?  // comma-separated
+  lastIncrementPct  Float?
+  lastRating        String?
+  skills            String? // comma-separated
   // JSON-serialized arrays (documents/assets are lightweight per-employee
   // lists, not independently queried elsewhere - a real Prisma relation
   // would be overkill; stored as real JSON text, not discarded).
-  documentsJson String?
-  assetsJson    String?
-  leaveBalanceCl Int     @default(12)
-  leaveBalanceSl Int     @default(12)
-  leaveBalancePl Int     @default(15)
-  leaveBalanceMl Int     @default(0)
-  structureId   String?  // salary structure this employee is paid under
-  structure     SalaryStructure? @relation(fields: [structureId], references: [id])
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  documentsJson     String?
+  assetsJson        String?
+  leaveBalanceCl    Int              @default(12)
+  leaveBalanceSl    Int              @default(12)
+  leaveBalancePl    Int              @default(15)
+  leaveBalanceMl    Int              @default(0)
+  structureId       String? // salary structure this employee is paid under
+  structure         SalaryStructure? @relation(fields: [structureId], references: [id])
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
 
-  attendance    AttendanceRecord[]
-  leaveRequests LeaveRequest[]
-  payslips      Payslip[]
+  attendance     AttendanceRecord[]
+  leaveRequests  LeaveRequest[]
+  payslips       Payslip[]
   reimbursements PayrollReimbursement[]
-  bonuses       PayrollBonus[]
-  loans         PayrollLoan[]
+  bonuses        PayrollBonus[]
+  loans          PayrollLoan[]
 
   @@unique([companyId, code])
   @@index([companyId, status])
@@ -1432,10 +1431,10 @@ model Employee {
 model SalaryStructure {
   id               String   @id @default(cuid())
   companyId        String
-  name             String   // e.g. "Driver (Permanent)"
+  name             String // e.g. "Driver (Permanent)"
   department       String?
-  ctcAnnual        Int      // paise
-  basicPct         Int      // % of CTC
+  ctcAnnual        Int // paise
+  basicPct         Int // % of CTC
   daPct            Int      @default(0)
   hraPct           Int
   specialAllowance Int      @default(0) // paise, monthly
@@ -1449,126 +1448,126 @@ model SalaryStructure {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
-  employees        Employee[]
+  employees Employee[]
 
   @@index([companyId])
 }
 
 model AttendanceRecord {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   companyId   String
   employeeId  String
-  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employee    Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   date        DateTime
-  mark        String   // P | A | H | L | W | T (Present/Absent/Half/Leave/Weekoff/Trip)
+  mark        String // P | A | H | L | W | T (Present/Absent/Half/Leave/Weekoff/Trip)
   inTime      DateTime?
   outTime     DateTime?
-  overtimeHrs Int      @default(0)
-  lateIn      Boolean  @default(false)
-  earlyOut    Boolean  @default(false)
-  tripId      String?  // trip-linked attendance for drivers
-  createdAt   DateTime @default(now())
+  overtimeHrs Int       @default(0)
+  lateIn      Boolean   @default(false)
+  earlyOut    Boolean   @default(false)
+  tripId      String? // trip-linked attendance for drivers
+  createdAt   DateTime  @default(now())
 
   @@unique([employeeId, date])
   @@index([companyId, date])
 }
 
 model LeaveRequest {
-  id         String   @id @default(cuid())
+  id         String    @id @default(cuid())
   companyId  String
   employeeId String
-  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  type       String   // CL | SL | PL | ML
+  employee   Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  type       String // CL | SL | PL | ML
   fromDate   DateTime
   toDate     DateTime
   days       Int
   reason     String?
-  status     String   @default("Pending") // Pending | Approved | Rejected
+  status     String    @default("Pending") // Pending | Approved | Rejected
   approverId String?
   approvedAt DateTime?
-  createdAt  DateTime @default(now())
+  createdAt  DateTime  @default(now())
 
   @@index([companyId, status])
   @@index([employeeId])
 }
 
 model PayrollRun {
-  id         String   @id @default(cuid())
-  cycleNo    String   @unique // display code, e.g. RZ-CYC-1001
-  companyId  String
-  month      String   // YYYY-MM
-  status     String   @default("Draft") // Draft | Processing | Approved | Disbursed | Cancelled
-  locked     Boolean  @default(false)
-  grossTotal Int      // paise
-  deductTotal Int
-  netTotal   Int
-  employerContribTotal Int @default(0)
-  approvedBy String?
-  approvedAt DateTime?
-  paidAt     DateTime?
-  runBy      String?
-  remarks    String?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id                   String    @id @default(cuid())
+  cycleNo              String    @unique // display code, e.g. RZ-CYC-1001
+  companyId            String
+  month                String // YYYY-MM
+  status               String    @default("Draft") // Draft | Processing | Approved | Disbursed | Cancelled
+  locked               Boolean   @default(false)
+  grossTotal           Int // paise
+  deductTotal          Int
+  netTotal             Int
+  employerContribTotal Int       @default(0)
+  approvedBy           String?
+  approvedAt           DateTime?
+  paidAt               DateTime?
+  runBy                String?
+  remarks              String?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
 
-  payslips   Payslip[]
+  payslips Payslip[]
 
   @@unique([companyId, month])
 }
 
 model Payslip {
-  id          String   @id @default(cuid())
-  payslipNo   String   @unique // display code, e.g. RZ-PAY-1001
-  companyId   String
-  payrollRunId String?
-  payrollRun  PayrollRun? @relation(fields: [payrollRunId], references: [id])
-  employeeId  String
-  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  month       String   // YYYY-MM
-  basic       Int
-  da          Int      @default(0)
-  hra         Int
-  conveyance  Int
-  medicalAllowance Int @default(0)
-  specialAllowance Int @default(0)
-  statutoryBonus Int   @default(0)
-  allowances  Int
-  overtime    Int
-  incentives  Int
-  pfDeduct    Int
-  esiDeduct   Int
-  ptDeduct    Int
-  tdsDeduct   Int
-  advanceDeduct Int
-  otherDeduct Int      @default(0)
-  employerPF  Int      @default(0)
-  employerESI Int      @default(0)
-  presentDays Int      @default(0)
-  lopDays     Int      @default(0)
-  netPay      Int
-  status      String   @default("Draft") // Draft | Approved | Paid | Hold
-  createdAt   DateTime @default(now())
+  id               String      @id @default(cuid())
+  payslipNo        String      @unique // display code, e.g. RZ-PAY-1001
+  companyId        String
+  payrollRunId     String?
+  payrollRun       PayrollRun? @relation(fields: [payrollRunId], references: [id])
+  employeeId       String
+  employee         Employee    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  month            String // YYYY-MM
+  basic            Int
+  da               Int         @default(0)
+  hra              Int
+  conveyance       Int
+  medicalAllowance Int         @default(0)
+  specialAllowance Int         @default(0)
+  statutoryBonus   Int         @default(0)
+  allowances       Int
+  overtime         Int
+  incentives       Int
+  pfDeduct         Int
+  esiDeduct        Int
+  ptDeduct         Int
+  tdsDeduct        Int
+  advanceDeduct    Int
+  otherDeduct      Int         @default(0)
+  employerPF       Int         @default(0)
+  employerESI      Int         @default(0)
+  presentDays      Int         @default(0)
+  lopDays          Int         @default(0)
+  netPay           Int
+  status           String      @default("Draft") // Draft | Approved | Paid | Hold
+  createdAt        DateTime    @default(now())
 
   @@index([companyId, month])
   @@index([employeeId])
 }
 
 model HrPosition {
-  id         String   @id @default(cuid())
-  positionId String   @unique // display code, e.g. RZ-POS-1001
-  companyId  String
-  title      String
-  branchId   String?  // free-text branch label
-  description String?
-  openings   Int      @default(1)
-  budgetMin  Int
-  budgetMax  Int
+  id              String    @id @default(cuid())
+  positionId      String    @unique // display code, e.g. RZ-POS-1001
+  companyId       String
+  title           String
+  branchId        String? // free-text branch label
+  description     String?
+  openings        Int       @default(1)
+  budgetMin       Int
+  budgetMax       Int
   hiringManagerId String?
-  status     String   @default("Open") // matches the HR UI's real vocabulary: Open | On Hold | Closed
-  postedAt   DateTime @default(now())
-  closedAt   DateTime?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  status          String    @default("Open") // matches the HR UI's real vocabulary: Open | On Hold | Closed
+  postedAt        DateTime  @default(now())
+  closedAt        DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   candidates Candidate[]
 
@@ -1576,7 +1575,7 @@ model HrPosition {
 }
 
 model Candidate {
-  id          String   @id @default(cuid())
+  id          String     @id @default(cuid())
   companyId   String
   positionId  String
   position    HrPosition @relation(fields: [positionId], references: [id], onDelete: Cascade)
@@ -1587,21 +1586,21 @@ model Candidate {
   currentCtc  Int?
   expectedCtc Int?
   source      String?
-  stage       String   @default("Applied") // Applied | Screening | Interview | Offer | Joined | Rejected
+  stage       String     @default("Applied") // Applied | Screening | Interview | Offer | Joined | Rejected
   rating      Int?
   notes       String?
-  appliedAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  appliedAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
 
   @@index([positionId, stage])
 }
 
-// ════════════════════════════════════════════════════════════════
-// OPERATIONAL MODELS — connect the existing fleet/finance entities.
-// These close the loop: RateCard → Customer + Trip; LorryReceipt →
-// Trip + Customer; POD → Trip + Driver; Expense → Trip + Vehicle;
-// Issue → Vehicle + Driver; ServiceProgram → Vehicle.
-// ════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// OPERATIONAL MODELS â€” connect the existing fleet/finance entities.
+// These close the loop: RateCard â†’ Customer + Trip; LorryReceipt â†’
+// Trip + Customer; POD â†’ Trip + Driver; Expense â†’ Trip + Vehicle;
+// Issue â†’ Vehicle + Driver; ServiceProgram â†’ Vehicle.
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 model RateCard {
   id              String    @id @default(cuid())
@@ -1614,7 +1613,7 @@ model RateCard {
   vehicleType     String
   loadType        String    @default("FTL") // FTL | LTL | Part Load | Container
   rateType        String    @default("Per Km") // Per Km | Per Trip | Per Tonne | Per Package
-  baseRate        Int       // paise
+  baseRate        Int // paise
   detentionPerDay Int       @default(0) // paise
   // Surcharge[] - lightweight per-card list, not independently queried.
   surchargesJson  String    @default("[]")
@@ -1627,37 +1626,37 @@ model RateCard {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
-  trips           Trip[]    @relation("TripRateCard")
+  trips Trip[] @relation("TripRateCard")
 
   @@index([companyId, status])
   @@index([source, destination])
 }
 
 model LorryReceipt {
-  id          String   @id @default(cuid())
-  companyId   String
-  lrNumber    String
-  tripId      String?
-  trip        Trip?    @relation("TripLRs", fields: [tripId], references: [id])
-  customerId  String?
-  customer    Customer? @relation("CustomerLRs", fields: [customerId], references: [id])
-  fromCity    String
-  toCity      String
-  consignor   String
-  consignee   String
-  goodsDesc   String?
-  weightKg    Int?
-  packages    Int?
-  freight     Int      // paise
-  freightTerm String   @default("To Pay") // Paid | To Be Billed | To Pay - matches the LR module UI's FreightTerm type
-  eWayBillNo  String?
+  id             String    @id @default(cuid())
+  companyId      String
+  lrNumber       String
+  tripId         String?
+  trip           Trip?     @relation("TripLRs", fields: [tripId], references: [id])
+  customerId     String?
+  customer       Customer? @relation("CustomerLRs", fields: [customerId], references: [id])
+  fromCity       String
+  toCity         String
+  consignor      String
+  consignee      String
+  goodsDesc      String?
+  weightKg       Int?
+  packages       Int?
+  freight        Int // paise
+  freightTerm    String    @default("To Pay") // Paid | To Be Billed | To Pay - matches the LR module UI's FreightTerm type
+  eWayBillNo     String?
   eWayBillExpiry DateTime?
-  status      String   @default("Generated") // Generated | Printed | Sent | Archived - matches the LR module UI's status type
-  issuedAt    DateTime @default(now())
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  status         String    @default("Generated") // Generated | Printed | Sent | Archived - matches the LR module UI's status type
+  issuedAt       DateTime  @default(now())
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
-  pod         Pod?     @relation("LRPOD")
+  pod Pod? @relation("LRPOD")
 
   @@unique([companyId, lrNumber])
   @@index([companyId, status])
@@ -1672,76 +1671,76 @@ model LorryReceipt {
 // mobile POD form) always has them at hand and shouldn't require a strict
 // LR join to save a draft.
 model Pod {
-  id                 String    @id @default(cuid())
-  companyId          String
-  lrId               String?   @unique
-  lr                 LorryReceipt? @relation("LRPOD", fields: [lrId], references: [id])
-  tripId             String?
-  trip               Trip?     @relation("TripPOD", fields: [tripId], references: [id])
-  driverId           String?
-  driver             Driver?   @relation("DriverPODs", fields: [driverId], references: [id])
+  id        String        @id @default(cuid())
+  companyId String
+  lrId      String?       @unique
+  lr        LorryReceipt? @relation("LRPOD", fields: [lrId], references: [id])
+  tripId    String?
+  trip      Trip?         @relation("TripPOD", fields: [tripId], references: [id])
+  driverId  String?
+  driver    Driver?       @relation("DriverPODs", fields: [driverId], references: [id])
 
-  voucherNumber      String
-  consignmentNumber  String
-  type               String    @default("Delivery") // Delivery | Pickup | Return
-  source             String
-  destination        String
-  consignee          String
-  consignor          String
-  consignmentDate    DateTime
-  loadingDate        DateTime
+  voucherNumber     String
+  consignmentNumber String
+  type              String   @default("Delivery") // Delivery | Pickup | Return
+  source            String
+  destination       String
+  consignee         String
+  consignor         String
+  consignmentDate   DateTime
+  loadingDate       DateTime
 
-  frontImageFull     String?
-  frontImageThumb    String?
-  frontImageBytes    Int?
-  backImageFull      String?
-  backImageThumb     String?
-  backImageBytes     Int?
-  signatureImageFull String?
+  frontImageFull      String?
+  frontImageThumb     String?
+  frontImageBytes     Int?
+  backImageFull       String?
+  backImageThumb      String?
+  backImageBytes      Int?
+  signatureImageFull  String?
   signatureImageThumb String?
   signatureImageBytes Int?
-  stampImageFull     String?
-  stampImageThumb    String?
-  stampImageBytes    Int?
-  signatureDrawn     String?
+  stampImageFull      String?
+  stampImageThumb     String?
+  stampImageBytes     Int?
+  signatureDrawn      String?
 
-  receivingDate      DateTime?
-  reportingDate      DateTime?
-  unloadingDate      DateTime?
-  weight             Float?
-  packages           Int?
+  receivingDate DateTime?
+  reportingDate DateTime?
+  unloadingDate DateTime?
+  weight        Float?
+  packages      Int?
 
-  status             String    @default("Pending") // Delivered | Pending | Rejected | Damaged
-  reportNumber       String
-  submissionStatus   String    @default("Draft") // Draft | Submitted | Approved
-  deliveryDate       DateTime?
+  status           String    @default("Pending") // Delivered | Pending | Rejected | Damaged
+  reportNumber     String
+  submissionStatus String    @default("Draft") // Draft | Submitted | Approved
+  deliveryDate     DateTime?
 
-  contactPhone       String?
-  contactEmail       String?
-  contactRelation    String?
+  contactPhone    String?
+  contactEmail    String?
+  contactRelation String?
 
-  startOdometer      Float?
-  endOdometer        Float?
-  distance           Float?
-  remarks            String?
-  unloadingCharges   Int?      // paise
-  otherCharges       Int?      // paise
-  vehicleNumber      String?
-  vehicleHireNumber  String?
+  startOdometer     Float?
+  endOdometer       Float?
+  distance          Float?
+  remarks           String?
+  unloadingCharges  Int? // paise
+  otherCharges      Int? // paise
+  vehicleNumber     String?
+  vehicleHireNumber String?
 
-  receivedBy         String?   // receiver name at destination
-  receivedAt         DateTime?
-  signatureUrl        String?
-  photoUrl            String?
-  gpsLat              Float?
-  gpsLng              Float?
-  conditionOk         Boolean  @default(true)
+  receivedBy   String? // receiver name at destination
+  receivedAt   DateTime?
+  signatureUrl String?
+  photoUrl     String?
+  gpsLat       Float?
+  gpsLng       Float?
+  conditionOk  Boolean   @default(true)
 
-  createdByName      String    @default("")
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
+  createdByName String   @default("")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  auditEntries       PodAuditEntry[]
+  auditEntries PodAuditEntry[]
 
   @@index([companyId, status])
 }
@@ -1758,76 +1757,76 @@ model PodAuditEntry {
 }
 
 model Expense {
-  id          String   @id @default(cuid())
-  companyId   String
-  tripId      String?
-  trip        Trip?    @relation("TripExpenses", fields: [tripId], references: [id])
-  vehicleId   String?
-  vehicle     Vehicle? @relation("VehicleExpenses", fields: [vehicleId], references: [id])
-  driverId    String?
-  driver      Driver?  @relation("DriverExpenses", fields: [driverId], references: [id])
-  category    String   // Fuel | Toll | Repair | Loading | Unloading | DriverBhatta | Misc
-  description String?
-  amount      Int      // paise
-  payMode     String   @default("Cash") // Cash | UPI | Card | Credit
-  vendorName  String?
-  invoiceNo   String?
-  incurredAt  DateTime
-  status      String   @default("Pending") // Pending | Approved | Reimbursed | Rejected
-  approvedBy  String?
-  submittedBy String?
-  receiptStatus String @default("Missing") // Attached | Missing
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id            String   @id @default(cuid())
+  companyId     String
+  tripId        String?
+  trip          Trip?    @relation("TripExpenses", fields: [tripId], references: [id])
+  vehicleId     String?
+  vehicle       Vehicle? @relation("VehicleExpenses", fields: [vehicleId], references: [id])
+  driverId      String?
+  driver        Driver?  @relation("DriverExpenses", fields: [driverId], references: [id])
+  category      String // Fuel | Toll | Repair | Loading | Unloading | DriverBhatta | Misc
+  description   String?
+  amount        Int // paise
+  payMode       String   @default("Cash") // Cash | UPI | Card | Credit
+  vendorName    String?
+  invoiceNo     String?
+  incurredAt    DateTime
+  status        String   @default("Pending") // Pending | Approved | Reimbursed | Rejected
+  approvedBy    String?
+  submittedBy   String?
+  receiptStatus String   @default("Missing") // Attached | Missing
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   @@index([companyId, status, incurredAt])
   @@index([tripId])
 }
 
 model Issue {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   companyId   String
-  issueId     String   @unique
+  issueId     String    @unique
   vehicleId   String?
-  vehicle     Vehicle? @relation("VehicleIssues", fields: [vehicleId], references: [id])
+  vehicle     Vehicle?  @relation("VehicleIssues", fields: [vehicleId], references: [id])
   driverId    String?
-  driver      Driver?  @relation("DriverIssues", fields: [driverId], references: [id])
+  driver      Driver?   @relation("DriverIssues", fields: [driverId], references: [id])
   tripId      String?
-  trip        Trip?    @relation("TripIssues", fields: [tripId], references: [id])
-  category    String   // Breakdown | Accident | Tyre | Electrical | Document | Compliance
-  severity    String   @default("Medium") // Low | Medium | High | Critical
+  trip        Trip?     @relation("TripIssues", fields: [tripId], references: [id])
+  category    String // Breakdown | Accident | Tyre | Electrical | Document | Compliance
+  severity    String    @default("Medium") // Low | Medium | High | Critical
   title       String
   description String?
-  status      String   @default("Open") // Open | InProgress | Resolved | Closed
+  status      String    @default("Open") // Open | InProgress | Resolved | Closed
   reportedBy  String?
   assignee    String?
-  source      String   @default("Manual") // Manual | Inspection | Rean | Fault Code
+  source      String    @default("Manual") // Manual | Inspection | Rean | Fault Code
   resolvedAt  DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   @@index([companyId, status, severity])
   @@index([vehicleId])
 }
 
 model ServiceProgram {
-  id           String   @id @default(cuid())
+  id           String           @id @default(cuid())
   companyId    String
   vehicleId    String
-  vehicle      Vehicle  @relation("VehicleServicePrograms", fields: [vehicleId], references: [id])
+  vehicle      Vehicle          @relation("VehicleServicePrograms", fields: [vehicleId], references: [id])
   templateId   String?
   template     ServiceTemplate? @relation(fields: [templateId], references: [id])
   name         String
-  type         String   // Preventive | Corrective | Predictive
+  type         String // Preventive | Corrective | Predictive
   intervalKm   Int?
   intervalDays Int?
   lastDoneKm   Int?
   lastDoneAt   DateTime?
   nextDueKm    Int?
   nextDueAt    DateTime?
-  status       String   @default("Active")
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  status       String           @default("Active")
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
 
   @@index([vehicleId, status])
   @@index([templateId])
@@ -1845,10 +1844,10 @@ model ServiceTemplate {
   name             String
   vehicleType      String
   serviceType      String
-  triggerType      String   // Time | Distance | Both
+  triggerType      String // Time | Distance | Both
   intervalValue    Int
-  intervalUnit     String   // km | months
-  tasksJson        String   // JSON: { id: string; text: string }[]
+  intervalUnit     String // km | months
+  tasksJson        String // JSON: { id: string; text: string }[]
   defaultVendor    String?
   estDurationHours Float?
   estCostPaise     Int?
@@ -1856,24 +1855,24 @@ model ServiceTemplate {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
-  instances        ServiceProgram[]
+  instances ServiceProgram[]
 
   @@index([companyId, status])
 }
 
 model Reminder {
-  id          String   @id @default(cuid())
-  companyId   String
-  vehicleId   String?
-  vehicle     Vehicle? @relation("VehicleReminders", fields: [vehicleId], references: [id])
-  driverId    String?
-  driver      Driver?  @relation(fields: [driverId], references: [id])
-  title       String
-  category    String   // Service | Fitness | Insurance | Permit | PUC | Licence | Tax | Custom
-  dueDate     DateTime
-  notifyDays  Int      @default(7)
-  status      String   @default("Pending") // Pending | Done | Snoozed
-  createdAt   DateTime @default(now())
+  id         String   @id @default(cuid())
+  companyId  String
+  vehicleId  String?
+  vehicle    Vehicle? @relation("VehicleReminders", fields: [vehicleId], references: [id])
+  driverId   String?
+  driver     Driver?  @relation(fields: [driverId], references: [id])
+  title      String
+  category   String // Service | Fitness | Insurance | Permit | PUC | Licence | Tax | Custom
+  dueDate    DateTime
+  notifyDays Int      @default(7)
+  status     String   @default("Pending") // Pending | Done | Snoozed
+  createdAt  DateTime @default(now())
 
   @@index([companyId, status, dueDate])
 }
@@ -1888,7 +1887,7 @@ model ChatConversation {
   id          String   @id @default(cuid())
   companyId   String   @default("reanzly")
   name        String
-  type        String   // direct | group | channel
+  type        String // direct | group | channel
   description String?
   topic       String?
   private     Boolean  @default(false)
@@ -1903,22 +1902,22 @@ model ChatConversation {
 }
 
 model ChatParticipant {
-  id              String   @id @default(cuid())
-  conversationId  String
-  userId          String
-  userName        String
-  userRole        String
-  userInitials    String   @default("")
-  joinedAt        DateTime @default(now())
-  lastReadAt      DateTime?
-  conversation    ChatConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  id             String           @id @default(cuid())
+  conversationId String
+  userId         String
+  userName       String
+  userRole       String
+  userInitials   String           @default("")
+  joinedAt       DateTime         @default(now())
+  lastReadAt     DateTime?
+  conversation   ChatConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
   @@unique([conversationId, userId])
   @@index([userId])
 }
 
 model ChatMessage {
-  id              String   @id @default(cuid())
+  id              String    @id @default(cuid())
   conversationId  String
   senderId        String
   senderName      String
@@ -1927,22 +1926,22 @@ model ChatMessage {
   parentId        String?
   attachment      String?
   forwardedFrom   String?
-  isRean          Boolean  @default(false)
+  isRean          Boolean   @default(false)
   isPoll          String?
-  isCommandResult Boolean  @default(false)
-  pinned          Boolean  @default(false)
+  isCommandResult Boolean   @default(false)
+  pinned          Boolean   @default(false)
   // Soft-delete: deleted messages stay in place with a tombstone instead of
   // being hard-removed, so "This message was deleted" renders like
   // Teams/WhatsApp rather than the message just vanishing from history.
-  deleted         Boolean  @default(false)
-  edited          Boolean  @default(false)
+  deleted         Boolean   @default(false)
+  edited          Boolean   @default(false)
   editedAt        DateTime?
-  createdAt       DateTime @default(now())
+  createdAt       DateTime  @default(now())
 
-  conversation     ChatConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  reactions        ChatReaction[]
-  readReceipts     ChatReadReceipt[]
-  pollVotes        ChatPollVote[]
+  conversation ChatConversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  reactions    ChatReaction[]
+  readReceipts ChatReadReceipt[]
+  pollVotes    ChatPollVote[]
 
   @@index([conversationId, createdAt])
   @@index([parentId])
@@ -1954,34 +1953,34 @@ model ChatMessage {
 // instead of the previous local-only vote count that never left the browser
 // that cast it.
 model ChatPollVote {
-  id          String   @id @default(cuid())
-  messageId   String
-  userId      String
-  optionId    String
-  createdAt   DateTime @default(now())
-  message     ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  id        String      @id @default(cuid())
+  messageId String
+  userId    String
+  optionId  String
+  createdAt DateTime    @default(now())
+  message   ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
 
   @@unique([messageId, userId])
   @@index([messageId])
 }
 
 model ChatReaction {
-  id          String   @id @default(cuid())
-  messageId   String
-  userId      String
-  emoji       String
-  createdAt   DateTime @default(now())
-  message     ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  id        String      @id @default(cuid())
+  messageId String
+  userId    String
+  emoji     String
+  createdAt DateTime    @default(now())
+  message   ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
 
   @@unique([messageId, userId, emoji])
 }
 
 model ChatReadReceipt {
-  id          String   @id @default(cuid())
-  messageId   String
-  userId      String
-  createdAt   DateTime @default(now())
-  message     ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  id        String      @id @default(cuid())
+  messageId String
+  userId    String
+  createdAt DateTime    @default(now())
+  message   ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
 
   @@unique([messageId, userId])
 }
@@ -1992,59 +1991,106 @@ model ChatReadReceipt {
 // loads, and run settlement cycles with NACH payouts.
 
 model BrokerProfile {
-  id                String   @id @default(cuid())
-  userId            String?  @unique // links this profile to the real logged-in broker User
-  brokerCode        String   @unique // RZB-XXXXXX
+  id                String    @id @default(cuid())
+  userId            String?   @unique // links this profile to the real logged-in broker User
+  brokerCode        String    @unique // RZB-XXXXXX
   companyName       String
   contactName       String
-  email             String   @unique
+  email             String    @unique
   phone             String
   gstin             String?
-  markupPct         Float    @default(8.0)
-  settlementCycle   String   @default("Fortnightly") // Weekly | Fortnightly | Monthly
-  gstTreatment      String   @default("Forward Charge") // Forward Charge | Reverse Charge
-  coverageLanes     String   @default("") // JSON array of lane strings
-  status            String   @default("Active") // Active | Pending | Suspended
-  parentBrokerId    String?  // if this broker was onboarded by another broker
+  markupPct         Float     @default(8.0)
+  settlementCycle   String    @default("Fortnightly") // Weekly | Fortnightly | Monthly
+  gstTreatment      String    @default("Forward Charge") // Forward Charge | Reverse Charge
+  coverageLanes     String    @default("[]") // JSON array of lane strings
+  marketplaceListingJson String @default("{}") // JSON object for public profile (about, yearFounded, etc)
+  status            String    @default("Active") // Active | Pending | Suspended
+  parentBrokerId    String? // if this broker was onboarded by another broker
   bankName          String?
   bankBranch        String?
   bankAccountName   String?
   bankAccountNumber String?
   bankIfsc          String?
-  nachUmr           String?  // NACH mandate registration number
+  nachUmr           String? // NACH mandate registration number
   nextPayoutDate    DateTime?
-  nextPayoutAmount  Float    @default(0)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  nextPayoutAmount  Float     @default(0)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
-  user              User?    @relation(fields: [userId], references: [id])
-  subBrokers        SubBroker[]
-  enquiries         BrokerEnquiry[]
-  quotes            BrokerQuote[]
-  settlements       SettlementCycle[]
-  ledgerEntries     BrokerLedgerEntry[]
+  user          User?               @relation(fields: [userId], references: [id])
+  subBrokers    SubBroker[]
+  enquiries     BrokerEnquiry[]
+  quotes        BrokerQuote[]
+  settlements   SettlementCycle[]
+  ledgerEntries BrokerLedgerEntry[]
+  nachMandates  NachMandate[]
+  payoutRuns    PayoutRun[]
+}
+
+model NachMandate {
+  id              String    @id @default(cuid())
+  brokerProfileId String
+  mandateId       String    @unique
+  party           String
+  partyType       String // "Sub-Broker" | "Customer" | "Reanzly"
+  bank            String
+  accountLast4    String
+  amountINR       Float
+  frequency       String // "Weekly" | "Fortnightly" | "Monthly" | "One-time"
+  status          String // "Active" | "Pending" | "Suspended"
+  createdOn       DateTime  @default(now())
+  nextDebit       DateTime?
+
+  brokerProfile BrokerProfile @relation(fields: [brokerProfileId], references: [id])
+}
+
+model PayoutRun {
+  id              String    @id @default(cuid())
+  brokerProfileId String
+  runNo           String    @unique
+  date            DateTime
+  cycle           String // "Weekly" | "Fortnightly" | "Monthly"
+  totalAmountINR  Float
+  recipientsCount Int
+  status          String // "Draft" | "Processing" | "Completed" | "Failed"
+  bankRef         String?
+  completedAt     DateTime?
+
+  recipients    PayoutRecipient[]
+  brokerProfile BrokerProfile     @relation(fields: [brokerProfileId], references: [id])
+}
+
+model PayoutRecipient {
+  id          String  @id @default(cuid())
+  payoutRunId String
+  name        String
+  amountINR   Float
+  status      String // "Draft" | "Processing" | "Completed" | "Failed"
+  utr         String?
+
+  payoutRun PayoutRun @relation(fields: [payoutRunId], references: [id], onDelete: Cascade)
 }
 
 model SubBroker {
-  id                  String   @id @default(cuid())
-  brokerProfileId     String
-  name                String
-  brokerCode          String   @unique // RZSB-XXX
-  contactName         String
-  email               String
-  phone               String
-  markupPct           Float    @default(5.0)
-  coverageLanes       String   @default("") // JSON array
-  settlementCycle     String   @default("Weekly")
-  gstTreatment        String   @default("Forward Charge")
-  gstin               String?
-  status              String   @default("Pending") // Active | Pending | Suspended
-  settlementsDueINR   Float    @default(0)
-  onboardedAt         DateTime @default(now())
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  id                String   @id @default(cuid())
+  brokerProfileId   String
+  name              String
+  brokerCode        String   @unique // RZSB-XXX
+  contactName       String
+  email             String
+  phone             String
+  markupPct         Float    @default(5.0)
+  coverageLanes     String   @default("") // JSON array
+  settlementCycle   String   @default("Weekly")
+  gstTreatment      String   @default("Forward Charge")
+  gstin             String?
+  status            String   @default("Pending") // Active | Pending | Suspended
+  settlementsDueINR Float    @default(0)
+  onboardedAt       DateTime @default(now())
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
-  brokerProfile       BrokerProfile @relation(fields: [brokerProfileId], references: [id], onDelete: Cascade)
+  brokerProfile BrokerProfile @relation(fields: [brokerProfileId], references: [id], onDelete: Cascade)
 }
 
 model BrokerEnquiry {
@@ -2063,26 +2109,26 @@ model BrokerEnquiry {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
-  brokerProfile     BrokerProfile @relation(fields: [brokerProfileId], references: [id], onDelete: Cascade)
+  brokerProfile BrokerProfile @relation(fields: [brokerProfileId], references: [id], onDelete: Cascade)
 }
 
 model BrokerQuote {
-  id                String   @id @default(cuid())
-  brokerProfileId   String
-  quoteId           String   @unique // qte-XXXXX
-  loadId            String   // mkt-XXXXX (reference to marketplace load)
-  lane              String
-  vehicleType       String
-  customer          String
-  quotedRatePerKm   Float
-  baseRatePerKm     Float
-  markupPct         Float
-  status            String   @default("Pending") // Pending | Accepted | Rejected | Expired
-  quotedAt          DateTime @default(now())
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  id              String   @id @default(cuid())
+  brokerProfileId String
+  quoteId         String   @unique // qte-XXXXX
+  loadId          String // mkt-XXXXX (reference to marketplace load)
+  lane            String
+  vehicleType     String
+  customer        String
+  quotedRatePerKm Float
+  baseRatePerKm   Float
+  markupPct       Float
+  status          String   @default("Pending") // Pending | Accepted | Rejected | Expired
+  quotedAt        DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
-  brokerProfile     BrokerProfile @relation(fields: [brokerProfileId], references: [id], onDelete: Cascade)
+  brokerProfile BrokerProfile @relation(fields: [brokerProfileId], references: [id], onDelete: Cascade)
 }
 
 model SettlementCycle {
@@ -2103,7 +2149,7 @@ model SettlementCycle {
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
-  brokerProfile       BrokerProfile @relation(fields: [brokerProfileId], references: [id], onDelete: Cascade)
+  brokerProfile BrokerProfile @relation(fields: [brokerProfileId], references: [id], onDelete: Cascade)
 }
 
 model BrokerLedgerEntry {
@@ -2111,14 +2157,14 @@ model BrokerLedgerEntry {
   brokerProfileId   String
   entryId           String   @unique // led-XXX
   date              DateTime
-  type              String   // Credit | Debit
+  type              String // Credit | Debit
   description       String
   refId             String
   amountINR         Float
   runningBalanceINR Float
   createdAt         DateTime @default(now())
 
-  brokerProfile     BrokerProfile @relation(fields: [brokerProfileId], references: [id], onDelete: Cascade)
+  brokerProfile BrokerProfile @relation(fields: [brokerProfileId], references: [id], onDelete: Cascade)
 }
 
 // Reanzly's published rate card - the base rates brokers resell on.
@@ -2146,24 +2192,24 @@ model LaneRate {
 // (PlatformUser scope) use a synthetic companyId of "PLATFORM".
 
 model IntegrationConnection {
-  id              String   @id @default(cuid())
-  companyId       String   // tenant key, "PLATFORM" for Reanzly internal
-  providerId      String   // e.g. "razorpay", "msg91", "google-maps"
-  category        String   // payment | sms | whatsapp | extension | plugin | telemetry | identity | logistics | ecommerce | warehouse | maps | gov | fuel | banking
-  label           String?  // user-supplied instance label (multi-instance)
-  status          String   @default("connected") // connected | sandbox | needs-config | error
-  mode            String   @default("live") // live | test
-  priority        Int      @default(1) // 1 = highest, used for routing
-  isPrimary       Boolean  @default(false)
-  fieldValues     String   @default("{}") // JSON of field id → value (secrets masked)
+  id              String    @id @default(cuid())
+  companyId       String // tenant key, "PLATFORM" for Reanzly internal
+  providerId      String // e.g. "razorpay", "msg91", "google-maps"
+  category        String // payment | sms | whatsapp | extension | plugin | telemetry | identity | logistics | ecommerce | warehouse | maps | gov | fuel | banking
+  label           String? // user-supplied instance label (multi-instance)
+  status          String    @default("connected") // connected | sandbox | needs-config | error
+  mode            String    @default("live") // live | test
+  priority        Int       @default(1) // 1 = highest, used for routing
+  isPrimary       Boolean   @default(false)
+  fieldValues     String    @default("{}") // JSON of field id â†’ value (secrets masked)
   lastSyncAt      DateTime?
-  lastSyncStatus  String?  // ok | error | pending
+  lastSyncStatus  String? // ok | error | pending
   lastSyncMessage String?
-  connectedAt     DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  connectedAt     DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
-  webhooks        IntegrationWebhookLog[]
-  syncLogs        IntegrationSyncLog[]
+  webhooks IntegrationWebhookLog[]
+  syncLogs IntegrationSyncLog[]
 
   @@index([companyId, category])
   @@index([companyId, status])
@@ -2174,14 +2220,14 @@ model IntegrationWebhookLog {
   id              String   @id @default(cuid())
   connectionId    String
   providerId      String
-  eventType       String   // payment.captured, message.sent, etc.
+  eventType       String // payment.captured, message.sent, etc.
   signature       String?
-  payload         String   // raw JSON payload
+  payload         String // raw JSON payload
   processed       Boolean  @default(false)
   processingError String?
   receivedAt      DateTime @default(now())
 
-  connection      IntegrationConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  connection IntegrationConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
 
   @@index([connectionId, receivedAt])
   @@index([providerId, receivedAt])
@@ -2189,28 +2235,28 @@ model IntegrationWebhookLog {
 }
 
 // ============================================================
-// IntegrationSyncLog — every DB sync run for a connection.
+// IntegrationSyncLog â€” every DB sync run for a connection.
 // Drives the "Sync history" drawer in the Integrations module.
 // Triggered by the scheduler (real-time / hourly / daily / on-demand)
 // or by a manual "Sync Now" click. Status transitions:
 //   pending -> running -> ok | error | partial
 // ============================================================
 model IntegrationSyncLog {
-  id              String   @id @default(cuid())
-  connectionId    String
-  providerId      String
-  companyId       String   // tenant key
-  syncType        String   // scheduled | manual | webhook-triggered
-  status          String   @default("pending") // pending | running | ok | error | partial
-  recordsPulled   Int      @default(0)
-  recordsPushed   Int      @default(0)
-  durationMs      Int      @default(0)
-  errorMessage    String?
-  errorDetails    String?  // JSON: stack / validation errors
-  startedAt       DateTime @default(now())
-  completedAt     DateTime?
+  id            String    @id @default(cuid())
+  connectionId  String
+  providerId    String
+  companyId     String // tenant key
+  syncType      String // scheduled | manual | webhook-triggered
+  status        String    @default("pending") // pending | running | ok | error | partial
+  recordsPulled Int       @default(0)
+  recordsPushed Int       @default(0)
+  durationMs    Int       @default(0)
+  errorMessage  String?
+  errorDetails  String? // JSON: stack / validation errors
+  startedAt     DateTime  @default(now())
+  completedAt   DateTime?
 
-  connection      IntegrationConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  connection IntegrationConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
 
   @@index([connectionId, startedAt])
   @@index([providerId, startedAt])
@@ -2221,30 +2267,30 @@ model IntegrationSyncLog {
 // ===== SLM SYSTEM =====
 
 model SlmFeedback {
-  id              String   @id @default(cuid())
-  companyId       String   // tenant isolation
-  userId          String?
-  agentId         String
-  query           String
-  response        String
-  rating          Int      // 1 to 5, or 1/-1 (thumbs up/down)
-  comment         String?
-  processed       Boolean  @default(false)
-  createdAt       DateTime @default(now())
+  id        String   @id @default(cuid())
+  companyId String // tenant isolation
+  userId    String?
+  agentId   String
+  query     String
+  response  String
+  rating    Int // 1 to 5, or 1/-1 (thumbs up/down)
+  comment   String?
+  processed Boolean  @default(false)
+  createdAt DateTime @default(now())
 
   @@index([companyId, agentId])
   @@index([processed])
 }
 
 model SlmMemory {
-  id              String   @id @default(cuid())
-  companyId       String   // tenant isolation
-  userId          String?
-  key             String
-  value           String
-  embedding       String?  // JSON string representing Float32Array
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id        String   @id @default(cuid())
+  companyId String // tenant isolation
+  userId    String?
+  key       String
+  value     String
+  embedding String? // JSON string representing Float32Array
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([companyId, key])
 }
@@ -2255,13 +2301,13 @@ model SlmMemory {
 // Most content is shared across tenants (companyId = "global"); a specific
 // company's own added knowledge can scope to their own companyId later.
 model KnowledgeChunk {
-  id          String   @id @default(cuid())
-  companyId   String   @default("global")
-  source      String   // e.g. "compliance", "platform-docs", "glossary"
-  title       String
-  content     String
-  embedding   String?  // JSON string representing Float32Array
-  createdAt   DateTime @default(now())
+  id        String   @id @default(cuid())
+  companyId String   @default("global")
+  source    String // e.g. "compliance", "platform-docs", "glossary"
+  title     String
+  content   String
+  embedding String? // JSON string representing Float32Array
+  createdAt DateTime @default(now())
 
   @@index([companyId, source])
 }
@@ -2273,19 +2319,19 @@ model KnowledgeChunk {
 // stuff" - every write Rean ever makes has a row here proving what was
 // proposed, by whom, when, and whether/when it was actually approved and run.
 model RagAction {
-  id            String   @id @default(cuid())
-  companyId     String
-  userId        String   // who Rean was acting on behalf of
-  operation     String   // "create" | "update" | "delete"
-  model         String   // Prisma model name the action targets, e.g. "Invoice"
-  recordId      String?  // target row id, null for "create"
-  argsJson      String   // JSON of the proposed Prisma args (where/data)
-  summary       String   // human-readable one-line description shown in chat
-  status        String   @default("pending") // pending | confirmed | executed | rejected | failed
-  errorMessage  String?
-  createdAt     DateTime @default(now())
-  decidedAt     DateTime?
-  executedAt    DateTime?
+  id           String    @id @default(cuid())
+  companyId    String
+  userId       String // who Rean was acting on behalf of
+  operation    String // "create" | "update" | "delete"
+  model        String // Prisma model name the action targets, e.g. "Invoice"
+  recordId     String? // target row id, null for "create"
+  argsJson     String // JSON of the proposed Prisma args (where/data)
+  summary      String // human-readable one-line description shown in chat
+  status       String    @default("pending") // pending | confirmed | executed | rejected | failed
+  errorMessage String?
+  createdAt    DateTime  @default(now())
+  decidedAt    DateTime?
+  executedAt   DateTime?
 
   @@index([companyId, userId, status])
 }
@@ -2297,11 +2343,11 @@ model RagAction {
 model Call {
   id             String    @id @default(cuid())
   companyId      String
-  conversationId String?   // the chat conversation this call is attached to, if any
+  conversationId String? // the chat conversation this call is attached to, if any
   initiatorId    String
-  type           String    // "audio" | "video"
+  type           String // "audio" | "video"
   status         String    @default("scheduled") // scheduled | ringing | active | ended | missed | cancelled
-  participantIds String    // JSON string array of userIds invited/joined
+  participantIds String // JSON string array of userIds invited/joined
   scheduledFor   DateTime?
   startedAt      DateTime?
   endedAt        DateTime?
@@ -2320,21 +2366,21 @@ model Call {
 model QualityCheck {
   id                    String   @id @default(cuid())
   companyId             String
-  checkId               String   // human code, e.g. QC-00001
-  type                  String   // Vehicle | Goods Receipt | Service | Document | Process Audit
-  reference             String   // vehicle plate / GRN no / service order / document name / process name
-  referenceEntity       String?  // cross-module entity id
-  referenceModule       String?  // vehicles | drivers-staff | customers | vendors | warehouse
+  checkId               String // human code, e.g. QC-00001
+  type                  String // Vehicle | Goods Receipt | Service | Document | Process Audit
+  reference             String // vehicle plate / GRN no / service order / document name / process name
+  referenceEntity       String? // cross-module entity id
+  referenceModule       String? // vehicles | drivers-staff | customers | vendors | warehouse
   inspector             String
   date                  DateTime
-  result                String   // Pass | Fail | Conditional | Waived
+  result                String // Pass | Fail | Conditional | Waived
   status                String   @default("Scheduled") // Scheduled | In Progress | Completed | Cancelled
   score                 Int      @default(0) // 0-100
   location              String?
-  findingsJson          String?  // JSON: CheckFinding[]
-  controlPointsJson     String?  // JSON: ControlPoint[]
-  correctiveActionsJson String?  // JSON: CorrectiveAction[]
-  activityJson          String?  // JSON: CheckActivity[]
+  findingsJson          String? // JSON: CheckFinding[]
+  controlPointsJson     String? // JSON: ControlPoint[]
+  correctiveActionsJson String? // JSON: CorrectiveAction[]
+  activityJson          String? // JSON: CheckActivity[]
   notes                 String?
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
@@ -2366,10 +2412,10 @@ model PurchaseOrder {
   taxTotal         Int       @default(0) // paise
   total            Int       @default(0) // paise
   notes            String?
-  linesJson        String?   // JSON: POLine[]
-  receiptsJson     String?   // JSON: POReceipt[]
-  billsJson        String?   // JSON: POBill[]
-  activityJson     String?   // JSON: POActivity[]
+  linesJson        String? // JSON: POLine[]
+  receiptsJson     String? // JSON: POReceipt[]
+  billsJson        String? // JSON: POBill[]
+  activityJson     String? // JSON: POActivity[]
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
@@ -2395,7 +2441,7 @@ model LedgerEntry {
   companyId   String
   customerId  String
   invoiceId   String?
-  type        String   // Payment | CreditNote | DebitNote | OpeningBalance
+  type        String // Payment | CreditNote | DebitNote | OpeningBalance
   description String
   // Rupees, not paise - Invoice/Customer (the two real models the ledger
   // composes these rows alongside) store their amounts directly in rupees
@@ -2455,7 +2501,7 @@ model SupportTicket {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  messages     TicketMessage[]
+  messages TicketMessage[]
 
   @@unique([companyId, ticketNumber])
   @@index([companyId, customerId, status])
@@ -2466,7 +2512,7 @@ model TicketMessage {
   ticketId  String
   ticket    SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
   fromName  String
-  fromRole  String        // customer | staff
+  fromRole  String // customer | staff
   body      String
   createdAt DateTime      @default(now())
 
@@ -2493,7 +2539,7 @@ model Sprint {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  tasks     Task[]
+  tasks Task[]
 
   @@index([companyId])
 }
@@ -2508,11 +2554,11 @@ model Task {
   department       String    @default("Operations")
   status           String    @default("Backlog") // Backlog | Planned | In Progress | Blocked | Under Review | Completed
   isRean           Boolean   @default(false)
-  linkedEntityType String?   // Trip | Vehicle | Driver | Customer | Invoice
+  linkedEntityType String? // Trip | Vehicle | Driver | Customer | Invoice
   linkedEntityId   String?
   linkedEntityName String?
-  checklistJson    String?   // [{text,done}]
-  subtasksJson     String?   // [{text,done}]
+  checklistJson    String? // [{text,done}]
+  subtasksJson     String? // [{text,done}]
   sprintId         String?
   sprint           Sprint?   @relation(fields: [sprintId], references: [id])
   dueDate          DateTime?
@@ -2563,13 +2609,13 @@ model TaskAttachment {
 model ScheduledReport {
   id           String    @id @default(cuid())
   companyId    String
-  reportId     String    // matches the static REPORT_TYPES catalog id, e.g. "trip-summary"
+  reportId     String // matches the static REPORT_TYPES catalog id, e.g. "trip-summary"
   reportName   String
   category     String
-  frequency    String    // Daily | Weekly | Monthly
-  deliveryTime String    // "HH:MM"
-  recipients   String    // JSON string array
-  format       String    // PDF | CSV | Excel
+  frequency    String // Daily | Weekly | Monthly
+  deliveryTime String // "HH:MM"
+  recipients   String // JSON string array
+  format       String // PDF | CSV | Excel
   status       String    @default("Active") // Active | Paused
   nextRun      DateTime?
   lastRun      DateTime?
@@ -2584,10 +2630,10 @@ model CustomReport {
   id           String    @id @default(cuid())
   companyId    String
   name         String
-  baseReportId String    // matches REPORT_TYPES id
+  baseReportId String // matches REPORT_TYPES id
   category     String
   description  String?
-  filters      String?   // JSON snapshot of the ReportConfigForm used to build it
+  filters      String? // JSON snapshot of the ReportConfigForm used to build it
   createdBy    String?
   createdAt    DateTime  @default(now())
   lastRun      DateTime?
@@ -2612,9 +2658,9 @@ model FinancingApplication {
   id                String    @id @default(cuid())
   companyId         String
   applicationNumber String    @unique
-  productType       String    // Invoice Discounting | Working Capital Loan | Fuel Card Credit Line
+  productType       String // Invoice Discounting | Working Capital Loan | Fuel Card Credit Line
   linkedInvoiceIds  String    @default("[]") // JSON array of real Invoice ids
-  requestedAmount   Int       // rupees, matching Invoice.totalAmount's convention
+  requestedAmount   Int // rupees, matching Invoice.totalAmount's convention
   tenureMonths      Int
   status            String    @default("submitted") // draft | submitted | under_review | approved | disbursed | rejected
   notes             String?
@@ -2638,7 +2684,7 @@ model ApprovalRequest {
   id              String    @id @default(cuid())
   companyId       String
   requestId       String    @unique // APR-1001 style display code
-  type            String    // Expense | Rate Exception | Credit Extension | Vehicle Purchase | Discount | Vendor Onboarding | Leave | Work Order
+  type            String // Expense | Rate Exception | Credit Extension | Vehicle Purchase | Discount | Vendor Onboarding | Leave | Work Order
   title           String
   description     String
   requester       String
@@ -2664,7 +2710,7 @@ model ApprovalRequest {
   @@index([companyId, status])
 }
 
-// ===== PAYROLL — STATUTORY / BANK ADVICE / REIMBURSEMENTS / BONUSES / LOANS =====
+// ===== PAYROLL â€” STATUTORY / BANK ADVICE / REIMBURSEMENTS / BONUSES / LOANS =====
 // The standalone Payroll module's core (PayrollRun/Payslip/SalaryStructure/
 // Employee) was already real. These five sub-areas were still mock. Money
 // stored as paise (Int), matching the rest of the Payroll models - no
@@ -2672,45 +2718,45 @@ model ApprovalRequest {
 // per-record annotation, same convention split as the rest of the schema.
 
 model PayrollStatutoryFiling {
-  id                 String    @id @default(cuid())
-  companyId          String
-  type               String    // PF | ESI | TDS | Professional Tax
-  period             String    // e.g. "2026-07"
-  dueDate            DateTime
-  filedDate          DateTime?
-  status             String    @default("Pending") // Filed | Pending | Overdue
-  amount             Int       // paise
-  challanNo          String?
-  filedBy            String?
-  filingPortal       String?
-  acknowledgementNo  String?
-  remarks            String?
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
+  id                String    @id @default(cuid())
+  companyId         String
+  type              String // PF | ESI | TDS | Professional Tax
+  period            String // e.g. "2026-07"
+  dueDate           DateTime
+  filedDate         DateTime?
+  status            String    @default("Pending") // Filed | Pending | Overdue
+  amount            Int // paise
+  challanNo         String?
+  filedBy           String?
+  filingPortal      String?
+  acknowledgementNo String?
+  remarks           String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   @@index([companyId, status])
   @@index([companyId, period])
 }
 
 model PayrollBankAdvice {
-  id            String    @id @default(cuid())
-  companyId     String
-  adviceNo      String    @unique
-  month         String    // e.g. "2026-07"
-  bankName      String
-  bankBranch    String?
-  totalAmount   Int       // paise
-  beneficiaryCount Int    @default(0)
-  status        String    @default("Generated") // Generated | Submitted | Processed | Failed
-  generatedDate DateTime  @default(now())
-  submittedDate DateTime?
-  processedDate DateTime?
-  utrNo         String?
-  neftFile      String?
-  rtgsFile      String?
-  remarks       String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id               String    @id @default(cuid())
+  companyId        String
+  adviceNo         String    @unique
+  month            String // e.g. "2026-07"
+  bankName         String
+  bankBranch       String?
+  totalAmount      Int // paise
+  beneficiaryCount Int       @default(0)
+  status           String    @default("Generated") // Generated | Submitted | Processed | Failed
+  generatedDate    DateTime  @default(now())
+  submittedDate    DateTime?
+  processedDate    DateTime?
+  utrNo            String?
+  neftFile         String?
+  rtgsFile         String?
+  remarks          String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   @@index([companyId, status])
   @@index([companyId, month])
@@ -2722,9 +2768,9 @@ model PayrollReimbursement {
   code          String    @unique
   employeeId    String
   employee      Employee  @relation(fields: [employeeId], references: [id])
-  type          String    // Fuel | Travel | Food | Mobile | Stationery | Medical
-  month         String    // e.g. "2026-07"
-  amount        Int       // paise
+  type          String // Fuel | Travel | Food | Mobile | Stationery | Medical
+  month         String // e.g. "2026-07"
+  amount        Int // paise
   status        String    @default("Pending") // Pending | Approved | Rejected | Paid
   submittedDate DateTime  @default(now())
   approvedDate  DateTime?
@@ -2745,16 +2791,16 @@ model PayrollBonus {
   code          String    @unique
   employeeId    String
   employee      Employee  @relation(fields: [employeeId], references: [id])
-  type          String    // Performance | Trip Incentive | Festival | Retention | Referral
-  month         String    // e.g. "2026-07"
-  amount        Int       // paise
+  type          String // Performance | Trip Incentive | Festival | Retention | Referral
+  month         String // e.g. "2026-07"
+  amount        Int // paise
   status        String    @default("Pending") // Pending | Approved | Paid | Cancelled
   approvedDate  DateTime?
   approvedBy    String?
   paidDate      DateTime?
   description   String
   tripsCount    Int?
-  perTripAmount Int?      // paise
+  perTripAmount Int? // paise
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -2763,40 +2809,77 @@ model PayrollBonus {
 }
 
 model PayrollLoan {
-  id              String    @id @default(cuid())
-  companyId       String
-  code            String    @unique
-  employeeId      String
-  employee        Employee  @relation(fields: [employeeId], references: [id])
-  type            String    // Vehicle | Personal | Salary Advance | Education
-  principal       Int       // paise
-  interestRate    Float     @default(0) // annual %, simple interest
-  tenureMonths    Int
-  emi             Int       // paise
-  disbursedDate   DateTime  @default(now())
-  startDate       DateTime
-  endDate         DateTime
-  status          String    @default("Active") // Active | Closed | Foreclosed
-  outstanding     Int       // paise
-  remarks         String?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  id            String   @id @default(cuid())
+  companyId     String
+  code          String   @unique
+  employeeId    String
+  employee      Employee @relation(fields: [employeeId], references: [id])
+  type          String // Vehicle | Personal | Salary Advance | Education
+  principal     Int // paise
+  interestRate  Float    @default(0) // annual %, simple interest
+  tenureMonths  Int
+  emi           Int // paise
+  disbursedDate DateTime @default(now())
+  startDate     DateTime
+  endDate       DateTime
+  status        String   @default("Active") // Active | Closed | Foreclosed
+  outstanding   Int // paise
+  remarks       String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  installments    PayrollLoanInstallment[]
+  installments PayrollLoanInstallment[]
 
   @@index([companyId, status])
 }
 
 model PayrollLoanInstallment {
-  id        String   @id @default(cuid())
-  loanId    String
-  loan      PayrollLoan @relation(fields: [loanId], references: [id], onDelete: Cascade)
-  no        Int
-  dueDate   DateTime
-  amount    Int      // paise
-  status    String   @default("Pending") // Pending | Paid
-  paidDate  DateTime?
+  id       String      @id @default(cuid())
+  loanId   String
+  loan     PayrollLoan @relation(fields: [loanId], references: [id], onDelete: Cascade)
+  no       Int
+  dueDate  DateTime
+  amount   Int // paise
+  status   String      @default("Pending") // Pending | Paid
+  paidDate DateTime?
 
   @@index([loanId])
 }
 
+model BrokerDocument {
+  id              String   @id @default(cuid())
+  brokerProfileId String
+  name            String
+  type            String
+  fileName        String
+  notes           String?
+  status          String   @default("Valid") // Valid | Expiring Soon | Expired
+  expiresAt       DateTime?
+  uploadedAt      DateTime @default(now())
+}
+
+model BrokerTaxReturn {
+  id              String   @id @default(cuid())
+  brokerProfileId String
+  taxType         String   // GST | TDS
+  period          String
+  formType        String
+  filedDate       DateTime?
+  dueDate         DateTime?
+  ackNo           String?
+  liabilityINR    Float    @default(0)
+  status          String   @default("Due") // Due | Filed | Overdue
+  createdAt       DateTime @default(now())
+}
+
+model BrokerLicense {
+  id              String   @id @default(cuid())
+  brokerProfileId String
+  licenseType     String
+  licenseNumber   String
+  issuedBy        String
+  issueDate       DateTime?
+  expiresAt       DateTime
+  status          String   @default("Valid") // Valid | Expiring Soon | Expired
+  createdAt       DateTime @default(now())
+}

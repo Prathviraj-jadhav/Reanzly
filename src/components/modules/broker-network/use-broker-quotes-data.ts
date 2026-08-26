@@ -41,6 +41,21 @@ export function useBrokerQuotesData() {
     reload();
   }, [reload]);
 
+  const addQuote = useCallback(async (input: Partial<BrokerQuoteDTO>) => {
+    const res = await fetch("/api/broker/quotes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      toast.error("Could not submit quote.", { description: body.error });
+      return null;
+    }
+    setQuotes((prev) => [body, ...prev]);
+    return body as BrokerQuoteDTO;
+  }, []);
+
   const updateStatus = useCallback(async (id: string, status: BrokerQuoteDTO["status"]) => {
     const res = await fetch(`/api/broker/quotes/${id}`, {
       method: "PATCH",
@@ -56,5 +71,5 @@ export function useBrokerQuotesData() {
     return body as BrokerQuoteDTO;
   }, []);
 
-  return { quotes, loaded, reload, updateStatus };
+  return { quotes, loaded, reload, addQuote, updateStatus };
 }

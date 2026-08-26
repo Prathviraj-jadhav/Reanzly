@@ -27,6 +27,7 @@ export interface BrokerProfileDTO {
   coverageLanes: string[];
   status: string;
   parentBrokerId?: string;
+  marketplaceListingJson?: any;
 }
 
 export interface LaneRateDTO {

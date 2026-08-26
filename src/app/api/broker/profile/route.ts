@@ -30,6 +30,7 @@ export async function GET() {
     return NextResponse.json({
       ...profile,
       coverageLanes: safeParseJson<string[]>(profile.coverageLanes, []),
+      marketplaceListingJson: safeParseJson<any>(profile.marketplaceListingJson, {}),
     });
   } catch (error) {
     console.error("[broker/profile GET]", error);
@@ -95,6 +96,10 @@ export async function PATCH(req: NextRequest) {
     if (typeof body.companyName === "string") data.companyName = body.companyName;
     if (typeof body.contactName === "string") data.contactName = body.contactName;
     if (typeof body.phone === "string") data.phone = body.phone;
+    
+    if (body.marketplaceListingJson && typeof body.marketplaceListingJson === "object") {
+      data.marketplaceListingJson = toJsonString(body.marketplaceListingJson);
+    }
 
     const updated = await db.brokerProfile.update({
       where: { id: profile!.id },
@@ -106,6 +111,7 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({
       ...updated,
       coverageLanes: safeParseJson<string[]>(updated.coverageLanes, []),
+      marketplaceListingJson: safeParseJson<any>(updated.marketplaceListingJson, {}),
     });
   } catch (error) {
     console.error("[broker/profile PATCH]", error);
