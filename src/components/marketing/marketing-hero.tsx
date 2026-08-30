@@ -1,355 +1,157 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
+import Hls from "hls.js";
+import { ArrowRight } from "lucide-react";
 import { useAppStore } from "@/lib/store/app-store";
-import { REAL_HERO, REAL_MODULES } from "./real-data";
-import { ArrowRight, TrendingUp, CircleDot, Play } from "lucide-react";
-import { toast } from "sonner";
-import type { ModuleId } from "@/lib/store/app-store";
 
-/**
- * MarketingHero - topmost section of the company landing site.
- *
- * Premium Swiss/Scandinavian feel: eyebrow badge, oversized headline,
- * generous whitespace, a subtle bg-grid texture that fades out radially,
- * and a CSS/SVG mock of the logistics ops dashboard below the fold line.
- *
- * Every label in the dashboard mock now ties to a REAL module - clicking
- * any stat tile signs the visitor in as a demo Owner and routes them
- * straight into that module. Primary CTA "Open live demo" does the same
- * for the Trips module (the heart of the platform).
- */
-
-function scrollToId(id: string) {
-  if (typeof document === "undefined") return;
-  const el = document.getElementById(id);
-  if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-}
+const ROTATING_PHRASES = [
+  "dispatch itself.",
+  "invoice instantly.",
+  "track everything.",
+  "stop the chaos.",
+  "cut cost/km.",
+];
 
 export function MarketingHero() {
-  const demoEnter = useAppStore((s) => s.demoEnter);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [phraseIdx, setPhraseIdx] = useState(0);
+  const [visible, setVisible] = useState(true);
+  const setAuthMode = useAppStore((s) => s.setAuthMode);
+  const setMarketingView = useAppStore((s) => s.setMarketingView);
 
-  function openDemo(moduleId: ModuleId, label: string) {
-    toast.success(`Opening ${label} in live demo…`, {
-      description: "Signed in as demo Owner · App portal",
-    });
-    setTimeout(() => demoEnter(moduleId), 50);
-  }
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    const src = "https://stream.mux.com/tLkHO1qZoaaQOUeVWo8hEBeGQfySP02EPS02BmnNFyXys.m3u8";
+    if (Hls.isSupported()) {
+      const hls = new Hls({ enableWorker: false });
+      hls.loadSource(src);
+      hls.attachMedia(video);
+      hls.on(Hls.Events.MANIFEST_PARSED, () => video.play().catch(() => {}));
+      return () => hls.destroy();
+    } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
+      video.src = src;
+      video.addEventListener("loadedmetadata", () => video.play().catch(() => {}));
+    }
+  }, []);
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      setVisible(false);
+      setTimeout(() => {
+        setPhraseIdx((i) => (i + 1) % ROTATING_PHRASES.length);
+        setVisible(true);
+      }, 250);
+    }, 2800);
+    return () => clearInterval(id);
+  }, []);
 
   return (
-    <section
-      id="home"
-      className="relative overflow-hidden border-b border-white/10 bg-[#050505] text-white"
-    >
-      {/* Radial glow background */}
-      <div
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.06)_0%,transparent_60%)]"
-        aria-hidden
-      />
+    <section className="relative overflow-hidden bg-black pt-[60px] min-h-screen flex flex-col justify-center">
+      {/* Video Background */}
+      <div className="absolute inset-0 z-0">
+        <video
+          ref={videoRef}
+          muted
+          playsInline
+          loop
+          className="h-full w-full object-cover"
+        />
+        {/* Black shade overlay */}
+        <div className="absolute inset-0 bg-black/70 backdrop-blur-[2px]" />
+      </div>
 
-      {/* Grid pattern overlay */}
-      <div
-        className="pointer-events-none absolute inset-0 opacity-[0.03]"
-        style={{
-          backgroundImage: `radial-gradient(circle, white 1px, transparent 1px)`,
-          backgroundSize: "24px 24px",
-        }}
-        aria-hidden
-      />
-
-      <div className="relative mx-auto max-w-6xl px-6 py-20 text-center sm:py-28 lg:py-36">
-        {/* Eyebrow badge */}
-        <div className="hero-eyebrow mb-8 flex justify-center">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3.5 py-1 text-[11px] font-medium font-mono uppercase tracking-[0.16em] text-neutral-400">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            Logistics Operating System · {REAL_MODULES.length} live modules
-          </span>
+      {/* Hero content */}
+      <div className="relative z-10 mx-auto w-full max-w-[1280px] px-6 pt-20 pb-16 md:pt-28">
+        {/* Eyebrow */}
+        <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 backdrop-blur-md">
+          <span className="h-1.5 w-1.5 rounded-full bg-[#1AA06D]" />
+          <span className="text-[12px] font-[400] text-white/80">AI-native logistics OS. Built to survive Indian roads.</span>
         </div>
 
         {/* Headline */}
-        <h1 className="hero-title mx-auto max-w-4xl text-4xl font-semibold tracking-tight text-white sm:text-6xl lg:text-7xl leading-[1.08]">
-          The Operating System for Freight Logistics.
+        <h1
+          className="mb-6 max-w-[740px] text-[52px] font-[500] leading-[1.08] sm:text-[64px] text-white"
+          style={{ letterSpacing: "-1.92px" }}
+        >
+          Let your fleet{" "}
+          <span
+            className="transition-opacity duration-200"
+            style={{ color: "#1AA06D", opacity: visible ? 1 : 0 }}
+          >
+            {ROTATING_PHRASES[phraseIdx]}
+          </span>
         </h1>
 
-        {/* Subtext */}
-        <p className="hero-subtitle mx-auto mt-6 max-w-2xl text-[15px] sm:text-lg leading-relaxed text-neutral-400">
-          Run trips, manage dispatch, track vehicles, and automate billing in a single, unified workspace. Open any module as a sandbox demo instantly—no signup, no friction.
+        {/* Sub */}
+        <p className="mb-8 max-w-[480px] text-[18px] font-[400] leading-[1.55] text-white/70">
+          One platform for dispatch, fleet, billing, and compliance. Your ops team stops firefighting. Your spreadsheets finally retire.
         </p>
 
         {/* CTAs */}
-        <div className="hero-cta mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <button
-            type="button"
-            onClick={() => openDemo("trips", "Trips module")}
-            className="tap flex h-11 w-full items-center justify-center gap-2 rounded-md bg-white px-6 font-mono text-xs font-semibold uppercase tracking-wider text-black transition-colors hover:bg-neutral-200 sm:w-auto"
+            onClick={() => { setAuthMode("signup"); setMarketingView("auth"); }}
+            className="group inline-flex h-11 items-center gap-2 rounded-[6px] bg-white px-6 text-[14px] font-[500] text-black transition-all hover:bg-gray-200"
           >
-            <Play className="h-3.5 w-3.5 fill-current" />
-            Launch Live Sandbox
+            Start for free
+            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
           </button>
           <button
-            type="button"
-            onClick={() => scrollToId("console")}
-            className="tap flex h-11 w-full items-center justify-center gap-2 rounded-md border border-white/15 bg-white/5 px-6 font-mono text-xs font-medium uppercase tracking-wider text-white transition-colors hover:bg-white/10 sm:w-auto"
+            onClick={() => { setAuthMode("login"); setMarketingView("auth"); }}
+            className="inline-flex h-11 items-center rounded-[6px] border border-white/20 bg-white/5 backdrop-blur-md px-6 text-[14px] font-[500] text-white transition-all hover:bg-white/10"
           >
-            Browse Platform Console
-            <ArrowRight className="h-3.5 w-3.5" />
+            Sign in
           </button>
+          <span className="hidden sm:block text-[13px] text-white/50">No card required. Just guts.</span>
         </div>
 
-        {/* Trust line */}
-        <p className="mt-6 text-center text-xs text-neutral-500 font-mono">
-          Trusted by {REAL_HERO.trustLine.replace("Trusted by ", "")}
-        </p>
-      </div>
-
-      {/* Hero product visual - Sleek obsidian window mock */}
-      <div className="hero-visual relative mx-auto max-w-5xl px-6 pb-20 sm:pb-28">
-        <div className="overflow-hidden rounded-lg border border-white/10 bg-[#090909] shadow-2xl shadow-black/80">
-          {/* Faux window chrome */}
-          <div className="flex items-center gap-2 border-b border-white/10 bg-[#0d0d0d] px-4 py-3">
-            <div className="flex gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-full bg-white/10" />
-              <span className="h-2.5 w-2.5 rounded-full bg-white/10" />
-              <span className="h-2.5 w-2.5 rounded-full bg-white/10" />
-            </div>
-            <div className="ml-3 flex items-center gap-2">
-              <span className="flex h-4 w-4 items-center justify-center rounded-[3px] bg-white text-[8px] font-bold text-black font-mono">
-                RZ
-              </span>
-              <span className="font-mono text-[10px] uppercase tracking-wider text-neutral-400">
-                app.reanzly.in / main_sandbox
-              </span>
-            </div>
-            <div className="ml-auto font-mono text-[10px] text-neutral-500">
-              MUMBAI · LIVE FEED
-            </div>
+        {/* Product mockup (Glassmorphic) */}
+        <div className="relative mt-16 overflow-hidden rounded-[16px] border border-white/10 bg-white/5 shadow-2xl backdrop-blur-xl">
+          {/* Mockup top bar */}
+          <div className="flex items-center gap-2 border-b border-white/10 bg-white/5 px-4 py-3">
+            <div className="h-2.5 w-2.5 rounded-full bg-white/20" />
+            <div className="h-2.5 w-2.5 rounded-full bg-white/20" />
+            <div className="h-2.5 w-2.5 rounded-full bg-white/20" />
+            <span className="ml-3 text-[12px] text-white/50">Reanzly Live Dashboard</span>
           </div>
-
-          {/* Faux sidebar + main */}
-          <div className="grid grid-cols-1 sm:grid-cols-[180px_1fr]">
-            {/* Sidebar */}
-            <div className="hidden flex-col gap-1 border-r border-white/10 bg-[#070707] p-3 sm:flex">
+          
+          <div className="p-8">
+            <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
               {[
-                { label: "Dashboard", id: "trips" },
-                { label: "Trips (TMS)", id: "trips" },
-                { label: "Fleet Map", id: "fleet-map" },
-                { label: "Vehicles", id: "vehicles" },
-                { label: "Invoice", id: "invoice" },
-                { label: "Payments", id: "payments" },
-                { label: "Ledger", id: "ledger" },
-                { label: "Reports", id: "reports" },
-              ].map((item, i) => (
-                <button
-                  key={item.label}
-                  type="button"
-                  onClick={() => openDemo(item.id as ModuleId, item.label)}
-                  className={
-                    "flex items-center gap-2 rounded-[4px] px-2.5 py-1.5 text-left text-[11px] font-mono transition-colors " +
-                    (i === 0
-                      ? "bg-white/10 font-medium text-white"
-                      : "text-neutral-400 hover:bg-white/5 hover:text-white")
-                  }
-                >
-                  <span
-                    className={
-                      "h-1.5 w-1.5 rounded-full " +
-                      (i === 0 ? "bg-white" : "bg-neutral-600 group-hover:bg-neutral-400")
-                    }
-                  />
-                  {item.label}
-                </button>
+                { label: "Active Trips", value: "47", delta: "+3 today", color: "#1AA06D" },
+                { label: "Revenue MTD", value: "₹2.4Cr", delta: "↑ 18%", color: "#ffffff" },
+                { label: "Cost/km", value: "₹32.4", delta: "↓ from ₹45", color: "#1AA06D" },
+                { label: "Invoiced", value: "₹1.8Cr", delta: "Due in 15d", color: "#a3a3a3" },
+              ].map((m, i) => (
+                <div key={i} className="rounded-[12px] border border-white/10 bg-white/5 p-5 backdrop-blur-md transition-colors hover:bg-white/10">
+                  <p className="mb-2 text-[12px] text-white/50">{m.label}</p>
+                  <p className="text-[24px] font-[500] leading-none" style={{ color: m.color, letterSpacing: "-0.42px" }}>{m.value}</p>
+                  <p className="mt-2 text-[12px] text-white/40">{m.delta}</p>
+                </div>
               ))}
             </div>
-
-            {/* Main content */}
-            <div className="flex flex-col gap-4 p-4 sm:p-5 bg-[#050505]">
-              {/* Stat tiles row */}
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                {REAL_HERO.statTiles.map((s) => (
-                  <button
-                    key={s.k}
-                    type="button"
-                    onClick={() => openDemo(s.module, s.k)}
-                    className="tap group rounded-[6px] border border-white/5 bg-[#090909] p-3.5 text-left transition-all duration-200 hover:border-white/15 hover:bg-[#0c0c0c]"
-                    aria-label={`Open ${s.k} module in live demo`}
-                  >
-                    <p className="text-[9px] font-mono uppercase tracking-widest text-neutral-500">
-                      {s.k}
-                    </p>
-                    <p className="mt-1 text-xl font-bold tabular tracking-tight text-white font-mono">
-                      {s.v}
-                    </p>
-                    <p className="mt-1.5 flex items-center gap-1 text-[10px] font-mono text-neutral-400">
-                      <TrendingUp className="h-3 w-3 text-emerald-500" />
-                      {s.d}
-                    </p>
-                  </button>
+            
+            {/* Fake chart placeholder to make it look like a dashboard */}
+            <div className="mt-4 h-48 w-full rounded-[12px] border border-white/10 bg-gradient-to-t from-white/5 to-transparent">
+              <div className="flex h-full items-end justify-between px-6 pb-6 pt-6 gap-2 opacity-50">
+                {[40, 70, 45, 90, 65, 85, 100, 60, 80, 50, 75, 95].map((h, i) => (
+                  <div key={i} className="w-full bg-[#1AA06D] rounded-t-sm transition-all duration-1000" style={{ height: `${h}%` }}></div>
                 ))}
-              </div>
-
-              {/* Chart + side rail */}
-              <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
-                {/* Chart */}
-                <button
-                  type="button"
-                  onClick={() => openDemo("reports", "Reports module")}
-                  className="tap group rounded-[6px] border border-white/5 bg-[#090909] p-4 text-left transition-all duration-200 hover:border-white/15 hover:bg-[#0c0c0c] lg:col-span-2"
-                  aria-label="Open Reports module in live demo"
-                >
-                  <div className="mb-3 flex items-center justify-between">
-                    <p className="text-xs font-medium text-white font-mono">
-                      Trips · last 14 days
-                    </p>
-                    <div className="flex items-center gap-2">
-                      <CircleDot className="h-3 w-3 text-emerald-500 animate-pulse" />
-                      <span className="font-mono text-[9px] uppercase tracking-wider text-neutral-500">
-                        Reports module
-                      </span>
-                    </div>
-                  </div>
-                  <Sparkline />
-                </button>
-
-                {/* Side rail */}
-                <div className="flex flex-col gap-3">
-                  <button
-                    type="button"
-                    onClick={() => openDemo("issues", "Issues module")}
-                    className="tap group rounded-[6px] border border-white/5 bg-[#090909] p-4 text-left transition-all duration-200 hover:border-white/15 hover:bg-[#0c0c0c]"
-                    aria-label="Open Issues module in live demo"
-                  >
-                    <p className="text-xs font-medium text-white font-mono">
-                      Live exceptions
-                    </p>
-                    <ul className="mt-2.5 space-y-2">
-                      {[
-                        "MH-12 AB 7890 · idle 4h",
-                        "Trip #TR-2284 · POD overdue",
-                        "Fuel anomaly · RJ-14 CD 4421",
-                      ].map((line) => (
-                        <li
-                          key={line}
-                          className="flex items-center gap-2 text-[11px] font-mono text-neutral-400"
-                        >
-                          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#ef4444]" />
-                          <span className="truncate">{line}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => openDemo("fleet-map", "Fleet Map module")}
-                    className="tap group rounded-[6px] border border-white/5 bg-[#090909] p-4 text-left transition-all duration-200 hover:border-white/15 hover:bg-[#0c0c0c]"
-                    aria-label="Open Fleet Map module in live demo"
-                  >
-                    <div className="flex items-center justify-between">
-                      <p className="text-xs font-medium text-white font-mono">
-                        Fleet map
-                      </p>
-                      <CircleDot className="h-3 w-3 text-emerald-500 animate-pulse" />
-                    </div>
-                    <p className="mt-1.5 text-2xl font-bold tabular tracking-tight text-white font-mono">
-                      312
-                    </p>
-                    <p className="mt-0.5 flex items-center gap-1 text-[10px] font-mono text-neutral-400">
-                      <TrendingUp className="h-3 w-3 text-emerald-500" />
-                      vehicles tracked live
-                    </p>
-                    <div className="mt-3 grid grid-cols-4 gap-2 border-t border-white/5 pt-3">
-                      {FLEET_BREAKDOWN.map((b) => (
-                        <div key={b.label}>
-                          <p className="text-sm font-bold tabular text-white font-mono">
-                            {b.v}
-                          </p>
-                          <p className="mt-0.5 text-[8.5px] font-mono uppercase tracking-wider text-neutral-500">
-                            {b.label}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  </button>
-                </div>
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Trust band */}
+        <div className="mt-12 mb-0 flex flex-wrap items-center gap-x-8 gap-y-3 border-t border-white/10 pt-8 pb-4">
+          <span className="text-[13px] text-white/50">Trusted by logistics companies across India</span>
+          {["VRL Logistics", "Rivigo", "Delhivery", "Mahindra Logistics", "TCI Express"].map((c) => (
+            <span key={c} className="text-[13px] font-[500] text-white/40">{c}</span>
+          ))}
         </div>
       </div>
     </section>
   );
 }
-
-/* ============================================================
-   Sparkline - inline SVG, monochrome, no external deps.
-   ============================================================ */
-function Sparkline() {
-  const values = [12, 18, 15, 22, 19, 26, 24, 30, 28, 35, 31, 38, 33, 42];
-  const max = Math.max(...values);
-  const min = Math.min(...values);
-  const range = max - min || 1;
-  const w = 280;
-  const h = 80;
-  const pad = 4;
-  const step = (w - pad * 2) / (values.length - 1);
-
-  const points = values.map((v, i) => {
-    const x = pad + i * step;
-    const y = pad + (h - pad * 2) * (1 - (v - min) / range);
-    return [x, y] as const;
-  });
-
-  const linePath = points
-    .map(([x, y], i) => (i === 0 ? `M ${x} ${y}` : `L ${x} ${y}`))
-    .join(" ");
-
-  const areaPath =
-    `${linePath} L ${points[points.length - 1][0]} ${h - pad} ` +
-    `L ${points[0][0]} ${h - pad} Z`;
-
-  return (
-    <svg
-      viewBox={`0 0 ${w} ${h}`}
-      className="h-24 w-full"
-      preserveAspectRatio="none"
-      aria-hidden
-    >
-      <defs>
-        <linearGradient id="hero-spark" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="var(--foreground)" stopOpacity="0.15" />
-          <stop offset="100%" stopColor="var(--foreground)" stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <path d={areaPath} fill="url(#hero-spark)" />
-      <path
-        d={linePath}
-        fill="none"
-        stroke="var(--foreground)"
-        strokeWidth="1.5"
-        strokeLinejoin="round"
-        strokeLinecap="round"
-      />
-      {points.map(([x, y], i) => (
-        <circle
-          key={i}
-          cx={x}
-          cy={y}
-          r={i === points.length - 1 ? 2.5 : 1.5}
-          fill="var(--foreground)"
-        />
-      ))}
-    </svg>
-  );
-}
-
-/* ============================================================
-   FLEET_BREAKDOWN - real numbers tied directly to the card's own "312"
-   headline (218 + 58 + 24 + 12 = 312), not an abstract graphic. Matches
-   the Active/Idle/Maint./Offline breakdown the real in-app Fleet Health
-   widget uses, so the marketing preview and the real product agree on
-   vocabulary, not just visuals.
-   ============================================================ */
-const FLEET_BREAKDOWN = [
-  { label: "Active", v: 218 },
-  { label: "Idle", v: 58 },
-  { label: "Maint.", v: 24 },
-  { label: "Offline", v: 12 },
-];

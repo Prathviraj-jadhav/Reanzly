@@ -12,7 +12,6 @@ import { Btn } from "@/components/shared/btn";
 import { Autocomplete } from "@/components/shared/autocomplete";
 import { Label } from "@/components/ui/label";
 import { StatusBadge } from "@/components/shared/status-badge";
-import { TRIPS } from "@/lib/mock-data";
 import { toast } from "sonner";
 import {
   Select,
@@ -41,17 +40,28 @@ interface RouteCostPlannerDialogProps {
   onOpenChange: (o: boolean) => void;
 }
 
-const CITY_OPTIONS = Array.from(
-  new Set(
-    TRIPS.flatMap((t) => [t.origin, t.destination]),
-  ),
-).sort().map((c) => ({ value: c, label: c }));
-
 export function RouteCostPlannerDialog({ open, onOpenChange }: RouteCostPlannerDialogProps) {
   const [source, setSource] = useState("");
   const [destination, setDestination] = useState("");
   const [loadType, setLoadType] = useState<string>("Full");
   const [vehicleType, setVehicleType] = useState<EstimateVehicleType>("truck");
+
+  const [trips, setTrips] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetch("/api/trips")
+      .then((r) => (r.ok ? r.json() : { trips: [] }))
+      .then((data) => setTrips(data.trips ?? []))
+      .catch(() => {});
+  }, []);
+
+  const cityOptions = useMemo(() => {
+    return Array.from(
+      new Set(
+        trips.flatMap((t) => [t.origin, t.destination]),
+      ),
+    ).sort().map((c) => ({ value: c, label: c }));
+  }, [trips]);
 
   const breakdown = useMemo(() => {
     if (!source.trim() || !destination.trim()) return null;
@@ -87,8 +97,8 @@ export function RouteCostPlannerDialog({ open, onOpenChange }: RouteCostPlannerD
             <Autocomplete
               value={source}
               onChange={setSource}
-              options={CITY_OPTIONS}
-              placeholder="Source city"
+              options={cityOptions}
+              placeholder="E.g. Mumbai"
               emptyText="No city found"
               className="mt-1 h-8"
               bare

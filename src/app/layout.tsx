@@ -21,7 +21,10 @@ export const metadata: Metadata = {
     "One platform that runs the road-logistics economy end to end. ERP, fleet, finance, compliance, and an embedded intelligence layer called Rean.",
   keywords: ["logistics", "fleet management", "transportation", "ERP", "supply chain", "Reanzly"],
   authors: [{ name: "Albos Technologies" }],
-  icons: { icon: "https://z-cdn.chatglm.cn/z-ai/static/logo.svg" },
+  icons: {
+    icon: "/logo.png",
+    apple: "/logo.png",
+  },
 };
 
 export default function RootLayout({

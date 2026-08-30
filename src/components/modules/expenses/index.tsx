@@ -84,7 +84,7 @@ export function ExpensesModule() {
   return (
     <>
       {showAnalytics ? (
-        <ExpenseAnalytics onBack={() => setShowAnalytics(false)} />
+        <ExpenseAnalytics expenses={expenses} onBack={() => setShowAnalytics(false)} />
       ) : (
         <ExpensesList
           expenses={expenses}

@@ -1,12 +1,11 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { StatCard, InfoSection, InfoRow } from "@/components/shared/detail-layout";
 import { SectionCard } from "@/components/shared/section-card";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Btn } from "@/components/shared/btn";
 import { useAppStore } from "@/lib/store/app-store";
-import { VEHICLES, TRIPS } from "@/lib/mock-data";
 import type { Driver } from "@/lib/types";
 import {
   Truck, TrendingUp, Gauge, Star, ShieldCheck, Fuel, Activity,
@@ -22,13 +21,26 @@ export function DriverOverviewTab({ driver }: { driver: Driver }) {
   const { navigateDetail } = useAppStore();
   const seed = driverSeed(driver.id);
 
+  const [vehicles, setVehicles] = useState<any[]>([]);
+  const [trips, setTrips] = useState<any[]>([]);
+
+  useEffect(() => {
+    Promise.all([
+      fetch("/api/vehicles").then((r) => r.ok ? r.json() : { vehicles: [] }),
+      fetch("/api/trips").then((r) => r.ok ? r.json() : { trips: [] }),
+    ]).then(([veh, trp]) => {
+      setVehicles(veh.vehicles ?? []);
+      setTrips(trp.trips ?? []);
+    }).catch(() => {});
+  }, []);
+
   const currentVehicle = useMemo(
-    () => VEHICLES.find((v) => v.name === driver.assignedVehicle),
-    [driver.assignedVehicle],
+    () => vehicles.find((v) => v.name === driver.assignedVehicle),
+    [vehicles, driver.assignedVehicle],
   );
   const currentTrip = useMemo(
-    () => (currentVehicle?.assignedTripId ? TRIPS.find((t) => t.id === currentVehicle.assignedTripId) : undefined),
-    [currentVehicle],
+    () => (currentVehicle?.assignedTripId ? trips.find((t) => t.id === currentVehicle.assignedTripId || t.tripId === currentVehicle.assignedTripId) : undefined),
+    [trips, currentVehicle],
   );
 
   const licenseBadge = licenseExpiryBadge(driver.licenseExpiry);

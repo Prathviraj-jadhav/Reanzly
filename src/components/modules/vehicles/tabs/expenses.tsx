@@ -1,18 +1,26 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { SectionCard } from "@/components/shared/section-card";
 import { DataTable, type Column } from "@/components/shared/data-table";
 import { StatCard } from "@/components/shared/detail-layout";
-import { EXPENSES } from "@/lib/mock-data";
 import type { Vehicle, Expense } from "@/lib/types";
 import { Banknote, Fuel, Wrench, Receipt } from "lucide-react";
 import { formatINR, formatNumber, generateMonthlyExpenses, type MonthlyExpenseRow } from "../_helpers";
 
 export function VehicleExpensesTab({ vehicle }: { vehicle: Vehicle }) {
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+
+  useEffect(() => {
+    fetch("/api/expenses")
+      .then((r) => (r.ok ? r.json() : { expenses: [] }))
+      .then((data) => setExpenses(data.expenses ?? []))
+      .catch(() => {});
+  }, []);
+
   const direct = useMemo(
-    () => EXPENSES.filter((e: Expense) => e.vehicle === vehicle.name),
-    [vehicle.name],
+    () => expenses.filter((e: Expense) => e.vehicle === vehicle.name),
+    [expenses, vehicle.name],
   );
 
   const monthly = useMemo(

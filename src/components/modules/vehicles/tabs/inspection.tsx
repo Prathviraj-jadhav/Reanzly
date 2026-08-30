@@ -1,19 +1,27 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { SectionCard } from "@/components/shared/section-card";
 import { DataTable, type Column } from "@/components/shared/data-table";
 import { StatusBadge, inspectionResultBadge } from "@/components/shared/status-badge";
 import { StatCard } from "@/components/shared/detail-layout";
-import { INSPECTIONS } from "@/lib/mock-data";
 import type { Vehicle, Inspection } from "@/lib/types";
 import { ClipboardCheck, CheckCircle2, XCircle, Camera } from "lucide-react";
 import { formatDate, formatNumber, vehicleSeed } from "../_helpers";
 
 export function VehicleInspectionTab({ vehicle }: { vehicle: Vehicle }) {
-  const inspections = useMemo(
-    () => INSPECTIONS.filter((i: Inspection) => i.vehicle === vehicle.name),
-    [vehicle.name],
+  const [inspections, setInspections] = useState<Inspection[]>([]);
+
+  useEffect(() => {
+    fetch("/api/inspections")
+      .then((r) => (r.ok ? r.json() : { inspections: [] }))
+      .then((data) => setInspections(data.inspections ?? []))
+      .catch(() => {});
+  }, []);
+
+  const direct = useMemo(
+    () => inspections.filter((i: Inspection) => i.vehicle === vehicle.name),
+    [inspections, vehicle.name],
   );
 
   const seed = vehicleSeed(vehicle.id);

@@ -4,8 +4,7 @@ import { DetailLayout, InfoRow, InfoSection, StatCard } from "@/components/share
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge, issueSeverityBadge } from "@/components/shared/status-badge";
 import { useAppStore } from "@/lib/store/app-store";
-import { INSPECTIONS, WORK_ORDERS } from "@/lib/mock-data";
-import type { Issue, Vehicle, Driver } from "@/lib/types";
+import type { Issue, Vehicle, Driver, Inspection, WorkOrder } from "@/lib/types";
 import {
   Pencil,
   Wrench,
@@ -61,10 +60,14 @@ const ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
 interface IssueDetailProps {
   issueId: string;
   issues: Issue[];
+  vehicles: Vehicle[];
+  drivers: Driver[];
+  inspections: Inspection[];
+  workOrders: WorkOrder[];
   onUpdate: (id: string, data: Partial<Issue>) => Promise<boolean>;
 }
 
-export function IssueDetail({ issueId, issues, onUpdate: onUpdateReal }: IssueDetailProps) {
+export function IssueDetail({ issueId, issues, vehicles, drivers, inspections, workOrders, onUpdate }: IssueDetailProps) {
   const { navigate, navigateDetail } = useAppStore();
   const [activeTab, setActiveTab] = useState("overview");
   const [comment, setComment] = useState("");
@@ -72,20 +75,8 @@ export function IssueDetail({ issueId, issues, onUpdate: onUpdateReal }: IssueDe
   const [editing, setEditing] = useState(false);
   const [raiseOpen, setRaiseOpen] = useState(false);
 
-  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-  const [drivers, setDrivers] = useState<Driver[]>([]);
-  useEffect(() => {
-    Promise.all([
-      fetch("/api/vehicles").then((r) => (r.ok ? r.json() : { vehicles: [] })),
-      fetch("/api/drivers").then((r) => (r.ok ? r.json() : { drivers: [] })),
-    ]).then(([v, d]) => {
-      setVehicles(v.vehicles ?? []);
-      setDrivers(d.drivers ?? []);
-    });
-  }, []);
-
   const handleUpdate = (id: string, data: Partial<Issue>) => {
-    onUpdateReal(id, data);
+    onUpdate(id, data);
   };
 
   // Deterministic comment thread
@@ -131,8 +122,8 @@ export function IssueDetail({ issueId, issues, onUpdate: onUpdateReal }: IssueDe
   const vehicle = vehicles.find((v) => v.name === issue.vehicle);
   const driver = drivers.find((d) => d.name === issue.reporter);
   const reporterDriver = drivers.find((d) => d.name === issue.reporter);
-  const linkedInspection = INSPECTIONS.find((i) => i.vehicle === issue.vehicle);
-  const linkedWorkOrders = WORK_ORDERS.filter((w) => w.vehicle === issue.vehicle).slice(0, 3);
+  const linkedInspection = inspections.find((i) => i.vehicle === issue.vehicle);
+  const linkedWorkOrders = workOrders.filter((w) => w.vehicle === issue.vehicle).slice(0, 3);
 
   const severityMeta = issueSeverityBadge(issue.severity);
   const activity = buildIssueActivity(issue);

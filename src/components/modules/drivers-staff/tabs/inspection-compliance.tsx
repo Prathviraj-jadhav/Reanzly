@@ -1,25 +1,33 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { SectionCard } from "@/components/shared/section-card";
 import { DataTable, type Column } from "@/components/shared/data-table";
 import { StatusBadge, inspectionResultBadge } from "@/components/shared/status-badge";
 import { StatCard } from "@/components/shared/detail-layout";
-import { INSPECTIONS } from "@/lib/mock-data";
 import type { Driver, Inspection } from "@/lib/types";
 import { ClipboardCheck, CheckCircle2, XCircle, AlertCircle, ShieldCheck } from "lucide-react";
 import { formatDate, driverSeed, generateCompliance } from "../_helpers";
 
 export function DriverInspectionComplianceTab({ driver }: { driver: Driver }) {
-  const inspections = useMemo(
-    () => INSPECTIONS.filter((i: Inspection) => i.driver === driver.name),
-    [driver.name],
+  const [inspections, setInspections] = useState<Inspection[]>([]);
+
+  useEffect(() => {
+    fetch("/api/inspections")
+      .then((r) => (r.ok ? r.json() : { inspections: [] }))
+      .then((data) => setInspections(data.inspections ?? []))
+      .catch(() => {});
+  }, []);
+
+  const driverInspections = useMemo(
+    () => inspections.filter((i: Inspection) => i.driver === driver.name),
+    [inspections, driver.name],
   );
 
-  const passCount = inspections.filter((i) => i.result === "Pass").length;
-  const failCount = inspections.filter((i) => i.result === "Fail").length;
-  const condCount = inspections.filter((i) => i.result === "Conditional").length;
-  const passRate = inspections.length ? Math.round((passCount / inspections.length) * 100) : 0;
+  const passCount = driverInspections.filter((i) => i.result === "Pass").length;
+  const failCount = driverInspections.filter((i) => i.result === "Fail").length;
+  const condCount = driverInspections.filter((i) => i.result === "Conditional").length;
+  const passRate = driverInspections.length ? Math.round((passCount / driverInspections.length) * 100) : 0;
 
   const compliance = useMemo(
     () => generateCompliance(driver.id, driver.licenseExpiry),
@@ -91,7 +99,7 @@ export function DriverInspectionComplianceTab({ driver }: { driver: Driver }) {
     <div className="flex flex-col gap-4">
       {/* Pass/Fail summary */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatCard label="Total Inspections" value={inspections.length} icon={<ClipboardCheck className="h-4 w-4" />} />
+        <StatCard label="Total Inspections" value={driverInspections.length} icon={<ClipboardCheck className="h-4 w-4" />} />
         <StatCard label="Pass Rate" value={`${passRate}%`} icon={<CheckCircle2 className="h-4 w-4" />} />
         <StatCard label="Failures" value={failCount} icon={<XCircle className="h-4 w-4" />} />
         <StatCard label="Conditional" value={condCount} icon={<AlertCircle className="h-4 w-4" />} />
@@ -101,10 +109,10 @@ export function DriverInspectionComplianceTab({ driver }: { driver: Driver }) {
       <SectionCard
         title="Inspections Involving This Driver"
         icon={<ClipboardCheck className="h-4 w-4" />}
-        description={`${inspections.length} records · pre-trip, post-trip, random, quarterly`}
+        description={`${driverInspections.length} records · pre-trip, post-trip, random, quarterly`}
       >
         <DataTable
-          data={inspections}
+          data={driverInspections}
           columns={columns}
           pageSize={10}
           initialSort={{ key: "date", dir: "desc" }}

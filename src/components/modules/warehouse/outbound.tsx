@@ -40,9 +40,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  OUTBOUND_SHIPMENTS,
   OUTBOUND_STATUSES,
-  type OutboundShipment,
   type OutboundStatus,
   formatINR,
   formatINRCompact,
@@ -52,17 +50,24 @@ import {
   FieldLabel,
   toInputDate,
 } from "./_helpers";
+import { useWarehouseStore } from "@/lib/store/warehouse-store";
+import { useEffect } from "react";
 
 export function WarehouseOutbound() {
-  const [rows, setRows] = useState<OutboundShipment[]>(OUTBOUND_SHIPMENTS);
+  const { shipmentsOut: rows, fetchOutbounds, updateOutbound, createOutbound } = useWarehouseStore();
+
+  useEffect(() => {
+    fetchOutbounds();
+  }, [fetchOutbounds]);
+
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<Set<string>>(new Set());
   const [godownFilter, setGodownFilter] = useState<string>("");
   const [addOpen, setAddOpen] = useState(false);
-  const [view, setView] = useState<OutboundShipment | null>(null);
+  const [view, setView] = useState<any | null>(null);
 
   const uniqueGodowns = useMemo(
-    () => Array.from(new Set(rows.map((r) => r.godown))).sort(),
+    () => Array.from(new Set(rows.map((r: any) => r.godown))).sort(),
     [rows],
   );
 
@@ -96,7 +101,7 @@ export function WarehouseOutbound() {
   const delivered = rows.filter((r) => r.status === "Delivered").length;
   const totalValue = rows.reduce((s, r) => s + r.totalValue, 0);
 
-  const columns: Column<OutboundShipment>[] = [
+  const columns: Column<any>[] = [
     {
       key: "odo",
       header: "ODO #",
@@ -199,27 +204,25 @@ export function WarehouseOutbound() {
   ];
 
   const rowActions = [
-    { label: "View", onClick: (s: OutboundShipment) => setView(s) },
+    { label: "View", onClick: (s: any) => setView(s) },
     {
       label: "Mark Dispatched",
-      onClick: (s: OutboundShipment) => {
-        setRows((prev) =>
-          prev.map((r) =>
-            r.id === s.id
-              ? { ...r, status: "Dispatched" as OutboundStatus, dispatchDate: new Date().toISOString() }
-              : r,
-          ),
-        );
-        toast.success(`ODO dispatched`, { description: s.odo });
+      onClick: async (s: any) => {
+        try {
+          await updateOutbound(s.id, { status: "Dispatched", dispatchDate: new Date().toISOString() });
+          toast.success(`ODO dispatched`, { description: s.odo });
+        } catch (e) {
+          toast.error("Failed to mark dispatched");
+        }
       },
     },
-    { label: "Print ODO", onClick: (s: OutboundShipment) => toast("Generating PDF", { description: s.odo }) },
+    { label: "Print ODO", onClick: (s: any) => toast("Generating PDF", { description: s.odo }) },
   ];
 
   const bulkActions = [
     {
       label: "Export",
-      onClick: (sel: OutboundShipment[]) =>
+      onClick: (sel: any[]) =>
         toast(`${sel.length} shipment${sel.length === 1 ? "" : "s"} exported`, { description: "CSV file generated" }),
     },
   ];
@@ -340,24 +343,27 @@ export function WarehouseOutbound() {
         />
       </div>
 
-      <OutboundDrawer open={addOpen} onClose={() => setAddOpen(false)} onSave={(d) => {
-        const newRec: OutboundShipment = {
-          id: `out-${String(rows.length + 1).padStart(3, "0")}`,
-          odo: `ODO-${String(3120 + rows.length).padStart(4, "0")}`,
-          refNo: d.refNo ?? "",
-          consignee: d.consignee ?? "",
-          destination: d.destination ?? "",
-          vehicle: d.vehicle ?? "",
-          lrNumber: d.lrNumber ?? "",
-          orderDate: new Date().toISOString(),
-          skus: [],
-          status: "Picking",
-          godown: d.godown ?? "Bhiwandi Godown A",
-          totalValue: 0,
-        };
-        setRows((prev) => [newRec, ...prev]);
-        toast.success(`Outbound created`, { description: newRec.odo });
-        setAddOpen(false);
+      <OutboundDrawer open={addOpen} onClose={() => setAddOpen(false)} onSave={async (d) => {
+        try {
+          const newRec = {
+            odo: `ODO-${String(3120 + rows.length).padStart(4, "0")}`,
+            refNo: d.refNo ?? "",
+            consignee: d.consignee ?? "",
+            destination: d.destination ?? "",
+            vehicle: d.vehicle ?? "",
+            lrNumber: d.lrNumber ?? "",
+            orderDate: new Date().toISOString(),
+            skus: [],
+            status: "Picking",
+            godown: d.godown ?? "Bhiwandi Godown A",
+            totalValue: 0,
+          };
+          await createOutbound(newRec);
+          toast.success(`Outbound created`, { description: newRec.odo });
+          setAddOpen(false);
+        } catch (e) {
+          toast.error("Failed to create outbound");
+        }
       }} />
 
       <OutboundDetailDrawer open={!!view} record={view} onClose={() => setView(null)} />
@@ -372,7 +378,7 @@ function OutboundDrawer({
 }: {
   open: boolean;
   onClose: () => void;
-  onSave: (d: Partial<OutboundShipment>) => void;
+  onSave: (d: any) => void;
 }) {
   const [refNo, setRefNo] = useState("");
   const [consignee, setConsignee] = useState("");
@@ -458,7 +464,7 @@ function OutboundDetailDrawer({
   onClose,
 }: {
   open: boolean;
-  record: OutboundShipment | null;
+  record: any | null;
   onClose: () => void;
 }) {
   if (!record) return null;

@@ -1,7 +1,7 @@
 "use client";
 import { useState, useCallback, useEffect } from "react";
 import { useAppStore } from "@/lib/store/app-store";
-import type { Issue } from "@/lib/types";
+import type { Issue, Vehicle, Driver, Inspection, WorkOrder } from "@/lib/types";
 import { toast } from "sonner";
 import { IssuesList } from "./issues-list";
 import { IssueDetail } from "./issue-detail";
@@ -12,13 +12,28 @@ export function IssuesModule() {
   // Real, database-backed issues (src/app/api/issues) - previously
   // useState(ISSUES) seeded from mock-data.ts.
   const [issues, setIssues] = useState<Issue[]>([]);
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [drivers, setDrivers] = useState<Driver[]>([]);
+  const [inspections, setInspections] = useState<Inspection[]>([]);
+  const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    fetch("/api/issues")
-      .then((r) => (r.ok ? r.json() : Promise.reject(r)))
-      .then(({ issues }) => setIssues(issues))
-      .catch(() => toast.error("Couldn't load issues", { description: "Try reloading the page." }))
+    Promise.all([
+      fetch("/api/issues").then((r) => (r.ok ? r.json() : { issues: [] })),
+      fetch("/api/vehicles").then((r) => (r.ok ? r.json() : { vehicles: [] })),
+      fetch("/api/drivers").then((r) => (r.ok ? r.json() : { drivers: [] })),
+      fetch("/api/inspections").then((r) => (r.ok ? r.json() : { inspections: [] })),
+      fetch("/api/work-orders").then((r) => (r.ok ? r.json() : { workOrders: [] }))
+    ])
+      .then(([iData, vData, dData, insData, woData]) => {
+        setIssues(iData.issues ?? []);
+        setVehicles(vData.vehicles ?? []);
+        setDrivers(dData.drivers ?? []);
+        setInspections(insData.inspections ?? []);
+        setWorkOrders(woData.workOrders ?? []);
+      })
+      .catch(() => toast.error("Couldn't load issue data", { description: "Try reloading the page." }))
       .finally(() => setLoaded(true));
   }, []);
 
@@ -65,7 +80,7 @@ export function IssuesModule() {
     activeView.view === "detail" &&
     activeView.id
   ) {
-    return <IssueDetail issueId={activeView.id} issues={issues} onUpdate={updateIssue} />;
+    return <IssueDetail issueId={activeView.id} issues={issues} vehicles={vehicles} drivers={drivers} inspections={inspections} workOrders={workOrders} onUpdate={updateIssue} />;
   }
 
   const drawerOpen =
@@ -80,11 +95,13 @@ export function IssuesModule() {
     <>
       <IssuesList
         issues={issues}
+        vehicles={vehicles}
+        drivers={drivers}
         onCreate={() => navigate("issues", "create")}
         onUpdate={updateIssue}
         onAdd={addIssue}
       />
-      <AddIssueDrawer open={drawerOpen} onClose={closeDrawer} onAdd={addIssue} />
+      <AddIssueDrawer open={drawerOpen} vehicles={vehicles} drivers={drivers} inspections={inspections} onClose={closeDrawer} onAdd={addIssue} />
     </>
   );
 }

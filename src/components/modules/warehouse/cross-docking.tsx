@@ -40,9 +40,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  CROSS_DOCKS,
   CROSS_DOCK_STATUSES,
-  type CrossDock,
   type CrossDockStatus,
   crossDockStatusBadge,
   computeCrossDockKpis,
@@ -50,6 +48,8 @@ import {
   SKUS,
   FieldLabel,
 } from "./_helpers";
+import { useWarehouseStore } from "@/lib/store/warehouse-store";
+import { useEffect } from "react";
 
 const DOCK_DOORS = ["Dock-01", "Dock-02", "Dock-03", "Dock-04", "Dock-05", "Dock-06", "Dock-07", "Dock-08"];
 const CARRIERS = [
@@ -62,11 +62,16 @@ const CARRIERS = [
 ];
 
 export function WarehouseCrossDocking() {
-  const [rows, setRows] = useState<CrossDock[]>(CROSS_DOCKS);
+  const { crossDocks: rows, fetchCrossDocks, updateCrossDock, createCrossDock } = useWarehouseStore();
+
+  useEffect(() => {
+    fetchCrossDocks();
+  }, [fetchCrossDocks]);
+
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<Set<string>>(new Set());
   const [addOpen, setAddOpen] = useState(false);
-  const [view, setView] = useState<CrossDock | null>(null);
+  const [view, setView] = useState<any | null>(null);
 
   const filtered = useMemo(() => {
     let r = rows;
@@ -96,7 +101,7 @@ export function WarehouseCrossDocking() {
 
   const kpis = useMemo(() => computeCrossDockKpis(rows), [rows]);
 
-  const columns: Column<CrossDock>[] = [
+  const columns: Column<any>[] = [
     {
       key: "xdkId",
       header: "XDK #",
@@ -209,42 +214,60 @@ export function WarehouseCrossDocking() {
   ];
 
   const rowActions = [
-    { label: "View", onClick: (s: CrossDock) => setView(s) },
+    { label: "View", onClick: (s: any) => setView(s) },
     {
       label: "Mark Arrived",
-      onClick: (s: CrossDock) => {
-        setRows((prev) =>
-          prev.map((r) => (r.id === s.id ? { ...r, status: "Arrived" as CrossDockStatus, arrivedDate: new Date().toISOString() } : r)),
-        );
-        toast.success(`Cross-dock arrived`, { description: s.xdkId });
+      onClick: async (s: any) => {
+        try {
+          await updateCrossDock(s.id, { status: "Arrived", arrivedDate: new Date().toISOString() });
+          toast.success(`Cross-dock arrived`, { description: s.xdkId });
+        } catch (e) {
+          toast.error("Failed to mark arrived");
+        }
       },
     },
     {
       label: "Start Unloading",
-      onClick: (s: CrossDock) => {
-        setRows((prev) => prev.map((r) => (r.id === s.id ? { ...r, status: "Unloading" as CrossDockStatus } : r)));
-        toast(`Unloading started`, { description: s.xdkId });
+      onClick: async (s: any) => {
+        try {
+          await updateCrossDock(s.id, { status: "Unloading" });
+          toast(`Unloading started`, { description: s.xdkId });
+        } catch (e) {
+          toast.error("Failed to start unloading");
+        }
       },
     },
     {
       label: "Move to Staging",
-      onClick: (s: CrossDock) => {
-        setRows((prev) => prev.map((r) => (r.id === s.id ? { ...r, status: "Staging" as CrossDockStatus } : r)));
-        toast(`Moved to staging`, { description: s.xdkId });
+      onClick: async (s: any) => {
+        try {
+          await updateCrossDock(s.id, { status: "Staging" });
+          toast(`Moved to staging`, { description: s.xdkId });
+        } catch (e) {
+          toast.error("Failed to move to staging");
+        }
       },
     },
     {
       label: "Start Loading",
-      onClick: (s: CrossDock) => {
-        setRows((prev) => prev.map((r) => (r.id === s.id ? { ...r, status: "Loading" as CrossDockStatus } : r)));
-        toast(`Loading started`, { description: s.xdkId });
+      onClick: async (s: any) => {
+        try {
+          await updateCrossDock(s.id, { status: "Loading" });
+          toast(`Loading started`, { description: s.xdkId });
+        } catch (e) {
+          toast.error("Failed to start loading");
+        }
       },
     },
     {
       label: "Dispatch",
-      onClick: (s: CrossDock) => {
-        setRows((prev) => prev.map((r) => (r.id === s.id ? { ...r, status: "Dispatched" as CrossDockStatus } : r)));
-        toast.success(`Cross-dock dispatched`, { description: s.xdkId });
+      onClick: async (s: any) => {
+        try {
+          await updateCrossDock(s.id, { status: "Dispatched" });
+          toast.success(`Cross-dock dispatched`, { description: s.xdkId });
+        } catch (e) {
+          toast.error("Failed to dispatch");
+        }
       },
     },
   ];
@@ -252,12 +275,12 @@ export function WarehouseCrossDocking() {
   const bulkActions = [
     {
       label: "Export",
-      onClick: (sel: CrossDock[]) =>
+      onClick: (sel: any[]) =>
         toast(`${sel.length} cross-dock${sel.length === 1 ? "" : "s"} exported`, { description: "CSV file generated" }),
     },
     {
       label: "Reassign Dock",
-      onClick: (sel: CrossDock[]) =>
+      onClick: (sel: any[]) =>
         toast.success(`${sel.length} cross-dock${sel.length === 1 ? "" : "s"} reassigned to Dock-04`),
     },
   ];
@@ -269,25 +292,27 @@ export function WarehouseCrossDocking() {
         ? Array.from(statusFilter)[0]
         : `${statusFilter.size} selected`;
 
-  const handleCreate = (data: Partial<CrossDock>) => {
-    const newXd: CrossDock = {
-      id: `xdk-${String(rows.length + 1).padStart(3, "0")}`,
-      xdkId: `XDK-${String(7801 + rows.length).padStart(4, "0")}`,
-      inboundRef: data.inboundRef ?? `GRN-${String(2400 + rows.length + 14).padStart(4, "0")}`,
-      outboundRef: data.outboundRef ?? `ODO-${String(3120 + rows.length + 14).padStart(4, "0")}`,
-      skuCode: data.skuCode ?? SKUS[0].skuCode,
-      skuName: data.skuName ?? SKUS[0].name,
-      qty: Number(data.qty) || 0,
-      unit: data.unit ?? "Bag",
-      dockDoor: data.dockDoor ?? "Dock-01",
-      status: "Scheduled",
-      dwellTimeMin: 0,
-      arrivedDate: undefined,
-      carrier: data.carrier ?? CARRIERS[0],
-    };
-    setRows((prev) => [newXd, ...prev]);
-    toast.success(`Cross-dock scheduled`, { description: newXd.xdkId });
-    setAddOpen(false);
+  const handleCreate = async (data: any) => {
+    try {
+      const newXd = {
+        xdkId: `XDK-${String(7801 + rows.length).padStart(4, "0")}`,
+        inboundRef: data.inboundRef ?? `GRN-${String(2400 + rows.length + 14).padStart(4, "0")}`,
+        outboundRef: data.outboundRef ?? `ODO-${String(3120 + rows.length + 14).padStart(4, "0")}`,
+        skuCode: data.skuCode ?? SKUS[0].skuCode,
+        skuName: data.skuName ?? SKUS[0].name,
+        qty: Number(data.qty) || 0,
+        unit: data.unit ?? "Bag",
+        dockDoor: data.dockDoor ?? "Dock-01",
+        status: "Scheduled",
+        dwellTimeMin: 0,
+        carrier: data.carrier ?? CARRIERS[0],
+      };
+      await createCrossDock(newXd);
+      toast.success(`Cross-dock scheduled`, { description: newXd.xdkId });
+      setAddOpen(false);
+    } catch (e) {
+      toast.error("Failed to schedule cross-dock");
+    }
   };
 
   return (
@@ -398,9 +423,9 @@ export function WarehouseCrossDocking() {
 
 interface DrawerProps {
   open: boolean;
-  record: CrossDock | null;
+  record: any | null;
   onClose: () => void;
-  onSave: (data: Partial<CrossDock>) => void;
+  onSave: (data: any) => void;
 }
 
 function CrossDockDrawer({ open, record, onClose, onSave }: DrawerProps) {

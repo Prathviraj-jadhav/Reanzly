@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { DataTable, type Column } from "@/components/shared/data-table";
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -52,6 +52,7 @@ import {
   formatDateTime,
   FieldLabel,
 } from "./_helpers";
+import { useWarehouseStore } from "@/lib/store/warehouse-store";
 
 const DOCK_DOORS = ["Dock-01", "Dock-02", "Dock-03", "Dock-04", "Dock-05", "Dock-06", "Dock-07", "Dock-08"];
 const CARRIERS = [
@@ -72,7 +73,12 @@ const DRIVERS = [
 ];
 
 export function WarehouseYard() {
-  const [rows, setRows] = useState<YardMovement[]>(YARD_MOVEMENTS);
+  const { yards: rows, loading, fetchYards, createYard, updateYard } = useWarehouseStore();
+  
+  useEffect(() => {
+    fetchYards();
+  }, [fetchYards]);
+
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<Set<string>>(new Set());
   const [typeFilter, setTypeFilter] = useState<string>("");
@@ -227,43 +233,57 @@ export function WarehouseYard() {
     { label: "View", onClick: (s: YardMovement) => setView(s) },
     {
       label: "Gate In",
-      onClick: (s: YardMovement) => {
-        setRows((prev) =>
-          prev.map((r) => (r.id === s.id ? { ...r, status: "In Yard" as YardStatus, gateIn: new Date().toISOString(), driver: r.driver ?? DRIVERS[0] } : r)),
-        );
-        toast.success(`Equipment checked in`, { description: s.movementId });
+      onClick: async (s: YardMovement) => {
+        try {
+          await updateYard(s.id, { status: "In Yard", gateIn: new Date().toISOString(), driver: s.driver ?? DRIVERS[0] });
+          toast.success(`Equipment checked in`, { description: s.movementId });
+        } catch (e) {
+          toast.error("Failed to gate in");
+        }
       },
     },
     {
       label: "Assign to Dock",
-      onClick: (s: YardMovement) => {
-        setRows((prev) =>
-          prev.map((r) => (r.id === s.id ? { ...r, status: "At Dock" as YardStatus, dock: r.dock ?? "Dock-02" } : r)),
-        );
-        toast(`Assigned to Dock-02`, { description: s.movementId });
+      onClick: async (s: YardMovement) => {
+        try {
+          await updateYard(s.id, { status: "At Dock", dock: s.dock ?? "Dock-02" });
+          toast(`Assigned to Dock-02`, { description: s.movementId });
+        } catch (e) {
+          toast.error("Failed to assign dock");
+        }
       },
     },
     {
       label: "Start Loading",
-      onClick: (s: YardMovement) => {
-        setRows((prev) => prev.map((r) => (r.id === s.id ? { ...r, status: "Loading" as YardStatus } : r)));
-        toast(`Loading started`, { description: s.movementId });
+      onClick: async (s: YardMovement) => {
+        try {
+          await updateYard(s.id, { status: "Loading" });
+          toast(`Loading started`, { description: s.movementId });
+        } catch (e) {
+          toast.error("Failed to start loading");
+        }
       },
     },
     {
       label: "Start Unloading",
-      onClick: (s: YardMovement) => {
-        setRows((prev) => prev.map((r) => (r.id === s.id ? { ...r, status: "Unloading" as YardStatus } : r)));
-        toast(`Unloading started`, { description: s.movementId });
+      onClick: async (s: YardMovement) => {
+        try {
+          await updateYard(s.id, { status: "Unloading" });
+          toast(`Unloading started`, { description: s.movementId });
+        } catch (e) {
+          toast.error("Failed to start unloading");
+        }
       },
     },
     {
       label: "Release",
-      onClick: (s: YardMovement) => {
-        setRows((prev) =>
-          prev.map((r) => (r.id === s.id ? { ...r, status: "Released" as YardStatus, gateOut: new Date().toISOString() } : r)),
-        );
-        toast.success(`Equipment released`, { description: s.movementId });
+      onClick: async (s: YardMovement) => {
+        try {
+          await updateYard(s.id, { status: "Released", gateOut: new Date().toISOString() });
+          toast.success(`Equipment released`, { description: s.movementId });
+        } catch (e) {
+          toast.error("Failed to release equipment");
+        }
       },
     },
   ];
@@ -288,23 +308,22 @@ export function WarehouseYard() {
         ? Array.from(statusFilter)[0]
         : `${statusFilter.size} selected`;
 
-  const handleCreate = (data: Partial<YardMovement>) => {
-    const newYm: YardMovement = {
-      id: `ym-${String(rows.length + 1).padStart(3, "0")}`,
-      movementId: `YM-${String(6301 + rows.length).padStart(4, "0")}`,
-      equipment: data.equipment ?? `TR-${String(4400 + rows.length).padStart(4, "0")}`,
-      type: (data.type ?? "Trailer") as YardType,
-      gateIn: undefined,
-      gateOut: undefined,
-      dock: undefined,
-      status: "Pending",
-      driver: data.driver,
-      carrier: data.carrier ?? CARRIERS[0],
-      dwellMin: 0,
-    };
-    setRows((prev) => [newYm, ...prev]);
-    toast.success(`Yard movement logged`, { description: newYm.movementId });
-    setAddOpen(false);
+  const handleCreate = async (data: Partial<YardMovement>) => {
+    try {
+      const newYm = await createYard({
+        movementId: `YM-${String(6301 + rows.length).padStart(4, "0")}`,
+        equipment: data.equipment ?? `TR-${String(4400 + rows.length).padStart(4, "0")}`,
+        type: (data.type ?? "Trailer") as YardType,
+        status: "Pending",
+        driver: data.driver,
+        carrier: data.carrier ?? CARRIERS[0],
+        dwellMin: 0,
+      });
+      toast.success(`Yard movement logged`, { description: newYm.movementId });
+      setAddOpen(false);
+    } catch (e) {
+      toast.error("Failed to log yard movement");
+    }
   };
 
   return (
@@ -414,9 +433,9 @@ export function WarehouseYard() {
           onRowClick={(s) => setView(s)}
           rowActions={rowActions}
           bulkActions={bulkActions}
-          emptyTitle="No yard movements found"
           emptyDescription="Log a movement to track an equipment entering the yard."
           initialSort={{ key: "movementId", dir: "desc" }}
+          isLoading={loading}
         />
       </div>
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { DataTable, type Column } from "@/components/shared/data-table";
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -54,6 +54,7 @@ import {
   toInputDate,
   FieldLabel,
 } from "./_helpers";
+import { useWarehouseStore } from "@/lib/store/warehouse-store";
 
 const DOCK_DOORS = ["Dock-01", "Dock-02", "Dock-03", "Dock-04", "Dock-05", "Dock-06", "Dock-07", "Dock-08"];
 const CARRIERS = [
@@ -85,7 +86,12 @@ const TIME_WINDOWS = [
 ];
 
 export function WarehouseDockScheduling() {
-  const [rows, setRows] = useState<DockAppt[]>(DOCK_APPTS);
+  const { dockAppts: rows, loading, fetchDockAppts, createDockAppt, updateDockAppt } = useWarehouseStore();
+  
+  useEffect(() => {
+    fetchDockAppts();
+  }, [fetchDockAppts]);
+
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<Set<string>>(new Set());
   const [typeFilter, setTypeFilter] = useState<string>("");
@@ -233,39 +239,57 @@ export function WarehouseDockScheduling() {
     { label: "View", onClick: (s: DockAppt) => setView(s) },
     {
       label: "Check In",
-      onClick: (s: DockAppt) => {
-        setRows((prev) =>
-          prev.map((r) => (r.id === s.id ? { ...r, status: "Checked In" as DockApptStatus, checkInTime: new Date().toISOString(), driver: r.driver ?? DRIVERS[0] } : r)),
-        );
-        toast.success(`Carrier checked in`, { description: s.apptId });
+      onClick: async (s: DockAppt) => {
+        try {
+          await updateDockAppt(s.id, { status: "Checked In", checkInTime: new Date().toISOString(), driver: s.driver ?? DRIVERS[0] });
+          toast.success(`Carrier checked in`, { description: s.apptId });
+        } catch (e) {
+          toast.error("Failed to check in");
+        }
       },
     },
     {
       label: "Move to Dock",
-      onClick: (s: DockAppt) => {
-        setRows((prev) => prev.map((r) => (r.id === s.id ? { ...r, status: "At Dock" as DockApptStatus } : r)));
-        toast(`Assigned to ${s.dockDoor}`, { description: s.apptId });
+      onClick: async (s: DockAppt) => {
+        try {
+          await updateDockAppt(s.id, { status: "At Dock" });
+          toast(`Assigned to ${s.dockDoor}`, { description: s.apptId });
+        } catch (e) {
+          toast.error("Failed to move to dock");
+        }
       },
     },
     {
       label: "Mark Completed",
-      onClick: (s: DockAppt) => {
-        setRows((prev) => prev.map((r) => (r.id === s.id ? { ...r, status: "Completed" as DockApptStatus } : r)));
-        toast.success(`Appointment completed`, { description: s.apptId });
+      onClick: async (s: DockAppt) => {
+        try {
+          await updateDockAppt(s.id, { status: "Completed" });
+          toast.success(`Appointment completed`, { description: s.apptId });
+        } catch (e) {
+          toast.error("Failed to mark completed");
+        }
       },
     },
     {
       label: "Mark No-Show",
-      onClick: (s: DockAppt) => {
-        setRows((prev) => prev.map((r) => (r.id === s.id ? { ...r, status: "No-Show" as DockApptStatus } : r)));
-        toast(`Marked as no-show`, { description: s.apptId });
+      onClick: async (s: DockAppt) => {
+        try {
+          await updateDockAppt(s.id, { status: "No-Show" });
+          toast(`Marked as no-show`, { description: s.apptId });
+        } catch (e) {
+          toast.error("Failed to mark no-show");
+        }
       },
     },
     {
       label: "Cancel",
-      onClick: (s: DockAppt) => {
-        setRows((prev) => prev.map((r) => (r.id === s.id ? { ...r, status: "Cancelled" as DockApptStatus } : r)));
-        toast(`Appointment cancelled`, { description: s.apptId });
+      onClick: async (s: DockAppt) => {
+        try {
+          await updateDockAppt(s.id, { status: "Cancelled" });
+          toast(`Appointment cancelled`, { description: s.apptId });
+        } catch (e) {
+          toast.error("Failed to cancel");
+        }
       },
       destructive: true,
     },
@@ -291,24 +315,24 @@ export function WarehouseDockScheduling() {
         ? Array.from(statusFilter)[0]
         : `${statusFilter.size} selected`;
 
-  const handleCreate = (data: Partial<DockAppt>) => {
-    const newAppt: DockAppt = {
-      id: `appt-${String(rows.length + 1).padStart(3, "0")}`,
-      apptId: `APT-${String(5401 + rows.length).padStart(4, "0")}`,
-      carrier: data.carrier ?? CARRIERS[0],
-      dockDoor: data.dockDoor ?? "Dock-01",
-      date: data.date ?? new Date().toISOString(),
-      timeWindow: data.timeWindow ?? "09:00–10:00",
-      type: (data.type ?? "Inbound") as DockApptType,
-      status: "Scheduled",
-      checkInTime: undefined,
-      driver: undefined,
-      refNo: data.refNo ?? `GRN-${String(2400 + rows.length + 20).padStart(4, "0")}`,
-      durationMin: Number(data.durationMin) || 30,
-    };
-    setRows((prev) => [newAppt, ...prev]);
-    toast.success(`Appointment scheduled`, { description: newAppt.apptId });
-    setAddOpen(false);
+  const handleCreate = async (data: Partial<DockAppt>) => {
+    try {
+      const newAppt = await createDockAppt({
+        apptId: `APT-${String(5401 + rows.length).padStart(4, "0")}`,
+        carrier: data.carrier ?? CARRIERS[0],
+        dockDoor: data.dockDoor ?? "Dock-01",
+        date: data.date ?? new Date().toISOString(),
+        timeWindow: data.timeWindow ?? "09:00–10:00",
+        type: (data.type ?? "Inbound") as DockApptType,
+        status: "Scheduled",
+        refNo: data.refNo ?? `GRN-${String(2400 + rows.length + 20).padStart(4, "0")}`,
+        durationMin: Number(data.durationMin) || 30,
+      });
+      toast.success(`Appointment scheduled`, { description: newAppt.apptId });
+      setAddOpen(false);
+    } catch (e) {
+      toast.error("Failed to schedule appointment");
+    }
   };
 
   return (
@@ -439,9 +463,9 @@ export function WarehouseDockScheduling() {
           onRowClick={(s) => setView(s)}
           rowActions={rowActions}
           bulkActions={bulkActions}
-          emptyTitle="No appointments found"
           emptyDescription="Schedule an appointment to reserve a dock door."
           initialSort={{ key: "apptId", dir: "desc" }}
+          isLoading={loading}
         />
       </div>
 

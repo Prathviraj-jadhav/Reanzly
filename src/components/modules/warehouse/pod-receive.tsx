@@ -31,20 +31,25 @@ import {
   SheetDescription,
 } from "@/components/ui/sheet";
 import {
-  POD_RECEIVES,
   POD_STATUSES,
-  type PodReceive,
   type PodStatus,
   formatDate,
   formatDateTime,
   podStatusBadge,
 } from "./_helpers";
+import { useWarehouseStore } from "@/lib/store/warehouse-store";
+import { useEffect } from "react";
 
 export function WarehousePodReceive() {
-  const [rows, setRows] = useState<PodReceive[]>(POD_RECEIVES);
+  const { podReceives: rows, fetchPodReceives, updatePodReceive } = useWarehouseStore();
+
+  useEffect(() => {
+    fetchPodReceives();
+  }, [fetchPodReceives]);
+
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<Set<string>>(new Set());
-  const [view, setView] = useState<PodReceive | null>(null);
+  const [view, setView] = useState<any | null>(null);
 
   const filtered = useMemo(() => {
     let r = rows;
@@ -76,7 +81,7 @@ export function WarehousePodReceive() {
   const verified = rows.filter((r) => r.status === "Verified").length;
   const damagedCount = rows.filter((r) => r.damageCount > 0 || r.shortageQty > 0).length;
 
-  const columns: Column<PodReceive>[] = [
+  const columns: Column<any>[] = [
     {
       key: "podNo",
       header: "POD #",
@@ -177,38 +182,46 @@ export function WarehousePodReceive() {
   ];
 
   const rowActions = [
-    { label: "View", onClick: (s: PodReceive) => setView(s) },
+    { label: "View", onClick: (s: any) => setView(s) },
     {
       label: "Mark Received",
-      onClick: (s: PodReceive) => {
-        setRows((prev) =>
-          prev.map((r) =>
-            r.id === s.id ? { ...r, status: "Received" as PodStatus, receivedDate: new Date().toISOString(), receiver: "Balwinder Sandhu" } : r,
-          ),
-        );
-        toast.success(`POD marked received`, { description: s.podNo });
+      onClick: async (s: any) => {
+        try {
+          await updatePodReceive(s.id, { status: "Received", receivedDate: new Date().toISOString(), receiver: "Balwinder Sandhu" });
+          toast.success(`POD marked received`, { description: s.podNo });
+        } catch (e) {
+          toast.error("Failed to mark received");
+        }
       },
     },
     {
       label: "Verify",
-      onClick: (s: PodReceive) => {
-        setRows((prev) => prev.map((r) => (r.id === s.id ? { ...r, status: "Verified" as PodStatus } : r)));
-        toast.success(`POD verified`, { description: s.podNo });
+      onClick: async (s: any) => {
+        try {
+          await updatePodReceive(s.id, { status: "Verified" });
+          toast.success(`POD verified`, { description: s.podNo });
+        } catch (e) {
+          toast.error("Failed to verify");
+        }
       },
     },
     {
       label: "Reject",
-      onClick: (s: PodReceive) => {
-        setRows((prev) => prev.map((r) => (r.id === s.id ? { ...r, status: "Rejected" as PodStatus } : r)));
-        toast(`POD rejected`, { description: s.podNo });
+      onClick: async (s: any) => {
+        try {
+          await updatePodReceive(s.id, { status: "Rejected" });
+          toast(`POD rejected`, { description: s.podNo });
+        } catch (e) {
+          toast.error("Failed to reject");
+        }
       },
       destructive: true,
     },
   ];
 
   const bulkActions = [
-    { label: "Export", onClick: (sel: PodReceive[]) => toast(`${sel.length} POD${sel.length === 1 ? "" : "s"} exported`, { description: "CSV file generated" }) },
-    { label: "Mark Verified", onClick: (sel: PodReceive[]) => toast.success(`${sel.length} POD${sel.length === 1 ? "" : "s"} marked verified`) },
+    { label: "Export", onClick: (sel: any[]) => toast(`${sel.length} POD${sel.length === 1 ? "" : "s"} exported`, { description: "CSV file generated" }) },
+    { label: "Mark Verified", onClick: (sel: any[]) => toast.success(`${sel.length} POD${sel.length === 1 ? "" : "s"} marked verified`) },
   ];
 
   const statusLabel = statusFilter.size === 0 ? "All" : statusFilter.size === 1 ? Array.from(statusFilter)[0] : `${statusFilter.size} selected`;
@@ -311,7 +324,7 @@ function PodDetailDrawer({
   onClose,
 }: {
   open: boolean;
-  record: PodReceive | null;
+  record: any | null;
   onClose: () => void;
 }) {
   if (!record) return null;

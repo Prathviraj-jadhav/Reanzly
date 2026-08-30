@@ -1,12 +1,11 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { StatCard, InfoRow, InfoSection } from "@/components/shared/detail-layout";
 import { SectionCard } from "@/components/shared/section-card";
 import { StatusBadge, vehicleStatusBadge } from "@/components/shared/status-badge";
 import { ProgressMeter } from "@/components/shared/section-card";
 import { useAppStore } from "@/lib/store/app-store";
-import { DRIVERS, TRIPS, FUEL_ENTRIES, INVOICES, EXPENSES, WORK_ORDERS } from "@/lib/mock-data";
 import type { Vehicle } from "@/lib/types";
 import {
   Truck, Gauge, Fuel, Activity, Calendar, MapPin, Navigation,
@@ -30,31 +29,53 @@ export function Vehicle360Tab({ vehicle }: { vehicle: Vehicle }) {
   const { navigateDetail } = useAppStore();
   const seed = vehicleSeed(vehicle.id);
 
+  const [drivers, setDrivers] = useState<any[]>([]);
+  const [trips, setTrips] = useState<any[]>([]);
+  const [fuelEntries, setFuelEntries] = useState<any[]>([]);
+  const [expenses, setExpenses] = useState<any[]>([]);
+  const [workOrders, setWorkOrders] = useState<any[]>([]);
+
+  useEffect(() => {
+    Promise.all([
+      fetch("/api/drivers").then((r) => r.ok ? r.json() : { drivers: [] }),
+      fetch("/api/trips").then((r) => r.ok ? r.json() : { trips: [] }),
+      fetch("/api/fuel-entries").then((r) => r.ok ? r.json() : { fuelEntries: [] }),
+      fetch("/api/expenses").then((r) => r.ok ? r.json() : { expenses: [] }),
+      fetch("/api/work-orders").then((r) => r.ok ? r.json() : { workOrders: [] }),
+    ]).then(([drv, trp, fuel, exp, wo]) => {
+      setDrivers(drv.drivers ?? []);
+      setTrips(trp.trips ?? []);
+      setFuelEntries(fuel.fuelEntries ?? []);
+      setExpenses(exp.expenses ?? []);
+      setWorkOrders(wo.workOrders ?? []);
+    }).catch(() => {});
+  }, []);
+
   const currentDriver = useMemo(
-    () => DRIVERS.find((d) => d.name === vehicle.operator),
-    [vehicle.operator],
+    () => drivers.find((d) => d.name === vehicle.operator),
+    [drivers, vehicle.operator],
   );
   const currentTrip = useMemo(
-    () => (vehicle.assignedTripId ? TRIPS.find((t) => t.id === vehicle.assignedTripId) : undefined),
-    [vehicle.assignedTripId],
+    () => (vehicle.assignedTripId ? trips.find((t) => t.id === vehicle.assignedTripId || t.tripId === vehicle.assignedTripId) : undefined),
+    [trips, vehicle.assignedTripId],
   );
   const vehicleFuelEntries = useMemo(
-    () => FUEL_ENTRIES.filter((f) => f.vehicle === vehicle.name).sort(
+    () => fuelEntries.filter((f) => f.vehicle === vehicle.name).sort(
       (a, b) => +new Date(a.date) - +new Date(b.date),
     ),
-    [vehicle.name],
+    [fuelEntries, vehicle.name],
   );
   const vehicleTrips = useMemo(
-    () => TRIPS.filter((t) => t.vehicleName === vehicle.name),
-    [vehicle.name],
+    () => trips.filter((t) => t.vehicleName === vehicle.name),
+    [trips, vehicle.name],
   );
   const vehicleExpenses = useMemo(
-    () => EXPENSES.filter((e) => e.vehicle === vehicle.name),
-    [vehicle.name],
+    () => expenses.filter((e) => e.vehicle === vehicle.name),
+    [expenses, vehicle.name],
   );
   const vehicleWorkOrders = useMemo(
-    () => WORK_ORDERS.filter((w) => w.vehicle === vehicle.name),
-    [vehicle.name],
+    () => workOrders.filter((w) => w.vehicle === vehicle.name),
+    [workOrders, vehicle.name],
   );
 
   // ===== Synthetic KPIs =====

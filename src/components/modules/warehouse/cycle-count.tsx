@@ -40,9 +40,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  CYCLE_COUNTS,
   CYCLE_COUNT_STATUSES,
-  type CycleCount,
   type CycleCountStatus,
   cycleCountStatusBadge,
   varianceMeta,
@@ -52,6 +50,8 @@ import {
   FieldLabel,
   toInputDate,
 } from "./_helpers";
+import { useWarehouseStore } from "@/lib/store/warehouse-store";
+import { useEffect } from "react";
 
 const COUNTERS = [
   "Manjeet Singh",
@@ -83,12 +83,17 @@ const BINS = [
 ];
 
 export function WarehouseCycleCount() {
-  const [rows, setRows] = useState<CycleCount[]>(CYCLE_COUNTS);
+  const { cycleCounts: rows, fetchCycleCounts, updateCycleCount, createCycleCount } = useWarehouseStore();
+
+  useEffect(() => {
+    fetchCycleCounts();
+  }, [fetchCycleCounts]);
+
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<Set<string>>(new Set());
   const [varianceOnly, setVarianceOnly] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
-  const [view, setView] = useState<CycleCount | null>(null);
+  const [view, setView] = useState<any | null>(null);
 
   const filtered = useMemo(() => {
     let r = rows;
@@ -117,7 +122,7 @@ export function WarehouseCycleCount() {
 
   const kpis = useMemo(() => computeCycleCountKpis(rows), [rows]);
 
-  const columns: Column<CycleCount>[] = [
+  const columns: Column<any>[] = [
     {
       key: "countId",
       header: "Count #",
@@ -236,44 +241,52 @@ export function WarehouseCycleCount() {
   ];
 
   const rowActions = [
-    { label: "View", onClick: (s: CycleCount) => setView(s) },
+    { label: "View", onClick: (s: any) => setView(s) },
     {
       label: "Start Counting",
-      onClick: (s: CycleCount) => {
-        setRows((prev) =>
-          prev.map((r) => (r.id === s.id ? { ...r, status: "Counting" as CycleCountStatus, counter: r.counter ?? "Manjeet Singh" } : r)),
-        );
-        toast.success(`Count started`, { description: s.countId });
+      onClick: async (s: any) => {
+        try {
+          await updateCycleCount(s.id, { status: "Counting", counter: s.counter ?? "Manjeet Singh" });
+          toast.success(`Count started`, { description: s.countId });
+        } catch (e) {
+          toast.error("Failed to start counting");
+        }
       },
     },
     {
       label: "Submit Count",
-      onClick: (s: CycleCount) => {
-        const counted = s.systemQty + ((s.id.length % 3) - 1) * 2;
-        const variance = counted - s.systemQty;
-        const nextStatus: CycleCountStatus = variance === 0 ? "Counted" : "Variance";
-        setRows((prev) =>
-          prev.map((r) =>
-            r.id === s.id
-              ? { ...r, status: nextStatus, countedQty: counted, variance, countedDate: new Date().toISOString() }
-              : r,
-          ),
-        );
-        toast.success(`Count submitted`, { description: `${s.countId} · variance ${variance > 0 ? "+" : ""}${variance}` });
+      onClick: async (s: any) => {
+        try {
+          const counted = s.systemQty + ((s.id.length % 3) - 1) * 2;
+          const variance = counted - s.systemQty;
+          const nextStatus = variance === 0 ? "Counted" : "Variance";
+          await updateCycleCount(s.id, { status: nextStatus, countedQty: counted, variance, countedDate: new Date().toISOString() });
+          toast.success(`Count submitted`, { description: `${s.countId} · variance ${variance > 0 ? "+" : ""}${variance}` });
+        } catch (e) {
+          toast.error("Failed to submit count");
+        }
       },
     },
     {
       label: "Approve",
-      onClick: (s: CycleCount) => {
-        setRows((prev) => prev.map((r) => (r.id === s.id ? { ...r, status: "Approved" as CycleCountStatus } : r)));
-        toast.success(`Count approved`, { description: s.countId });
+      onClick: async (s: any) => {
+        try {
+          await updateCycleCount(s.id, { status: "Approved" });
+          toast.success(`Count approved`, { description: s.countId });
+        } catch (e) {
+          toast.error("Failed to approve count");
+        }
       },
     },
     {
       label: "Post Adjustment",
-      onClick: (s: CycleCount) => {
-        setRows((prev) => prev.map((r) => (r.id === s.id ? { ...r, status: "Posted" as CycleCountStatus } : r)));
-        toast(`Stock adjustment posted`, { description: s.countId });
+      onClick: async (s: any) => {
+        try {
+          await updateCycleCount(s.id, { status: "Posted" });
+          toast(`Stock adjustment posted`, { description: s.countId });
+        } catch (e) {
+          toast.error("Failed to post adjustment");
+        }
       },
     },
   ];
@@ -281,12 +294,12 @@ export function WarehouseCycleCount() {
   const bulkActions = [
     {
       label: "Export",
-      onClick: (sel: CycleCount[]) =>
+      onClick: (sel: any[]) =>
         toast(`${sel.length} count${sel.length === 1 ? "" : "s"} exported`, { description: "CSV file generated" }),
     },
     {
       label: "Approve Selected",
-      onClick: (sel: CycleCount[]) =>
+      onClick: (sel: any[]) =>
         toast.success(`${sel.length} count${sel.length === 1 ? "" : "s"} approved`),
     },
   ];
@@ -298,26 +311,26 @@ export function WarehouseCycleCount() {
         ? Array.from(statusFilter)[0]
         : `${statusFilter.size} selected`;
 
-  const handleCreate = (data: Partial<CycleCount>) => {
-    const newCount: CycleCount = {
-      id: `cc-${String(rows.length + 1).padStart(3, "0")}`,
-      countId: `CC-${String(4501 + rows.length).padStart(4, "0")}`,
-      location: data.location ?? "Rack-A-1",
-      skuCode: data.skuCode ?? SKUS[0].skuCode,
-      skuName: data.skuName ?? SKUS[0].name,
-      systemQty: Number(data.systemQty) || 0,
-      countedQty: undefined,
-      variance: undefined,
-      status: "Scheduled",
-      counter: data.counter,
-      scheduledDate: data.scheduledDate ?? new Date().toISOString(),
-      countedDate: undefined,
-      unit: data.unit ?? "Bag",
-      godown: data.godown ?? "Bhiwandi Godown A",
-    };
-    setRows((prev) => [newCount, ...prev]);
-    toast.success(`Count scheduled`, { description: newCount.countId });
-    setAddOpen(false);
+  const handleCreate = async (data: any) => {
+    try {
+      const newCount = {
+        countId: `CC-${String(4501 + rows.length).padStart(4, "0")}`,
+        location: data.location ?? "Rack-A-1",
+        skuCode: data.skuCode ?? SKUS[0].skuCode,
+        skuName: data.skuName ?? SKUS[0].name,
+        systemQty: Number(data.systemQty) || 0,
+        status: "Scheduled",
+        counter: data.counter,
+        scheduledDate: data.scheduledDate ?? new Date().toISOString(),
+        unit: data.unit ?? "Bag",
+        godown: data.godown ?? "Bhiwandi Godown A",
+      };
+      await createCycleCount(newCount);
+      toast.success(`Count scheduled`, { description: newCount.countId });
+      setAddOpen(false);
+    } catch (e) {
+      toast.error("Failed to schedule count");
+    }
   };
 
   return (
@@ -439,9 +452,9 @@ export function WarehouseCycleCount() {
 
 interface DrawerProps {
   open: boolean;
-  record: CycleCount | null;
+  record: any | null;
   onClose: () => void;
-  onSave: (data: Partial<CycleCount>) => void;
+  onSave: (data: any) => void;
 }
 
 function CycleCountDrawer({ open, record, onClose, onSave }: DrawerProps) {

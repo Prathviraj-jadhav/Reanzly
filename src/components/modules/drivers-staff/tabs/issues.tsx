@@ -1,20 +1,28 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { SectionCard } from "@/components/shared/section-card";
 import { DataTable, type Column } from "@/components/shared/data-table";
 import { StatusBadge, issueSeverityBadge } from "@/components/shared/status-badge";
 import { StatCard } from "@/components/shared/detail-layout";
-import { ISSUES } from "@/lib/mock-data";
 import type { Driver, Issue } from "@/lib/types";
 import { AlertTriangle, CheckCircle2, AlertOctagon, Flag } from "lucide-react";
 import { formatDate, driverSeed } from "../_helpers";
 
 export function DriverIssuesTab({ driver }: { driver: Driver }) {
+  const [issues, setIssues] = useState<Issue[]>([]);
+
+  useEffect(() => {
+    fetch("/api/issues")
+      .then((r) => (r.ok ? r.json() : { issues: [] }))
+      .then((data) => setIssues(data.issues ?? []))
+      .catch(() => {});
+  }, []);
+
   // Reported-by OR assignee matches driver name OR seeded additional issues
   const directIssues = useMemo(
-    () => ISSUES.filter((i: Issue) => i.reporter === driver.name || i.assignee === driver.name),
-    [driver.name],
+    () => issues.filter((i: Issue) => i.reporter === driver.name || i.assignee === driver.name),
+    [issues, driver.name],
   );
 
   // Add a few deterministic seeded issues so every driver has *something* - types

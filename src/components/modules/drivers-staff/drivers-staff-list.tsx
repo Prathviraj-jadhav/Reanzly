@@ -5,7 +5,7 @@ import { DataTable, type Column } from "@/components/shared/data-table";
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { useAppStore } from "@/lib/store/app-store";
-import { VEHICLES, TRIPS } from "@/lib/mock-data";
+
 import type { Driver } from "@/lib/types";
 import {
   Plus,

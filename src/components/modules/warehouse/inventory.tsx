@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { DataTable, type Column } from "@/components/shared/data-table";
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -39,9 +39,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  SKUS,
   SKU_CATEGORIES,
-  type Sku,
   type SkuCategory,
   formatINR,
   formatINRCompact,
@@ -50,18 +48,24 @@ import {
   stockLevelMeta,
   FieldLabel,
 } from "./_helpers";
+import { useWarehouseStore } from "@/lib/store/warehouse-store";
 
 export function WarehouseInventory() {
-  const [rows, setRows] = useState<Sku[]>(SKUS);
+  const { skus: rows, fetchSkus, createSku, updateSku, loading } = useWarehouseStore();
+  
+  useEffect(() => {
+    fetchSkus();
+  }, [fetchSkus]);
+
   const [search, setSearch] = useState("");
   const [catFilter, setCatFilter] = useState<Set<string>>(new Set());
   const [lowOnly, setLowOnly] = useState(false);
   const [godownFilter, setGodownFilter] = useState<string>("");
   const [addOpen, setAddOpen] = useState(false);
-  const [editing, setEditing] = useState<Sku | null>(null);
+  const [editing, setEditing] = useState<any | null>(null);
 
   const uniqueGodowns = useMemo(
-    () => Array.from(new Set(rows.map((r) => r.godown))).sort(),
+    () => Array.from(new Set(rows.map((r: any) => r.godown))).sort(),
     [rows],
   );
 
@@ -260,34 +264,36 @@ export function WarehouseInventory() {
         ? Array.from(catFilter)[0]
         : `${catFilter.size} selected`;
 
-  const handleSave = (data: Partial<Sku>) => {
-    if (editing) {
-      setRows((prev) => prev.map((r) => (r.id === editing.id ? { ...r, ...data } : r)));
-      toast.success(`SKU updated`, { description: editing.skuCode });
-    } else {
-      const newSku: Sku = {
-        id: `sku-${String(rows.length + 1).padStart(3, "0")}`,
-        skuCode: `RZ-${data.hsn ?? "0000"}-${String(rows.length + 1).padStart(3, "0")}`,
-        name: data.name ?? "",
-        category: (data.category ?? "Cement") as SkuCategory,
-        hsn: data.hsn ?? "0000",
-        unit: data.unit ?? "Bag",
-        stock: data.stock ?? 0,
-        reserved: 0,
-        minLevel: data.minLevel ?? 12,
-        reorderQty: (data.minLevel ?? 12) * 3,
-        unitCost: data.unitCost ?? 0,
-        location: data.location ?? "Rack-A-1",
-        godown: data.godown ?? "Bhiwandi Godown A",
-        supplier: data.supplier ?? "",
-        gstRate: data.gstRate ?? 18,
-        lastMovement: new Date().toISOString(),
-      };
-      setRows((prev) => [newSku, ...prev]);
-      toast.success(`SKU created`, { description: newSku.skuCode });
+  const handleSave = async (data: any) => {
+    try {
+      if (editing) {
+        await updateSku(editing.id, data);
+        toast.success(`SKU updated`);
+      } else {
+        const skuCode = `RZ-${data.hsn ?? "0000"}-${String(rows.length + 1).padStart(3, "0")}`;
+        await createSku({
+          skuCode,
+          name: data.name ?? "",
+          category: (data.category ?? "Cement"),
+          hsn: data.hsn ?? "0000",
+          unit: data.unit ?? "Bag",
+          stock: data.stock ?? 0,
+          reserved: 0,
+          minLevel: data.minLevel ?? 12,
+          reorderQty: (data.minLevel ?? 12) * 3,
+          unitCost: data.unitCost ?? 0,
+          location: data.location ?? "Rack-A-1",
+          godown: data.godown ?? "Bhiwandi Godown A",
+          supplier: data.supplier ?? "",
+          gstRate: data.gstRate ?? 18,
+        });
+        toast.success(`SKU created`, { description: skuCode });
+      }
+      setEditing(null);
+      setAddOpen(false);
+    } catch (error) {
+      toast.error("Failed to save SKU");
     }
-    setEditing(null);
-    setAddOpen(false);
   };
 
   return (

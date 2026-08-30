@@ -1,62 +1,105 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
-import { requireModuleAccess } from "@/lib/permissions";
 
-const EDITABLE_FIELDS = ["status", "result", "score", "notes"] as const;
+export async function GET(req: Request, { params }: { params: { id: string } }) {
+  try {
+    const session = await getSessionUser();
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
-export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const sessionUser = await getSessionUser();
-  if (!sessionUser) {
-    return NextResponse.json({ error: "Not signed in." }, { status: 401 });
-  }
-  const denied = requireModuleAccess(sessionUser, "quality");
-  if (denied) return denied;
-  const { id } = await params;
-
-  const existing = await db.qualityCheck.findUnique({ where: { id } });
-  if (!existing || existing.companyId !== sessionUser.companyId) {
-    return NextResponse.json({ error: "Quality check not found." }, { status: 404 });
-  }
-
-  const body = await req.json();
-  const data: Record<string, unknown> = {};
-  for (const field of EDITABLE_FIELDS) {
-    if (field in body) data[field] = body[field];
-  }
-
-  if ("status" in body && body.status !== existing.status) {
-    const activity = JSON.parse(existing.activityJson || "[]");
-    activity.push({
-      id: `act-${Date.now()}`,
-      ts: new Date().toISOString(),
-      actor: sessionUser.name,
-      action: `Status → ${body.status}`,
+    const check = await db.qualityCheck.findFirst({
+      where: {
+        id: params.id,
+        companyId: session.companyId,
+      },
     });
-    data.activityJson = JSON.stringify(activity);
+
+    if (!check) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
+    const parsedCheck = {
+      ...check,
+      findings: check.findingsJson ? JSON.parse(check.findingsJson) : [],
+      controlPoints: check.controlPointsJson ? JSON.parse(check.controlPointsJson) : [],
+      correctiveActions: check.correctiveActionsJson ? JSON.parse(check.correctiveActionsJson) : [],
+      activity: check.activityJson ? JSON.parse(check.activityJson) : [],
+    };
+
+    return NextResponse.json(parsedCheck);
+  } catch (error) {
+    console.error("GET /api/quality-checks/[id] error:", error);
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
+}
 
-  const updated = await db.qualityCheck.update({ where: { id }, data });
+export async function PATCH(req: Request, { params }: { params: { id: string } }) {
+  try {
+    const session = await getSessionUser();
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
-  return NextResponse.json({
-    check: {
-      id: updated.id,
-      checkId: updated.checkId,
-      type: updated.type,
-      reference: updated.reference,
-      referenceEntity: updated.referenceEntity ?? undefined,
-      referenceModule: updated.referenceModule ?? undefined,
-      inspector: updated.inspector,
-      date: updated.date.toISOString(),
-      result: updated.result,
-      status: updated.status,
-      score: updated.score,
-      location: updated.location ?? "",
-      findings: JSON.parse(updated.findingsJson || "[]"),
-      controlPoints: JSON.parse(updated.controlPointsJson || "[]"),
-      correctiveActions: JSON.parse(updated.correctiveActionsJson || "[]"),
-      activity: JSON.parse(updated.activityJson || "[]"),
-      notes: updated.notes ?? undefined,
-    },
-  });
+    const body = await req.json();
+
+    const dataToUpdate: any = {};
+    if (body.status) dataToUpdate.status = body.status;
+    if (body.result) dataToUpdate.result = body.result;
+    if (body.score !== undefined) dataToUpdate.score = body.score;
+    if (body.notes !== undefined) dataToUpdate.notes = body.notes;
+    
+    // Convert arrays back to JSON strings if they are present in the update
+    if (body.findings) dataToUpdate.findingsJson = JSON.stringify(body.findings);
+    if (body.controlPoints) dataToUpdate.controlPointsJson = JSON.stringify(body.controlPoints);
+    if (body.correctiveActions) dataToUpdate.correctiveActionsJson = JSON.stringify(body.correctiveActions);
+    if (body.activity) dataToUpdate.activityJson = JSON.stringify(body.activity);
+
+    const check = await db.qualityCheck.update({
+      where: {
+        id: params.id,
+        companyId: session.companyId,
+      },
+      data: dataToUpdate,
+    });
+
+    const parsedCheck = {
+      ...check,
+      findings: check.findingsJson ? JSON.parse(check.findingsJson) : [],
+      controlPoints: check.controlPointsJson ? JSON.parse(check.controlPointsJson) : [],
+      correctiveActions: check.correctiveActionsJson ? JSON.parse(check.correctiveActionsJson) : [],
+      activity: check.activityJson ? JSON.parse(check.activityJson) : [],
+    };
+
+    return NextResponse.json({ check: parsedCheck });
+  } catch (error) {
+    console.error("PATCH /api/quality-checks/[id] error:", error);
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+  }
+}
+
+export async function DELETE(req: Request, { params }: { params: { id: string } }) {
+  try {
+    const session = await getSessionUser();
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const deleted = await db.qualityCheck.deleteMany({
+      where: {
+        id: params.id,
+        companyId: session.companyId,
+      },
+    });
+
+    if (deleted.count === 0) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("DELETE /api/quality-checks/[id] error:", error);
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+  }
 }

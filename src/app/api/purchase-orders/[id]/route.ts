@@ -1,65 +1,106 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
-import { requireModuleAccess } from "@/lib/permissions";
 
-const EDITABLE_FIELDS = ["status", "notes", "deliveryLocation", "paymentTerms", "buyer"] as const;
+export async function GET(req: Request, { params }: { params: { id: string } }) {
+  try {
+    const session = await getSessionUser();
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
-export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const sessionUser = await getSessionUser();
-  if (!sessionUser) {
-    return NextResponse.json({ error: "Not signed in." }, { status: 401 });
-  }
-  const denied = requireModuleAccess(sessionUser, "purchase");
-  if (denied) return denied;
-  const { id } = await params;
-
-  const existing = await db.purchaseOrder.findUnique({ where: { id } });
-  if (!existing || existing.companyId !== sessionUser.companyId) {
-    return NextResponse.json({ error: "Purchase order not found." }, { status: 404 });
-  }
-
-  const body = await req.json();
-  const data: Record<string, unknown> = {};
-  for (const field of EDITABLE_FIELDS) {
-    if (field in body) data[field] = body[field];
-  }
-
-  if ("status" in body && body.status !== existing.status) {
-    const activity = JSON.parse(existing.activityJson || "[]");
-    activity.push({
-      id: `act-${Date.now()}`,
-      ts: new Date().toISOString(),
-      actor: sessionUser.name,
-      action: `Status → ${body.status}`,
+    const po = await db.purchaseOrder.findFirst({
+      where: {
+        id: params.id,
+        companyId: session.companyId,
+      },
     });
-    data.activityJson = JSON.stringify(activity);
-  }
 
-  const updated = await db.purchaseOrder.update({ where: { id }, data });
+    if (!po) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
 
-  return NextResponse.json({
-    purchaseOrder: {
-      id: updated.id,
-      poNumber: updated.poNumber,
-      vendor: updated.vendorName,
-      vendorId: updated.vendorId ?? "",
-      category: updated.category,
-      poDate: updated.poDate.toISOString(),
-      expectedDelivery: updated.expectedDelivery ? updated.expectedDelivery.toISOString() : "",
-      deliveryLocation: updated.deliveryLocation ?? "",
-      paymentTerms: updated.paymentTerms ?? "",
-      buyer: updated.buyer ?? "",
-      status: updated.status,
+    const parsedPo = {
+      ...po,
+      lines: po.linesJson ? JSON.parse(po.linesJson) : [],
+      receipts: po.receiptsJson ? JSON.parse(po.receiptsJson) : [],
+      bills: po.billsJson ? JSON.parse(po.billsJson) : [],
+      activity: po.activityJson ? JSON.parse(po.activityJson) : [],
       currency: "INR",
-      subtotal: updated.subtotal / 100,
-      taxTotal: updated.taxTotal / 100,
-      total: updated.total / 100,
-      notes: updated.notes ?? undefined,
-      lines: JSON.parse(updated.linesJson || "[]"),
-      receipts: JSON.parse(updated.receiptsJson || "[]"),
-      bills: JSON.parse(updated.billsJson || "[]"),
-      activity: JSON.parse(updated.activityJson || "[]"),
-    },
-  });
+    };
+
+    return NextResponse.json({ po: parsedPo });
+  } catch (error) {
+    console.error("GET /api/purchase-orders/[id] error:", error);
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+  }
+}
+
+export async function PATCH(req: Request, { params }: { params: { id: string } }) {
+  try {
+    const session = await getSessionUser();
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const body = await req.json();
+
+    const dataToUpdate: any = {};
+    if (body.status) dataToUpdate.status = body.status;
+    if (body.expectedDelivery) dataToUpdate.expectedDelivery = new Date(body.expectedDelivery);
+    if (body.notes !== undefined) dataToUpdate.notes = body.notes;
+    
+    // Convert arrays back to JSON strings if they are present in the update
+    if (body.lines) dataToUpdate.linesJson = JSON.stringify(body.lines);
+    if (body.receipts) dataToUpdate.receiptsJson = JSON.stringify(body.receipts);
+    if (body.bills) dataToUpdate.billsJson = JSON.stringify(body.bills);
+    if (body.activity) dataToUpdate.activityJson = JSON.stringify(body.activity);
+
+    const po = await db.purchaseOrder.update({
+      where: {
+        id: params.id,
+        companyId: session.companyId,
+      },
+      data: dataToUpdate,
+    });
+
+    const parsedPo = {
+      ...po,
+      lines: po.linesJson ? JSON.parse(po.linesJson) : [],
+      receipts: po.receiptsJson ? JSON.parse(po.receiptsJson) : [],
+      bills: po.billsJson ? JSON.parse(po.billsJson) : [],
+      activity: po.activityJson ? JSON.parse(po.activityJson) : [],
+      currency: "INR",
+    };
+
+    return NextResponse.json({ purchaseOrder: parsedPo });
+  } catch (error) {
+    console.error("PATCH /api/purchase-orders/[id] error:", error);
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+  }
+}
+
+export async function DELETE(req: Request, { params }: { params: { id: string } }) {
+  try {
+    const session = await getSessionUser();
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const deleted = await db.purchaseOrder.deleteMany({
+      where: {
+        id: params.id,
+        companyId: session.companyId,
+      },
+    });
+
+    if (deleted.count === 0) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("DELETE /api/purchase-orders/[id] error:", error);
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+  }
 }

@@ -36,7 +36,7 @@ import {
   SheetTitle,
   SheetDescription,
 } from "@/components/ui/sheet";
-import { CUSTOMERS, TRIPS } from "@/lib/mock-data";
+
 import {
   ADD_INVOICE_STEPS,
   PAYMENT_TERMS,
@@ -59,7 +59,7 @@ import {
   formatINR,
   formatDate,
 } from "./_helpers";
-import type { Invoice } from "@/lib/types";
+import type { Invoice, Customer, Trip } from "@/lib/types";
 
 interface AddInvoiceDrawerProps {
   open: boolean;
@@ -88,6 +88,14 @@ export function AddInvoiceDrawer({ open, onClose, onAdd }: AddInvoiceDrawerProps
     invoiceDate: new Date().toISOString(),
     dueDate: addDays(new Date().toISOString(), 30),
   }));
+
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [trips, setTrips] = useState<Trip[]>([]);
+
+  useEffect(() => {
+    fetch("/api/customers").then(r => r.ok ? r.json() : { customers: [] }).then(d => setCustomers(d.customers ?? [])).catch(() => {});
+    fetch("/api/trips").then(r => r.ok ? r.json() : { trips: [] }).then(d => setTrips(d.trips ?? [])).catch(() => {});
+  }, []);
 
   const update = <K extends keyof InvoiceForm>(k: K, v: InvoiceForm[K]) =>
     setForm((s) => ({ ...s, [k]: v }));
@@ -207,7 +215,7 @@ export function AddInvoiceDrawer({ open, onClose, onAdd }: AddInvoiceDrawerProps
   // Auto-selects the customer's primary Billing contact as the default
   // assignee (Task 15-d) - finance user can refine in the Assign To panel.
   const selectCustomer = (customerId: string) => {
-    const c = CUSTOMERS.find((x) => x.id === customerId);
+    const c = customers.find((x) => x.id === customerId);
     if (!c) {
       update("customerId", "");
       update("customerName", "");
@@ -351,6 +359,8 @@ export function AddInvoiceDrawer({ open, onClose, onAdd }: AddInvoiceDrawerProps
               selectCustomer={selectCustomer}
               applyPaymentTerms={applyPaymentTerms}
               toggleAssignee={toggleAssignee}
+              customers={customers}
+              trips={trips}
             />
           )}
           {step === 2 && (
@@ -450,6 +460,8 @@ function Step1Customer({
   selectCustomer: (id: string) => void;
   applyPaymentTerms: (t: string) => void;
   toggleAssignee: (id: string) => void;
+  customers: Customer[];
+  trips: Trip[];
 }) {
   const isInterState =
     !!form.customerState && form.customerState !== SUPPLIER_STATE;
@@ -479,7 +491,7 @@ function Step1Customer({
                 <SelectValue placeholder="Select customer" />
               </SelectTrigger>
               <SelectContent className="max-h-72 overflow-y-auto scrollbar-thin">
-                {CUSTOMERS.map((c) => (
+                {customers.map((c) => (
                   <SelectItem key={c.id} value={c.id}>
                     {c.companyName} · {c.city}
                   </SelectItem>
@@ -609,7 +621,7 @@ function Step1Customer({
               </SelectTrigger>
               <SelectContent className="max-h-60 overflow-y-auto scrollbar-thin">
                 <SelectItem value="none">- Not linked -</SelectItem>
-                {TRIPS.slice(0, 20).map((t) => (
+                {trips.slice(0, 20).map((t) => (
                   <SelectItem key={t.id} value={t.tripId}>
                     {t.tripId} · {t.origin} → {t.destination}
                   </SelectItem>

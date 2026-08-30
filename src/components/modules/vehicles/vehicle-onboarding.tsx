@@ -1,9 +1,8 @@
 "use client";
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Btn } from "@/components/shared/btn";
 import { useAppStore } from "@/lib/store/app-store";
-import { VEHICLES, DRIVERS, VENDORS } from "@/lib/mock-data";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
@@ -115,16 +114,27 @@ export function VehicleOnboarding({ onClose, onAdd }: VehicleOnboardingProps) {
     toast.success("Vehicle onboarded", {
       description: `${form.name} added to fleet registry`,
     });
-    // Navigate to a real existing vehicle detail as a stand-in for the newly created one
-    const existing = VEHICLES[0];
-    navigateDetail("vehicles", existing.id);
+    onClose();
   };
 
-  const technicians = DRIVERS.filter((d) => d.role === "Driver").slice(0, 8);
-  const maintenanceVendors = VENDORS.filter((v) =>
+  const [drivers, setDrivers] = useState<any[]>([]);
+  const [vendors, setVendors] = useState<any[]>([]);
+
+  useEffect(() => {
+    Promise.all([
+      fetch("/api/drivers").then((r) => (r.ok ? r.json() : { drivers: [] })),
+      fetch("/api/vendors").then((r) => (r.ok ? r.json() : { vendors: [] })),
+    ]).then(([drv, vnd]) => {
+      setDrivers(drv.drivers ?? []);
+      setVendors(vnd.vendors ?? []);
+    });
+  }, []);
+
+  const technicians = drivers.filter((d) => d.role === "Driver" || d.role === "driver").slice(0, 8);
+  const maintenanceVendors = vendors.filter((v) =>
     ["Maintenance Workshop", "Spare Parts Supplier", "Tyre Supplier"].includes(v.type),
   );
-  const purchaseVendors = VENDORS;
+  const purchaseVendors = vendors;
 
   return (
     <div className="flex flex-col gap-5">

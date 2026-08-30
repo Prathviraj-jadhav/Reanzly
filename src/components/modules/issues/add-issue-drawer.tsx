@@ -30,8 +30,7 @@ import {
   SheetTitle,
   SheetDescription,
 } from "@/components/ui/sheet";
-import { INSPECTIONS } from "@/lib/mock-data";
-import type { Issue, IssueSeverity, Vehicle, Driver } from "@/lib/types";
+import type { Issue, IssueSeverity, Vehicle, Driver, Inspection } from "@/lib/types";
 import {
   ISSUE_SEVERITIES,
   ISSUE_SOURCES,
@@ -46,6 +45,9 @@ interface AddIssueDrawerProps {
   open: boolean;
   onClose: () => void;
   record?: Issue;
+  vehicles?: Vehicle[];
+  drivers?: Driver[];
+  inspections?: Inspection[];
   onAdd?: (issue: Issue) => Promise<boolean>;
   onUpdate?: (id: string, data: Partial<Issue>) => Promise<boolean>;
 }
@@ -81,13 +83,7 @@ const STEPS = [
   { id: 3, label: "Review" },
 ];
 
-export function AddIssueDrawer({
-  open,
-  onClose,
-  record,
-  onAdd,
-  onUpdate,
-}: AddIssueDrawerProps) {
+export function AddIssueDrawer({ open, onClose, record, vehicles = [], drivers = [], inspections = [], onAdd, onUpdate }: AddIssueDrawerProps) {
   const [step, setStep] = useState(1);
   // Initialise from `record` if editing, else empty form. Parent passes a
   // `key` based on record.id so the drawer remounts fresh each time.
@@ -96,17 +92,7 @@ export function AddIssueDrawer({
   );
   const [submitting, setSubmitting] = useState(false);
 
-  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-  const [drivers, setDrivers] = useState<Driver[]>([]);
-  useEffect(() => {
-    Promise.all([
-      fetch("/api/vehicles").then((r) => (r.ok ? r.json() : { vehicles: [] })),
-      fetch("/api/drivers").then((r) => (r.ok ? r.json() : { drivers: [] })),
-    ]).then(([v, d]) => {
-      setVehicles(v.vehicles ?? []);
-      setDrivers(d.drivers ?? []);
-    }).catch(() => toast.error("Couldn't load fleet/roster data"));
-  }, []);
+
 
   const update = <K extends keyof IssueForm>(k: K, v: IssueForm[K]) =>
     setForm((s) => ({ ...s, [k]: v }));
@@ -186,8 +172,8 @@ export function AddIssueDrawer({
   };
 
   const linkedInspections = useMemo(
-    () => (form.vehicle ? INSPECTIONS.filter((i) => i.vehicle === form.vehicle) : []),
-    [form.vehicle],
+    () => (form.vehicle ? inspections.filter((i) => i.vehicle === form.vehicle) : []),
+    [form.vehicle, inspections],
   );
 
   return (

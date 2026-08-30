@@ -1991,31 +1991,31 @@ model ChatReadReceipt {
 // loads, and run settlement cycles with NACH payouts.
 
 model BrokerProfile {
-  id                String    @id @default(cuid())
-  userId            String?   @unique // links this profile to the real logged-in broker User
-  brokerCode        String    @unique // RZB-XXXXXX
-  companyName       String
-  contactName       String
-  email             String    @unique
-  phone             String
-  gstin             String?
-  markupPct         Float     @default(8.0)
-  settlementCycle   String    @default("Fortnightly") // Weekly | Fortnightly | Monthly
-  gstTreatment      String    @default("Forward Charge") // Forward Charge | Reverse Charge
-  coverageLanes     String    @default("[]") // JSON array of lane strings
-  marketplaceListingJson String @default("{}") // JSON object for public profile (about, yearFounded, etc)
-  status            String    @default("Active") // Active | Pending | Suspended
-  parentBrokerId    String? // if this broker was onboarded by another broker
-  bankName          String?
-  bankBranch        String?
-  bankAccountName   String?
-  bankAccountNumber String?
-  bankIfsc          String?
-  nachUmr           String? // NACH mandate registration number
-  nextPayoutDate    DateTime?
-  nextPayoutAmount  Float     @default(0)
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  id                     String    @id @default(cuid())
+  userId                 String?   @unique // links this profile to the real logged-in broker User
+  brokerCode             String    @unique // RZB-XXXXXX
+  companyName            String
+  contactName            String
+  email                  String    @unique
+  phone                  String
+  gstin                  String?
+  markupPct              Float     @default(8.0)
+  settlementCycle        String    @default("Fortnightly") // Weekly | Fortnightly | Monthly
+  gstTreatment           String    @default("Forward Charge") // Forward Charge | Reverse Charge
+  coverageLanes          String    @default("[]") // JSON array of lane strings
+  marketplaceListingJson String    @default("{}") // JSON object for public profile (about, yearFounded, etc)
+  status                 String    @default("Active") // Active | Pending | Suspended
+  parentBrokerId         String? // if this broker was onboarded by another broker
+  bankName               String?
+  bankBranch             String?
+  bankAccountName        String?
+  bankAccountNumber      String?
+  bankIfsc               String?
+  nachUmr                String? // NACH mandate registration number
+  nextPayoutDate         DateTime?
+  nextPayoutAmount       Float     @default(0)
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
 
   user          User?               @relation(fields: [userId], references: [id])
   subBrokers    SubBroker[]
@@ -2847,39 +2847,279 @@ model PayrollLoanInstallment {
 }
 
 model BrokerDocument {
-  id              String   @id @default(cuid())
+  id              String    @id @default(cuid())
   brokerProfileId String
   name            String
   type            String
   fileName        String
   notes           String?
-  status          String   @default("Valid") // Valid | Expiring Soon | Expired
+  status          String    @default("Valid") // Valid | Expiring Soon | Expired
   expiresAt       DateTime?
-  uploadedAt      DateTime @default(now())
+  uploadedAt      DateTime  @default(now())
 }
 
 model BrokerTaxReturn {
-  id              String   @id @default(cuid())
+  id              String    @id @default(cuid())
   brokerProfileId String
-  taxType         String   // GST | TDS
+  taxType         String // GST | TDS
   period          String
   formType        String
   filedDate       DateTime?
   dueDate         DateTime?
   ackNo           String?
-  liabilityINR    Float    @default(0)
-  status          String   @default("Due") // Due | Filed | Overdue
-  createdAt       DateTime @default(now())
+  liabilityINR    Float     @default(0)
+  status          String    @default("Due") // Due | Filed | Overdue
+  createdAt       DateTime  @default(now())
 }
 
 model BrokerLicense {
-  id              String   @id @default(cuid())
+  id              String    @id @default(cuid())
   brokerProfileId String
   licenseType     String
   licenseNumber   String
   issuedBy        String
   issueDate       DateTime?
   expiresAt       DateTime
-  status          String   @default("Valid") // Valid | Expiring Soon | Expired
-  createdAt       DateTime @default(now())
+  status          String    @default("Valid") // Valid | Expiring Soon | Expired
+  createdAt       DateTime  @default(now())
 }
+
+model WarehouseSku {
+  id           String    @id @default(cuid())
+  companyId    String
+  skuCode      String    @unique
+  name         String
+  category     String
+  hsn          String
+  unit         String
+  stock        Int       @default(0)
+  reserved     Int       @default(0)
+  minLevel     Int       @default(0)
+  reorderQty   Int       @default(0)
+  unitCost     Float     @default(0)
+  location     String
+  godown       String
+  supplier     String
+  gstRate      Float     @default(0)
+  lastMovement DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([companyId])
+}
+
+model WarehouseInbound {
+  id           String    @id @default(cuid())
+  companyId    String
+  grn          String    @unique
+  refNo        String
+  consignor    String
+  origin       String
+  vehicle      String
+  lrNumber     String
+  expectedDate DateTime?
+  receivedDate DateTime?
+  skus         Json // Array of { skuCode, name, qty, received, unit }
+  status       String    @default("Scheduled")
+  godown       String
+  totalValue   Float     @default(0)
+  receiver     String?
+  remarks      String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([companyId])
+}
+
+model WarehouseOutbound {
+  id           String    @id @default(cuid())
+  companyId    String
+  odo          String    @unique
+  refNo        String
+  consignee    String
+  destination  String
+  vehicle      String
+  lrNumber     String
+  orderDate    DateTime?
+  dispatchDate DateTime?
+  deliveryDate DateTime?
+  skus         Json // Array of { skuCode, name, qty, unit }
+  status       String    @default("Picking")
+  godown       String
+  totalValue   Float     @default(0)
+  picker       String?
+  remarks      String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([companyId])
+}
+
+model WarehouseStorageLocation {
+  id              String    @id @default(cuid())
+  companyId       String
+  code            String    @unique
+  name            String
+  type            String
+  godown          String
+  capacityPallets Int       @default(0)
+  occupiedPallets Int       @default(0)
+  manager         String
+  area            Int       @default(0)
+  lastStocktake   DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([companyId])
+}
+
+model WarehousePodReceive {
+  id           String    @id @default(cuid())
+  companyId    String
+  podNo        String    @unique
+  lrNumber     String
+  consignor    String
+  consignee    String
+  destination  String
+  vehicle      String
+  deliveryDate DateTime?
+  receivedDate DateTime?
+  status       String    @default("Pending")
+  damageCount  Int       @default(0)
+  shortageQty  Int       @default(0)
+  receiver     String?
+  remarks      String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([companyId])
+}
+
+model WarehousePickList {
+  id             String    @id @default(cuid())
+  companyId      String
+  pickId         String    @unique
+  order          String
+  consignee      String
+  skuCount       Int       @default(0)
+  totalQty       Int       @default(0)
+  pickedQty      Int       @default(0)
+  status         String    @default("Pending")
+  picker         String?
+  packingStation String?
+  assignedDate   DateTime?
+  pickedDate     DateTime?
+  godown         String
+  pickTimeMin    Int?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([companyId])
+}
+
+model WarehouseCycleCount {
+  id            String    @id @default(cuid())
+  companyId     String
+  countId       String    @unique
+  location      String
+  skuCode       String
+  skuName       String
+  systemQty     Int       @default(0)
+  countedQty    Int?
+  variance      Int?
+  status        String    @default("Scheduled")
+  counter       String?
+  scheduledDate DateTime?
+  countedDate   DateTime?
+  unit          String
+  godown        String
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([companyId])
+}
+
+model WarehouseCrossDock {
+  id           String    @id @default(cuid())
+  companyId    String
+  xdkId        String    @unique
+  inboundRef   String
+  outboundRef  String
+  skuCode      String
+  skuName      String
+  qty          Int       @default(0)
+  unit         String
+  dockDoor     String
+  status       String    @default("Scheduled")
+  dwellTimeMin Int       @default(0)
+  arrivedDate  DateTime?
+  carrier      String
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([companyId])
+}
+
+model WarehouseReturn {
+  id            String    @id @default(cuid())
+  companyId     String
+  rmaId         String    @unique
+  customer      String
+  originalOrder String
+  skuCode       String
+  skuName       String
+  qty           Int       @default(0)
+  unit          String
+  reason        String
+  status        String    @default("Requested")
+  disposition   String?
+  unitValue     Float     @default(0)
+  requestedDate DateTime?
+  inspectedDate DateTime?
+  inspectedBy   String?
+  remarks       String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([companyId])
+}
+
+model WarehouseYard {
+  id         String    @id @default(cuid())
+  companyId  String
+  movementId String    @unique
+  equipment  String
+  type       String
+  gateIn     DateTime?
+  gateOut    DateTime?
+  dock       String?
+  status     String    @default("Pending")
+  driver     String?
+  carrier    String
+  dwellMin   Int       @default(0)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([companyId])
+}
+
+model WarehouseDockAppt {
+  id          String    @id @default(cuid())
+  companyId   String
+  apptId      String    @unique
+  carrier     String
+  dockDoor    String
+  date        DateTime?
+  timeWindow  String
+  type        String
+  status      String    @default("Scheduled")
+  checkInTime DateTime?
+  driver      String?
+  refNo       String
+  durationMin Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([companyId])
+}
+

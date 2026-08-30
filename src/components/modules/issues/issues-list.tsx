@@ -5,8 +5,7 @@ import { DataTable, type Column } from "@/components/shared/data-table";
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge, issueSeverityBadge } from "@/components/shared/status-badge";
 import { useAppStore } from "@/lib/store/app-store";
-import { VEHICLES, DRIVERS } from "@/lib/mock-data";
-import type { Issue } from "@/lib/types";
+import type { Issue, Vehicle, Driver } from "@/lib/types";
 import {
   Plus,
   Download,
@@ -43,6 +42,8 @@ import { RaiseToReanzlyDialog } from "./raise-to-reanzly-dialog";
 
 interface IssuesListProps {
   issues: Issue[];
+  vehicles: Vehicle[];
+  drivers: Driver[];
   onCreate: () => void;
   onUpdate?: (id: string, data: Partial<Issue>) => Promise<boolean>;
   onAdd?: (issue: Issue) => Promise<boolean>;
@@ -55,7 +56,14 @@ const DATE_RANGE_PRESETS = [
   { id: "90d", label: "Last 90 days" },
 ];
 
-export function IssuesList({ issues, onCreate, onUpdate, onAdd }: IssuesListProps) {
+export function IssuesList({
+  issues,
+  vehicles,
+  drivers,
+  onCreate,
+  onUpdate,
+  onAdd,
+}: IssuesListProps) {
   const { navigateDetail, currentRole } = useAppStore();
   const [editing, setEditing] = useState<Issue | null>(null);
   const [raiseOpen, setRaiseOpen] = useState(false);
@@ -221,7 +229,7 @@ export function IssuesList({ issues, onCreate, onUpdate, onAdd }: IssuesListProp
       sortValue: (r) => r.vehicle || "",
       render: (r) => {
         if (!r.vehicle) return <span className="text-muted-foreground">-</span>;
-        const v = VEHICLES.find((x) => x.name === r.vehicle);
+        const v = vehicles.find((x) => x.name === r.vehicle);
         return (
           <button
             onClick={(e) => {
@@ -527,3 +535,4 @@ function KpiTile({
     </div>
   );
 }
+

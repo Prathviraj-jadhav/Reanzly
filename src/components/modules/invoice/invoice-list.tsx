@@ -5,7 +5,6 @@ import { DataTable, type Column } from "@/components/shared/data-table";
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { useAppStore } from "@/lib/store/app-store";
-import { INVOICES, CUSTOMERS, TRIPS, PAYMENTS } from "@/lib/mock-data";
 import type { Invoice } from "@/lib/types";
 import {
   Plus,
@@ -146,7 +145,7 @@ export function InvoiceList({
     };
   }, [isCustomer, onCreate]);
 
-  const invoicesSource = invoices ?? INVOICES;
+  const invoicesSource = invoices ?? [];
 
   const uniqueCustomers = useMemo(
     () => Array.from(new Set(invoicesSource.map((i) => i.customer))).sort(),

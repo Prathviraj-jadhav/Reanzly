@@ -1,12 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { SectionCard } from "@/components/shared/section-card";
 import { DataTable, type Column } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { SavageInput } from "@/components/shared/savage-input";
 import { Btn } from "@/components/shared/btn";
-import { FUEL_ENTRIES } from "@/lib/mock-data";
 import type { Vehicle, FuelEntry } from "@/lib/types";
 import { Fuel, Download, Filter, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
@@ -30,9 +29,18 @@ export function VehicleFuelHistoryTab({ vehicle }: { vehicle: Vehicle }) {
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
 
+  const [fuelEntries, setFuelEntries] = useState<FuelEntry[]>([]);
+
+  useEffect(() => {
+    fetch("/api/fuel-entries")
+      .then((r) => (r.ok ? r.json() : { fuelEntries: [] }))
+      .then((data) => setFuelEntries(data.fuelEntries ?? []))
+      .catch(() => {});
+  }, []);
+
   const direct = useMemo(
-    () => FUEL_ENTRIES.filter((f: FuelEntry) => f.vehicle === vehicle.name),
-    [vehicle.name],
+    () => fuelEntries.filter((f: FuelEntry) => f.vehicle === vehicle.name),
+    [fuelEntries, vehicle.name],
   );
 
   // Add deterministic extras so every vehicle has fuel data

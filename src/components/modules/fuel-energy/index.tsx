@@ -1,7 +1,7 @@
 "use client";
 import { useState, useCallback, useEffect } from "react";
 import { useAppStore } from "@/lib/store/app-store";
-import type { FuelEntry } from "@/lib/types";
+import type { FuelEntry, Vehicle, Driver } from "@/lib/types";
 import { toast } from "sonner";
 import { FuelList } from "./fuel-list";
 import { FuelDetail } from "./fuel-detail";
@@ -17,13 +17,22 @@ export function FuelEnergyModule() {
   // Real, database-backed fuel entries (src/app/api/fuel-entries) -
   // previously useState(FUEL_ENTRIES) seeded from mock-data.ts.
   const [fuelEntries, setFuelEntries] = useState<FuelEntry[]>([]);
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [drivers, setDrivers] = useState<Driver[]>([]);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    fetch("/api/fuel-entries")
-      .then((r) => (r.ok ? r.json() : Promise.reject(r)))
-      .then(({ fuelEntries }) => setFuelEntries(fuelEntries))
-      .catch(() => toast.error("Couldn't load fuel entries", { description: "Try reloading the page." }))
+    Promise.all([
+      fetch("/api/fuel-entries").then(r => r.ok ? r.json() : { fuelEntries: [] }),
+      fetch("/api/vehicles").then(r => r.ok ? r.json() : { vehicles: [] }),
+      fetch("/api/drivers").then(r => r.ok ? r.json() : { drivers: [] })
+    ])
+      .then(([fData, vData, dData]) => {
+        setFuelEntries(fData.fuelEntries ?? []);
+        setVehicles(vData.vehicles ?? []);
+        setDrivers(dData.drivers ?? []);
+      })
+      .catch(() => toast.error("Couldn't load fuel data", { description: "Try reloading the page." }))
       .finally(() => setLoaded(true));
   }, []);
 
@@ -94,12 +103,14 @@ export function FuelEnergyModule() {
   return (
     <>
       {secondary === "analytics" ? (
-        <FuelAnalytics onBack={() => setSecondary("list")} />
+        <FuelAnalytics fuelEntries={fuelEntries} vehicles={vehicles} onBack={() => setSecondary("list")} />
       ) : secondary === "anomalies" ? (
-        <AnomalyAlerts onBack={() => setSecondary("list")} />
+        <AnomalyAlerts fuelEntries={fuelEntries} vehicles={vehicles} onBack={() => setSecondary("list")} />
       ) : (
         <FuelList
           fuelEntries={fuelEntries}
+          vehicles={vehicles}
+          drivers={drivers}
           onCreate={() => navigate("fuel-energy", "create")}
           onOpenAnalytics={() => setSecondary("analytics")}
           onOpenAnomalies={() => setSecondary("anomalies")}

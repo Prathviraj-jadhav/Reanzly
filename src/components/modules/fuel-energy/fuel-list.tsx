@@ -5,8 +5,7 @@ import { DataTable, type Column } from "@/components/shared/data-table";
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { useAppStore } from "@/lib/store/app-store";
-import { VEHICLES, DRIVERS } from "@/lib/mock-data";
-import type { FuelEntry } from "@/lib/types";
+import type { FuelEntry, Vehicle, Driver } from "@/lib/types";
 import {
   Plus,
   Download,
@@ -48,11 +47,13 @@ import { LogFuelDrawer } from "./log-fuel-drawer";
 
 interface FuelListProps {
   fuelEntries: FuelEntry[];
+  vehicles: Vehicle[];
+  drivers: Driver[];
   onCreate: () => void;
   onOpenAnalytics: () => void;
   onOpenAnomalies: () => void;
   onUpdate?: (id: string, data: Partial<FuelEntry>) => Promise<boolean>;
-  onAdd?: (fuelEntry: FuelEntry) => Promise<boolean>;
+  onAdd?: (entry: FuelEntry) => Promise<boolean>;
   onDelete?: (id: string) => Promise<boolean>;
 }
 
@@ -63,7 +64,17 @@ const DATE_RANGE_PRESETS = [
   { id: "90d", label: "Last 90 days" },
 ];
 
-export function FuelList({ fuelEntries, onCreate, onOpenAnalytics, onOpenAnomalies, onUpdate, onAdd, onDelete }: FuelListProps) {
+export function FuelList({
+  fuelEntries,
+  vehicles,
+  drivers,
+  onCreate,
+  onOpenAnalytics,
+  onOpenAnomalies,
+  onUpdate,
+  onAdd,
+  onDelete,
+}: FuelListProps) {
   const { navigateDetail } = useAppStore();
   const [editing, setEditing] = useState<FuelEntry | null>(null);
   const [search, setSearch] = useState("");
@@ -143,7 +154,7 @@ export function FuelList({ fuelEntries, onCreate, onOpenAnalytics, onOpenAnomali
       width: "170px",
       sortValue: (r) => r.vehicle,
       render: (r) => {
-        const v = VEHICLES.find((x) => x.name === r.vehicle);
+        const v = vehicles.find((x) => x.name === r.vehicle);
         return (
           <button
             onClick={(e) => {
@@ -166,7 +177,7 @@ export function FuelList({ fuelEntries, onCreate, onOpenAnalytics, onOpenAnomali
       sortValue: (r) => r.driver || "",
       render: (r) => {
         if (!r.driver) return <span className="text-muted-foreground">-</span>;
-        const d = DRIVERS.find((x) => x.name === r.driver);
+        const d = drivers.find((x) => x.name === r.driver);
         return (
           <button
             onClick={(e) => {

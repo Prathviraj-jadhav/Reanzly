@@ -4,8 +4,7 @@ import { DetailLayout, InfoRow, InfoSection, StatCard } from "@/components/share
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge, inspectionResultBadge } from "@/components/shared/status-badge";
 import { useAppStore } from "@/lib/store/app-store";
-import { ISSUES } from "@/lib/mock-data";
-import type { Inspection, Vehicle, Driver } from "@/lib/types";
+import type { Inspection, Vehicle, Driver, Issue } from "@/lib/types";
 import {
   Pencil,
   Printer,
@@ -48,26 +47,26 @@ interface InspectionDetailProps {
   inspectionId: string;
   initialTab?: string;
   inspections: Inspection[];
+  vehicles: Vehicle[];
+  drivers: Driver[];
+  issues: Issue[];
   onUpdate: (id: string, data: Partial<Inspection>) => Promise<boolean>;
 }
 
-export function InspectionDetail({ inspectionId, initialTab, inspections, onUpdate: onUpdateReal }: InspectionDetailProps) {
+export function InspectionDetail({
+  inspectionId,
+  initialTab = "overview",
+  inspections,
+  vehicles,
+  drivers,
+  issues,
+  onUpdate: onUpdateReal,
+}: InspectionDetailProps) {
   const { navigate, navigateDetail } = useAppStore();
   const [activeTab, setActiveTab] = useState(initialTab || "overview");
   const inspection = inspections.find((i) => i.inspectionId === inspectionId);
   const [editing, setEditing] = useState(false);
 
-  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-  const [drivers, setDrivers] = useState<Driver[]>([]);
-  useEffect(() => {
-    Promise.all([
-      fetch("/api/vehicles").then((r) => (r.ok ? r.json() : { vehicles: [] })),
-      fetch("/api/drivers").then((r) => (r.ok ? r.json() : { drivers: [] })),
-    ]).then(([v, d]) => {
-      setVehicles(v.vehicles ?? []);
-      setDrivers(d.drivers ?? []);
-    });
-  }, []);
 
   const handleUpdate = (id: string, data: Partial<Inspection>) => {
     onUpdateReal(id, data);
@@ -118,7 +117,7 @@ export function InspectionDetail({ inspectionId, initialTab, inspections, onUpda
   const meta = inspectionResultBadge(inspection.result);
 
   // Linked issues - derived from issues mentioning this vehicle/inspection
-  const linkedIssues = ISSUES.filter((i) => i.vehicle === inspection.vehicle).slice(0, 6);
+  const linkedIssues = issues.filter((i) => i.vehicle === inspection.vehicle).slice(0, 6);
 
   // Activity log - deterministic timeline
   const activityLog = [

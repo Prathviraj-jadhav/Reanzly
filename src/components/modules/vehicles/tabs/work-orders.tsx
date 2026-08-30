@@ -1,12 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { SectionCard } from "@/components/shared/section-card";
 import { DataTable, type Column } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Btn } from "@/components/shared/btn";
 import { SavageInput, SavageTextarea } from "@/components/shared/savage-input";
-import { WORK_ORDERS } from "@/lib/mock-data";
 import type { Vehicle, WorkOrder } from "@/lib/types";
 import { Wrench, Plus } from "lucide-react";
 import { toast } from "sonner";
@@ -24,9 +23,19 @@ interface WorkOrderRow extends WorkOrder {
 
 export function VehicleWorkOrdersTab({ vehicle }: { vehicle: Vehicle }) {
   const seed = vehicleSeed(vehicle.id);
+  
+  const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
+
+  useEffect(() => {
+    fetch("/api/work-orders")
+      .then((r) => (r.ok ? r.json() : { workOrders: [] }))
+      .then((data) => setWorkOrders(data.workOrders ?? []))
+      .catch(() => {});
+  }, []);
+
   const direct = useMemo(
-    () => WORK_ORDERS.filter((w: WorkOrder) => w.vehicle === vehicle.name),
-    [vehicle.name],
+    () => workOrders.filter((w: WorkOrder) => w.vehicle === vehicle.name),
+    [workOrders, vehicle.name],
   );
 
   const rows: WorkOrderRow[] = useMemo(() => {

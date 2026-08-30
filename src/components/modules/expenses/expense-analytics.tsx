@@ -23,7 +23,7 @@ import {
   Banknote,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { EXPENSES, TRIPS, VEHICLES } from "@/lib/mock-data";
+import type { Expense, Trip, Vehicle } from "@/lib/types";
 import {
   Select,
   SelectContent,
@@ -52,11 +52,20 @@ const DATE_PRESETS: { id: DateRangePreset; label: string; days: number }[] = [
 ];
 
 interface AnalyticsProps {
+  expenses: Expense[];
   onBack: () => void;
 }
 
-export function ExpenseAnalytics({ onBack }: AnalyticsProps) {
+export function ExpenseAnalytics({ expenses, onBack }: AnalyticsProps) {
   const [datePreset, setDatePreset] = useState<DateRangePreset>("90d");
+  const [trips, setTrips] = useState<Trip[]>([]);
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+
+  // Fetch reference data for labels/context
+  useMemo(() => {
+    fetch("/api/trips").then(r => r.ok ? r.json() : { trips: [] }).then(d => setTrips(d.trips ?? [])).catch(() => {});
+    fetch("/api/vehicles").then(r => r.ok ? r.json() : { vehicles: [] }).then(d => setVehicles(d.vehicles ?? [])).catch(() => {});
+  }, []);
 
   // ===== Filter expenses by date =====
   const filtered = useMemo(() => {
@@ -66,13 +75,13 @@ export function ExpenseAnalytics({ onBack }: AnalyticsProps) {
       datePreset === "ytd"
         ? new Date(new Date().getFullYear(), 0, 1).getTime()
         : 0;
-    return EXPENSES.filter((e) => {
+    return expenses.filter((e) => {
       const t = new Date(e.date).getTime();
       if (cutoff > 0 && t < cutoff) return false;
       if (ytdCutoff > 0 && t < ytdCutoff) return false;
       return true;
     });
-  }, [datePreset]);
+  }, [expenses, datePreset]);
 
   // ===== Cost by Category (bar chart) =====
   const costByCategory = useMemo(() => {
@@ -101,10 +110,10 @@ export function ExpenseAnalytics({ onBack }: AnalyticsProps) {
         vehicle,
         amount: v.amount,
         count: v.count,
-        plate: VEHICLES.find((veh) => veh.name === vehicle)?.licensePlate || "",
+        plate: vehicles.find((veh) => veh.name === vehicle)?.licensePlate || "",
       }))
       .sort((a, b) => b.amount - a.amount);
-  }, [filtered]);
+  }, [filtered, vehicles]);
 
   // ===== Cost by Trip (table) =====
   const costByTrip = useMemo(() => {
@@ -118,7 +127,7 @@ export function ExpenseAnalytics({ onBack }: AnalyticsProps) {
     });
     return Array.from(map.entries())
       .map(([tripId, v]) => {
-        const t = TRIPS.find((x) => x.tripId === tripId);
+        const t = trips.find((x) => x.tripId === tripId);
         return {
           tripId,
           amount: v.amount,
@@ -130,7 +139,7 @@ export function ExpenseAnalytics({ onBack }: AnalyticsProps) {
       })
       .sort((a, b) => b.amount - a.amount)
       .slice(0, 8);
-  }, [filtered]);
+  }, [filtered, trips]);
 
   // ===== Cost per KM trend (line chart, monthly) =====
   const cpkTrend = useMemo(() => {

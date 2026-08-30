@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { InfoRow } from "@/components/shared/detail-layout";
 import { SectionCard } from "@/components/shared/section-card";
 import { Btn } from "@/components/shared/btn";
@@ -8,7 +8,6 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { SavageInput, SavageTextarea } from "@/components/shared/savage-input";
 import { DataTable, type Column } from "@/components/shared/data-table";
 import { useAppStore } from "@/lib/store/app-store";
-import { VEHICLES } from "@/lib/mock-data";
 import type { Driver } from "@/lib/types";
 import { Car, Plus, ArrowUpRight, Calendar, ArrowRightLeft } from "lucide-react";
 import { toast } from "sonner";
@@ -24,9 +23,18 @@ export function DriverVehicleAssignmentTab({ driver }: { driver: Driver }) {
   const { navigateDetail } = useAppStore();
   const [dialogOpen, setDialogOpen] = useState(false);
 
+  const [vehicles, setVehicles] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetch("/api/vehicles")
+      .then((r) => r.ok ? r.json() : { vehicles: [] })
+      .then((data) => setVehicles(data.vehicles ?? []))
+      .catch(() => {});
+  }, []);
+
   const currentVehicle = useMemo(
-    () => VEHICLES.find((v) => v.name === driver.assignedVehicle),
-    [driver.assignedVehicle],
+    () => vehicles.find((v) => v.name === driver.assignedVehicle),
+    [vehicles, driver.assignedVehicle],
   );
 
   const history = useMemo(

@@ -4,7 +4,6 @@ import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { SavageInput } from "@/components/shared/savage-input";
 import { Autocomplete, type AutocompleteOption } from "@/components/shared/autocomplete";
-import { VEHICLES, DRIVERS, TRIPS } from "@/lib/mock-data";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
@@ -67,23 +66,39 @@ export function TripPlanningDrawer({ open, onClose }: TripPlanningDrawerProps) {
   const [step, setStep] = useState(1);
   const [form, setForm] = useState<TripPlanForm>(EMPTY_TRIP_PLAN);
 
+  const [vehicles, setVehicles] = useState<any[]>([]);
+  const [drivers, setDrivers] = useState<any[]>([]);
+  const [trips, setTrips] = useState<any[]>([]);
+
+  useEffect(() => {
+    Promise.all([
+      fetch("/api/vehicles").then((r) => (r.ok ? r.json() : { vehicles: [] })),
+      fetch("/api/drivers").then((r) => (r.ok ? r.json() : { drivers: [] })),
+      fetch("/api/trips").then((r) => (r.ok ? r.json() : { trips: [] })),
+    ]).then(([veh, drv, trp]) => {
+      setVehicles(veh.vehicles ?? []);
+      setDrivers(drv.drivers ?? []);
+      setTrips(trp.trips ?? []);
+    });
+  }, []);
+
   const update = <K extends keyof TripPlanForm>(k: K, v: TripPlanForm[K]) =>
     setForm((s) => ({ ...s, [k]: v }));
 
   // ===== Vehicle autocomplete options =====
   const vehicleOptions: AutocompleteOption[] = useMemo(
-    () => VEHICLES.map((v) => ({ value: v.licensePlate, label: v.licensePlate, hint: `${v.make} ${v.model} · ${v.type}` })),
-    [],
+    () => vehicles.map((v) => ({ value: v.licensePlate, label: v.licensePlate, hint: `${v.make} ${v.model} · ${v.type}` })),
+    [vehicles],
   );
 
   const driverOptions: AutocompleteOption[] = useMemo(
-    () => DRIVERS.filter((d) => d.role === "Driver").map((d) => ({ value: d.name, label: d.name, hint: `${d.city} · ★ ${d.rating.toFixed(1)}` })),
-    [],
+    () => drivers.filter((d) => d.role === "Driver" || d.role === "driver").map((d) => ({ value: d.name, label: d.name, hint: `${d.city || ''} · ★ ${(d.rating || 0).toFixed(1)}` })),
+    [drivers],
   );
 
   const tripOptions: AutocompleteOption[] = useMemo(
-    () => TRIPS.filter((t) => t.status === "Active" || t.status === "In Transit" || t.status === "Planned").map((t) => ({ value: t.tripId, label: t.tripId, hint: `${t.origin} → ${t.destination}` })),
-    [],
+    () => trips.filter((t) => t.status === "Active" || t.status === "In Transit" || t.status === "Planned").map((t) => ({ value: t.tripId, label: t.tripId, hint: `${t.origin} → ${t.destination}` })),
+    [trips],
   );
 
   // ===== Validation per step =====

@@ -4,8 +4,7 @@ import { DetailLayout, InfoRow, InfoSection, StatCard } from "@/components/share
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { useAppStore } from "@/lib/store/app-store";
-import { VEHICLES, VENDORS, ISSUES } from "@/lib/mock-data";
-import type { WorkOrder } from "@/lib/types";
+import type { WorkOrder, Vehicle, Vendor, Issue } from "@/lib/types";
 import {
   Pencil,
   Wrench,
@@ -56,10 +55,13 @@ const ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
 interface WorkOrderDetailProps {
   workOrderId: string;
   workOrders: WorkOrder[];
+  vehicles: Vehicle[];
+  vendors: Vendor[];
+  issues: Issue[];
   onUpdate: (id: string, data: Partial<WorkOrder>) => Promise<boolean>;
 }
 
-export function WorkOrderDetail({ workOrderId, workOrders, onUpdate: onUpdateReal }: WorkOrderDetailProps) {
+export function WorkOrderDetail({ workOrderId, workOrders, vehicles, vendors, issues, onUpdate }: WorkOrderDetailProps) {
   const { navigate, navigateDetail } = useAppStore();
   const [activeTab, setActiveTab] = useState("overview");
   const record = workOrders.find((w) => w.workOrderId === workOrderId);
@@ -68,7 +70,7 @@ export function WorkOrderDetail({ workOrderId, workOrders, onUpdate: onUpdateRea
   const wo = record;
 
   const handleUpdate = (id: string, data: Partial<WorkOrder>) => {
-    onUpdateReal(id, data);
+    onUpdate(id, data);
   };
 
   // Deterministic parts consumed (3-5 parts)
@@ -87,8 +89,8 @@ export function WorkOrderDetail({ workOrderId, workOrders, onUpdate: onUpdateRea
   // Linked issues - vehicle-based
   const linkedIssues = useMemo(() => {
     if (!wo) return [];
-    return ISSUES.filter((i) => i.vehicle === wo.vehicle).slice(0, 5);
-  }, [wo]);
+    return issues.filter((i) => i.vehicle === wo.vehicle).slice(0, 5);
+  }, [wo, issues]);
 
   // Tech notes
   const techNotes = useMemo(() => {
@@ -113,8 +115,8 @@ export function WorkOrderDetail({ workOrderId, workOrders, onUpdate: onUpdateRea
     );
   }
 
-  const vehicle = VEHICLES.find((v) => v.name === wo.vehicle);
-  const vendor = VENDORS.find((v) => v.companyName === wo.vendor);
+  const vehicle = vehicles.find((v) => v.name === wo.vehicle);
+  const vendor = vendors.find((v) => v.companyName === wo.vendor);
   const activity = buildWoActivity(wo);
 
   // Cost summary

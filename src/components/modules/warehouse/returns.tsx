@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { DataTable, type Column } from "@/components/shared/data-table";
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -58,6 +58,7 @@ import {
   SKUS,
   FieldLabel,
 } from "./_helpers";
+import { useWarehouseStore } from "@/lib/store/warehouse-store";
 
 const CUSTOMERS = [
   "Shree Construction",
@@ -71,7 +72,12 @@ const CUSTOMERS = [
 ];
 
 export function WarehouseReturns() {
-  const [rows, setRows] = useState<Rma[]>(RMAS);
+  const { returns: rows, loading, fetchReturns, createReturn, updateReturn } = useWarehouseStore();
+  
+  useEffect(() => {
+    fetchReturns();
+  }, [fetchReturns]);
+
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<Set<string>>(new Set());
   const [reasonFilter, setReasonFilter] = useState<string>("");
@@ -222,40 +228,58 @@ export function WarehouseReturns() {
     { label: "View", onClick: (s: Rma) => setView(s) },
     {
       label: "Approve RMA",
-      onClick: (s: Rma) => {
-        setRows((prev) => prev.map((r) => (r.id === s.id ? { ...r, status: "Approved" as RmaStatus } : r)));
-        toast.success(`RMA approved`, { description: s.rmaId });
+      onClick: async (s: Rma) => {
+        try {
+          await updateReturn(s.id, { status: "Approved" });
+          toast.success(`RMA approved`, { description: s.rmaId });
+        } catch (e) {
+          toast.error("Failed to approve RMA");
+        }
       },
     },
     {
       label: "Mark Inbound",
-      onClick: (s: Rma) => {
-        setRows((prev) => prev.map((r) => (r.id === s.id ? { ...r, status: "Inbound" as RmaStatus } : r)));
-        toast(`RMA received at warehouse`, { description: s.rmaId });
+      onClick: async (s: Rma) => {
+        try {
+          await updateReturn(s.id, { status: "Inbound" });
+          toast(`RMA received at warehouse`, { description: s.rmaId });
+        } catch (e) {
+          toast.error("Failed to mark inbound");
+        }
       },
     },
     {
       label: "Mark Inspected",
-      onClick: (s: Rma) => {
-        setRows((prev) =>
-          prev.map((r) => (r.id === s.id ? { ...r, status: "Inspected" as RmaStatus, inspectedDate: new Date().toISOString(), inspectedBy: "Manjeet Singh" } : r)),
-        );
-        toast.success(`Inspection complete`, { description: s.rmaId });
+      onClick: async (s: Rma) => {
+        try {
+          await updateReturn(s.id, { status: "Inspected", inspectedDate: new Date().toISOString(), inspectedBy: "Manjeet Singh" });
+          toast.success(`Inspection complete`, { description: s.rmaId });
+        } catch (e) {
+          toast.error("Failed to mark inspected");
+        }
       },
     },
     {
       label: "Set Disposition",
-      onClick: (s: Rma) => {
+      onClick: async (s: Rma) => {
         const next = (["Restock", "Scrap", "Refurbish", "Return to Vendor"][s.id.length % 4] as RmaDisposition);
-        setRows((prev) => prev.map((r) => (r.id === s.id ? { ...r, status: "Dispositioned" as RmaStatus, disposition: next } : r)));
-        toast(`Disposition: ${next}`, { description: s.rmaId });
+        try {
+          await updateReturn(s.id, { status: "Dispositioned", disposition: next });
+          toast(`Disposition: ${next}`, { description: s.rmaId });
+        } catch (e) {
+          toast.error("Failed to set disposition");
+        }
       },
     },
     {
       label: "Close RMA",
-      onClick: (s: Rma) => {
-        setRows((prev) => prev.map((r) => (r.id === s.id ? { ...r, status: "Closed" as RmaStatus } : r)));
-        toast.success(`RMA closed`, { description: s.rmaId });
+      onClick: async (s: Rma) => {
+        try {
+          await updateReturn(s.id, { status: "Closed" });
+          toast.success(`RMA closed`, { description: s.rmaId });
+        } catch (e) {
+          toast.error("Failed to close RMA");
+        }
       },
     },
   ];
@@ -280,28 +304,27 @@ export function WarehouseReturns() {
         ? Array.from(statusFilter)[0]
         : `${statusFilter.size} selected`;
 
-  const handleCreate = (data: Partial<Rma>) => {
-    const newRma: Rma = {
-      id: `rma-${String(rows.length + 1).padStart(3, "0")}`,
-      rmaId: `RMA-${String(9101 + rows.length).padStart(4, "0")}`,
-      customer: data.customer ?? CUSTOMERS[0],
-      originalOrder: data.originalOrder ?? `SO-${String(24700 + rows.length * 2).padStart(5, "0")}`,
-      skuCode: data.skuCode ?? SKUS[0].skuCode,
-      skuName: data.skuName ?? SKUS[0].name,
-      qty: Number(data.qty) || 1,
-      unit: data.unit ?? "Bag",
-      reason: (data.reason ?? "Damaged") as RmaReason,
-      status: "Requested",
-      disposition: undefined,
-      unitValue: data.unitValue ?? SKUS[0].unitCost,
-      requestedDate: new Date().toISOString(),
-      inspectedDate: undefined,
-      inspectedBy: undefined,
-      remarks: data.remarks,
-    };
-    setRows((prev) => [newRma, ...prev]);
-    toast.success(`RMA created`, { description: newRma.rmaId });
-    setAddOpen(false);
+  const handleCreate = async (data: Partial<Rma>) => {
+    try {
+      const newRma = await createReturn({
+        rmaId: `RMA-${String(9101 + rows.length).padStart(4, "0")}`,
+        customer: data.customer ?? CUSTOMERS[0],
+        originalOrder: data.originalOrder ?? `SO-${String(24700 + rows.length * 2).padStart(5, "0")}`,
+        skuCode: data.skuCode ?? SKUS[0].skuCode,
+        skuName: data.skuName ?? SKUS[0].name,
+        qty: Number(data.qty) || 1,
+        unit: data.unit ?? "Bag",
+        reason: (data.reason ?? "Damaged") as RmaReason,
+        status: "Requested",
+        unitValue: data.unitValue ?? SKUS[0].unitCost,
+        requestedDate: new Date().toISOString(),
+        remarks: data.remarks,
+      });
+      toast.success(`RMA created`, { description: newRma.rmaId });
+      setAddOpen(false);
+    } catch (e) {
+      toast.error("Failed to create RMA");
+    }
   };
 
   return (
@@ -411,9 +434,9 @@ export function WarehouseReturns() {
           onRowClick={(s) => setView(s)}
           rowActions={rowActions}
           bulkActions={bulkActions}
-          emptyTitle="No RMAs found"
           emptyDescription="Create a new RMA to authorize a customer return."
           initialSort={{ key: "rmaId", dir: "desc" }}
+          isLoading={loading}
         />
       </div>
 

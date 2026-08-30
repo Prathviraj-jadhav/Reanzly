@@ -9,7 +9,6 @@ import {
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { useAppStore } from "@/lib/store/app-store";
-import { INVOICES, CUSTOMERS, PAYMENTS } from "@/lib/mock-data";
 import type { Invoice, Customer, Payment } from "@/lib/types";
 import { EditInvoiceDrawer } from "./edit-invoice-drawer";
 import {
@@ -93,14 +92,23 @@ export function InvoiceDetail({
   const [activeTab, setActiveTab] = useState("invoice");
   const [editOpen, setEditOpen] = useState(false);
 
+  const [customers, setCustomers] = useState<Customer[]>([]);
+
+  useEffect(() => {
+    fetch("/api/customers")
+      .then((r) => (r.ok ? r.json() : { customers: [] }))
+      .then((data) => setCustomers(data.customers ?? []))
+      .catch(() => {});
+  }, []);
+
   const invoice = useMemo(
-    () => (invoices ?? INVOICES).find((i) => i.invoiceNumber === invoiceNumber),
+    () => (invoices ?? []).find((i) => i.invoiceNumber === invoiceNumber),
     [invoices, invoiceNumber],
   );
 
   const customer = useMemo(
-    () => CUSTOMERS.find((c) => c.companyName === invoice?.customer),
-    [invoice],
+    () => customers.find((c) => c.companyName === invoice?.customer),
+    [customers, invoice],
   );
 
   if (!invoice) {
@@ -762,10 +770,19 @@ function InvoiceViewTab({
 
 // ===== Payment History Tab =====
 function PaymentHistoryTab({ invoice }: { invoice: Invoice }) {
+  const [fetchedPayments, setFetchedPayments] = useState<Payment[]>([]);
+
+  useEffect(() => {
+    fetch("/api/payments")
+      .then((r) => (r.ok ? r.json() : { payments: [] }))
+      .then((data) => setFetchedPayments(data.payments ?? []))
+      .catch(() => {});
+  }, []);
+
   // Filter payments linked to this invoice, plus add a few deterministic ones
   const seed = parseInt(invoice.id.replace(/\D/g, "")) || 1;
   const payments = useMemo(() => {
-    const linked = PAYMENTS.filter(
+    const linked = fetchedPayments.filter(
       (p) => p.linkedInvoice === invoice.invoiceNumber,
     );
     // Add a deterministic partial payment if Partially Paid
@@ -791,7 +808,7 @@ function PaymentHistoryTab({ invoice }: { invoice: Invoice }) {
     return linked.sort(
       (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
     );
-  }, [invoice, seed]);
+  }, [fetchedPayments, invoice, seed]);
 
   const totalReceived = payments
     .filter((p) => p.status === "Completed" || p.status === "Approved")

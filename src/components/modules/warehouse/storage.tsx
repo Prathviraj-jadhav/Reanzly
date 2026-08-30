@@ -39,21 +39,26 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  STORAGE_LOCATIONS,
   STORAGE_TYPES,
-  type StorageLocation,
   type StorageType,
   formatDate,
   utilisationMeta,
   FieldLabel,
 } from "./_helpers";
+import { useWarehouseStore } from "@/lib/store/warehouse-store";
+import { useEffect } from "react";
 
 export function WarehouseStorage() {
-  const [rows, setRows] = useState<StorageLocation[]>(STORAGE_LOCATIONS);
+  const { locations: rows, fetchLocations, createLocation } = useWarehouseStore();
+
+  useEffect(() => {
+    fetchLocations();
+  }, [fetchLocations]);
+
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<Set<string>>(new Set());
   const [addOpen, setAddOpen] = useState(false);
-  const [view, setView] = useState<StorageLocation | null>(null);
+  const [view, setView] = useState<any | null>(null);
 
   const filtered = useMemo(() => {
     let r = rows;
@@ -84,7 +89,7 @@ export function WarehouseStorage() {
   const utilisation = totalCap === 0 ? 0 : Math.round((totalOcc / totalCap) * 100);
   const totalArea = rows.reduce((s, l) => s + l.area, 0);
 
-  const columns: Column<StorageLocation>[] = [
+  const columns: Column<any>[] = [
     {
       key: "code",
       header: "Code",
@@ -177,12 +182,12 @@ export function WarehouseStorage() {
   ];
 
   const rowActions = [
-    { label: "View", onClick: (s: StorageLocation) => setView(s) },
-    { label: "Stocktake", onClick: (s: StorageLocation) => toast.success(`Stocktake started`, { description: s.code }) },
+    { label: "View", onClick: (s: any) => setView(s) },
+    { label: "Stocktake", onClick: (s: any) => toast.success(`Stocktake started`, { description: s.code }) },
   ];
 
   const bulkActions = [
-    { label: "Export", onClick: (sel: StorageLocation[]) => toast(`${sel.length} location${sel.length === 1 ? "" : "s"} exported`, { description: "CSV file generated" }) },
+    { label: "Export", onClick: (sel: any[]) => toast(`${sel.length} location${sel.length === 1 ? "" : "s"} exported`, { description: "CSV file generated" }) },
   ];
 
   const typeLabel = typeFilter.size === 0 ? "All" : typeFilter.size === 1 ? Array.from(typeFilter)[0] : `${typeFilter.size} selected`;
@@ -275,22 +280,24 @@ export function WarehouseStorage() {
         />
       </div>
 
-      <StorageDrawer open={addOpen} onClose={() => setAddOpen(false)} onSave={(d) => {
-        const newRec: StorageLocation = {
-          id: `loc-${String(rows.length + 1).padStart(2, "0")}`,
-          code: `RZ-NEW-${String(rows.length + 1).padStart(2, "0")}`,
-          name: d.name ?? "",
-          type: (d.type ?? "Covered Shed") as StorageType,
-          godown: d.godown ?? "Bhiwandi Godown A",
-          capacityPallets: d.capacityPallets ?? 60,
-          occupiedPallets: 0,
-          manager: d.manager ?? "Balwinder Sandhu",
-          area: (d.capacityPallets ?? 60) * 12,
-          lastStocktake: undefined,
-        };
-        setRows((prev) => [newRec, ...prev]);
-        toast.success(`Storage location created`, { description: newRec.code });
-        setAddOpen(false);
+      <StorageDrawer open={addOpen} onClose={() => setAddOpen(false)} onSave={async (d) => {
+        try {
+          const newRec = {
+            code: `RZ-NEW-${String(rows.length + 1).padStart(2, "0")}`,
+            name: d.name ?? "",
+            type: (d.type ?? "Covered Shed"),
+            godown: d.godown ?? "Bhiwandi Godown A",
+            capacityPallets: d.capacityPallets ?? 60,
+            occupiedPallets: 0,
+            manager: d.manager ?? "Balwinder Sandhu",
+            area: (d.capacityPallets ?? 60) * 12,
+          };
+          await createLocation(newRec);
+          toast.success(`Storage location created`, { description: newRec.code });
+          setAddOpen(false);
+        } catch (e) {
+          toast.error("Failed to create location");
+        }
       }} />
 
       <StorageDetailDrawer open={!!view} record={view} onClose={() => setView(null)} />
@@ -305,7 +312,7 @@ function StorageDrawer({
 }: {
   open: boolean;
   onClose: () => void;
-  onSave: (d: Partial<StorageLocation>) => void;
+  onSave: (d: any) => void;
 }) {
   const [name, setName] = useState("");
   const [type, setType] = useState<StorageType>("Covered Shed");
@@ -401,7 +408,7 @@ function StorageDetailDrawer({
   onClose,
 }: {
   open: boolean;
-  record: StorageLocation | null;
+  record: any | null;
   onClose: () => void;
 }) {
   if (!record) return null;

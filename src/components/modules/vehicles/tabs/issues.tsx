@@ -1,19 +1,27 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { SectionCard } from "@/components/shared/section-card";
 import { DataTable, type Column } from "@/components/shared/data-table";
 import { StatusBadge, issueSeverityBadge } from "@/components/shared/status-badge";
 import { StatCard } from "@/components/shared/detail-layout";
-import { ISSUES } from "@/lib/mock-data";
 import type { Vehicle, Issue } from "@/lib/types";
 import { AlertTriangle, AlertOctagon, CheckCircle2, Flag } from "lucide-react";
 import { formatDate, vehicleSeed } from "../_helpers";
 
 export function VehicleIssuesTab({ vehicle }: { vehicle: Vehicle }) {
+  const [issues, setIssues] = useState<Issue[]>([]);
+
+  useEffect(() => {
+    fetch("/api/issues")
+      .then((r) => (r.ok ? r.json() : { issues: [] }))
+      .then((data) => setIssues(data.issues ?? []))
+      .catch(() => {});
+  }, []);
+
   const direct = useMemo(
-    () => ISSUES.filter((i: Issue) => i.vehicle === vehicle.name),
-    [vehicle.name],
+    () => issues.filter((i: Issue) => i.vehicle === vehicle.name),
+    [issues, vehicle.name],
   );
   const seed = vehicleSeed(vehicle.id);
   // Add deterministic seeded issues so every vehicle has *something*

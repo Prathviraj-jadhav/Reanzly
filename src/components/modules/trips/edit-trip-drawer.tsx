@@ -19,8 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { TRIPS, VEHICLES, DRIVERS } from "@/lib/mock-data";
-import type { Trip } from "@/lib/types";
+import type { Trip, Vehicle, Driver } from "@/lib/types";
 import { TRIP_STATUSES, PAYMENT_STATUSES } from "./_helpers";
 
 /**
@@ -66,29 +65,23 @@ function fromTrip(t: Trip): EditForm {
   };
 }
 
-function toPatch(form: EditForm): Partial<Trip> {
-  const driver = DRIVERS.find((d) => d.id === form.driverId);
-  const vehicle = VEHICLES.find((v) => v.id === form.vehicleId);
-  return {
-    status: form.status,
-    freightAmount: Number(form.freightAmount) || 0,
-    paymentStatus: form.paymentStatus,
-    expectedDelivery: form.expectedDelivery
-      ? new Date(form.expectedDelivery).toISOString()
-      : new Date().toISOString(),
-    driverId: form.driverId,
-    driverName: driver?.name ?? "",
-    vehicleId: form.vehicleId,
-    vehicleName: vehicle?.name ?? "",
-    eWayBill: form.eWayBill.trim() || undefined,
-    distanceKm: Number(form.distanceKm) || 0,
-  };
-}
-
 export function EditTripDrawer({ open, onClose, trip, onUpdate }: EditTripDrawerProps) {
   const [form, setForm] = useState<EditForm>(() =>
     trip ? fromTrip(trip) : fromTrip(EMPTY_TRIP),
   );
+
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [drivers, setDrivers] = useState<Driver[]>([]);
+
+  useEffect(() => {
+    Promise.all([
+      fetch("/api/vehicles").then((r) => (r.ok ? r.json() : { vehicles: [] })),
+      fetch("/api/drivers").then((r) => (r.ok ? r.json() : { drivers: [] })),
+    ]).then(([veh, drv]) => {
+      setVehicles(veh.vehicles ?? []);
+      setDrivers(drv.drivers ?? []);
+    });
+  }, []);
 
   // Pre-fill the form whenever the drawer opens (with a record) or the
   // underlying record changes. Legitimate form-reset-on-open pattern.
@@ -100,8 +93,27 @@ export function EditTripDrawer({ open, onClose, trip, onUpdate }: EditTripDrawer
     }
   }, [open, trip?.id, trip]);
 
-  const driverOptions = useMemo(() => DRIVERS, []);
-  const vehicleOptions = useMemo(() => VEHICLES, []);
+  const driverOptions = useMemo(() => drivers, [drivers]);
+  const vehicleOptions = useMemo(() => vehicles, [vehicles]);
+
+  const toPatch = (form: EditForm): Partial<Trip> => {
+    const driver = drivers.find((d) => d.id === form.driverId);
+    const vehicle = vehicles.find((v) => v.id === form.vehicleId);
+    return {
+      status: form.status,
+      freightAmount: Number(form.freightAmount) || 0,
+      paymentStatus: form.paymentStatus,
+      expectedDelivery: form.expectedDelivery
+        ? new Date(form.expectedDelivery).toISOString()
+        : new Date().toISOString(),
+      driverId: form.driverId,
+      driverName: driver?.name ?? "",
+      vehicleId: form.vehicleId,
+      vehicleName: vehicle?.name ?? "",
+      eWayBill: form.eWayBill.trim() || undefined,
+      distanceKm: Number(form.distanceKm) || 0,
+    };
+  };
 
   const update = <K extends keyof EditForm>(k: K, v: EditForm[K]) =>
     setForm((s) => ({ ...s, [k]: v }));
@@ -301,4 +313,3 @@ function Label({ children }: { children: React.ReactNode }) {
   );
 }
 
-const EMPTY_TRIP: Trip = TRIPS[0];

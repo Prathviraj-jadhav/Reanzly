@@ -1,179 +1,115 @@
 "use client";
 
-import { useState } from "react";
+import Image from "next/image";
+import { useState, useEffect } from "react";
+import { Menu, X } from "lucide-react";
 import { useAppStore } from "@/lib/store/app-store";
-import { NAV_LINKS, COMPANY } from "./_data";
-import { cn } from "@/lib/utils";
-import {
-  Sheet,
-  SheetContent,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
-import { Menu } from "lucide-react";
-
-/**
- * MarketingNav - sticky top navigation for the company landing site.
- *
- * Monochrome Swiss aesthetic: backdrop-blur over page background, hairline
- * bottom border, generous whitespace. Desktop shows the RZ wordmark on the
- * left, 7 anchor nav links in the centre, and "Sign in" + "Get in Touch"
- * CTAs on the right. Mobile collapses to a hamburger that opens a Sheet with
- * the same links + CTAs.
- *
- * "Sign in" flips marketingView to "auth" + authMode to "signin" (AppShell
- * then renders LoginScreen). "Get in Touch" smooth-scrolls to #contact.
- */
-
-function scrollToId(id: string) {
-  if (typeof document === "undefined") return;
-  const el = document.getElementById(id);
-  if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-}
 
 export function MarketingNav() {
-  const setMarketingView = useAppStore((s) => s.setMarketingView);
-  const setAuthMode = useAppStore((s) => s.setAuthMode);
+  const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const setAuthMode = useAppStore((s) => s.setAuthMode);
+  const setMarketingView = useAppStore((s) => s.setMarketingView);
 
-  function goSignIn() {
-    setAuthMode("signin");
-    setMarketingView("auth");
-  }
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 20);
+    window.addEventListener("scroll", onScroll);
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
-  function goMarketplace() {
-    setMarketingView("marketplace");
-  }
+  const links = [
+    { label: "Product", href: "#product" },
+    { label: "Solutions", href: "#solutions" },
+    { label: "Enterprise", href: "#enterprise" },
+    { label: "Pricing", href: "#pricing" },
+  ];
 
-  function goContact() {
-    setMobileOpen(false);
-    scrollToId("contact");
-  }
+  function openSignup() { setAuthMode("signup"); setMarketingView("auth"); }
+  function openLogin() { setAuthMode("login"); setMarketingView("auth"); }
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-border bg-background/80 backdrop-blur-md">
-      <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-        {/* Wordmark */}
-        <button
-          type="button"
-          onClick={() => scrollToId("home")}
-          className="flex items-center gap-2 rounded-[4px] outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-          aria-label={`${COMPANY.name} home`}
-        >
-          <span className="flex h-7 w-7 items-center justify-center rounded-[4px] bg-foreground text-[11px] font-bold text-background">
-            RZ
-          </span>
-          <span className="text-[15px] font-semibold tracking-tight text-foreground">
-            {COMPANY.name}
-          </span>
-        </button>
+    <>
+      <nav
+        className={`fixed top-0 z-50 w-full transition-all duration-200 ${
+          scrolled ? "border-b border-[#ededed] bg-transparent backdrop-blur-sm" : "bg-transparent"
+        }`}
+      >
+        <div className="mx-auto flex h-[60px] max-w-[1280px] items-center justify-between px-6">
 
-        {/* Desktop nav links */}
-        <nav className="hidden items-center gap-0.5 lg:flex">
-          {NAV_LINKS.map((link) => (
-            <a
-              key={link.label}
-              href={link.href}
-              className="rounded-[4px] px-3 py-1.5 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-            >
-              {link.label}
-            </a>
-          ))}
+          {/* Logo */}
           <button
-            type="button"
-            onClick={goMarketplace}
-            className="tap ml-1 inline-flex items-center gap-1 rounded-[4px] border border-border px-2.5 py-1 text-[13px] font-medium text-foreground transition-colors hover:bg-accent"
+            onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+            className="flex items-center gap-2"
           >
-            Marketplace
+            <div className="flex h-8 w-8 items-center justify-center rounded-[6px] bg-[#09110D]">
+              <Image src="/logo.png" alt="Reanzly" width={24} height={24} className="h-6 w-6 object-contain" />
+            </div>
+            <span className="text-[17px] font-[500] tracking-[-0.3px] text-[#171717]">Reanzly</span>
           </button>
-        </nav>
 
-        {/* Desktop CTAs */}
-        <div className="hidden items-center gap-2 lg:flex">
-          <button
-            type="button"
-            onClick={goSignIn}
-            className="h-9 rounded-[6px] px-3 text-[13px] font-medium text-foreground transition-colors hover:bg-accent"
-          >
-            Sign in
-          </button>
-          <button
-            type="button"
-            onClick={goContact}
-            className="tap flex h-9 items-center rounded-[6px] bg-foreground px-4 text-[13px] font-medium uppercase tracking-wider text-background transition-colors hover:bg-foreground/90"
-          >
-            Get in Touch
+          {/* Desktop links */}
+          <div className="hidden md:flex items-center gap-7">
+            {links.map((l) => (
+              <a key={l.label} href={l.href}
+                className="text-[14px] font-[400] text-[#707070] transition-colors hover:text-[#171717]">
+                {l.label}
+              </a>
+            ))}
+          </div>
+
+          {/* Desktop CTAs */}
+          <div className="hidden md:flex items-center gap-2">
+            <button onClick={openLogin}
+              className="h-9 rounded-[6px] px-4 text-[14px] font-[500] text-[#171717] transition-colors hover:bg-[#fafafa]">
+              Sign in
+            </button>
+            <button onClick={openSignup}
+              className="h-9 rounded-[6px] bg-white px-4 text-[14px] font-[500] text-black transition-all hover:bg-gray-200">
+              Start for free
+            </button>
+          </div>
+
+          {/* Mobile hamburger */}
+          <button className="md:hidden text-[#707070] hover:text-[#171717]" onClick={() => setMobileOpen(true)}>
+            <Menu className="h-5 w-5" />
           </button>
         </div>
+      </nav>
 
-        {/* Mobile hamburger */}
-        <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-          <SheetTrigger asChild>
-            <button
-              type="button"
-              className="tap flex h-9 w-9 items-center justify-center rounded-[6px] border border-border text-foreground lg:hidden"
-              aria-label="Open menu"
-            >
-              <Menu className="h-4 w-4" />
+      {/* Mobile drawer */}
+      {mobileOpen && (
+        <div className="fixed inset-0 z-[60] flex flex-col bg-white px-6 py-5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-[6px] bg-[#09110D]">
+                <Image src="/logo.png" alt="Reanzly" width={24} height={24} className="h-6 w-6 object-contain" />
+              </div>
+              <span className="text-[17px] font-[500] text-[#171717]">Reanzly</span>
+            </div>
+            <button className="text-[#707070] hover:text-[#171717]" onClick={() => setMobileOpen(false)}>
+              <X className="h-5 w-5" />
             </button>
-          </SheetTrigger>
-          <SheetContent side="right" className="w-[300px] border-border p-0">
-            <SheetTitle className="sr-only">Navigation menu</SheetTitle>
-            <div className="flex h-16 items-center gap-2 border-b border-border px-4">
-              <span className="flex h-7 w-7 items-center justify-center rounded-[4px] bg-foreground text-[11px] font-bold text-background">
-                RZ
-              </span>
-              <span className="text-[15px] font-semibold tracking-tight">
-                {COMPANY.name}
-              </span>
-            </div>
-            <nav className="flex flex-col gap-0.5 p-4">
-              {NAV_LINKS.map((link) => (
-                <a
-                  key={link.label}
-                  href={link.href}
-                  onClick={() => setMobileOpen(false)}
-                  className="rounded-[6px] px-3 py-2.5 text-[14px] font-medium text-foreground transition-colors hover:bg-accent"
-                >
-                  {link.label}
-                </a>
-              ))}
-              <button
-                type="button"
-                onClick={() => {
-                  setMobileOpen(false);
-                  goMarketplace();
-                }}
-                className="tap mt-1 flex items-center justify-between rounded-[6px] border border-border px-3 py-2.5 text-[14px] font-medium text-foreground transition-colors hover:bg-accent"
-              >
-                Marketplace
-                <span className="text-[11px] uppercase tracking-wider text-muted-foreground">Rent or list vehicles</span>
-              </button>
-            </nav>
-            <div className="mt-auto flex flex-col gap-2 border-t border-border p-4">
-              <button
-                type="button"
-                onClick={goContact}
-                className={cn(
-                  "tap flex h-11 items-center justify-center rounded-[6px] bg-foreground text-[13px] font-medium uppercase tracking-wider text-background transition-colors hover:bg-foreground/90",
-                )}
-              >
-                Get in Touch
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setMobileOpen(false);
-                  goSignIn();
-                }}
-                className="tap flex h-11 items-center justify-center rounded-[6px] border border-border text-[13px] font-medium text-foreground transition-colors hover:bg-accent"
-              >
-                Sign in
-              </button>
-            </div>
-          </SheetContent>
-        </Sheet>
-      </div>
-    </header>
+          </div>
+          <div className="mt-8 flex flex-col gap-5 border-b border-[#ededed] pb-8">
+            {links.map((l) => (
+              <a key={l.label} href={l.href} onClick={() => setMobileOpen(false)}
+                className="text-[22px] font-[500] text-[#171717]">
+                {l.label}
+              </a>
+            ))}
+          </div>
+          <div className="mt-6 flex flex-col gap-3">
+            <button onClick={() => { setMobileOpen(false); openLogin(); }}
+              className="h-11 w-full rounded-[6px] border border-[#dfdfdf] text-[14px] font-[500] text-[#171717]">
+              Sign in
+            </button>
+            <button onClick={() => { setMobileOpen(false); openSignup(); }}
+              className="h-11 w-full rounded-[6px] bg-white border border-[#dfdfdf] text-[14px] font-[500] text-black transition-all hover:bg-gray-100">
+              Start for free
+            </button>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

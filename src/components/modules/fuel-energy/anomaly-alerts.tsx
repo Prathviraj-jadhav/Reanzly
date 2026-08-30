@@ -14,27 +14,29 @@ import {
   Gauge,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { FUEL_ENTRIES, VEHICLES } from "@/lib/mock-data";
+import type { FuelEntry, Vehicle } from "@/lib/types";
 import { useAppStore } from "@/lib/store/app-store";
 import { formatDate, formatINR, formatNumber, relativeTime } from "./_helpers";
 
 interface AnomalyAlertsProps {
+  fuelEntries: FuelEntry[];
+  vehicles: Vehicle[];
   onBack: () => void;
 }
 
 const ANOMALY_TYPES = ["Overfill", "Mileage Gap", "Price Outlier", "Duplicate Entry", "Off-hours Refuel"];
 
-export function AnomalyAlerts({ onBack }: AnomalyAlertsProps) {
+export function AnomalyAlerts({ fuelEntries, vehicles, onBack }: AnomalyAlertsProps) {
   const { navigateDetail } = useAppStore();
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("");
 
   const anomalies = useMemo(() => {
-    return FUEL_ENTRIES.filter((f) => f.anomaly).map((f, i) => ({
+    return fuelEntries.filter((f) => f.anomaly).map((f, i) => ({
       ...f,
       anomalyType: ANOMALY_TYPES[i % ANOMALY_TYPES.length],
     }));
-  }, []);
+  }, [fuelEntries]);
 
   const filtered = useMemo(() => {
     let r = anomalies;
@@ -129,7 +131,7 @@ export function AnomalyAlerts({ onBack }: AnomalyAlertsProps) {
           </div>
         ) : (
           filtered.map((a) => {
-            const v = VEHICLES.find((x) => x.name === a.vehicle);
+            const v = vehicles.find((x) => x.name === a.vehicle);
             return (
               <div key={a.id} className="rounded-[6px] border border-foreground/30 bg-foreground/[0.03] p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">

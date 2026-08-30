@@ -1,7 +1,7 @@
 "use client";
 import { useState, useCallback, useEffect } from "react";
 import { useAppStore } from "@/lib/store/app-store";
-import type { Inspection } from "@/lib/types";
+import type { Inspection, Vehicle, Driver, Issue } from "@/lib/types";
 import { toast } from "sonner";
 import { InspectionList } from "./inspection-list";
 import { InspectionDetail } from "./inspection-detail";
@@ -14,13 +14,25 @@ export function InspectionModule() {
   // Real, database-backed inspections (src/app/api/inspections) -
   // previously useState(INSPECTIONS) seeded from mock-data.ts.
   const [inspections, setInspections] = useState<Inspection[]>([]);
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [drivers, setDrivers] = useState<Driver[]>([]);
+  const [issues, setIssues] = useState<Issue[]>([]);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    fetch("/api/inspections")
-      .then((r) => (r.ok ? r.json() : Promise.reject(r)))
-      .then(({ inspections }) => setInspections(inspections))
-      .catch(() => toast.error("Couldn't load inspections", { description: "Try reloading the page." }))
+    Promise.all([
+      fetch("/api/inspections").then((r) => (r.ok ? r.json() : { inspections: [] })),
+      fetch("/api/vehicles").then((r) => (r.ok ? r.json() : { vehicles: [] })),
+      fetch("/api/drivers").then((r) => (r.ok ? r.json() : { drivers: [] })),
+      fetch("/api/issues").then((r) => (r.ok ? r.json() : { issues: [] }))
+    ])
+      .then(([iData, vData, dData, isData]) => {
+        setInspections(iData.inspections ?? []);
+        setVehicles(vData.vehicles ?? []);
+        setDrivers(dData.drivers ?? []);
+        setIssues(isData.issues ?? []);
+      })
+      .catch(() => toast.error("Couldn't load inspection data", { description: "Try reloading the page." }))
       .finally(() => setLoaded(true));
   }, []);
 
@@ -62,13 +74,12 @@ export function InspectionModule() {
     return <div className="p-6 text-[13px] text-muted-foreground">Loading inspections…</div>;
   }
 
-  // Detail view
   if (
     activeView.module === "inspection" &&
     activeView.view === "detail" &&
     activeView.id
   ) {
-    return <InspectionDetail inspectionId={activeView.id} initialTab={activeView.tab} inspections={inspections} onUpdate={updateInspection} />;
+    return <InspectionDetail inspectionId={activeView.id} initialTab={activeView.tab} inspections={inspections} vehicles={vehicles} drivers={drivers} issues={issues} onUpdate={updateInspection} />;
   }
 
   // Drawer visibility
@@ -87,6 +98,8 @@ export function InspectionModule() {
       ) : (
         <InspectionList
           inspections={inspections}
+          vehicles={vehicles}
+          drivers={drivers}
           onCreate={() => navigate("inspection", "create")}
           onOpenFormBuilder={() => setShowFormBuilder(true)}
           onUpdate={updateInspection}

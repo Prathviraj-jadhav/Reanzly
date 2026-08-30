@@ -1,12 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { SectionCard } from "@/components/shared/section-card";
 import { DataTable, type Column } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Btn } from "@/components/shared/btn";
 import { SavageInput } from "@/components/shared/savage-input";
-import { EXPENSES } from "@/lib/mock-data";
 import type { Driver, Expense } from "@/lib/types";
 import { Banknote, Download, Filter } from "lucide-react";
 import { toast } from "sonner";
@@ -26,9 +25,17 @@ interface DriverExpenseRow {
 export function DriverExpensesTab({ driver }: { driver: Driver }) {
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+
+  useEffect(() => {
+    fetch("/api/expenses")
+      .then((r) => (r.ok ? r.json() : { expenses: [] }))
+      .then((data) => setExpenses(data.expenses ?? []))
+      .catch(() => {});
+  }, []);
 
   const rows: DriverExpenseRow[] = useMemo(() => {
-    return EXPENSES.filter((e: Expense) => e.submittedBy === driver.name)
+    return expenses.filter((e: Expense) => e.submittedBy === driver.name)
       .map((e, i) => ({
         id: e.id,
         date: e.date,
@@ -39,7 +46,7 @@ export function DriverExpensesTab({ driver }: { driver: Driver }) {
         receiptStatus: e.receiptStatus,
         status: (["Pending", "Approved", "Rejected"][i % 3]) as DriverExpenseRow["status"],
       }));
-  }, [driver.name]);
+  }, [expenses, driver.name]);
 
   const filtered = useMemo(() => {
     return rows.filter((r) => {

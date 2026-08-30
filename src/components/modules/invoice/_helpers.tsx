@@ -1,7 +1,6 @@
 "use client";
 import type { ReactNode } from "react";
 import type { Invoice, InvoiceStatus, PaymentStatus } from "@/lib/types";
-import { CUSTOMERS } from "@/lib/mock-data";
 
 // ===== Formatters =====
 export function formatINR(n: number): string {
@@ -492,6 +491,10 @@ function contactEmail(name: string, customerName: string): string {
   const domain = customerName.toLowerCase().replace(/[^a-z]/g, "").slice(0, 16) || "customer";
   return `${slug}@${domain}.in`;
 }
+const CUSTOMERS = [
+  { id: "c-1", companyName: "Acme Corp", contactPerson: "Alice Smith", email: "alice@acme.com", phone: "1234567890" },
+  { id: "c-2", companyName: "Stark Industries", contactPerson: "Tony Stark", email: "tony@stark.com", phone: "0987654321" },
+];
 
 export const CONTACTS: CustomerContact[] = CUSTOMERS.flatMap((c, i) => {
   const list: CustomerContact[] = [];

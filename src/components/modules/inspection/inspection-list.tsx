@@ -5,8 +5,7 @@ import { DataTable, type Column } from "@/components/shared/data-table";
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge, inspectionResultBadge } from "@/components/shared/status-badge";
 import { useAppStore } from "@/lib/store/app-store";
-import { VEHICLES, DRIVERS } from "@/lib/mock-data";
-import type { Inspection } from "@/lib/types";
+import type { Inspection, Vehicle, Driver } from "@/lib/types";
 import {
   Plus,
   Download,
@@ -40,6 +39,8 @@ import { AddInspectionDrawer } from "./add-inspection-drawer";
 
 interface InspectionListProps {
   inspections: Inspection[];
+  vehicles: Vehicle[];
+  drivers: Driver[];
   onCreate: () => void;
   onOpenFormBuilder: () => void;
   onUpdate?: (id: string, data: Partial<Inspection>) => Promise<boolean>;
@@ -53,7 +54,15 @@ const DATE_RANGE_PRESETS = [
   { id: "90d", label: "Last 90 days" },
 ];
 
-export function InspectionList({ inspections, onCreate, onOpenFormBuilder, onUpdate, onAdd }: InspectionListProps) {
+export function InspectionList({ 
+  inspections, 
+  vehicles, 
+  drivers, 
+  onCreate, 
+  onOpenFormBuilder, 
+  onUpdate, 
+  onAdd 
+}: InspectionListProps) {
   const { navigateDetail } = useAppStore();
   const [editing, setEditing] = useState<Inspection | null>(null);
   const [search, setSearch] = useState("");
@@ -151,7 +160,7 @@ export function InspectionList({ inspections, onCreate, onOpenFormBuilder, onUpd
       width: "180px",
       sortValue: (r) => r.vehicle,
       render: (r) => {
-        const v = VEHICLES.find((x) => x.name === r.vehicle);
+        const v = vehicles.find((x) => x.name === r.vehicle);
         return (
           <button
             onClick={(e) => {
@@ -174,7 +183,7 @@ export function InspectionList({ inspections, onCreate, onOpenFormBuilder, onUpd
       sortValue: (r) => r.driver || "",
       render: (r) => {
         if (!r.driver) return <span className="text-muted-foreground">-</span>;
-        const d = DRIVERS.find((x) => x.name === r.driver);
+        const d = drivers.find((x) => x.name === r.driver);
         return (
           <button
             onClick={(e) => {

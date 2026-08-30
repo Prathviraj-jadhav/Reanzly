@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { DataTable, type Column } from "@/components/shared/data-table";
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -39,9 +39,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  INBOUND_SHIPMENTS,
   INBOUND_STATUSES,
-  type InboundShipment,
   type InboundStatus,
   formatINR,
   formatINRCompact,
@@ -52,17 +50,23 @@ import {
   toInputDate,
   daysAhead,
 } from "./_helpers";
+import { useWarehouseStore } from "@/lib/store/warehouse-store";
 
 export function WarehouseInbound() {
-  const [rows, setRows] = useState<InboundShipment[]>(INBOUND_SHIPMENTS);
+  const { shipmentsIn: rows, fetchInbounds, updateInbound, createInbound } = useWarehouseStore();
+
+  useEffect(() => {
+    fetchInbounds();
+  }, [fetchInbounds]);
+
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<Set<string>>(new Set());
   const [godownFilter, setGodownFilter] = useState<string>("");
   const [addOpen, setAddOpen] = useState(false);
-  const [view, setView] = useState<InboundShipment | null>(null);
+  const [view, setView] = useState<any | null>(null);
 
   const uniqueGodowns = useMemo(
-    () => Array.from(new Set(rows.map((r) => r.godown))).sort(),
+    () => Array.from(new Set(rows.map((r: any) => r.godown))).sort(),
     [rows],
   );
 
@@ -208,15 +212,13 @@ export function WarehouseInbound() {
     { label: "View", onClick: (s: InboundShipment) => setView(s) },
     {
       label: "Mark Received",
-      onClick: (s: InboundShipment) => {
-        setRows((prev) =>
-          prev.map((r) =>
-            r.id === s.id
-              ? { ...r, status: "Received" as InboundStatus, receivedDate: new Date().toISOString(), receiver: "Balwinder Sandhu" }
-              : r,
-          ),
-        );
-        toast.success(`GRN marked received`, { description: s.grn });
+      onClick: async (s: any) => {
+        try {
+          await updateInbound(s.id, { status: "Received", receivedDate: new Date().toISOString(), receiver: "Balwinder Sandhu" });
+          toast.success(`GRN marked received`, { description: s.grn });
+        } catch (e) {
+          toast.error("Failed to mark received");
+        }
       },
     },
     { label: "Print GRN", onClick: (s: InboundShipment) => toast("Generating PDF", { description: s.grn }) },
@@ -368,24 +370,27 @@ export function WarehouseInbound() {
         />
       </div>
 
-      <InboundDrawer open={addOpen} onClose={() => setAddOpen(false)} onSave={(d) => {
-        const newRec: InboundShipment = {
-          id: `inb-${String(rows.length + 1).padStart(3, "0")}`,
-          grn: `GRN-${String(2400 + rows.length).padStart(4, "0")}`,
-          refNo: d.refNo ?? "",
-          consignor: d.consignor ?? "",
-          origin: d.origin ?? "",
-          vehicle: d.vehicle ?? "",
-          lrNumber: d.lrNumber ?? "",
-          expectedDate: d.expectedDate ?? daysAhead(2),
-          skus: [],
-          status: "Scheduled",
-          godown: d.godown ?? "Bhiwandi Godown A",
-          totalValue: 0,
-        };
-        setRows((prev) => [newRec, ...prev]);
-        toast.success(`Inbound scheduled`, { description: newRec.grn });
-        setAddOpen(false);
+      <InboundDrawer open={addOpen} onClose={() => setAddOpen(false)} onSave={async (d) => {
+        try {
+          const newRec = {
+            grn: `GRN-${String(2400 + rows.length).padStart(4, "0")}`,
+            refNo: d.refNo ?? "",
+            consignor: d.consignor ?? "",
+            origin: d.origin ?? "",
+            vehicle: d.vehicle ?? "",
+            lrNumber: d.lrNumber ?? "",
+            expectedDate: d.expectedDate ?? daysAhead(2),
+            skus: [],
+            status: "Scheduled",
+            godown: d.godown ?? "Bhiwandi Godown A",
+            totalValue: 0,
+          };
+          await createInbound(newRec);
+          toast.success(`Inbound scheduled`, { description: newRec.grn });
+          setAddOpen(false);
+        } catch (e) {
+          toast.error("Failed to schedule inbound");
+        }
       }} />
 
       <InboundDetailDrawer
@@ -397,7 +402,6 @@ export function WarehouseInbound() {
   );
 }
 
-// ===== Add Drawer =====
 function InboundDrawer({
   open,
   onClose,
@@ -405,7 +409,7 @@ function InboundDrawer({
 }: {
   open: boolean;
   onClose: () => void;
-  onSave: (d: Partial<InboundShipment>) => void;
+  onSave: (d: any) => void;
 }) {
   const [refNo, setRefNo] = useState("");
   const [consignor, setConsignor] = useState("");

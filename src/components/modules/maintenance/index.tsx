@@ -1,7 +1,7 @@
 "use client";
 import { useState, useCallback, useEffect } from "react";
 import { useAppStore } from "@/lib/store/app-store";
-import type { WorkOrder } from "@/lib/types";
+import type { WorkOrder, Vehicle, Vendor, Issue } from "@/lib/types";
 import { toast } from "sonner";
 import { MaintenanceList } from "./maintenance-list";
 import { WorkOrderDetail } from "./work-order-detail";
@@ -14,13 +14,25 @@ export function MaintenanceModule() {
   // Real, database-backed work orders (src/app/api/work-orders) -
   // previously useState(WORK_ORDERS) seeded from mock-data.ts.
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [issues, setIssues] = useState<Issue[]>([]);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    fetch("/api/work-orders")
-      .then((r) => (r.ok ? r.json() : Promise.reject(r)))
-      .then(({ workOrders }) => setWorkOrders(workOrders))
-      .catch(() => toast.error("Couldn't load work orders", { description: "Try reloading the page." }))
+    Promise.all([
+      fetch("/api/work-orders").then((r) => (r.ok ? r.json() : { workOrders: [] })),
+      fetch("/api/vehicles").then((r) => (r.ok ? r.json() : { vehicles: [] })),
+      fetch("/api/vendors").then((r) => (r.ok ? r.json() : { vendors: [] })),
+      fetch("/api/issues").then((r) => (r.ok ? r.json() : { issues: [] }))
+    ])
+      .then(([woData, vData, venData, iData]) => {
+        setWorkOrders(woData.workOrders ?? []);
+        setVehicles(vData.vehicles ?? []);
+        setVendors(venData.vendors ?? []);
+        setIssues(iData.issues ?? []);
+      })
+      .catch(() => toast.error("Couldn't load maintenance data", { description: "Try reloading the page." }))
       .finally(() => setLoaded(true));
   }, []);
 
@@ -67,7 +79,7 @@ export function MaintenanceModule() {
     activeView.view === "detail" &&
     activeView.id
   ) {
-    return <WorkOrderDetail workOrderId={activeView.id} workOrders={workOrders} onUpdate={updateWorkOrder} />;
+    return <WorkOrderDetail workOrderId={activeView.id} workOrders={workOrders} vehicles={vehicles} vendors={vendors} issues={issues} onUpdate={updateWorkOrder} />;
   }
 
   const drawerOpen =
@@ -85,6 +97,8 @@ export function MaintenanceModule() {
       ) : (
         <MaintenanceList
           workOrders={workOrders}
+          vehicles={vehicles}
+          vendors={vendors}
           onCreate={() => navigate("maintenance", "create")}
           onOpenParts={() => setShowParts(true)}
           onUpdate={updateWorkOrder}

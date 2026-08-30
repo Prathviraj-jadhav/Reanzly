@@ -352,9 +352,21 @@ export function LoginScreen() {
       {/* Main split: brand panel (desktop) + form */}
       <main className="flex flex-1 overflow-hidden">
         {/* Brand / marketing panel - desktop only (Gestalt: one visual mass) */}
-        <section className="relative hidden w-1/2 flex-col justify-between overflow-hidden border-r border-border bg-foreground p-12 text-background lg:flex lg:p-16">
-          <div className="flex items-center gap-2.5">
-            <span className="flex h-7 w-7 items-center justify-center rounded-[4px] bg-background text-[12px] font-bold text-foreground">
+        <section className="relative hidden w-1/2 flex-col justify-between overflow-hidden border-r border-border p-12 text-white lg:flex lg:p-16">
+          <div className="pointer-events-none absolute inset-0 z-0">
+            <video
+              src="https://stream.mux.com/tLkHO1qZoaaQOUeVWo8hEBeGQfySP02EPS02BmnNFyXys.m3u8"
+              autoPlay
+              muted
+              playsInline
+              loop
+              className="h-full w-full object-cover"
+            />
+            <div className="absolute inset-0 bg-black/80 backdrop-blur-[2px]" />
+          </div>
+
+          <div className="relative z-10 flex items-center gap-2.5">
+            <span className="flex h-7 w-7 items-center justify-center rounded-[4px] bg-white text-[12px] font-bold text-black">
               RZ
             </span>
             <span className="text-[13px] font-medium uppercase tracking-[0.16em]">
@@ -362,11 +374,11 @@ export function LoginScreen() {
             </span>
           </div>
 
-          <div className="space-y-7">
+          <div className="relative z-10 space-y-7">
             <h1 className="max-w-md text-[40px] font-semibold leading-[1.05] tracking-tight">
               {copy.title}
             </h1>
-            <p className="max-w-md text-[14px] leading-relaxed text-background/70">
+            <p className="max-w-md text-[14px] leading-relaxed text-white/70">
               {copy.body}
             </p>
 
@@ -380,19 +392,19 @@ export function LoginScreen() {
               ].map((line) => (
                 <li
                   key={line}
-                  className="flex items-center gap-2 text-[12px] text-background/80"
+                  className="flex items-center gap-2 text-[12px] text-white/80"
                 >
-                  <Check className="h-3.5 w-3.5 shrink-0 text-background/60" />
+                  <Check className="h-3.5 w-3.5 shrink-0 text-white/60" />
                   {line}
                 </li>
               ))}
             </ul>
 
             {/* Stat row - tabular mono, hairline grid */}
-            <div className="grid grid-cols-3 gap-px overflow-hidden rounded-[6px] border border-background/20 bg-background/20">
+            <div className="grid grid-cols-3 gap-px overflow-hidden rounded-[6px] border border-white/20 bg-white/20">
               {copy.stats.map((s) => (
-                <div key={s.k} className="bg-foreground p-4">
-                  <p className="text-[10px] uppercase tracking-[0.14em] text-background/60">
+                <div key={s.k} className="bg-black/40 backdrop-blur-md p-4">
+                  <p className="text-[10px] uppercase tracking-[0.14em] text-white/60">
                     {s.k}
                   </p>
                   <p className="mt-1 text-[22px] font-semibold tabular-nums">{s.v}</p>
@@ -415,7 +427,7 @@ export function LoginScreen() {
               ].map((m) => (
                 <span
                   key={m}
-                  className="rounded-[3px] border border-background/20 px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-background/70"
+                  className="rounded-[3px] border border-white/20 px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-white/70"
                 >
                   {m}
                 </span>
@@ -423,14 +435,14 @@ export function LoginScreen() {
             </div>
           </div>
 
-          <div className="flex items-center justify-between text-[11px] text-background/50">
+          <div className="relative z-10 flex items-center justify-between text-[11px] text-white/50">
             <span className="font-mono">{currentPortal.domain}</span>
             <span>Mumbai · Pune · Delhi · Bengaluru</span>
           </div>
 
           {/* Decorative grid lines - Swiss aesthetic */}
           <div
-            className="pointer-events-none absolute inset-0 opacity-[0.06]"
+            className="pointer-events-none absolute inset-0 z-10 opacity-[0.06] mix-blend-overlay"
             style={{
               backgroundImage:
                 "linear-gradient(to right, currentColor 1px, transparent 1px), linear-gradient(to bottom, currentColor 1px, transparent 1px)",

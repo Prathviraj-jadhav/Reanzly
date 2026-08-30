@@ -29,7 +29,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { FUEL_ENTRIES, VEHICLES } from "@/lib/mock-data";
+import type { FuelEntry, Vehicle } from "@/lib/types";
 import {
   formatDate,
   formatINR,
@@ -49,17 +49,19 @@ const RANGES: { id: RangePreset; label: string; days: number }[] = [
 ];
 
 interface AnalyticsProps {
+  fuelEntries: FuelEntry[];
+  vehicles: Vehicle[];
   onBack: () => void;
 }
 
-export function FuelAnalytics({ onBack }: AnalyticsProps) {
+export function FuelAnalytics({ fuelEntries, vehicles, onBack }: AnalyticsProps) {
   const [range, setRange] = useState<RangePreset>("90d");
 
   const filtered = useMemo(() => {
     const r = RANGES.find((x) => x.id === range)!;
     const cutoff = r.days > 0 ? Date.now() - r.days * 86400000 : 0;
     const ytd = range === "ytd" ? new Date(new Date().getFullYear(), 0, 1).getTime() : 0;
-    return FUEL_ENTRIES.filter((f) => {
+    return fuelEntries.filter((f) => {
       const t = new Date(f.date).getTime();
       if (cutoff > 0 && t < cutoff) return false;
       if (ytd > 0 && t < ytd) return false;

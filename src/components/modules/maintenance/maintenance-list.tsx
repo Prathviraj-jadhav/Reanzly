@@ -5,8 +5,7 @@ import { DataTable, type Column } from "@/components/shared/data-table";
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { useAppStore } from "@/lib/store/app-store";
-import { VEHICLES, VENDORS } from "@/lib/mock-data";
-import type { WorkOrder } from "@/lib/types";
+import type { WorkOrder, Vehicle, Vendor } from "@/lib/types";
 import {
   Plus,
   Download,
@@ -47,6 +46,8 @@ import { AddWorkOrderDrawer } from "./add-work-order-drawer";
 
 interface MaintenanceListProps {
   workOrders: WorkOrder[];
+  vehicles: Vehicle[];
+  vendors: Vendor[];
   onCreate: () => void;
   onOpenParts: () => void;
   onUpdate?: (id: string, data: Partial<WorkOrder>) => Promise<boolean>;
@@ -60,7 +61,7 @@ const DATE_RANGE_PRESETS = [
   { id: "90d", label: "Last 90 days" },
 ];
 
-export function MaintenanceList({ workOrders, onCreate, onOpenParts, onUpdate, onAdd }: MaintenanceListProps) {
+export function MaintenanceList({ workOrders, vehicles, vendors, onCreate, onOpenParts, onUpdate, onAdd }: MaintenanceListProps) {
   const { navigateDetail } = useAppStore();
   const [editing, setEditing] = useState<WorkOrder | null>(null);
   const [search, setSearch] = useState("");
@@ -128,7 +129,6 @@ export function MaintenanceList({ workOrders, onCreate, onOpenParts, onUpdate, o
       return n;
     });
 
-  // KPIs
   const total = workOrders.length;
   const openCount = workOrders.filter((w) => w.status === "Open").length;
   const inProgressCount = workOrders.filter((w) => w.status === "In Progress").length;
@@ -161,7 +161,7 @@ export function MaintenanceList({ workOrders, onCreate, onOpenParts, onUpdate, o
       width: "170px",
       sortValue: (r) => r.vehicle,
       render: (r) => {
-        const v = VEHICLES.find((x) => x.name === r.vehicle);
+        const v = vehicles.find((x) => x.name === r.vehicle);
         return (
           <button
             onClick={(e) => {

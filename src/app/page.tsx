@@ -1,7 +1,11 @@
-"use client";
+import { LandingSite } from "@/components/marketing/landing-site";
+import { Metadata } from "next";
 
-import { AppShell } from "@/components/layout/app-shell";
+export const metadata: Metadata = {
+  title: "Reanzly - AI Logistics Operating System",
+  description: "Automate dispatch, billing, and fleet maintenance with AI agents.",
+};
 
-export default function Home() {
-  return <AppShell />;
+export default function RootPage() {
+  return <LandingSite />;
 }

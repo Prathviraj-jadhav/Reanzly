@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { DataTable, type Column } from "@/components/shared/data-table";
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -50,6 +50,7 @@ import {
   relativeTime,
   FieldLabel,
 } from "./_helpers";
+import { useWarehouseStore } from "@/lib/store/warehouse-store";
 
 const PICKERS = [
   "Sukhbir Singh",
@@ -72,7 +73,12 @@ const ORDERS = Array.from({ length: 12 }).map(
 );
 
 export function WarehousePickPack() {
-  const [rows, setRows] = useState<PickList[]>(PICK_LISTS);
+  const { pickLists: rows, loading, fetchPickLists, createPickList, updatePickList } = useWarehouseStore();
+  
+  useEffect(() => {
+    fetchPickLists();
+  }, [fetchPickLists]);
+
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<Set<string>>(new Set());
   const [addOpen, setAddOpen] = useState(false);
@@ -237,42 +243,51 @@ export function WarehousePickPack() {
     { label: "View", onClick: (s: PickList) => setView(s) },
     {
       label: "Start Picking",
-      onClick: (s: PickList) => {
-        setRows((prev) =>
-          prev.map((r) => (r.id === s.id ? { ...r, status: "Picking" as PickStatus, assignedDate: r.assignedDate ?? new Date().toISOString() } : r)),
-        );
-        toast.success(`Picking started`, { description: s.pickId });
+      onClick: async (s: PickList) => {
+        try {
+          await updatePickList(s.id, { status: "Picking", assignedDate: s.assignedDate ?? new Date().toISOString() });
+          toast.success(`Picking started`, { description: s.pickId });
+        } catch (e) {
+          toast.error("Failed to start picking");
+        }
       },
     },
     {
       label: "Mark Picked",
-      onClick: (s: PickList) => {
-        setRows((prev) =>
-          prev.map((r) =>
-            r.id === s.id
-              ? { ...r, status: "Picked" as PickStatus, pickedQty: r.totalQty, pickedDate: new Date().toISOString(), pickTimeMin: r.pickTimeMin ?? 14 }
-              : r,
-          ),
-        );
-        toast.success(`Pick list completed`, { description: s.pickId });
+      onClick: async (s: PickList) => {
+        try {
+          await updatePickList(s.id, {
+            status: "Picked",
+            pickedQty: s.totalQty,
+            pickedDate: new Date().toISOString(),
+            pickTimeMin: s.pickTimeMin ?? 14,
+          });
+          toast.success(`Pick list completed`, { description: s.pickId });
+        } catch (e) {
+          toast.error("Failed to mark picked");
+        }
       },
     },
     {
       label: "Send to Packing",
-      onClick: (s: PickList) => {
-        setRows((prev) =>
-          prev.map((r) =>
-            r.id === s.id ? { ...r, status: "Packing" as PickStatus, packingStation: r.packingStation ?? "Pack-A1" } : r,
-          ),
-        );
-        toast(`Moved to packing`, { description: `${s.pickId} → Pack-A1` });
+      onClick: async (s: PickList) => {
+        try {
+          await updatePickList(s.id, { status: "Packing", packingStation: s.packingStation ?? "Pack-A1" });
+          toast(`Moved to packing`, { description: `${s.pickId} → Pack-A1` });
+        } catch (e) {
+          toast.error("Failed to move to packing");
+        }
       },
     },
     {
       label: "Mark Packed",
-      onClick: (s: PickList) => {
-        setRows((prev) => prev.map((r) => (r.id === s.id ? { ...r, status: "Packed" as PickStatus } : r)));
-        toast.success(`Pick list packed`, { description: s.pickId });
+      onClick: async (s: PickList) => {
+        try {
+          await updatePickList(s.id, { status: "Packed" });
+          toast.success(`Pick list packed`, { description: s.pickId });
+        } catch (e) {
+          toast.error("Failed to mark packed");
+        }
       },
     },
   ];
@@ -297,26 +312,24 @@ export function WarehousePickPack() {
         ? Array.from(statusFilter)[0]
         : `${statusFilter.size} selected`;
 
-  const handleCreate = (data: Partial<PickList>) => {
-    const newPick: PickList = {
-      id: `pick-${String(rows.length + 1).padStart(3, "0")}`,
-      pickId: `PL-${String(3201 + rows.length).padStart(4, "0")}`,
-      order: data.order ?? ORDERS[0],
-      consignee: data.consignee ?? "Shree Construction",
-      skuCount: Number(data.skuCount) || 1,
-      totalQty: Number(data.totalQty) || 0,
-      pickedQty: 0,
-      status: "Pending",
-      picker: data.picker,
-      packingStation: undefined,
-      assignedDate: undefined,
-      pickedDate: undefined,
-      godown: data.godown ?? "Bhiwandi Godown A",
-      pickTimeMin: undefined,
-    };
-    setRows((prev) => [newPick, ...prev]);
-    toast.success(`Pick list created`, { description: newPick.pickId });
-    setAddOpen(false);
+  const handleCreate = async (data: Partial<PickList>) => {
+    try {
+      const newPick = await createPickList({
+        pickId: `PL-${String(3201 + rows.length).padStart(4, "0")}`,
+        order: data.order ?? ORDERS[0],
+        consignee: data.consignee ?? "Shree Construction",
+        skuCount: Number(data.skuCount) || 1,
+        totalQty: Number(data.totalQty) || 0,
+        pickedQty: 0,
+        status: "Pending",
+        picker: data.picker,
+        godown: data.godown ?? "Bhiwandi Godown A",
+      });
+      toast.success(`Pick list created`, { description: newPick.pickId });
+      setAddOpen(false);
+    } catch (e) {
+      toast.error("Failed to create pick list");
+    }
   };
 
   return (
@@ -405,9 +418,9 @@ export function WarehousePickPack() {
           onRowClick={(s) => setView(s)}
           rowActions={rowActions}
           bulkActions={bulkActions}
-          emptyTitle="No pick lists found"
           emptyDescription="Create a new pick list to assign a picker."
           initialSort={{ key: "pickId", dir: "desc" }}
+          isLoading={loading}
         />
       </div>
 

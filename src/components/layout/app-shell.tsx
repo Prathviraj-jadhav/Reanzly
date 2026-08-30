@@ -16,8 +16,7 @@ import { ErrorBoundary } from "@/components/shared/error-boundary";
 import { ModuleRouter } from "@/components/modules/router";
 import { DriverFieldApp } from "@/components/modules/driver-field";
 import { WarehouseFieldApp } from "@/components/modules/warehouse-field";
-import { LoginScreen } from "@/components/auth/login-screen";
-import { SignupScreen } from "@/components/auth/signup-screen";
+// LoginScreen + SignupScreen are now rendered as a popup inside LandingSite
 import { LandingSite } from "@/components/marketing/landing-site";
 import { MarketplaceSite } from "@/components/marketing/marketplace-site";
 import { SuperAdminShell } from "./superadmin-shell";
@@ -32,13 +31,13 @@ import { MessageSquare, Loader2 } from "lucide-react";
  * Auth gate: while the persisted Zustand store hydrates from localStorage we
  * show a minimal monochrome boot splash (avoids SSR/client hydration mismatch
  * on `isAuthenticated`). Once mounted:
- *   - not authenticated + authMode === "signup" → <SignupScreen />
- *   - not authenticated (default) → <LoginScreen />
+ *   - not authenticated → <LandingSite /> (auth modal opens inline)
+ *   - not authenticated + marketingView=marketplace → <MarketplaceSite />
  *   - authenticated + driver role → <DriverFieldApp />
  *   - authenticated + any other role → full desktop shell
  */
 export function AppShell() {
-  const { isAuthenticated, authMode, portal, currentRole, chatOpen, setChatOpen, activeView, marketingView, restoreSession } = useAppStore();
+  const { isAuthenticated, portal, currentRole, chatOpen, setChatOpen, activeView, marketingView, restoreSession } = useAppStore();
   // Offline-first: keep the sync store's online flag wired to the browser and
   // auto-flush the pending mutation queue when connectivity returns.
   useOnlineStatus();
@@ -85,9 +84,9 @@ export function AppShell() {
     if (marketingView === "marketplace") {
       return <MarketplaceSite />;
     }
-    if (marketingView === "auth") {
-      return authMode === "signup" ? <SignupScreen /> : <LoginScreen />;
-    }
+    // "auth" is now handled as a popup overlay inside LandingSite itself.
+    // We render LandingSite for both "landing" and "auth" states so the
+    // marketing page stays visible behind the auth modal.
     return <LandingSite />;
   }
 

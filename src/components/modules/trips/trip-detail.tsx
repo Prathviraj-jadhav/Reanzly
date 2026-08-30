@@ -13,7 +13,6 @@ import {
   tripStatusBadge,
   paymentStatusBadge,
 } from "@/components/shared/status-badge";
-import { TRIPS, INVOICES } from "@/lib/mock-data";
 import type { Trip, TripStatus } from "@/lib/types";
 import {
   Printer,
@@ -89,6 +88,15 @@ export function TripDetail({ tripId, trips, onUpdate }: TripDetailProps) {
   const [currentStatus, setCurrentStatus] = useState<TripStatus | null>(null);
   const [editOpen, setEditOpen] = useState(false);
 
+  const [invoices, setInvoices] = useState<any[]>([]);
+  
+  useEffect(() => {
+    fetch("/api/invoices")
+      .then((r) => (r.ok ? r.json() : { invoices: [] }))
+      .then((data) => setInvoices(data.invoices ?? []))
+      .catch(() => {});
+  }, []);
+
   const trip = useMemo(
     () => trips.find((t) => t.tripId === tripId),
     [trips, tripId],
@@ -109,7 +117,7 @@ export function TripDetail({ tripId, trips, onUpdate }: TripDetailProps) {
 
   const status = currentStatus ?? trip.status;
   const { variant, pulse } = tripStatusBadge(status);
-  const linkedInvoice = INVOICES.find((i) => i.tripRef === trip.tripId);
+  const linkedInvoice = invoices.find((i) => i.tripRef === trip.tripId);
 
   // ===== Synthetic but deterministic per-trip data =====
   const seed = parseInt(trip.tripId.replace(/\D/g, "")) || 1;

@@ -5,7 +5,6 @@ import { DataTable, type Column } from "@/components/shared/data-table";
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { useAppStore } from "@/lib/store/app-store";
-import { EXPENSES, VEHICLES, TRIPS } from "@/lib/mock-data";
 import type { Expense } from "@/lib/types";
 import {
   Plus,
@@ -589,8 +588,7 @@ export function ExpensesList({ expenses, onCreate, onOpenAnalytics, onUpdate, on
 
       <p className="text-[11px] text-muted-foreground">
         {expenses.length} expenses across {EXPENSE_CATEGORIES.length} categories
-        · {uniqueVehicles.length} vehicles · {uniqueTrips.length} trips ·{" "}
-        {VEHICLES.length} fleet vehicles tracked
+        · {uniqueVehicles.length} vehicles · {uniqueTrips.length} trips
       </p>
 
       <AddExpenseDrawer

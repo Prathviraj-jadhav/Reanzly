@@ -850,39 +850,51 @@ export function SignupScreen() {
 
       <main className="flex flex-1 overflow-hidden">
         {/* Brand panel - desktop only */}
-        <section className="relative hidden w-1/2 flex-col justify-between overflow-hidden border-r border-border bg-foreground p-10 text-background lg:flex">
-          <div className="flex items-center gap-2">
+        <section className="relative hidden w-1/2 flex-col justify-between overflow-hidden border-r border-border p-10 text-white lg:flex">
+          <div className="pointer-events-none absolute inset-0 z-0">
+            <video
+              src="https://stream.mux.com/tLkHO1qZoaaQOUeVWo8hEBeGQfySP02EPS02BmnNFyXys.m3u8"
+              autoPlay
+              muted
+              playsInline
+              loop
+              className="h-full w-full object-cover"
+            />
+            <div className="absolute inset-0 bg-black/80 backdrop-blur-[2px]" />
+          </div>
+
+          <div className="relative z-10 flex items-center gap-2">
             <Truck className="h-5 w-5" />
             <span className="text-[13px] font-medium uppercase tracking-[0.16em]">
               Start your 15-day free trial
             </span>
           </div>
 
-          <div className="space-y-6">
+          <div className="relative z-10 space-y-6">
             <h1 className="max-w-md text-[40px] font-semibold leading-[1.05] tracking-tight">
               Smart onboarding. Pick a business type, we tailor the rest.
             </h1>
-            <p className="max-w-md text-[14px] leading-relaxed text-background/70">
+            <p className="max-w-md text-[14px] leading-relaxed text-white/70">
               We auto-recommend the modules, subscription model and broker tools
               that fit how you move freight. Edit anything you like. Trial
               includes every module you pick for 15 days, free.
             </p>
 
-            <div className="grid grid-cols-3 gap-px overflow-hidden rounded-[6px] border border-background/20 bg-background/20">
-              <div className="bg-foreground p-4">
-                <p className="text-[10px] uppercase tracking-[0.14em] text-background/60">
+            <div className="grid grid-cols-3 gap-px overflow-hidden rounded-[6px] border border-white/20 bg-white/20">
+              <div className="bg-black/40 backdrop-blur-md p-4">
+                <p className="text-[10px] uppercase tracking-[0.14em] text-white/60">
                   Setup time
                 </p>
                 <p className="mt-1 text-[22px] font-semibold tabular-nums">4 min</p>
               </div>
-              <div className="bg-foreground p-4">
-                <p className="text-[10px] uppercase tracking-[0.14em] text-background/60">
+              <div className="bg-black/40 backdrop-blur-md p-4">
+                <p className="text-[10px] uppercase tracking-[0.14em] text-white/60">
                   Free trial
                 </p>
                 <p className="mt-1 text-[22px] font-semibold tabular-nums">15 days</p>
               </div>
-              <div className="bg-foreground p-4">
-                <p className="text-[10px] uppercase tracking-[0.14em] text-background/60">
+              <div className="bg-black/40 backdrop-blur-md p-4">
+                <p className="text-[10px] uppercase tracking-[0.14em] text-white/60">
                   Modules
                 </p>
                 <p className="mt-1 text-[22px] font-semibold tabular-nums">30</p>
@@ -895,22 +907,22 @@ export function SignupScreen() {
                 "SaaS, commission or master subscription - your call",
                 "Listed on the Reanzly directory (free, SEO-ranked)",
               ].map((line) => (
-                <li key={line} className="flex items-start gap-2 text-[13px] text-background/80">
-                  <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-background/60" />
+                <li key={line} className="flex items-start gap-2 text-[13px] text-white/80">
+                  <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-white/60" />
                   {line}
                 </li>
               ))}
             </ul>
           </div>
 
-          <div className="flex items-center gap-3 text-[11px] text-background/50">
+          <div className="relative z-10 flex items-center gap-3 text-[11px] text-white/50">
             <span className="font-mono">app.reanzly.com</span>
             <span>.</span>
             <span>Mumbai . Pune . Delhi . Bengaluru</span>
           </div>
 
           <div
-            className="pointer-events-none absolute inset-0 opacity-[0.06]"
+            className="pointer-events-none absolute inset-0 z-10 opacity-[0.06] mix-blend-overlay"
             style={{
               backgroundImage:
                 "linear-gradient(to right, currentColor 1px, transparent 1px), linear-gradient(to bottom, currentColor 1px, transparent 1px)",

@@ -1,12 +1,11 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { DetailLayout } from "@/components/shared/detail-layout";
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { SavageInput, SavageTextarea } from "@/components/shared/savage-input";
 import { useAppStore } from "@/lib/store/app-store";
-import { VEHICLES } from "@/lib/mock-data";
 import type { Driver } from "@/lib/types";
 import {
   User, Truck, Car, Send, Pencil, Star,
@@ -109,6 +108,15 @@ export function DriverDetail({ driverId, drivers, onUpdate }: DriverDetailProps)
     { label: "Deactivate", onClick: () => setDeactivateOpen(true) },
   ];
 
+  const [vehicles, setVehicles] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetch("/api/vehicles")
+      .then((r) => r.ok ? r.json() : { vehicles: [] })
+      .then((data) => setVehicles(data.vehicles ?? []))
+      .catch(() => {});
+  }, []);
+
   return (
     <DetailLayout
       title={driver.name}
@@ -133,7 +141,7 @@ export function DriverDetail({ driverId, drivers, onUpdate }: DriverDetailProps)
           {driver.assignedVehicle && (
             <button
               onClick={() => {
-                const v = VEHICLES.find((ve) => ve.name === driver.assignedVehicle);
+                const v = vehicles.find((ve) => ve.name === driver.assignedVehicle);
                 if (v) navigateDetail("vehicles", v.id);
               }}
               className="inline-flex items-center gap-1 text-foreground hover:underline tabular"
