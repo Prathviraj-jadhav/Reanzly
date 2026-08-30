@@ -41,17 +41,17 @@ export function MarketingNav() {
             onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
             className="flex items-center gap-2"
           >
-            <div className="flex h-8 w-8 items-center justify-center rounded-[6px] bg-[#09110D]">
+            <div className={`flex h-8 w-8 items-center justify-center rounded-[6px] ${scrolled ? 'bg-[#09110D]' : 'bg-white/10'}`}>
               <Image src="/logo.png" alt="Reanzly" width={24} height={24} className="h-6 w-6 object-contain" />
             </div>
-            <span className="text-[17px] font-[500] tracking-[-0.3px] text-[#171717]">Reanzly</span>
+            <span className={`text-[17px] font-[500] tracking-[-0.3px] ${scrolled ? 'text-[#171717]' : 'text-white'}`}>Reanzly</span>
           </button>
 
           {/* Desktop links */}
           <div className="hidden md:flex items-center gap-7">
             {links.map((l) => (
               <a key={l.label} href={l.href}
-                className="text-[14px] font-[400] text-[#707070] transition-colors hover:text-[#171717]">
+                className={`text-[14px] font-[400] transition-colors ${scrolled ? 'text-[#707070] hover:text-[#171717]' : 'text-white/80 hover:text-white'}`}>
                 {l.label}
               </a>
             ))}
@@ -60,7 +60,7 @@ export function MarketingNav() {
           {/* Desktop CTAs */}
           <div className="hidden md:flex items-center gap-2">
             <button onClick={openLogin}
-              className="h-9 rounded-[6px] px-4 text-[14px] font-[500] text-[#171717] transition-colors hover:bg-[#fafafa]">
+              className={`h-9 rounded-[6px] px-4 text-[14px] font-[500] transition-colors ${scrolled ? 'text-[#171717] hover:bg-[#fafafa]' : 'text-white hover:bg-white/10'}`}>
               Sign in
             </button>
             <button onClick={openSignup}
@@ -70,7 +70,7 @@ export function MarketingNav() {
           </div>
 
           {/* Mobile hamburger */}
-          <button className="md:hidden text-[#707070] hover:text-[#171717]" onClick={() => setMobileOpen(true)}>
+          <button className={`md:hidden ${scrolled ? 'text-[#707070] hover:text-[#171717]' : 'text-white/80 hover:text-white'}`} onClick={() => setMobileOpen(true)}>
             <Menu className="h-5 w-5" />
           </button>
         </div>
