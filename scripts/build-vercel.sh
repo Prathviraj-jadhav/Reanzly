@@ -7,11 +7,7 @@ echo "=== STARTING VERCEL BUILD SCRIPT ==="
 # Export the database URL for all child commands
 
 
-echo "Running prisma db push..."
-npx prisma db push --accept-data-loss
 
-echo "Seeding database..."
-npx tsx src/scripts/seed-all.ts
 
 echo "Generating Prisma client..."
 npx prisma generate
