@@ -208,6 +208,16 @@ export function LoginScreen() {
     return () => clearInterval(t);
   }, []);
 
+  // Sync credentials form inputs with selected quick role
+  useEffect(() => {
+    const role = ROLE_ARCHETYPES.find((r) => r.id === effectiveRole);
+    if (role && portal !== "superadmin") {
+      const quickEmail = `${(role.name || effectiveRole).toLowerCase().replace(/\s+/g, ".")}@reanzly.in`;
+      setEmail(quickEmail);
+      setPassword("Reanzly@Demo2026");
+    }
+  }, [effectiveRole, portal]);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (submitting) return;
