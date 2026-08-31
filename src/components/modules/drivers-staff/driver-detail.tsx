@@ -59,6 +59,15 @@ export function DriverDetail({ driverId, drivers, onUpdate }: DriverDetailProps)
 
   const driver = useMemo(() => drivers.find((d) => d.id === driverId), [drivers, driverId]);
 
+  const [vehicles, setVehicles] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetch("/api/vehicles")
+      .then((r) => r.ok ? r.json() : { vehicles: [] })
+      .then((data) => setVehicles(data.vehicles ?? []))
+      .catch(() => {});
+  }, []);
+
   if (!driver) {
     return (
       <div className="flex flex-col items-center justify-center gap-3 py-20">
@@ -108,14 +117,6 @@ export function DriverDetail({ driverId, drivers, onUpdate }: DriverDetailProps)
     { label: "Deactivate", onClick: () => setDeactivateOpen(true) },
   ];
 
-  const [vehicles, setVehicles] = useState<any[]>([]);
-
-  useEffect(() => {
-    fetch("/api/vehicles")
-      .then((r) => r.ok ? r.json() : { vehicles: [] })
-      .then((data) => setVehicles(data.vehicles ?? []))
-      .catch(() => {});
-  }, []);
 
   return (
     <DetailLayout
