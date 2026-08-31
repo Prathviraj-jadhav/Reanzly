@@ -1,4 +1,4 @@
-import { LandingSite } from "@/components/marketing/landing-site";
+import { AppShell } from "@/components/layout/app-shell";
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -7,5 +7,5 @@ export const metadata: Metadata = {
 };
 
 export default function RootPage() {
-  return <LandingSite />;
+  return <AppShell />;
 }
