@@ -13,19 +13,26 @@ describe("routing migration config", () => {
     vi.unstubAllEnvs();
   });
 
-  it("MIGRATED_MODULES contains B0R-2 core operations and B0R-3 fleet cluster", () => {
+  it("MIGRATED_MODULES contains B0R-2/3 operations and B0R-4 finance cluster", () => {
     expect([...MIGRATED_MODULES].sort()).toEqual(
       [
+        "approvals",
         "compliance",
         "dashboard",
+        "expenses",
+        "financial-ops",
         "fleet-map",
         "fuel-energy",
         "inspection",
+        "invoice",
         "issues",
+        "ledger",
         "lorry-receipts",
         "maintenance",
+        "payments",
         "pod",
         "quality",
+        "rate-cards",
         "services",
         "trips",
         "vehicles",
@@ -48,7 +55,10 @@ describe("routing migration config", () => {
     expect(isModuleMigrated("dashboard")).toBe(true);
     expect(isModuleMigrated("trips")).toBe(true);
     expect(isModuleMigrated("vehicles")).toBe(true);
-    expect(isModuleMigrated("invoice")).toBe(false);
+    expect(isModuleMigrated("invoice")).toBe(true);
+    expect(isModuleMigrated("ledger")).toBe(true);
+    expect(isModuleMigrated("financial-ops")).toBe(true);
+    expect(isModuleMigrated("customers")).toBe(false);
   });
 });
 

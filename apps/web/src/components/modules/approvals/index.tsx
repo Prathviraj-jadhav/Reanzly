@@ -2,13 +2,15 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { useAppStore } from "@/lib/store/app-store";
+import { resolveModuleView, type ModuleRouteState } from "@/lib/navigation/module-route-state";
 import { toast } from "sonner";
 import type { ApprovalRequest } from "./_helpers";
 import { ApprovalsList } from "./approvals-list";
 import { ApprovalDetail } from "./approval-detail";
 
-export function ApprovalsModule() {
+export function ApprovalsModule({ route }: { route?: ModuleRouteState } = {}) {
   const { activeView } = useAppStore();
+  const view = resolveModuleView(route, activeView, "approvals");
   // Real, database-backed approval requests (src/app/api/approvals) -
   // previously useState(APPROVAL_REQUESTS) seeded from the module's own
   // client-only mock array. Detail view now reads from this same fetched
@@ -54,12 +56,16 @@ export function ApprovalsModule() {
   }
 
   // Detail view - route before any list hooks to keep hook order stable.
-  if (
-    activeView.module === "approvals" &&
-    activeView.view === "detail" &&
-    activeView.id
-  ) {
-    return <ApprovalDetail requestId={activeView.id} requests={requests} onAction={applyAction} />;
+  if (view.view === "detail" && view.id) {
+    return (
+      <ApprovalDetail
+        key={`${view.id}-${view.tab ?? ""}`}
+        requestId={view.id}
+        requests={requests}
+        onAction={applyAction}
+        initialTab={view.tab}
+      />
+    );
   }
 
   return <ApprovalsList requests={requests} onAction={applyAction} />;

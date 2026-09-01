@@ -9,6 +9,7 @@ import {
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { useAppStore } from "@/lib/store/app-store";
+import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
 import type { Invoice, Customer, Payment } from "@/lib/types";
 import { EditInvoiceDrawer } from "./edit-invoice-drawer";
 import {
@@ -88,7 +89,7 @@ export function InvoiceDetail({
   onRelease,
   onAssign,
 }: InvoiceDetailProps) {
-  const { navigate, navigateDetail } = useAppStore();
+  const { navigateCompat: navigate, navigateDetailCompat: navigateDetail } = useNavigateCompat();
   const [activeTab, setActiveTab] = useState("invoice");
   const [editOpen, setEditOpen] = useState(false);
 

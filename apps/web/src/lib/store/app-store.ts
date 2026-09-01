@@ -677,11 +677,15 @@ export const useAppStore = create<AppState>()(
       syncActiveView: (module, view = "list", id, tab) => {
         const resolved: ModuleId =
           module === "financial-ops" ? "ledger" : module;
+        const resolvedTab =
+          module === "financial-ops" && view === "list" && !id
+            ? (tab ?? "treasury-ops")
+            : tab;
         const newView: ViewState = {
           module: resolved,
           view,
           id,
-          tab,
+          tab: resolvedTab,
           breadcrumb: [{ label: MODULE_LABELS[resolved] ?? resolved, module: resolved }],
         };
         set({ activeView: newView });

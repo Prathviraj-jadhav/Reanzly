@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { DataTable, type Column } from "@/components/shared/data-table";
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
-import { useAppStore } from "@/lib/store/app-store";
+import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
 import {
   Plus,
   Download,
@@ -74,7 +74,7 @@ function DecisionCell({ req }: { req: ApprovalRequest }) {
 }
 
 export function ApprovalsList({ requests, onAction }: ApprovalsListProps) {
-  const { navigateDetail } = useAppStore();
+  const { navigateDetailCompat: navigateDetail } = useNavigateCompat();
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<Set<string>>(new Set());
   const [statusFilter, setStatusFilter] = useState<Set<string>>(new Set());

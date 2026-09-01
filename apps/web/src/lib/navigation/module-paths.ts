@@ -1,4 +1,5 @@
 import type { ModuleId, SettingsTab, ViewState } from "@/lib/store/app-store";
+import { isValidLedgerSlug, ledgerSlugToTab, ledgerTabToSlug } from "./ledger-subviews";
 
 /** All 54 ModuleId union members — source of truth for registry completeness. */
 export const ALL_MODULE_IDS: readonly ModuleId[] = [
@@ -188,11 +189,20 @@ export function moduleToPath(
     if ((resolved === "vehicles" || resolved === "inspection") && tab) {
       return `${detailBase}?tab=${encodeURIComponent(tab)}`;
     }
+    if (resolved === "approvals" && tab) {
+      return `${detailBase}?tab=${encodeURIComponent(tab)}`;
+    }
     return tab ? `${detailBase}/${tab}` : detailBase;
   }
 
   if (resolved === "fleet-map" && view === "list" && id) {
     return `${base}?vehicle=${encodeURIComponent(id)}`;
+  }
+
+  if (resolved === "ledger" && tab) {
+    const slug = ledgerTabToSlug(tab);
+    if (!slug) return base;
+    return `${base}/${slug}`;
   }
 
   if (tab && MODULE_TAB_ROUTES.has(resolved)) {
@@ -247,7 +257,7 @@ export function pathToModule(pathname: string, searchParams?: URLSearchParams): 
   }
 
   if (path === MODULE_BASE_PATH["financial-ops"]) {
-    return { module: "ledger", view: "list", tab: "treasury" };
+    return { module: "ledger", view: "list", tab: "treasury-ops" };
   }
 
   const exact = LIST_PATH_TO_MODULE[path];
@@ -314,10 +324,9 @@ export function pathToModule(pathname: string, searchParams?: URLSearchParams): 
   }
 
   if (segments[0] === "ledger" && segments.length === 2) {
-    if (segments[1] === "treasury") {
-      return { module: "ledger", view: "list", tab: "treasury" };
-    }
-    return { module: "ledger", view: "list", tab: segments[1] };
+    const slug = segments[1]!;
+    if (!isValidLedgerSlug(slug)) return null;
+    return { module: "ledger", view: "list", tab: ledgerSlugToTab(slug) };
   }
 
   const twoSegmentSlug = segments.slice(0, 2).join("/");
@@ -342,6 +351,15 @@ export function pathToModule(pathname: string, searchParams?: URLSearchParams): 
       return { module: oneSegmentModule, view: "list", tab: tail };
     }
     if (oneSegmentModule === "vehicles" || oneSegmentModule === "inspection") {
+      const tab = searchParams?.get("tab") ?? undefined;
+      return {
+        module: oneSegmentModule,
+        view: "detail",
+        id: decodeURIComponent(tail),
+        tab: tab || undefined,
+      };
+    }
+    if (oneSegmentModule === "approvals") {
       const tab = searchParams?.get("tab") ?? undefined;
       return {
         module: oneSegmentModule,

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { DetailLayout, InfoRow, InfoSection, StatCard } from "@/components/shared/detail-layout";
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
-import { useAppStore } from "@/lib/store/app-store";
+import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
 import {
   type ApprovalRequest,
   type ApproverStep,
@@ -61,11 +61,12 @@ interface ApprovalDetailProps {
     action: "approve" | "reject" | "delegate" | "withdraw",
     payload?: { comment?: string; delegateTo?: string },
   ) => Promise<ApprovalRequest | null>;
+  initialTab?: string;
 }
 
-export function ApprovalDetail({ requestId, requests, onAction }: ApprovalDetailProps) {
-  const { navigate } = useAppStore();
-  const [activeTab, setActiveTab] = useState("overview");
+export function ApprovalDetail({ requestId, requests, onAction, initialTab }: ApprovalDetailProps) {
+  const { navigateCompat: navigate } = useNavigateCompat();
+  const [activeTab, setActiveTab] = useState(initialTab ?? "overview");
   const [comment, setComment] = useState("");
   const [decision, setDecision] = useState<"approve" | "reject" | "delegate" | "">("");
   const [delegateTo, setDelegateTo] = useState("");

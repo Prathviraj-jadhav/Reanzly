@@ -1,20 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { cn } from "@/lib/utils";
-import {
-  LayoutDashboard,
-  BookText,
-  Scale,
-  BookOpen,
-  Banknote,
-  Landmark,
-  Boxes,
-  PieChart,
-  Target,
-  FileText,
-} from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
+import { useAppStore } from "@/lib/store/app-store";
+import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
+import { resolveModuleView, type ModuleRouteState } from "@/lib/navigation/module-route-state";
+import { resolveLedgerSubView, type LedgerSubView } from "@/lib/navigation/ledger-subviews";
 import { LedgerDashboard } from "./dashboard";
 import { ChartOfAccountsView } from "./chart-of-accounts";
 import { JournalView } from "./journal";
@@ -27,58 +19,8 @@ import { BankReconciliationView } from "./bank-reconciliation";
 import { StatementsView } from "./statements";
 import { MultiCompanySwitcher } from "./multi-company-switcher";
 
-/* ============================================================
-   LedgerModule - Tally-like comprehensive finance workspace.
-   Single-page workspace with a left sub-nav (capped at 10
-   items for Hick's Law) and a right content panel - mirrors
-   the Superadmin module pattern.
-
-   Merges the former Financial Ops module (treasury vouchers)
-   plus six new Tally features (Cost Centres, GST Returns,
-   Inventory Vouchers, Bank Reconciliation, Budgets & Variance
-   inside Cost Centres, Multi-Company as a header switcher).
-
-   Sub-views (10 max, Hick's Law):
-     A. Dashboard       - KPIs, recent entries, cash summary
-     B. Chart of Accounts - COA list + add/edit drawer
-     C. Journal         - double-entry vouchers
-     D. Treasury Ops    - merged Financial Ops vouchers
-                          (Advance / Add Money / Withdrawal /
-                          Movement / Truck Forwarding /
-                          Settlement / Recovery Voucher)
-     E. Bank Reconciliation - BRS - match bank statement lines
-     F. Inventory Vouchers - material transfer, stock journal
-     G. Cost Centres    - profitability by vehicle/driver/route/
-                          branch/department + Budgets & Variance
-                          (internal tab)
-     H. GST Returns     - GSTR-1, GSTR-3B, GSTR-2B reconciliation
-     I. Ledger Book     - per-account posting history
-     J. Statements      - Trial Balance + P&L + Balance Sheet
-                          (internal tabs)
-
-   Plus a Multi-Company switcher in the PageHeader context
-   slot - Tally's hallmark "Select Company" gateway.
-
-   Strict monochrome Swiss design system. Tabular numerals
-   throughout. All client-side with seed data persisted to
-   localStorage via the reanzly-ledger + reanzly-ledger-tally
-   + reanzly-finops stores.
-   ============================================================ */
-
-type SubView =
-  | "dashboard"
-  | "coa"
-  | "journal"
-  | "treasury-ops"
-  | "bank-reconciliation"
-  | "inventory-vouchers"
-  | "cost-centers"
-  | "gst-returns"
-  | "ledger-book"
-  | "statements";
-
 interface SubNavItem {
-  id: SubView;
+  id: LedgerSubView;
   label: string;
 }
 
@@ -95,8 +37,24 @@ const SUB_NAV: SubNavItem[] = [
   { id: "statements", label: "Statements" },
 ];
 
-export function LedgerModule() {
-  const [active, setActive] = useState<SubView>("dashboard");
+export function LedgerModule({ route }: { route?: ModuleRouteState } = {}) {
+  const { activeView } = useAppStore();
+  const { navigateCompat } = useNavigateCompat();
+  const view = resolveModuleView(route, activeView, "ledger");
+  const resolvedSubView = resolveLedgerSubView(view.tab);
+  const [active, setActive] = useState<LedgerSubView>(resolvedSubView);
+
+  useEffect(() => {
+    setActive(resolvedSubView);
+  }, [resolvedSubView]);
+
+  const onSubViewChange = useCallback(
+    (next: LedgerSubView) => {
+      setActive(next);
+      navigateCompat("ledger", "list", undefined, next === "dashboard" ? undefined : next);
+    },
+    [navigateCompat],
+  );
 
   return (
     <div className="flex flex-col gap-5">
@@ -112,14 +70,13 @@ export function LedgerModule() {
       />
 
       <div className="flex flex-col gap-4">
-        {/* Sub-nav - horizontal tabs (Hick's Law: capped at 10 items) */}
         <div className="sticky top-0 z-10 -mx-1 flex items-center gap-1 overflow-x-auto border-b border-border bg-background/95 px-1 backdrop-blur supports-[backdrop-filter]:bg-background/80">
           {SUB_NAV.map((item) => {
             const isActive = active === item.id;
             return (
               <button
                 key={item.id}
-                onClick={() => setActive(item.id)}
+                onClick={() => onSubViewChange(item.id)}
                 aria-current={isActive ? "page" : undefined}
                 className={cn(
                   "relative shrink-0 px-3 py-2.5 text-[13px] transition-colors tap",
@@ -133,7 +90,6 @@ export function LedgerModule() {
           })}
         </div>
 
-        {/* Content panel */}
         <div className="flex-1">
           {active === "dashboard" && <LedgerDashboard />}
           {active === "coa" && <ChartOfAccountsView />}

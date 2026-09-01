@@ -1,6 +1,8 @@
 "use client";
 import { useState, useCallback, useMemo, useEffect } from "react";
 import { useAppStore } from "@/lib/store/app-store";
+import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
+import { resolveModuleView, type ModuleRouteState } from "@/lib/navigation/module-route-state";
 import type { Invoice, InvoiceStatus } from "@/lib/types";
 import { toast } from "sonner";
 import { InvoiceList } from "./invoice-list";
@@ -25,8 +27,10 @@ import {
   type SavedInvoiceTemplate,
 } from "./_helpers";
 
-export function InvoiceModule() {
-  const { activeView, navigate } = useAppStore();
+export function InvoiceModule({ route }: { route?: ModuleRouteState } = {}) {
+  const { activeView } = useAppStore();
+  const { navigateCompat } = useNavigateCompat();
+  const view = resolveModuleView(route, activeView, "invoice");
   const [recordPaymentTarget, setRecordPaymentTarget] =
     useState<Invoice | null>(null);
 
@@ -390,19 +394,15 @@ export function InvoiceModule() {
   }
 
   // Detail view
-  if (
-    activeView.module === "invoice" &&
-    activeView.view === "detail" &&
-    activeView.id
-  ) {
-    const detailInvoice = invoices.find((i) => i.invoiceNumber === activeView.id);
+  if (view.view === "detail" && view.id) {
+    const detailInvoice = invoices.find((i) => i.invoiceNumber === view.id);
     const detailMeta = detailInvoice
       ? invoiceMeta[detailInvoice.invoiceNumber]
       : undefined;
     return (
       <>
         <InvoiceDetail
-          invoiceNumber={activeView.id}
+          invoiceNumber={view.id}
           invoices={invoices}
           onRecordPayment={(inv) => setRecordPaymentTarget(inv)}
           onUpdate={handleUpdate}
@@ -437,11 +437,10 @@ export function InvoiceModule() {
   }
 
   // Drawer visibility is derived from active view
-  const drawerOpen =
-    activeView.module === "invoice" && activeView.view === "create";
+  const drawerOpen = view.view === "create";
   const closeDrawer = () => {
-    if (activeView.module === "invoice" && activeView.view === "create") {
-      navigate("invoice");
+    if (view.view === "create") {
+      navigateCompat("invoice");
     }
   };
 
@@ -450,7 +449,7 @@ export function InvoiceModule() {
     <>
       <InvoiceList
         invoices={invoices}
-        onCreate={() => navigate("invoice", "create")}
+        onCreate={() => navigateCompat("invoice", "create")}
         onRecordPayment={(inv) => setRecordPaymentTarget(inv)}
         onCustomizeDesign={(inv) => setDesignerTarget(inv)}
         onRelease={(inv) => setReleaseTarget(inv)}

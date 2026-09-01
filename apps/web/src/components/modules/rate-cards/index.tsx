@@ -7,6 +7,8 @@ import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { SearchInput } from "@/components/shared/toolbar";
 import { useAppStore } from "@/lib/store/app-store";
+import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
+import { resolveModuleView, type ModuleRouteState } from "@/lib/navigation/module-route-state";
 import type { RateCard } from "@/lib/types";
 import {
   VEHICLE_TYPES,
@@ -44,8 +46,9 @@ function statusVariant(status: RateCardStatus): "solid" | "outline" | "muted" | 
   return "muted";
 }
 
-export function RateCardsModule() {
+export function RateCardsModule({ route }: { route?: ModuleRouteState } = {}) {
   const { activeView } = useAppStore();
+  const view = resolveModuleView(route, activeView, "rate-cards");
   const [editRecord, setEditRecord] = useState<RateCard | null>(null);
   const [editOpen, setEditOpen] = useState(false);
 
@@ -137,15 +140,11 @@ export function RateCardsModule() {
   }
 
   // Detail view - route before any list hooks to keep hook order stable.
-  if (
-    activeView.module === "rate-cards" &&
-    activeView.view === "detail" &&
-    activeView.id
-  ) {
+  if (view.view === "detail" && view.id) {
     return (
       <>
         <RateCardDetail
-          rateCardId={activeView.id}
+          rateCardId={view.id}
           rateCards={rateCards}
           onEdit={openEdit}
           onUpdate={updateRateCard}
@@ -160,6 +159,7 @@ export function RateCardsModule() {
   return (
     <>
       <RateCardsList
+        route={route}
         rateCards={rateCards}
         onEdit={openEdit}
         onCreate={createRateCard}
@@ -172,6 +172,7 @@ export function RateCardsModule() {
 }
 
 interface RateCardsListProps {
+  route?: ModuleRouteState;
   rateCards: RateCard[];
   onEdit?: (rc: RateCard) => void;
   onCreate: (payload: RateCardPayload) => Promise<boolean>;
@@ -179,19 +180,20 @@ interface RateCardsListProps {
   onDuplicate: (rc: RateCard) => Promise<boolean>;
 }
 
-function RateCardsList({ rateCards, onEdit, onCreate, onDelete, onDuplicate }: RateCardsListProps) {
-  const { activeView, navigate, navigateDetail } = useAppStore();
+function RateCardsList({ route, rateCards, onEdit, onCreate, onDelete, onDuplicate }: RateCardsListProps) {
+  const { activeView } = useAppStore();
+  const { navigateCompat, navigateDetailCompat } = useNavigateCompat();
+  const view = resolveModuleView(route, activeView, "rate-cards");
 
   const [search, setSearch] = useState("");
   const [vehicleFilter, setVehicleFilter] = useState<Set<string>>(new Set());
   const [loadFilter, setLoadFilter] = useState<Set<string>>(new Set());
   const [statusFilter, setStatusFilter] = useState<Set<string>>(new Set());
 
-  const drawerOpen =
-    activeView.module === "rate-cards" && activeView.view === "create";
+  const drawerOpen = view.view === "create";
   const closeDrawer = () => {
-    if (activeView.module === "rate-cards" && activeView.view === "create") {
-      navigate("rate-cards");
+    if (view.view === "create") {
+      navigateCompat("rate-cards");
     }
   };
 
@@ -301,7 +303,7 @@ function RateCardsList({ rateCards, onEdit, onCreate, onDelete, onDuplicate }: R
   ];
 
   const rowActions = [
-    { label: "View", onClick: (r: RateCard) => navigateDetail("rate-cards", r.id) },
+    { label: "View", onClick: (r: RateCard) => navigateDetailCompat("rate-cards", r.id) },
     { label: "Edit", onClick: (r: RateCard) => onEdit ? onEdit(r) : toast("Edit rate card", { description: r.name }) },
     {
       label: "Duplicate",
@@ -369,7 +371,7 @@ function RateCardsList({ rateCards, onEdit, onCreate, onDelete, onDuplicate }: R
                 <DropdownMenuItem onClick={() => toast("Excel export queued", { description: "Stubbed" })}>Excel</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-            <Btn variant="primary" icon={<Plus className="h-3.5 w-3.5" />} onClick={() => navigate("rate-cards", "create")}>
+            <Btn variant="primary" icon={<Plus className="h-3.5 w-3.5" />} onClick={() => navigateCompat("rate-cards", "create")}>
               Create Rate Card
             </Btn>
           </>
@@ -474,13 +476,13 @@ function RateCardsList({ rateCards, onEdit, onCreate, onDelete, onDuplicate }: R
         <DataTable
           data={filtered}
           columns={columns}
-          onRowClick={(r) => navigateDetail("rate-cards", r.id)}
+          onRowClick={(r) => navigateDetailCompat("rate-cards", r.id)}
           rowActions={rowActions}
           bulkActions={bulkActions}
           emptyTitle="No rate cards yet"
           emptyDescription="Create your first rate card to start pricing lanes consistently."
           emptyAction={
-            <Btn variant="primary" icon={<Plus className="h-3.5 w-3.5" />} onClick={() => navigate("rate-cards", "create")}>
+            <Btn variant="primary" icon={<Plus className="h-3.5 w-3.5" />} onClick={() => navigateCompat("rate-cards", "create")}>
               Create Rate Card
             </Btn>
           }

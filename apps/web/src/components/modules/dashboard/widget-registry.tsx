@@ -120,7 +120,7 @@ const CHART_PALETTE = [
   "var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)", "var(--chart-5)",
 ];
 
-/** Dashboard widgets: route migrated B0R-2 modules through App Router. */
+/** Dashboard widgets: route migrated modules through App Router (B0R-2+). */
 function useWidgetNavigation() {
   const legacy = useAppStore();
   const { navigateCompat, navigateDetailCompat } = useNavigateCompat();

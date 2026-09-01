@@ -1,6 +1,7 @@
 "use client";
 import { useState, useCallback, useEffect } from "react";
 import { useAppStore } from "@/lib/store/app-store";
+import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
 import type { Expense } from "@/lib/types";
 import { toast } from "sonner";
 import { ExpensesList } from "./expenses-list";
@@ -8,8 +9,12 @@ import { ExpenseDetail } from "./expense-detail";
 import { AddExpenseDrawer } from "./add-expense-drawer";
 import { ExpenseAnalytics } from "./expense-analytics";
 
-export function ExpensesModule() {
-  const { activeView, navigate } = useAppStore();
+import { resolveModuleView, type ModuleRouteState } from "@/lib/navigation/module-route-state";
+
+export function ExpensesModule({ route }: { route?: ModuleRouteState } = {}) {
+  const { activeView } = useAppStore();
+  const { navigateCompat } = useNavigateCompat();
+  const view = resolveModuleView(route, activeView, "expenses");
   // Local secondary view: list vs analytics
   const [showAnalytics, setShowAnalytics] = useState(false);
   // Real, database-backed expenses (src/app/api/expenses) - previously
@@ -64,20 +69,14 @@ export function ExpensesModule() {
   }
 
   // Detail view
-  if (
-    activeView.module === "expenses" &&
-    activeView.view === "detail" &&
-    activeView.id
-  ) {
-    return <ExpenseDetail expenseId={activeView.id} expenses={expenses} onUpdate={updateExpense} />;
+  if (view.view === "detail" && view.id) {
+    return <ExpenseDetail expenseId={view.id} expenses={expenses} onUpdate={updateExpense} />;
   }
 
-  // Drawer visibility is derived from active view
-  const drawerOpen =
-    activeView.module === "expenses" && activeView.view === "create";
+  const drawerOpen = view.view === "create";
   const closeDrawer = () => {
-    if (activeView.module === "expenses" && activeView.view === "create") {
-      navigate("expenses");
+    if (view.view === "create") {
+      navigateCompat("expenses");
     }
   };
 
@@ -88,7 +87,7 @@ export function ExpensesModule() {
       ) : (
         <ExpensesList
           expenses={expenses}
-          onCreate={() => navigate("expenses", "create")}
+          onCreate={() => navigateCompat("expenses", "create")}
           onOpenAnalytics={() => setShowAnalytics(true)}
           onUpdate={updateExpense}
           onAdd={addExpense}

@@ -43,7 +43,33 @@ describe("module path registry", () => {
 
   it("pathToModule alias: financial-ops treasury path", () => {
     const parsed = pathToModule("/app/ledger/treasury");
-    expect(parsed).toEqual({ module: "ledger", view: "list", tab: "treasury" });
+    expect(parsed).toEqual({ module: "ledger", view: "list", tab: "treasury-ops" });
+  });
+
+  it("moduleToPath ledger sub-views", () => {
+    expect(moduleToPath("ledger", "list", undefined, "coa")).toBe("/app/ledger/coa");
+    expect(moduleToPath("ledger", "list", undefined, "treasury-ops")).toBe("/app/ledger/treasury");
+    expect(moduleToPath("ledger", "list", undefined, "dashboard")).toBe("/app/ledger");
+    expect(pathToModule("/app/ledger/journal")).toEqual({
+      module: "ledger",
+      view: "list",
+      tab: "journal",
+    });
+    expect(pathToModule("/app/ledger/not-a-view")).toBeNull();
+  });
+
+  it("moduleToPath approvals detail tab query", () => {
+    expect(moduleToPath("approvals", "detail", "APR-1", "decision")).toBe(
+      "/app/approvals/APR-1?tab=decision",
+    );
+    expect(
+      pathToModule("/app/approvals/APR-1", new URLSearchParams("tab=decision")),
+    ).toEqual({
+      module: "approvals",
+      view: "detail",
+      id: "APR-1",
+      tab: "decision",
+    });
   });
 
   it("pathToModule alias: integrations accepts app-store target", () => {

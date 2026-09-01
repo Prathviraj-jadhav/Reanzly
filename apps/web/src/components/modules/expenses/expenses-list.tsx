@@ -4,7 +4,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { DataTable, type Column } from "@/components/shared/data-table";
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
-import { useAppStore } from "@/lib/store/app-store";
+import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
 import type { Expense } from "@/lib/types";
 import { TRIPS } from "@/lib/mock-data";
 import {
@@ -56,7 +56,7 @@ const DATE_RANGE_PRESETS = [
 ];
 
 export function ExpensesList({ expenses, onCreate, onOpenAnalytics, onUpdate, onAdd }: ExpensesListProps) {
-  const { navigateDetail } = useAppStore();
+  const { navigateDetailCompat: navigateDetail } = useNavigateCompat();
   const [editing, setEditing] = useState<Expense | null>(null);
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<Set<string>>(new Set());
