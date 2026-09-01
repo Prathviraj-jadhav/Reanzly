@@ -6,6 +6,7 @@ import { DataTable, type Column } from "@/components/shared/data-table";
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { useAppStore } from "@/lib/store/app-store";
+import { useModuleNavigation } from "@/lib/navigation/navigate-compat";
 import {
   Plus,
   Download,
@@ -82,7 +83,7 @@ function exportCsv(tasks: FieldTask[]) {
 }
 
 export function TasksList({ tasks, loaded, onCreate, onUpdate }: TasksListProps) {
-  const { navigateDetail } = useAppStore();
+  const { navigateDetail } = useModuleNavigation();
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<Set<string>>(new Set());
   const [statusFilter, setStatusFilter] = useState<Set<string>>(new Set());

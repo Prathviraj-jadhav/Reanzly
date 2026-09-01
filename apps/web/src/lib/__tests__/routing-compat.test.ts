@@ -13,10 +13,17 @@ describe("routing migration config", () => {
     vi.unstubAllEnvs();
   });
 
-  it("MIGRATED_MODULES contains B0R-2/3 operations, B0R-4 finance, and B0R-5 people/docs", () => {
+  it("MIGRATED_MODULES contains B0R-2…6 desktop modules (excludes superadmin)", () => {
     expect([...MIGRATED_MODULES].sort()).toEqual(
       [
+        "access-matrix",
+        "app-store",
         "approvals",
+        "automation",
+        "broker-console",
+        "broker-marketplace",
+        "broker-settlements",
+        "chat",
         "compliance",
         "crm",
         "customers",
@@ -25,12 +32,15 @@ describe("routing migration config", () => {
         "documents",
         "drivers-staff",
         "expenses",
+        "field-service",
         "financial-ops",
+        "financial-services",
         "fleet-map",
         "fuel-energy",
         "helpdesk",
         "hr",
         "inspection",
+        "integrations",
         "invoice",
         "issues",
         "knowledge",
@@ -38,21 +48,30 @@ describe("routing migration config", () => {
         "lorry-receipts",
         "maintenance",
         "marketing",
+        "operations-hub",
+        "partner-programme",
         "payments",
         "payroll",
+        "planning",
         "pod",
         "purchase",
         "quality",
         "rate-cards",
         "reminders",
+        "reports",
         "services",
+        "settings",
+        "subscriptions",
         "surveys",
+        "system-design",
         "trips",
         "vehicles",
         "vendors",
+        "warehouse",
         "workshop",
       ].sort(),
     );
+    expect(MIGRATED_MODULES.has("superadmin")).toBe(false);
   });
 
   it("isRoutingMigrationEnabled respects env flag", () => {
@@ -75,7 +94,9 @@ describe("routing migration config", () => {
     expect(isModuleMigrated("customers")).toBe(true);
     expect(isModuleMigrated("crm")).toBe(true);
     expect(isModuleMigrated("document-studio")).toBe(true);
-    expect(isModuleMigrated("settings")).toBe(false);
+    expect(isModuleMigrated("settings")).toBe(true);
+    expect(isModuleMigrated("warehouse")).toBe(true);
+    expect(isModuleMigrated("superadmin")).toBe(false);
   });
 });
 

@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { DataTable, type Column } from "@/components/shared/data-table";
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
-import { useAppStore } from "@/lib/store/app-store";
+import { useModuleNavigation } from "@/lib/navigation/navigate-compat";
 import {
   Plus,
   Download,
@@ -49,7 +49,7 @@ interface ContractsListProps {
 }
 
 export function ContractsList({ contracts, onCreate }: ContractsListProps) {
-  const { navigateDetail } = useAppStore();
+  const { navigateDetail } = useModuleNavigation();
   const [search, setSearch] = useState("");
   const [serviceFilter, setServiceFilter] = useState<Set<string>>(new Set());
   const [cycleFilter, setCycleFilter] = useState<Set<string>>(new Set());

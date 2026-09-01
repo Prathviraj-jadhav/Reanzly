@@ -1,29 +1,27 @@
 "use client";
 
 import { useAppStore } from "@/lib/store/app-store";
+import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
+import { resolveModuleView, type ModuleRouteState } from "@/lib/navigation/module-route-state";
 import { useFieldServiceData } from "./use-field-service-data";
 import { TasksList } from "./tasks-list";
 import { TaskDetail } from "./task-detail";
 import { AddTaskDrawer } from "./add-task-drawer";
 
-export function FieldServiceModule() {
-  const { activeView, navigate } = useAppStore();
+export function FieldServiceModule({ route }: { route?: ModuleRouteState } = {}) {
+  const { activeView } = useAppStore();
+  const { navigateCompat } = useNavigateCompat();
+  const view = resolveModuleView(route, activeView, "field-service");
   const { tasks, loaded, createTask, updateTask } = useFieldServiceData();
 
-  // Detail view - route before any list hooks to keep hook order stable.
-  if (
-    activeView.module === "field-service" &&
-    activeView.view === "detail" &&
-    activeView.id
-  ) {
-    return <TaskDetail taskId={activeView.id} onUpdate={updateTask} />;
+  if (view.view === "detail" && view.id) {
+    return <TaskDetail taskId={view.id} onUpdate={updateTask} />;
   }
 
-  const drawerOpen =
-    activeView.module === "field-service" && activeView.view === "create";
+  const drawerOpen = view.view === "create";
   const closeDrawer = () => {
-    if (activeView.module === "field-service" && activeView.view === "create") {
-      navigate("field-service");
+    if (view.view === "create") {
+      navigateCompat("field-service");
     }
   };
 
@@ -32,7 +30,7 @@ export function FieldServiceModule() {
       <TasksList
         tasks={tasks}
         loaded={loaded}
-        onCreate={() => navigate("field-service", "create")}
+        onCreate={() => navigateCompat("field-service", "create")}
         onUpdate={updateTask}
       />
       <AddTaskDrawer

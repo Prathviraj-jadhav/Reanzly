@@ -1,5 +1,6 @@
 "use client";
-import { useEffect } from "react";
+
+import { useCallback } from "react";
 import {
   User, Bell, Lock, Palette, ShieldCheck, Building2, Database, Layers,
   Grid3x3, Plug, CreditCard,
@@ -7,6 +8,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAppStore, type SettingsTab } from "@/lib/store/app-store";
+import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
+import { resolveModuleView, type ModuleRouteState } from "@/lib/navigation/module-route-state";
 import { SETTINGS_SECTIONS } from "./_helpers";
 import { ProfileSection } from "./sections/profile";
 import { NotificationsSection } from "./sections/notifications";
@@ -25,16 +28,24 @@ const ICONS: Record<string, LucideIcon> = {
   Grid3x3, Plug, CreditCard,
 };
 
-export function SettingsModule() {
-  const { activeView, setSettingsTab } = useAppStore();
-  const activeTab: SettingsTab = activeView.settingsTab || "profile";
 
-  // Ensure a default tab when navigating to settings without one
-  useEffect(() => {
-    if (!activeView.settingsTab && activeView.module === "settings") {
-      setSettingsTab("profile");
-    }
-  }, [activeView.settingsTab, activeView.module, setSettingsTab]);
+export function SettingsModule({ route }: { route?: ModuleRouteState } = {}) {
+  const { activeView } = useAppStore();
+  const { navigateCompat } = useNavigateCompat();
+  const view = resolveModuleView(route, activeView, "settings");
+  const activeTab = (view.tab as SettingsTab | undefined) ?? "profile";
+
+  const onTabChange = useCallback(
+    (tab: SettingsTab) => {
+      if (tab === "access-matrix") {
+        navigateCompat("access-matrix");
+        return;
+      }
+      navigateCompat("settings", "list", undefined, tab === "profile" ? undefined : tab);
+    },
+    [navigateCompat],
+  );
+
 
   return (
     <div className="flex gap-6">
@@ -51,7 +62,7 @@ export function SettingsModule() {
             return (
               <button
                 key={section.id}
-                onClick={() => setSettingsTab(section.id)}
+                onClick={() => onTabChange(section.id)}
                 className={cn(
                   "group flex items-start gap-2.5 rounded-[5px] px-2.5 py-2 text-left transition-colors",
                   isActive
@@ -80,7 +91,7 @@ export function SettingsModule() {
             return (
               <button
                 key={section.id}
-                onClick={() => setSettingsTab(section.id)}
+                onClick={() => onTabChange(section.id)}
                 className={cn(
                   "shrink-0 rounded-full border px-3 py-1 text-[12px] font-medium transition-colors",
                   isActive

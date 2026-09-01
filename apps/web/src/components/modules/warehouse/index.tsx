@@ -1,8 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/shared/page-header";
 import { cn } from "@/lib/utils";
+import { useAppStore } from "@/lib/store/app-store";
+import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
+import { resolveModuleView, type ModuleRouteState } from "@/lib/navigation/module-route-state";
 import {
   Warehouse as WarehouseIcon,
   Package,
@@ -54,8 +57,24 @@ import { WarehouseYard } from "./yard";
 import { WarehouseDockScheduling } from "./dock-scheduling";
 import { KpiTile } from "./_helpers";
 
-export function WarehouseModule() {
-  const [tab, setTab] = useState<WarehouseTab>("inventory");
+export function WarehouseModule({ route }: { route?: ModuleRouteState } = {}) {
+  const { activeView } = useAppStore();
+  const { navigateCompat } = useNavigateCompat();
+  const view = resolveModuleView(route, activeView, "warehouse");
+  const resolvedTab = (view.tab as WarehouseTab | undefined) ?? "inventory";
+  const [tab, setTab] = useState<WarehouseTab>(resolvedTab);
+
+  useEffect(() => {
+    setTab(resolvedTab);
+  }, [resolvedTab]);
+
+  const onTabChange = useCallback(
+    (next: WarehouseTab) => {
+      setTab(next);
+      navigateCompat("warehouse", "list", undefined, next === "inventory" ? undefined : next);
+    },
+    [navigateCompat],
+  );
 
   const kpis = useMemo(() => {
     const totalSkus = SKUS.length;
@@ -131,7 +150,7 @@ export function WarehouseModule() {
         {WAREHOUSE_TABS.map((t) => (
           <button
             key={t.id}
-            onClick={() => setTab(t.id)}
+            onClick={() => onTabChange(t.id)}
             className={cn(
               "relative shrink-0 px-3 py-2.5 text-[13px] transition-colors tap",
               tab === t.id ? "font-medium text-foreground" : "text-muted-foreground hover:text-foreground",

@@ -60,6 +60,7 @@ import { KnowledgeModule } from "./knowledge";
 import { PartnerProgrammeModule } from "./partner-programme";
 import { FinancialServicesModule } from "./financial-services";
 import { ModuleClusterTabs, type ClusterTab } from "@/components/shared/module-cluster-tabs";
+import { ProvisionedGate } from "@/components/shared/provisioned-gate";
 
 // Module clusters: groups of standalone modules that used to each be their
 // own top-level sidebar/"More"-drawer entry - a wall of nearly-indistinguishable
@@ -202,9 +203,9 @@ function renderModule(module: ModuleId) {
     case "crm": return <CRMModule />;
     case "hr": return <HRModule />;
     case "ledger": return <LedgerModule />;
-    case "broker-console": return <ProvisionedGate moduleId="broker-console"><BrokerConsoleModule /></ProvisionedGate>;
-    case "broker-marketplace": return <ProvisionedGate moduleId="broker-marketplace"><BrokerMarketplaceModule /></ProvisionedGate>;
-    case "broker-settlements": return <ProvisionedGate moduleId="broker-settlements"><BrokerSettlementsModule /></ProvisionedGate>;
+    case "broker-console": return <RouterProvisionedGate moduleId="broker-console"><BrokerConsoleModule /></RouterProvisionedGate>;
+    case "broker-marketplace": return <RouterProvisionedGate moduleId="broker-marketplace"><BrokerMarketplaceModule /></RouterProvisionedGate>;
+    case "broker-settlements": return <RouterProvisionedGate moduleId="broker-settlements"><BrokerSettlementsModule /></RouterProvisionedGate>;
     case "document-studio": return <DocumentStudioModule />;
     case "integrations": return <IntegrationsModule />;
     case "helpdesk": return <HelpdeskModule />;
@@ -232,22 +233,8 @@ function renderModule(module: ModuleId) {
 }
 
 /**
- * ProvisionedGate - Broker Network modules are individually licensed. When the
- * authUser has selectedModules set (post-signup org), the module id must be in
- * the list (or the list must contain "*"). When selectedModules is undefined
- * (demo logins via the role switcher), access is allowed so demo users can
- * explore the modules without provisioning friction.
+ * ProvisionedGate - re-exported from shared for ModuleRouter fallback (B0R-6).
  */
-function ProvisionedGate({ moduleId, children }: { moduleId: string; children: React.ReactNode }) {
-  const authUser = useAppStore((s) => s.authUser);
-  const selected = authUser?.selectedModules;
-  if (!selected || selected.includes("*") || selected.includes(moduleId)) {
-    return <>{children}</>;
-  }
-  return (
-    <PlaceholderModule
-      title="Module not provisioned"
-      description="This Broker Network module is not in your current plan. Add it from Settings - Marketplace or contact your Reanzly account manager."
-    />
-  );
+function RouterProvisionedGate({ moduleId, children }: { moduleId: string; children: React.ReactNode }) {
+  return <ProvisionedGate moduleId={moduleId}>{children}</ProvisionedGate>;
 }

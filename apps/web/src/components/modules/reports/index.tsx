@@ -1,8 +1,11 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
+import { useAppStore } from "@/lib/store/app-store";
+import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
+import { resolveModuleView, type ModuleRouteState } from "@/lib/navigation/module-route-state";
 import {
   Plus, CalendarClock, Star, Clock, MoreHorizontal,
   Edit3, Trash2, Play, Pause, Sparkles,
@@ -26,19 +29,50 @@ import { GeneratedReport } from "./generated-report";
 import { DataExplorer } from "./data-explorer";
 import { useReportsData } from "./use-reports-data";
 
-export function ReportsModule() {
+type ReportsTab = "library" | "scheduled" | "custom" | "data";
+
+export function ReportsModule({ route }: { route?: ModuleRouteState } = {}) {
+  const { activeView } = useAppStore();
+  const { navigateCompat } = useNavigateCompat();
+  const view = resolveModuleView(route, activeView, "reports");
+  const resolvedTab = (view.tab as ReportsTab | undefined) ?? "library";
   const {
     scheduled, custom, loaded,
     createSchedule, patchSchedule, deleteSchedule, runSchedule,
     saveCustom, deleteCustom, runCustom,
   } = useReportsData();
 
-  const [activeTab, setActiveTab] = useState<"library" | "scheduled" | "custom" | "data">("library");
+  const [activeTab, setActiveTab] = useState<ReportsTab>(resolvedTab);
   const [activeCategory, setActiveCategory] = useState<ReportCategory | "All">("All");
   const [configOpen, setConfigOpen] = useState(false);
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [activeReport, setActiveReport] = useState<ReportType | null>(null);
   const [generated, setGenerated] = useState<{ report: ReportType; form: ReportConfigForm } | null>(null);
+
+  useEffect(() => {
+    setActiveTab(resolvedTab);
+  }, [resolvedTab]);
+
+  useEffect(() => {
+    if (view.view === "detail" && view.id) {
+      const report = REPORT_TYPES.find((r) => r.id === view.id);
+      if (report) {
+        setGenerated({
+          report,
+          form: emptyConfigForm(report.id, report.columns, report.defaultGroupBy),
+        });
+      }
+    }
+  }, [view.view, view.id]);
+
+  const onTabChange = useCallback(
+    (next: ReportsTab) => {
+      setActiveTab(next);
+      setGenerated(null);
+      navigateCompat("reports", "list", undefined, next === "library" ? undefined : next);
+    },
+    [navigateCompat],
+  );
 
   const filteredReports = useMemo(() => {
     if (activeCategory === "All") return REPORT_TYPES;
@@ -54,6 +88,7 @@ export function ReportsModule() {
     const report = REPORT_TYPES.find((r) => r.id === form.reportId);
     if (!report) return;
     setGenerated({ report, form });
+    navigateCompat("reports", "detail", report.id);
   };
 
   const handleSchedule = async (form: ScheduleForm) => {
@@ -139,7 +174,10 @@ export function ReportsModule() {
         <GeneratedReport
           report={generated.report}
           form={generated.form}
-          onBack={() => setGenerated(null)}
+          onBack={() => {
+            setGenerated(null);
+            navigateCompat("reports");
+          }}
           onSchedule={openScheduleFromGenerated}
           onSaveCustom={handleSaveCustom}
         />
@@ -160,7 +198,7 @@ export function ReportsModule() {
         description="Generate, schedule, and export operational, fleet, financial, and compliance reports."
         actions={
           <>
-            <Btn icon={<CalendarClock className="h-3.5 w-3.5" />} onClick={() => setActiveTab("scheduled")}>
+            <Btn icon={<CalendarClock className="h-3.5 w-3.5" />} onClick={() => onTabChange("scheduled")}>
               Scheduled
             </Btn>
             <Btn variant="primary" icon={<Plus className="h-3.5 w-3.5" />} onClick={() => setActiveCategory("Custom")}>
@@ -170,7 +208,7 @@ export function ReportsModule() {
         }
       />
 
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as never)}>
+      <Tabs value={activeTab} onValueChange={(v) => onTabChange(v as ReportsTab)}>
         <TabsList className="bg-transparent p-0 h-auto gap-4 border-b border-border rounded-none w-full justify-start">
           <TabsTrigger
             value="library"

@@ -122,6 +122,12 @@ describe("module path registry", () => {
     expect(moduleToPath("settings", "list", undefined, "billing")).toBe(
       "/app/settings/billing",
     );
+    expect(moduleToPath("warehouse", "list", undefined, "inventory")).toBe("/app/warehouse");
+    expect(moduleToPath("warehouse", "list", undefined, "inbound")).toBe("/app/warehouse/inbound");
+    expect(moduleToPath("operations-hub", "list", undefined, "board")).toBe("/app/operations");
+    expect(moduleToPath("reports", "detail", "trip-summary")).toBe("/app/reports/run/trip-summary");
+    expect(moduleToPath("chat", "detail", "conv-1")).toBe("/app/chat/conv-1");
+    expect(moduleToPath("app-store")).toBe("/app/integrations");
   });
 
   it("pathToModule parses dashboard and nested routes", () => {
@@ -193,6 +199,40 @@ describe("module path registry", () => {
     });
     expect(pathToModule("/app/settings/access-matrix")).toEqual({
       module: "access-matrix",
+      view: "list",
+    });
+    expect(pathToModule("/app/warehouse/inbound")).toEqual({
+      module: "warehouse",
+      view: "list",
+      tab: "inbound",
+    });
+    expect(pathToModule("/app/operations")).toEqual({
+      module: "operations-hub",
+      view: "list",
+    });
+    expect(pathToModule("/app/operations/reports")).toEqual({
+      module: "operations-hub",
+      view: "list",
+      tab: "reports",
+    });
+    expect(pathToModule("/app/settings/billing")).toEqual({
+      module: "settings",
+      view: "list",
+      tab: "billing",
+      settingsTab: "billing",
+    });
+    expect(pathToModule("/app/reports/run/trip-summary")).toEqual({
+      module: "reports",
+      view: "detail",
+      id: "trip-summary",
+    });
+    expect(pathToModule("/app/chat/conv-1")).toEqual({
+      module: "chat",
+      view: "detail",
+      id: "conv-1",
+    });
+    expect(pathToModule("/app/broker/console")).toEqual({
+      module: "broker-console",
       view: "list",
     });
   });

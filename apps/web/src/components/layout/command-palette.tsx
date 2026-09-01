@@ -10,7 +10,8 @@ import {
   Receipt, Wallet, Banknote, Users, Building2, UserCog,
   ClipboardCheck, AlertCircle, Wrench, Settings2, Fuel, Bell,
   FolderArchive, BarChart3, Settings, Zap,
-  Search, ArrowRight, Clock,
+  Search, ArrowRight, Clock, MessageSquare, Plug,
+  Boxes, Handshake, Store, Gavel, CalendarRange,
 } from "lucide-react";
 import { TRIPS, VEHICLES, DRIVERS, CUSTOMERS, INVOICES, ISSUES, INSPECTIONS } from "@/lib/mock-data";
 
@@ -41,6 +42,16 @@ const MODULE_SHORTCUTS: ModuleShortcut[] = [
   { id: "reminders", label: "Reminders", icon: Bell },
   { id: "documents", label: "Documents", icon: FolderArchive },
   { id: "reports", label: "Reports", icon: BarChart3 },
+  { id: "warehouse", label: "Warehouse", icon: Boxes },
+  { id: "field-service", label: "Field Service", icon: Wrench },
+  { id: "planning", label: "Planning", icon: CalendarRange },
+  { id: "chat", label: "Chat", icon: MessageSquare },
+  { id: "integrations", label: "Integrations", icon: Plug },
+  { id: "partner-programme", label: "Partner Programme", icon: Handshake },
+  { id: "financial-services", label: "Financial Services", icon: Banknote },
+  { id: "broker-console", label: "Broker Console", icon: Handshake },
+  { id: "broker-marketplace", label: "Broker Marketplace", icon: Store },
+  { id: "broker-settlements", label: "Broker Settlements", icon: Gavel },
   { id: "settings", label: "Settings", icon: Settings },
   { id: "automation", label: "Automation", icon: Zap },
 ];

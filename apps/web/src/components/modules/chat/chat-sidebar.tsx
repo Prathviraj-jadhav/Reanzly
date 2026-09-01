@@ -20,6 +20,7 @@ interface ChatSidebarProps {
   currentUserId: string;
   onOpenChannelBrowser: () => void;
   onOpenNewDm: () => void;
+  onConversationSelect?: (id: string) => void;
   compact?: boolean;
   className?: string;
 }
@@ -30,6 +31,7 @@ export function ChatSidebar({
   currentUserId,
   onOpenChannelBrowser,
   onOpenNewDm,
+  onConversationSelect,
   compact = false,
   className,
 }: ChatSidebarProps) {
@@ -53,6 +55,11 @@ export function ChatSidebar({
   const filteredDms = dms.filter((c) =>
     c.name.toLowerCase().includes(search.toLowerCase())
   );
+
+  const selectConversation = (id: string) => {
+    setActive(id);
+    onConversationSelect?.(id);
+  };
 
   return (
     <div className={cn("flex h-full flex-col bg-background", className)}>
@@ -104,7 +111,7 @@ export function ChatSidebar({
                 key={c.id}
                 conv={c}
                 active={activeId === c.id}
-                onClick={() => setActive(c.id)}
+                onClick={() => selectConversation(c.id)}
                 entities={entities}
                 currentUserId={currentUserId}
                 messages={messages}
@@ -133,7 +140,7 @@ export function ChatSidebar({
                 key={c.id}
                 conv={c}
                 active={activeId === c.id}
-                onClick={() => setActive(c.id)}
+                onClick={() => selectConversation(c.id)}
                 entities={entities}
                 currentUserId={currentUserId}
                 messages={messages}

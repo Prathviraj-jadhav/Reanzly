@@ -2,30 +2,31 @@
 
 import { useState, useCallback } from "react";
 import { useAppStore } from "@/lib/store/app-store";
+import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
+import { resolveModuleView, type ModuleRouteState } from "@/lib/navigation/module-route-state";
 import { ContractsList } from "./contracts-list";
 import { ContractDetail } from "./contract-detail";
 import { AddContractDrawer } from "./add-contract-drawer";
 import { CONTRACTS, type Contract } from "./_helpers";
 
-export function SubscriptionsModule() {
-  const { activeView, navigate } = useAppStore();
+export function SubscriptionsModule({ route }: { route?: ModuleRouteState } = {}) {
+  const { activeView } = useAppStore();
+  const { navigateCompat } = useNavigateCompat();
+  const view = resolveModuleView(route, activeView, "subscriptions");
   const [contracts, setContracts] = useState<Contract[]>(CONTRACTS);
 
   const addContract = useCallback((c: Contract) => {
     setContracts((prev) => [c, ...prev]);
   }, []);
 
-  // Detail view
-  if (activeView.module === "subscriptions" && activeView.view === "detail" && activeView.id) {
-    return <ContractDetail contractId={activeView.id} contracts={contracts} />;
+  if (view.view === "detail" && view.id) {
+    return <ContractDetail contractId={view.id} contracts={contracts} />;
   }
 
-  // Drawer visibility derived from active view
-  const drawerOpen =
-    activeView.module === "subscriptions" && activeView.view === "create";
+  const drawerOpen = view.view === "create";
   const closeDrawer = () => {
-    if (activeView.module === "subscriptions" && activeView.view === "create") {
-      navigate("subscriptions");
+    if (view.view === "create") {
+      navigateCompat("subscriptions");
     }
   };
 
@@ -33,7 +34,7 @@ export function SubscriptionsModule() {
     <>
       <ContractsList
         contracts={contracts}
-        onCreate={() => navigate("subscriptions", "create")}
+        onCreate={() => navigateCompat("subscriptions", "create")}
       />
       <AddContractDrawer open={drawerOpen} onClose={closeDrawer} onAdd={addContract} />
     </>

@@ -3,6 +3,8 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/lib/store/app-store";
+import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
+import { resolveModuleView, type ModuleRouteState } from "@/lib/navigation/module-route-state";
 import { useChatStore } from "@/lib/store/chat-store";
 import { ChatSidebar } from "./chat-sidebar";
 import { ChatConversation } from "./chat-conversation";
@@ -31,8 +33,10 @@ import {
  * Shares the persisted `reanzly-chat` Zustand store with the slide-in
  * ChatPanel so quick replies from the panel show up here too.
  */
-export function ChatModule() {
-  const { currentRole, chatOpen, setChatOpen, authUser } = useAppStore();
+export function ChatModule({ route }: { route?: ModuleRouteState } = {}) {
+  const { currentRole, chatOpen, setChatOpen, authUser, activeView } = useAppStore();
+  const { navigateCompat } = useNavigateCompat();
+  const view = resolveModuleView(route, activeView, "chat");
   // Real signup name when available, falling back to the role archetype's
   // demo persona name for quick-login / live-demo sessions.
   const displayName = authUser?.name?.trim() || currentRole.name;
@@ -48,6 +52,7 @@ export function ChatModule() {
       .join("")
       .toUpperCase() || currentRole.initials;
   const activeId = useChatStore((s) => s.activeConversationId);
+  const setActiveConversation = useChatStore((s) => s.setActiveConversation);
   const init = useChatStore((s) => s.init);
   const connected = useChatStore((s) => s.connected);
   const loading = useChatStore((s) => s.loading);
@@ -74,6 +79,20 @@ export function ChatModule() {
   React.useEffect(() => {
     if (chatOpen) setChatOpen(false);
   }, [chatOpen, setChatOpen]);
+
+  React.useEffect(() => {
+    if (view.id && view.id !== activeId) {
+      setActiveConversation(view.id);
+    }
+  }, [view.id, activeId, setActiveConversation]);
+
+  const onConversationSelect = React.useCallback(
+    (id: string) => {
+      setActiveConversation(id);
+      navigateCompat("chat", "detail", id);
+    },
+    [navigateCompat, setActiveConversation],
+  );
 
   const handleForward = (messageId: string) => {
     setForwardId(messageId);
@@ -137,6 +156,7 @@ export function ChatModule() {
             currentUserId={currentRole.id}
             onOpenChannelBrowser={() => setChannelBrowserOpen(true)}
             onOpenNewDm={() => setNewDmOpen(true)}
+            onConversationSelect={onConversationSelect}
           />
         </div>
 
@@ -170,6 +190,7 @@ export function ChatModule() {
                     setMobileSidebarOpen(false);
                     setNewDmOpen(true);
                   }}
+                  onConversationSelect={onConversationSelect}
                 />
               </div>
             </div>

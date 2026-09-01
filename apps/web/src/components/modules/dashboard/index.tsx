@@ -15,6 +15,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { useAppStore } from "@/lib/store/app-store";
+import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
 import {
   useDashboardStore, selectDashboardsForView,
   canEditDashboard, ROLE_LABELS,
@@ -78,7 +79,8 @@ const VIEW_TABS = [
 ] as const;
 
 export function DashboardModule() {
-  const { currentRole, navigate, dateRange, authUser } = useAppStore();
+  const { currentRole, dateRange, authUser } = useAppStore();
+  const { navigateCompat } = useNavigateCompat();
   const {
     dashboards, activeDashboardId, view, editMode, filterOptions,
     hasHydrated, setView, setEditMode, addWidget, removeWidget, resizeWidget,
@@ -180,7 +182,7 @@ export function DashboardModule() {
               size="sm"
               icon={<MessageSquare className="h-3.5 w-3.5" />}
               onClick={() => {
-                navigate("chat");
+                navigateCompat("chat");
                 toast("Ask Rean", { description: "Opening chat - ask anything about your operations." });
               }}
               aria-label="Ask Rean"
@@ -307,7 +309,7 @@ export function DashboardModule() {
           readOnly={view === "shared" || !canEdit}
           roleLabel={ROLE_LABELS[currentRole.id]}
           onAddWidget={() => setLibraryOpen(true)}
-          onGoToTrips={() => navigate("trips")}
+          onGoToTrips={() => navigateCompat("trips")}
         />
       ) : (
         <DashboardStatsProvider location={visibleActive.filter.location}>

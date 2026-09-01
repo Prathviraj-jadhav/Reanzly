@@ -136,6 +136,7 @@ const MODULE_TAB_ROUTES = new Set<ModuleId>([
   "settings",
   "reports",
   "planning",
+  "operations-hub",
 ]);
 
 const SLUG_TO_MODULE: Record<string, ModuleId> = (() => {
@@ -185,6 +186,12 @@ export function moduleToPath(
       const taskBase = `${base}/tasks/${encodeURIComponent(id)}`;
       return tab ? `${taskBase}/${tab}` : taskBase;
     }
+    if (resolved === "reports") {
+      return `${base}/run/${encodeURIComponent(id)}`;
+    }
+    if (resolved === "chat") {
+      return `${base}/${encodeURIComponent(id)}`;
+    }
     const detailBase = `${base}/${encodeURIComponent(id)}`;
     if ((resolved === "vehicles" || resolved === "inspection") && tab) {
       return `${detailBase}?tab=${encodeURIComponent(tab)}`;
@@ -216,6 +223,21 @@ export function moduleToPath(
       return base;
     }
     if (resolved === "payroll" && tab === "overview") {
+      return base;
+    }
+    if (resolved === "warehouse" && tab === "inventory") {
+      return base;
+    }
+    if (resolved === "operations-hub" && tab === "board") {
+      return base;
+    }
+    if (resolved === "reports" && tab === "library") {
+      return base;
+    }
+    if (resolved === "planning" && tab === "week") {
+      return base;
+    }
+    if (resolved === "settings" && tab === "profile") {
       return base;
     }
     return `${base}/${tab}`;
@@ -297,6 +319,14 @@ export function pathToModule(pathname: string, searchParams?: URLSearchParams): 
       view: "detail",
       id: decodeURIComponent(segments[2]),
       tab: segments[3] ? decodeURIComponent(segments[3]) : undefined,
+    };
+  }
+
+  if (segments[0] === "reports" && segments[1] === "run" && segments[2]) {
+    return {
+      module: "reports",
+      view: "detail",
+      id: decodeURIComponent(segments[2]),
     };
   }
 

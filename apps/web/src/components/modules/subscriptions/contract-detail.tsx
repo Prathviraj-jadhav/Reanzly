@@ -9,7 +9,7 @@ import {
 } from "@/components/shared/detail-layout";
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
-import { useAppStore } from "@/lib/store/app-store";
+import { useModuleNavigation } from "@/lib/navigation/navigate-compat";
 import {
   Repeat,
   Banknote,
@@ -46,7 +46,7 @@ interface ContractDetailProps {
 }
 
 export function ContractDetail({ contractId, contracts }: ContractDetailProps) {
-  const { navigate, navigateDetail } = useAppStore();
+  const { navigate, navigateDetail } = useModuleNavigation();
   const [tab, setTab] = useState<SubscriptionTab>("overview");
 
   const contract = useMemo(

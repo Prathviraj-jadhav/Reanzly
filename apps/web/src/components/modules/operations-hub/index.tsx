@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Btn } from "@/components/shared/btn";
 import {
@@ -34,6 +34,8 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import type { Task } from "@/lib/types";
 import { useAppStore } from "@/lib/store/app-store";
+import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
+import { resolveModuleView, type ModuleRouteState } from "@/lib/navigation/module-route-state";
 import { OperationsBoard } from "./operations-board";
 import { OperationsReports } from "./operations-reports";
 import { TaskDetailDrawer } from "./task-detail-drawer";
@@ -49,8 +51,11 @@ import {
 
 type Tab = "board" | "reports";
 
-export function OperationsHubModule() {
-  const { currentRole, authUser } = useAppStore();
+export function OperationsHubModule({ route }: { route?: ModuleRouteState } = {}) {
+  const { currentRole, authUser, activeView } = useAppStore();
+  const { navigateCompat } = useNavigateCompat();
+  const view = resolveModuleView(route, activeView, "operations-hub");
+  const resolvedTab = (view.tab as Tab | undefined) ?? "board";
   // Real signup name when available, falling back to the role archetype's
   // demo persona name for quick-login / live-demo sessions.
   const firstName = (authUser?.name?.trim() || currentRole.name).split(" ")[0];
@@ -69,7 +74,20 @@ export function OperationsHubModule() {
   } = useOperationsData();
 
   // ===== View state =====
-  const [tab, setTab] = useState<Tab>("board");
+  const [tab, setTab] = useState<Tab>(resolvedTab);
+
+  useEffect(() => {
+    setTab(resolvedTab);
+  }, [resolvedTab]);
+
+  const onTabChange = useCallback(
+    (next: Tab) => {
+      setTab(next);
+      navigateCompat("operations-hub", "list", undefined, next === "board" ? undefined : next);
+    },
+    [navigateCompat],
+  );
+
   // "" means "not yet chosen" - falls back to the real active sprint once
   // sprints load (mirrors the old hardcoded ACTIVE_SPRINT_ID default)
   // without needing a setState-in-effect to seed it. Any explicit user pick,
@@ -290,10 +308,10 @@ export function OperationsHubModule() {
       {/* Tabs + filters row */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
         <div className="flex items-center gap-1">
-          <TabButton active={tab === "board"} onClick={() => setTab("board")} icon={<LayoutGrid className="h-3.5 w-3.5" />}>
+          <TabButton active={tab === "board"} onClick={() => onTabChange("board")} icon={<LayoutGrid className="h-3.5 w-3.5" />}>
             Board
           </TabButton>
-          <TabButton active={tab === "reports"} onClick={() => setTab("reports")} icon={<BarChart3 className="h-3.5 w-3.5" />}>
+          <TabButton active={tab === "reports"} onClick={() => onTabChange("reports")} icon={<BarChart3 className="h-3.5 w-3.5" />}>
             Reports
           </TabButton>
         </div>

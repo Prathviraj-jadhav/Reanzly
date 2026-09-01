@@ -1,8 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/shared/page-header";
 import { cn } from "@/lib/utils";
+import { useAppStore } from "@/lib/store/app-store";
+import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
+import { resolveModuleView, type ModuleRouteState } from "@/lib/navigation/module-route-state";
 import {
   CalendarRange,
   AlertTriangle,
@@ -20,10 +23,26 @@ import { usePlanningData } from "./use-planning-data";
 import { ScheduleView } from "./schedule-view";
 import { ResourceList } from "./resource-list";
 
-export function PlanningModule() {
-  const [tab, setTab] = useState<PlanningTab>("week");
+export function PlanningModule({ route }: { route?: ModuleRouteState } = {}) {
+  const { activeView } = useAppStore();
+  const { navigateCompat } = useNavigateCompat();
+  const view = resolveModuleView(route, activeView, "planning");
+  const resolvedTab = (view.tab as PlanningTab | undefined) ?? "week";
+  const [tab, setTab] = useState<PlanningTab>(resolvedTab);
   const [weekStart, setWeekStart] = useState<Date>(() => startOfWeek());
   const data = usePlanningData(weekStart);
+
+  useEffect(() => {
+    setTab(resolvedTab);
+  }, [resolvedTab]);
+
+  const onTabChange = useCallback(
+    (next: PlanningTab) => {
+      setTab(next);
+      navigateCompat("planning", "list", undefined, next === "week" ? undefined : next);
+    },
+    [navigateCompat],
+  );
 
   const { resources, allocations, conflictIds } = data;
   const totalResources = resources.length;
@@ -65,7 +84,7 @@ export function PlanningModule() {
         {PLANNING_TABS.map((t) => (
           <button
             key={t.id}
-            onClick={() => setTab(t.id)}
+            onClick={() => onTabChange(t.id)}
             className={cn(
               "relative shrink-0 px-3 py-2.5 text-[13px] transition-colors tap",
               tab === t.id ? "font-medium text-foreground" : "text-muted-foreground hover:text-foreground",
