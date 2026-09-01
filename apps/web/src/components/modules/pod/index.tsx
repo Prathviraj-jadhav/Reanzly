@@ -7,6 +7,8 @@ import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { SearchInput } from "@/components/shared/toolbar";
 import { useAppStore } from "@/lib/store/app-store";
+import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
+import { resolveModuleView, type ModuleRouteState } from "@/lib/navigation/module-route-state";
 import { usePODStore, type ProofOfDelivery, POD_TYPES, POD_STATUSES, POD_SUBMISSION_STATUSES } from "@/lib/store/pod-store";
 import {
   Plus,
@@ -45,28 +47,25 @@ const DATE_RANGE_PRESETS = [
   { id: "90d", label: "Last 90 days" },
 ];
 
-export function PODModule() {
+export function PODModule({ route }: { route?: ModuleRouteState } = {}) {
   const { activeView } = useAppStore();
+  const view = resolveModuleView(route, activeView, "pod");
   const fetchPods = usePODStore((s) => s.fetchPods);
 
   useEffect(() => {
     void fetchPods();
   }, [fetchPods]);
 
-  // Detail view - route before any list hooks to keep hook order stable.
-  if (
-    activeView.module === "pod" &&
-    activeView.view === "detail" &&
-    activeView.id
-  ) {
-    return <PODDetail podId={activeView.id} />;
+  if (view.module === "pod" && view.view === "detail" && view.id) {
+    return <PODDetail podId={view.id} />;
   }
 
-  return <PODList />;
+  return <PODList view={view} />;
 }
 
-function PODList() {
-  const { activeView, navigate, navigateDetail, currentRole } = useAppStore();
+function PODList({ view }: { view: ModuleRouteState }) {
+  const { currentRole } = useAppStore();
+  const { navigateCompat, navigateDetailCompat } = useNavigateCompat();
   const pods = usePODStore((s) => s.pods);
   const hasHydrated = usePODStore((s) => s.hasHydrated);
 
@@ -101,18 +100,17 @@ function PODList() {
       title: "No PODs yet",
       description: "Capture proof of delivery to start tracking closures.",
       action: (
-        <Btn variant="primary" icon={<Plus className="h-3.5 w-3.5" />} onClick={() => navigate("pod", "create")}>
+        <Btn variant="primary" icon={<Plus className="h-3.5 w-3.5" />} onClick={() => navigateCompat("pod", "create")}>
           Capture POD
         </Btn>
       ),
     };
-  }, [isCustomer, navigate]);
+  }, [isCustomer, navigateCompat]);
 
-  const drawerOpen =
-    activeView.module === "pod" && activeView.view === "create";
+  const drawerOpen = view.module === "pod" && view.view === "create";
   const closeDrawer = () => {
-    if (activeView.module === "pod" && activeView.view === "create") {
-      navigate("pod");
+    if (view.module === "pod" && view.view === "create") {
+      navigateCompat("pod");
     }
   };
 
@@ -271,7 +269,7 @@ function PODList() {
   ];
 
   const rowActions = [
-    { label: "View", onClick: (p: ProofOfDelivery) => navigateDetail("pod", p.id) },
+    { label: "View", onClick: (p: ProofOfDelivery) => navigateDetailCompat("pod", p.id) },
     {
       label: "Edit",
       onClick: (p: ProofOfDelivery) => setEditPod(p),
@@ -353,7 +351,7 @@ function PODList() {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-            <Btn variant="primary" icon={<Plus className="h-3.5 w-3.5" />} onClick={() => navigate("pod", "create")}>
+            <Btn variant="primary" icon={<Plus className="h-3.5 w-3.5" />} onClick={() => navigateCompat("pod", "create")}>
               Create POD
             </Btn>
           </>
@@ -528,7 +526,7 @@ function PODList() {
           <DataTable
             data={filtered}
             columns={columns}
-            onRowClick={(p) => navigateDetail("pod", p.id)}
+            onRowClick={(p) => navigateDetailCompat("pod", p.id)}
             rowActions={rowActions}
             bulkActions={bulkActions}
             emptyTitle={emptyState.title}

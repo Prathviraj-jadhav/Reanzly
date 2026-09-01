@@ -46,6 +46,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
 import { useAppStore } from "@/lib/store/app-store";
 import {
   DropdownMenu,
@@ -84,7 +85,7 @@ interface TripDetailProps {
 }
 
 export function TripDetail({ tripId, trips, onUpdate }: TripDetailProps) {
-  const { navigate, navigateDetail } = useAppStore();
+  const { navigateCompat, navigateDetailCompat } = useNavigateCompat();
   const [activeTab, setActiveTab] = useState("overview");
   const [currentStatus, setCurrentStatus] = useState<TripStatus | null>(null);
   const [editOpen, setEditOpen] = useState(false);
@@ -109,7 +110,7 @@ export function TripDetail({ tripId, trips, onUpdate }: TripDetailProps) {
         <p className="text-[14px] text-muted-foreground">
           Trip <span className="tabular">{tripId}</span> not found.
         </p>
-        <Btn variant="outline" onClick={() => navigate("trips")}>
+        <Btn variant="outline" onClick={() => navigateCompat("trips")}>
           Back to Trips
         </Btn>
       </div>

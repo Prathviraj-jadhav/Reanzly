@@ -4,7 +4,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { DataTable, type Column } from "@/components/shared/data-table";
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
-import { useAppStore } from "@/lib/store/app-store";
+import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
 import { TRIPS } from "@/lib/mock-data";
 import type { LorryReceipt } from "@/lib/types";
 import {
@@ -48,7 +48,7 @@ const DATE_RANGE_PRESETS = [
 ];
 
 export function LorryReceiptsList({ lrs: lrsProp, onCreate, onEdit }: LorryReceiptsListProps) {
-  const { navigateDetail } = useAppStore();
+  const { navigateDetailCompat } = useNavigateCompat();
   // Default to the static mock-data export when the parent didn't lift
   // state (back-compat for any external callers).
   const lrs = lrsProp ?? [];
@@ -123,7 +123,7 @@ export function LorryReceiptsList({ lrs: lrsProp, onCreate, onEdit }: LorryRecei
           <button
             onClick={(e) => {
               e.stopPropagation();
-              if (t) navigateDetail("trips", t.tripId);
+              if (t) navigateDetailCompat("trips", t.tripId);
             }}
             className="tabular text-[12px] text-foreground hover:text-foreground/70 transition-colors"
           >
@@ -221,7 +221,7 @@ export function LorryReceiptsList({ lrs: lrsProp, onCreate, onEdit }: LorryRecei
   ];
 
   const rowActions = [
-    { label: "View", onClick: (l: LorryReceipt) => navigateDetail("lorry-receipts", l.id) },
+    { label: "View", onClick: (l: LorryReceipt) => navigateDetailCompat("lorry-receipts", l.id) },
     { label: "Print", onClick: (l: LorryReceipt) => toast("Generating PDF", { description: l.lrNumber }) },
     { label: "Send Email", onClick: (l: LorryReceipt) => toast.success("LR emailed to consignee", { description: l.lrNumber }) },
     { label: "Send SMS", onClick: (l: LorryReceipt) => toast.success("LR sent via SMS", { description: l.lrNumber }) },
@@ -364,7 +364,7 @@ export function LorryReceiptsList({ lrs: lrsProp, onCreate, onEdit }: LorryRecei
         <DataTable
           data={filtered}
           columns={columns}
-          onRowClick={(l) => navigateDetail("lorry-receipts", l.id)}
+          onRowClick={(l) => navigateDetailCompat("lorry-receipts", l.id)}
           rowActions={rowActions}
           bulkActions={bulkActions}
           emptyTitle="No lorry receipts"

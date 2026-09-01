@@ -1,7 +1,10 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useAppStore, type ModuleId } from "@/lib/store/app-store";
+import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
+import { isModuleMigrated } from "@/lib/navigation/routing-config";
 
 /**
  * Shared tab-strip shell for a "cluster" of related standalone modules that
@@ -10,12 +13,8 @@ import { useAppStore, type ModuleId } from "@/lib/store/app-store";
  * now only ever links to the cluster's home module (e.g. "Vehicles") - this
  * strip is how you move between the sibling pages instead.
  *
- * Deliberately does NOT touch any of the wrapped modules' internals: each
- * one keeps owning its own activeView.module value, its own detail/create
- * sub-routing, its own edit drawers - exactly as it did as a standalone
- * page. Clicking a tab is just the existing navigate(moduleId) call, so
- * every already-real, already-CRUD-wired module underneath keeps working
- * unmodified.
+ * B0R-2 mixed mode: migrated tabs use App Router URLs; unmigrated siblings
+ * fall back to legacy `navigate()` at `/dashboard`.
  */
 export interface ClusterTab {
   id: ModuleId;
@@ -31,7 +30,20 @@ export function ModuleClusterTabs({
   active: ModuleId;
   children: React.ReactNode;
 }) {
-  const navigate = useAppStore((s) => s.navigate);
+  const router = useRouter();
+  const legacyNavigate = useAppStore((s) => s.navigate);
+  const { navigateCompat } = useNavigateCompat();
+
+  const onTabClick = (moduleId: ModuleId) => {
+    if (isModuleMigrated(moduleId)) {
+      navigateCompat(moduleId);
+      return;
+    }
+    legacyNavigate(moduleId);
+    if (typeof window !== "undefined" && window.location.pathname.startsWith("/app/")) {
+      router.push("/dashboard?legacy=1");
+    }
+  };
 
   return (
     <div className="flex flex-col gap-4">
@@ -41,7 +53,7 @@ export function ModuleClusterTabs({
           return (
             <button
               key={t.id}
-              onClick={() => navigate(t.id)}
+              onClick={() => onTabClick(t.id)}
               aria-current={isActive ? "page" : undefined}
               className={cn(
                 "relative shrink-0 px-3 py-2.5 text-[13px] transition-colors tap",

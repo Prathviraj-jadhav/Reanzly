@@ -6,6 +6,7 @@ import { SectionCard } from "@/components/shared/section-card";
 import { StatusBadge, vehicleStatusBadge } from "@/components/shared/status-badge";
 import { ProgressMeter } from "@/components/shared/section-card";
 import { useAppStore } from "@/lib/store/app-store";
+import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
 import type { Vehicle } from "@/lib/types";
 import {
   Truck, Gauge, Fuel, Activity, Calendar, MapPin, Navigation,
@@ -26,7 +27,7 @@ import { formatNumber, relativeTime, vehicleSeed, daysFromNow, formatDate, licen
    ============================================================ */
 
 export function Vehicle360Tab({ vehicle }: { vehicle: Vehicle }) {
-  const { navigateDetail } = useAppStore();
+  const { navigateDetailCompat } = useNavigateCompat();
   const seed = vehicleSeed(vehicle.id);
 
   const [drivers, setDrivers] = useState<any[]>([]);
@@ -237,7 +238,7 @@ export function Vehicle360Tab({ vehicle }: { vehicle: Vehicle }) {
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <button
-                    onClick={() => navigateDetail("drivers-staff", currentDriver.id)}
+                    onClick={() => navigateDetailCompat("drivers-staff", currentDriver.id)}
                     className="text-[14px] font-medium text-foreground hover:underline inline-flex items-center gap-1"
                   >
                     {currentDriver.name}
@@ -272,7 +273,7 @@ export function Vehicle360Tab({ vehicle }: { vehicle: Vehicle }) {
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <button
-                    onClick={() => navigateDetail("trips", currentTrip.id)}
+                    onClick={() => navigateDetailCompat("trips", currentTrip.tripId)}
                     className="text-[14px] font-medium text-foreground hover:underline inline-flex items-center gap-1"
                   >
                     {currentTrip.tripId}

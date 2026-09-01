@@ -1,10 +1,14 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useAppStore } from "@/lib/store/app-store";
 import { pathToModule } from "./module-paths";
 import { isModuleMigrated } from "./routing-config";
+
+function currentAppPath(pathname: string, search: string): string {
+  return search ? `${pathname}${search}` : pathname;
+}
 
 /**
  * Keeps Zustand `activeView` aligned with the current `/app/*` URL for migrated
@@ -17,6 +21,7 @@ import { isModuleMigrated } from "./routing-config";
  */
 export function useActiveViewSync() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const activeView = useAppStore((s) => s.activeView);
   const syncActiveView = useAppStore((s) => s.syncActiveView);
   const lastSyncedPath = useRef<string | null>(null);
@@ -24,28 +29,29 @@ export function useActiveViewSync() {
   useEffect(() => {
     if (!pathname.startsWith("/app")) return;
 
-    const searchParams =
-      typeof window !== "undefined"
-        ? new URLSearchParams(window.location.search)
-        : undefined;
+    const search = searchParams.toString();
+    const searchSuffix = search ? `?${search}` : "";
+    const fullPath = currentAppPath(pathname, searchSuffix);
+
     const parsed = pathToModule(pathname, searchParams);
     if (!parsed || !isModuleMigrated(parsed.module)) return;
 
-    if (lastSyncedPath.current === pathname) return;
+    if (lastSyncedPath.current === fullPath) return;
 
     const sameModule = activeView.module === parsed.module;
     const sameView = activeView.view === parsed.view;
     const sameId = (activeView.id ?? undefined) === parsed.id;
     const sameTab = (activeView.tab ?? undefined) === parsed.tab;
     if (sameModule && sameView && sameId && sameTab) {
-      lastSyncedPath.current = pathname;
+      lastSyncedPath.current = fullPath;
       return;
     }
 
     syncActiveView(parsed.module, parsed.view, parsed.id, parsed.tab);
-    lastSyncedPath.current = pathname;
+    lastSyncedPath.current = fullPath;
   }, [
     pathname,
+    searchParams,
     activeView.module,
     activeView.view,
     activeView.id,

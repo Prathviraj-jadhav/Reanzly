@@ -1,17 +1,18 @@
 "use client";
 import { useState, useCallback, useEffect } from "react";
 import { useAppStore } from "@/lib/store/app-store";
+import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
+import { resolveModuleView, type ModuleRouteState } from "@/lib/navigation/module-route-state";
 import { VehiclesList } from "./vehicles-list";
 import { VehicleDetail } from "./vehicle-detail";
 import { VehicleOnboarding } from "./vehicle-onboarding";
 import type { Vehicle } from "@/lib/types";
 import { toast } from "sonner";
 
-export function VehiclesModule() {
-  const { activeView, navigate } = useAppStore();
-  // Real, database-backed vehicles (src/app/api/vehicles) - previously
-  // useState(VEHICLES) seeded from mock-data.ts, so edits vanished on
-  // reload and nothing was shared across users/devices.
+export function VehiclesModule({ route }: { route?: ModuleRouteState } = {}) {
+  const { activeView } = useAppStore();
+  const { navigateCompat } = useNavigateCompat();
+  const view = resolveModuleView(route, activeView, "vehicles");
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loaded, setLoaded] = useState(false);
 
@@ -24,7 +25,7 @@ export function VehiclesModule() {
   }, []);
 
   const updateVehicle = useCallback(async (id: string, data: Partial<Vehicle>) => {
-    setVehicles((prev) => prev.map((v) => (v.id === id ? { ...v, ...data } : v))); // optimistic
+    setVehicles((prev) => prev.map((v) => (v.id === id ? { ...v, ...data } : v)));
     const res = await fetch(`/api/vehicles/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -40,7 +41,7 @@ export function VehiclesModule() {
   }, []);
 
   const addVehicle = useCallback(async (v: Vehicle): Promise<boolean> => {
-    const { id: _clientId, ...payload } = v; // server assigns the real id
+    const { id: _clientId, ...payload } = v;
     const res = await fetch("/api/vehicles", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -60,32 +61,31 @@ export function VehiclesModule() {
     return <div className="p-6 text-[13px] text-muted-foreground">Loading vehicles…</div>;
   }
 
-  // Detail view
-  if (activeView.module === "vehicles" && activeView.view === "detail" && activeView.id) {
+  if (view.module === "vehicles" && view.view === "detail" && view.id) {
     return (
       <VehicleDetail
-        vehicleId={activeView.id}
+        key={`${view.id}-${view.tab ?? "overview"}`}
+        vehicleId={view.id}
+        initialTab={view.tab}
         vehicles={vehicles}
         onUpdate={updateVehicle}
       />
     );
   }
 
-  // Create / onboarding view
-  if (activeView.module === "vehicles" && activeView.view === "create") {
+  if (view.module === "vehicles" && view.view === "create") {
     return (
       <VehicleOnboarding
-        onClose={() => navigate("vehicles")}
+        onClose={() => navigateCompat("vehicles")}
         onAdd={addVehicle}
       />
     );
   }
 
-  // List view (default)
   return (
     <VehiclesList
       vehicles={vehicles}
-      onCreate={() => navigate("vehicles", "create")}
+      onCreate={() => navigateCompat("vehicles", "create")}
       onBulkCreate={() =>
         toast("Bulk vehicle import", {
           description: "Upload a CSV to add multiple vehicles at once",

@@ -4,6 +4,8 @@ import { cn } from "@/lib/utils";
 import type { ReactNode } from "react";
 import { ArrowLeft } from "lucide-react";
 import { useAppStore } from "@/lib/store/app-store";
+import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
+import { useMigratedNavBack } from "@/lib/navigation/use-migrated-nav-back";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -52,7 +54,9 @@ export function PageHeader({
   className,
   context,
 }: PageHeaderProps) {
-  const { activeView, navigate, navigateBack } = useAppStore();
+  const { activeView } = useAppStore();
+  const { navigateCompat } = useNavigateCompat();
+  const navigateBack = useMigratedNavBack(activeView.module);
 
   return (
     <div className={cn("flex flex-col gap-3 border-b border-border pb-4 animate-slide-up", className)}>
@@ -68,7 +72,7 @@ export function PageHeader({
                     <BreadcrumbPage className="text-[12px] text-muted-foreground">{b.label}</BreadcrumbPage>
                   ) : (
                     <BreadcrumbLink
-                      onClick={() => b.module && navigate(b.module as never)}
+                      onClick={() => b.module && navigateCompat(b.module as never)}
                       className="cursor-pointer text-[12px] text-muted-foreground hover:text-foreground"
                     >
                       {b.label}

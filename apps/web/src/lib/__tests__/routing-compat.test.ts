@@ -13,8 +13,10 @@ describe("routing migration config", () => {
     vi.unstubAllEnvs();
   });
 
-  it("MIGRATED_MODULES contains dashboard only in B0R-1", () => {
-    expect([...MIGRATED_MODULES]).toEqual(["dashboard"]);
+  it("MIGRATED_MODULES contains B0R-2 core operations", () => {
+    expect([...MIGRATED_MODULES].sort()).toEqual(
+      ["dashboard", "fleet-map", "lorry-receipts", "pod", "trips", "vehicles"].sort(),
+    );
   });
 
   it("isRoutingMigrationEnabled respects env flag", () => {
@@ -29,7 +31,9 @@ describe("routing migration config", () => {
     expect(isModuleMigrated("dashboard")).toBe(false);
     vi.stubEnv("NEXT_PUBLIC_ROUTING_MIGRATION", "1");
     expect(isModuleMigrated("dashboard")).toBe(true);
-    expect(isModuleMigrated("trips")).toBe(false);
+    expect(isModuleMigrated("trips")).toBe(true);
+    expect(isModuleMigrated("vehicles")).toBe(true);
+    expect(isModuleMigrated("invoice")).toBe(false);
   });
 });
 
@@ -66,6 +70,16 @@ describe("navigateCompat dual-write (store)", () => {
     const navigateSpy = vi.spyOn(useAppStore.getState(), "navigate");
     navigateCompatStatic("trips");
     expect(navigateSpy).toHaveBeenCalledWith("trips", "list", undefined, undefined);
+  });
+
+  it("navigateCompatStatic syncs trips without history when migrated", () => {
+    vi.stubEnv("NEXT_PUBLIC_ROUTING_MIGRATION", "1");
+    const historyBefore = useAppStore.getState().history.length;
+    navigateCompatStatic("trips", "detail", "TX-1");
+    expect(useAppStore.getState().activeView.module).toBe("trips");
+    expect(useAppStore.getState().activeView.id).toBe("TX-1");
+    expect(useAppStore.getState().history.length).toBe(historyBefore);
+    expect(moduleToPath("trips", "detail", "TX-1")).toBe("/app/trips/TX-1");
   });
 
   it("navigateCompatStatic syncs activeView without history when migrated", () => {

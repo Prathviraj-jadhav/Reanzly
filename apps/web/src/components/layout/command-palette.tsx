@@ -2,6 +2,8 @@
 
 import { useMemo } from "react";
 import { useAppStore, type ModuleId } from "@/lib/store/app-store";
+import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
+import { isModuleMigrated } from "@/lib/navigation/routing-config";
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from "@/components/ui/command";
 import {
   LayoutDashboard, KanbanSquare, Truck, Map, Car, FileText,
@@ -47,14 +49,35 @@ const MODULE_MAP: Record<string, ModuleShortcut> = Object.fromEntries(
   MODULE_SHORTCUTS.map((m) => [m.id, m])
 );
 
-// Fallback recents when history is empty (Jakob's Law - familiar defaults).
 const FALLBACK_RECENTS: ModuleId[] = ["dashboard", "trips", "vehicles"];
 
 export function CommandPalette() {
   const { commandOpen, setCommandOpen, navigate, navigateDetail, history, activeView } = useAppStore();
+  const { navigateCompat, navigateDetailCompat } = useNavigateCompat();
 
-  // Recent = last 3 distinct modules the user navigated to, most-recent-first.
-  // Derived from the persisted history stack (excludes the currently-active module).
+  const go = (
+    module: ModuleId,
+    view?: "list" | "detail" | "create" | "edit",
+    id?: string,
+    tab?: string,
+  ) => {
+    if (isModuleMigrated(module)) {
+      navigateCompat(module, view, id, tab);
+    } else {
+      navigate(module, view, id, tab);
+    }
+    setCommandOpen(false);
+  };
+
+  const goDetail = (module: ModuleId, id: string, tab?: string) => {
+    if (isModuleMigrated(module)) {
+      navigateDetailCompat(module, id, tab);
+    } else {
+      navigateDetail(module, id, tab);
+    }
+    setCommandOpen(false);
+  };
+
   const recents = useMemo(() => {
     const seen = new Set<ModuleId>();
     seen.add(activeView.module);
@@ -79,13 +102,12 @@ export function CommandPalette() {
       <CommandList className="max-h-[420px]">
         <CommandEmpty>No results found. Try a trip ID, LR number, or driver name.</CommandEmpty>
 
-        {/* Recent - Jakob's Law: surfaces recently-visited modules for fast re-entry */}
         {recentItems.length > 0 && (
           <CommandGroup heading="Recent">
             {recentItems.map((m) => (
               <CommandItem
                 key={`recent-${m.id}`}
-                onSelect={() => { navigate(m.id); setCommandOpen(false); }}
+                onSelect={() => go(m.id)}
                 className="gap-2"
               >
                 <Clock className="h-4 w-4 text-muted-foreground" />
@@ -99,24 +121,15 @@ export function CommandPalette() {
         <CommandSeparator />
 
         <CommandGroup heading="Quick Actions">
-          <CommandItem
-            onSelect={() => { navigate("trips", "create"); setCommandOpen(false); }}
-            className="gap-2"
-          >
+          <CommandItem onSelect={() => go("trips", "create")} className="gap-2">
             <Truck className="h-4 w-4 text-muted-foreground" />
             <span>Create new Job Order</span>
           </CommandItem>
-          <CommandItem
-            onSelect={() => { navigate("vehicles", "create"); setCommandOpen(false); }}
-            className="gap-2"
-          >
+          <CommandItem onSelect={() => go("vehicles", "create")} className="gap-2">
             <Car className="h-4 w-4 text-muted-foreground" />
             <span>Add a vehicle</span>
           </CommandItem>
-          <CommandItem
-            onSelect={() => { navigate("customers", "create"); setCommandOpen(false); }}
-            className="gap-2"
-          >
+          <CommandItem onSelect={() => go("customers", "create")} className="gap-2">
             <Users className="h-4 w-4 text-muted-foreground" />
             <span>Add a customer</span>
           </CommandItem>
@@ -126,11 +139,7 @@ export function CommandPalette() {
 
         <CommandGroup heading="Navigate">
           {MODULE_SHORTCUTS.map((m) => (
-            <CommandItem
-              key={m.id}
-              onSelect={() => { navigate(m.id); setCommandOpen(false); }}
-              className="gap-2"
-            >
+            <CommandItem key={m.id} onSelect={() => go(m.id)} className="gap-2">
               <m.icon className="h-4 w-4 text-muted-foreground" />
               <span>{m.label}</span>
             </CommandItem>
@@ -141,11 +150,7 @@ export function CommandPalette() {
 
         <CommandGroup heading="Trips">
           {TRIPS.slice(0, 5).map((t) => (
-            <CommandItem
-              key={t.id}
-              onSelect={() => { navigateDetail("trips", t.tripId); setCommandOpen(false); }}
-              className="gap-2"
-            >
+            <CommandItem key={t.id} onSelect={() => goDetail("trips", t.tripId)} className="gap-2">
               <Truck className="h-4 w-4 text-muted-foreground" />
               <span className="flex-1">{t.tripId} · {t.origin} → {t.destination}</span>
               <ArrowRight className="h-3 w-3 text-muted-foreground" />
@@ -155,11 +160,7 @@ export function CommandPalette() {
 
         <CommandGroup heading="Vehicles">
           {VEHICLES.slice(0, 5).map((v) => (
-            <CommandItem
-              key={v.id}
-              onSelect={() => { navigateDetail("vehicles", v.id); setCommandOpen(false); }}
-              className="gap-2"
-            >
+            <CommandItem key={v.id} onSelect={() => goDetail("vehicles", v.id)} className="gap-2">
               <Car className="h-4 w-4 text-muted-foreground" />
               <span className="flex-1">{v.licensePlate} · {v.name}</span>
               <ArrowRight className="h-3 w-3 text-muted-foreground" />
@@ -169,11 +170,7 @@ export function CommandPalette() {
 
         <CommandGroup heading="People">
           {DRIVERS.slice(0, 5).map((d) => (
-            <CommandItem
-              key={d.id}
-              onSelect={() => { navigateDetail("drivers-staff", d.id); setCommandOpen(false); }}
-              className="gap-2"
-            >
+            <CommandItem key={d.id} onSelect={() => goDetail("drivers-staff", d.id)} className="gap-2">
               <UserCog className="h-4 w-4 text-muted-foreground" />
               <span className="flex-1">{d.name} · {d.role}</span>
               <ArrowRight className="h-3 w-3 text-muted-foreground" />
@@ -183,11 +180,7 @@ export function CommandPalette() {
 
         <CommandGroup heading="Customers">
           {CUSTOMERS.slice(0, 5).map((c) => (
-            <CommandItem
-              key={c.id}
-              onSelect={() => { navigateDetail("customers", c.id); setCommandOpen(false); }}
-              className="gap-2"
-            >
+            <CommandItem key={c.id} onSelect={() => goDetail("customers", c.id)} className="gap-2">
               <Users className="h-4 w-4 text-muted-foreground" />
               <span className="flex-1">{c.companyName}</span>
               <ArrowRight className="h-3 w-3 text-muted-foreground" />
@@ -197,11 +190,7 @@ export function CommandPalette() {
 
         <CommandGroup heading="Invoices">
           {INVOICES.slice(0, 5).map((i) => (
-            <CommandItem
-              key={i.id}
-              onSelect={() => { navigateDetail("invoice", i.invoiceNumber); setCommandOpen(false); }}
-              className="gap-2"
-            >
+            <CommandItem key={i.id} onSelect={() => goDetail("invoice", i.invoiceNumber)} className="gap-2">
               <Receipt className="h-4 w-4 text-muted-foreground" />
               <span className="flex-1">{i.invoiceNumber} · {i.customer}</span>
               <ArrowRight className="h-3 w-3 text-muted-foreground" />
@@ -210,7 +199,6 @@ export function CommandPalette() {
         </CommandGroup>
       </CommandList>
 
-      {/* Keyboard hints - Jakob's Law: discoverability of palette controls */}
       <div className="flex items-center gap-3 border-t border-border px-3 py-2 text-[11px] text-muted-foreground">
         <span className="flex items-center gap-1">
           <kbd className="rounded-[3px] border border-border bg-muted px-1 py-px text-[10px] font-medium text-foreground">↑</kbd>

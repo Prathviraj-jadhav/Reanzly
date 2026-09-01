@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { Suspense, useEffect, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { useAppStore } from "@/lib/store/app-store";
@@ -8,6 +8,11 @@ import { AppDesktopShell } from "./app-desktop-shell";
 import { useActiveViewSync } from "@/lib/navigation/use-active-view-sync";
 import { buildLoginUrl } from "@/lib/navigation/return-to";
 import { usePathname } from "next/navigation";
+
+function ActiveViewSyncBridge() {
+  useActiveViewSync();
+  return null;
+}
 
 /**
  * Client layout gate for `/app/*`.
@@ -24,8 +29,6 @@ export function AppRouteShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { isAuthenticated, portal, currentRole, restoreSession } = useAppStore();
   const [sessionChecked, setSessionChecked] = useState(false);
-
-  useActiveViewSync();
 
   useEffect(() => {
     let active = true;
@@ -90,5 +93,12 @@ export function AppRouteShell({ children }: { children: React.ReactNode }) {
     return null;
   }
 
-  return <AppDesktopShell>{children}</AppDesktopShell>;
+  return (
+    <>
+      <Suspense fallback={null}>
+        <ActiveViewSyncBridge />
+      </Suspense>
+      <AppDesktopShell>{children}</AppDesktopShell>
+    </>
+  );
 }

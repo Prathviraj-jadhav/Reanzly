@@ -17,9 +17,16 @@ export function isRoutingMigrationEnabled(): boolean {
 
 /**
  * Modules that route through Next.js App Router segments (dual-write with Zustand).
- * B0R-1: dashboard only.
+ * B0R-1: dashboard. B0R-2: core operations (trips, fleet-map, vehicles, pod, lorry-receipts).
  */
-export const MIGRATED_MODULES: ReadonlySet<ModuleId> = new Set(["dashboard"]);
+export const MIGRATED_MODULES: ReadonlySet<ModuleId> = new Set([
+  "dashboard",
+  "trips",
+  "fleet-map",
+  "vehicles",
+  "pod",
+  "lorry-receipts",
+]);
 
 export function isModuleMigrated(module: ModuleId): boolean {
   return isRoutingMigrationEnabled() && MIGRATED_MODULES.has(module);

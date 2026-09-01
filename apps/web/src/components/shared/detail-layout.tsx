@@ -4,6 +4,8 @@ import { cn } from "@/lib/utils";
 import type { ReactNode } from "react";
 import { Children } from "react";
 import { useAppStore } from "@/lib/store/app-store";
+import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
+import { useMigratedNavBack } from "@/lib/navigation/use-migrated-nav-back";
 import { ArrowLeft, ChevronRight, Clock, MoreHorizontal } from "lucide-react";
 import {
   Breadcrumb,
@@ -91,7 +93,9 @@ export function DetailLayout({
   lastUpdated,
   children,
 }: DetailLayoutProps) {
-  const { activeView, navigate, navigateBack } = useAppStore();
+  const { activeView } = useAppStore();
+  const { navigateCompat } = useNavigateCompat();
+  const navigateBack = useMigratedNavBack(activeView.module);
 
   // Hick's Law - cap quickActions to 6; caller curates beyond that.
   const visibleQuickActions = quickActions.slice(0, 6);
@@ -110,7 +114,7 @@ export function DetailLayout({
                     <BreadcrumbPage className="text-[13px] text-muted-foreground">{b.label}</BreadcrumbPage>
                   ) : (
                     <BreadcrumbLink
-                      onClick={() => b.module && navigate(b.module as never)}
+                      onClick={() => b.module && navigateCompat(b.module as never)}
                       className="cursor-pointer text-[13px] text-muted-foreground hover:text-foreground"
                     >
                       {b.label}

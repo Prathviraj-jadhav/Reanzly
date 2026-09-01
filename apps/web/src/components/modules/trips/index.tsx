@@ -1,6 +1,8 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useAppStore } from "@/lib/store/app-store";
+import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
+import { resolveModuleView, type ModuleRouteState } from "@/lib/navigation/module-route-state";
 import { TripsList } from "./trips-list";
 import { TripDetail } from "./trip-detail";
 import { TripExecutionDetail } from "./trip-execution-detail";
@@ -9,11 +11,11 @@ import { TripPlanningDrawer } from "./trip-planning-drawer";
 import type { Trip } from "@/lib/types";
 import { toast } from "sonner";
 
-export function TripsModule() {
-  const { activeView, navigate } = useAppStore();
+export function TripsModule({ route }: { route?: ModuleRouteState } = {}) {
+  const { activeView } = useAppStore();
+  const { navigateCompat } = useNavigateCompat();
+  const view = resolveModuleView(route, activeView, "trips");
   const [planOpen, setPlanOpen] = useState(false);
-  // Real, database-backed trips (src/app/api/trips) - previously
-  // useState(TRIPS) seeded from mock-data.ts.
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loaded, setLoaded] = useState(false);
 
@@ -26,7 +28,7 @@ export function TripsModule() {
   }, []);
 
   const updateTrip = useCallback(async (id: string, data: Partial<Trip>): Promise<boolean> => {
-    setTrips((prev) => prev.map((t) => (t.id === id ? { ...t, ...data } : t))); // optimistic
+    setTrips((prev) => prev.map((t) => (t.id === id ? { ...t, ...data } : t)));
     const res = await fetch(`/api/trips/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -63,29 +65,31 @@ export function TripsModule() {
     return <div className="p-6 text-[13px] text-muted-foreground">Loading trips…</div>;
   }
 
-  // Drawer visibility is derived directly from the active view - no
-  // synchronous setState-in-effect needed.
-  const jobDrawerOpen =
-    activeView.module === "trips" && activeView.view === "create";
+  const jobDrawerOpen = view.module === "trips" && view.view === "create";
 
   const closeJobDrawer = () => {
-    if (activeView.module === "trips" && activeView.view === "create") {
-      navigate("trips");
+    if (view.module === "trips" && view.view === "create") {
+      navigateCompat("trips");
     }
   };
 
-  // Detail view - Active/In-Transit trips use the execution detail view;
-  // other statuses use the legacy trip detail page.
-  if (activeView.module === "trips" && activeView.view === "detail" && activeView.id) {
-    const tripId = activeView.id;
-    return <TripDetailRouter tripId={tripId} trips={trips} onUpdate={updateTrip} />;
+  if (view.module === "trips" && view.view === "detail" && view.id) {
+    const tripId = view.id;
+    return (
+      <TripDetailRouter
+        tripId={tripId}
+        trips={trips}
+        loaded={loaded}
+        onUpdate={updateTrip}
+      />
+    );
   }
 
   return (
     <>
       <TripsList
         trips={trips}
-        onCreateJobOrder={() => navigate("trips", "create")}
+        onCreateJobOrder={() => navigateCompat("trips", "create")}
         onPlanTrip={() => setPlanOpen(true)}
         onUpdate={updateTrip}
       />
@@ -95,34 +99,25 @@ export function TripsModule() {
   );
 }
 
-/**
- * Routes to the execution detail view for Active/In-Transit trips,
- * otherwise to the standard TripDetail page.
- */
 function TripDetailRouter({
   tripId,
   trips,
+  loaded,
   onUpdate,
 }: {
   tripId: string;
   trips: Trip[];
+  loaded: boolean;
   onUpdate: (id: string, data: Partial<Trip>) => void;
 }) {
-  const [useExecution, setUseExecution] = useState<boolean | null>(null);
-
-  useEffect(() => {
-    let active = true;
+  const useExecution = useMemo(() => {
+    if (!loaded) return null;
     const trip = trips.find((t) => t.tripId === tripId);
-    if (!active) return;
     const execStatuses = ["Active", "In Transit", "Planned"];
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setUseExecution(trip ? execStatuses.includes(trip.status) : false);
-    return () => {
-      active = false;
-    };
-  }, [tripId, trips]);
+    return trip ? execStatuses.includes(trip.status) : false;
+  }, [tripId, trips, loaded]);
 
-  if (useExecution === null) {
+  if (!loaded || useExecution === null) {
     return (
       <div className="flex items-center justify-center py-20">
         <div className="skeleton h-6 w-40 rounded-[3px]" />

@@ -10,6 +10,7 @@ import {
   paymentStatusBadge,
 } from "@/components/shared/status-badge";
 import { useAppStore } from "@/lib/store/app-store";
+import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
 import type { Trip } from "@/lib/types";
 import {
   Plus,
@@ -52,7 +53,8 @@ interface TripsListProps {
 }
 
 export function TripsList({ trips, onCreateJobOrder, onPlanTrip, onUpdate }: TripsListProps) {
-  const { navigateDetail, currentRole } = useAppStore();
+  const { currentRole } = useAppStore();
+  const { navigateDetailCompat } = useNavigateCompat();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<Set<string>>(new Set());
   const [paymentFilter, setPaymentFilter] = useState<string>("");
@@ -533,7 +535,7 @@ export function TripsList({ trips, onCreateJobOrder, onPlanTrip, onUpdate }: Tri
     },
     {
       label: "View Details",
-      onClick: (t: Trip) => navigateDetail("trips", t.tripId),
+      onClick: (t: Trip) => navigateDetailCompat("trips", t.tripId),
     },
     {
       label: "Print LR",
@@ -800,7 +802,7 @@ export function TripsList({ trips, onCreateJobOrder, onPlanTrip, onUpdate }: Tri
         <DataTable
           data={filtered}
           columns={columns}
-          onRowClick={(t) => navigateDetail("trips", t.tripId)}
+          onRowClick={(t) => navigateDetailCompat("trips", t.tripId)}
           rowActions={rowActions}
           bulkActions={bulkActions}
           emptyTitle={emptyState.title}

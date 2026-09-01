@@ -19,7 +19,9 @@ import { cn } from "@/lib/utils";
 import { KpiCard } from "@/components/shared/kpi-card";
 import { StatusBadge, LiveDot } from "@/components/shared/status-badge";
 import { Btn } from "@/components/shared/btn";
-import { useAppStore } from "@/lib/store/app-store";
+import { useAppStore, type ModuleId } from "@/lib/store/app-store";
+import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
+import { isModuleMigrated } from "@/lib/navigation/routing-config";
 import { useDashboardStore, selectActiveDashboard, type DashboardFilter } from "@/lib/store/dashboard-store";
 import { REAN_RECOMMENDATIONS, REAN_ANOMALIES } from "@/lib/mock-data";
 import { SmartInsightsWidget } from "./smart-insights-widget";
@@ -118,12 +120,28 @@ const CHART_PALETTE = [
   "var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)", "var(--chart-5)",
 ];
 
+/** Dashboard widgets: route migrated B0R-2 modules through App Router. */
+function useWidgetNavigation() {
+  const legacy = useAppStore();
+  const { navigateCompat, navigateDetailCompat } = useNavigateCompat();
+  return {
+    navigate: (module: ModuleId, view?: Parameters<typeof legacy.navigate>[1], id?: string, tab?: string) => {
+      if (isModuleMigrated(module)) return navigateCompat(module, view, id, tab);
+      return legacy.navigate(module, view, id, tab);
+    },
+    navigateDetail: (module: ModuleId, id: string, tab?: string) => {
+      if (isModuleMigrated(module)) return navigateDetailCompat(module, id, tab);
+      return legacy.navigateDetail(module, id, tab);
+    },
+  };
+}
+
 /* ============================================================
    KPI WIDGETS (10)
    ============================================================ */
 
 function ActiveTripsKpi(): ReactElement {
-  const { navigate } = useAppStore();
+  const { navigate } = useWidgetNavigation();
   const { stats, loaded } = useDashboardStats();
   const value = stats?.trips.activeCount ?? 0;
   return (
@@ -167,7 +185,7 @@ function RevenueTodayKpi(): ReactElement {
 }
 
 function IdleVehiclesKpi(): ReactElement {
-  const { navigate } = useAppStore();
+  const { navigate } = useWidgetNavigation();
   const { stats, loaded } = useDashboardStats();
   const value = stats?.vehicles.idle ?? 0;
   const total = stats?.vehicles.total ?? 0;
@@ -346,7 +364,7 @@ function TodayPrioritiesList(): ReactElement {
 }
 
 function RecentActivitiesList(): ReactElement {
-  const { navigateDetail } = useAppStore();
+  const { navigateDetail } = useWidgetNavigation();
   const { stats } = useDashboardStats();
   const visible = stats?.trips.recentActivities.slice(0, 6) ?? [];
   return (
@@ -364,7 +382,7 @@ function RecentActivitiesList(): ReactElement {
               <span className="mt-1 text-[9px]">{formatDistanceToNow(new Date(t.createdDate), { addSuffix: true })}</span>
             </div>
           }
-          onClick={() => navigateDetail("trips", t.id)}
+          onClick={() => navigateDetail("trips", t.tripId)}
         />
       ))}
     </div>
@@ -1183,7 +1201,7 @@ function BranchRevenueKpi(): ReactElement {
 }
 
 function BranchTripsKpi(): ReactElement {
-  const { navigate } = useAppStore();
+  const { navigate } = useWidgetNavigation();
   const { stats, loaded } = useDashboardStats();
   const value = stats?.branch.trips ?? 0;
   return (
@@ -2057,7 +2075,7 @@ function FleetStatusWidget(): ReactElement {
 
 /* ---- Today's Focus (top real priority items) ---- */
 function TodaysFocusList(): ReactElement {
-  const { navigate } = useAppStore();
+  const { navigate } = useWidgetNavigation();
   const { stats, loaded } = useDashboardStats();
   const items = useMemo(() => {
     if (!stats) return [];
@@ -2109,7 +2127,7 @@ function TodaysFocusList(): ReactElement {
 
 /* ---- Recent Activities Feed (real trips + work orders + issues, merged) ---- */
 function RecentActivitiesFeedList(): ReactElement {
-  const { navigateDetail } = useAppStore();
+  const { navigateDetail } = useWidgetNavigation();
   const { stats } = useDashboardStats();
 
   const feed = useMemo(() => {
@@ -2118,7 +2136,7 @@ function RecentActivitiesFeedList(): ReactElement {
     const list: Item[] = [
       ...stats.trips.recentActivities.map((t): Item => ({
         id: `feed-t-${t.id}`, module: "Trips", ref: t.tripId, action: `Trip ${t.status} - ${t.origin} → ${t.destination}`,
-        ts: t.createdDate, to: "trips", id2: t.id,
+        ts: t.createdDate, to: "trips", id2: t.tripId,
       })),
       ...stats.workOrders.recentUpdates.map((w): Item => ({
         id: `feed-w-${w.id}`, module: "Work Orders", ref: w.workOrderId, action: `Work order ${w.status} - ${w.title}`,
@@ -2203,7 +2221,7 @@ function AvgTransitTimeKpi(): ReactElement {
 }
 
 function DelayedShipmentsList(): ReactElement {
-  const { navigateDetail } = useAppStore();
+  const { navigateDetail } = useWidgetNavigation();
   const { stats, loaded } = useDashboardStats();
   const visible = stats?.trips.delayedShipments.slice(0, 5) ?? [];
   if (loaded && visible.length === 0) {
@@ -2225,7 +2243,7 @@ function DelayedShipmentsList(): ReactElement {
               )}
             </div>
           }
-          onClick={() => navigateDetail("trips", t.id)}
+          onClick={() => navigateDetail("trips", t.tripId)}
         />
       ))}
     </div>

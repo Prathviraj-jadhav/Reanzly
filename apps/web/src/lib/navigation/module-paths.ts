@@ -185,7 +185,14 @@ export function moduleToPath(
       return tab ? `${taskBase}/${tab}` : taskBase;
     }
     const detailBase = `${base}/${encodeURIComponent(id)}`;
+    if (resolved === "vehicles" && tab) {
+      return `${detailBase}?tab=${encodeURIComponent(tab)}`;
+    }
     return tab ? `${detailBase}/${tab}` : detailBase;
+  }
+
+  if (resolved === "fleet-map" && view === "list" && id) {
+    return `${base}?vehicle=${encodeURIComponent(id)}`;
   }
 
   if (tab && MODULE_TAB_ROUTES.has(resolved)) {
@@ -242,6 +249,10 @@ export function pathToModule(pathname: string, searchParams?: URLSearchParams): 
 
   const exact = LIST_PATH_TO_MODULE[path];
   if (exact) {
+    if (exact === "fleet-map") {
+      const vehicle = searchParams?.get("vehicle") ?? undefined;
+      return { module: exact, view: "list", id: vehicle || undefined };
+    }
     return { module: exact, view: "list" };
   }
 
@@ -326,6 +337,15 @@ export function pathToModule(pathname: string, searchParams?: URLSearchParams): 
     const tail = segments[1]!;
     if (MODULE_TAB_ROUTES.has(oneSegmentModule)) {
       return { module: oneSegmentModule, view: "list", tab: tail };
+    }
+    if (oneSegmentModule === "vehicles") {
+      const tab = searchParams?.get("tab") ?? undefined;
+      return {
+        module: oneSegmentModule,
+        view: "detail",
+        id: decodeURIComponent(tail),
+        tab: tab || undefined,
+      };
     }
     return {
       module: oneSegmentModule,

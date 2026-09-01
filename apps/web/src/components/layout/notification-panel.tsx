@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useAppStore } from "@/lib/store/app-store";
+import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
+import { isModuleMigrated } from "@/lib/navigation/routing-config";
 import { cn } from "@/lib/utils";
 import {
   X, CheckCheck, Bell, Inbox, AlertTriangle, AlertOctagon,
@@ -26,6 +28,7 @@ export function NotificationPanel() {
     notifOpen, setNotifOpen, notifications, markNotifRead, markAllNotifRead,
     navigate, dismissNotif, setAnnounceOpen,
   } = useAppStore();
+  const { navigateCompat, navigateDetailCompat } = useNavigateCompat();
   const [filter, setFilter] = useState<FilterTab>("all");
 
   // Escape key closes the panel - standard modal/dialog pattern.
@@ -164,7 +167,20 @@ export function NotificationPanel() {
                 onOpen={() => {
                   markNotifRead(n.id);
                   if (n.link) {
-                    navigate(n.link.module as never);
+                    const mod = n.link.module as Parameters<typeof navigate>[0];
+                    if (isModuleMigrated(mod)) {
+                      if (n.link.id) {
+                        navigateDetailCompat(mod, n.link.id);
+                      } else {
+                        navigateCompat(mod);
+                      }
+                    } else {
+                      if (n.link.id) {
+                        navigate(mod, "detail", n.link.id);
+                      } else {
+                        navigate(mod);
+                      }
+                    }
                     setNotifOpen(false);
                   }
                 }}

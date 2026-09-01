@@ -6,6 +6,10 @@ import { useAppStore, type ModuleId, type ViewState } from "@/lib/store/app-stor
 import { moduleToPath } from "./module-paths";
 import { isModuleMigrated } from "./routing-config";
 
+function currentAppPath(pathname: string, search: string): string {
+  return search ? `${pathname}${search}` : pathname;
+}
+
 /**
  * Dual-write navigation adapter for incremental App Router migration.
  *
@@ -31,7 +35,9 @@ export function useNavigateCompat() {
         const path = moduleToPath(module, view, id, tab);
         inFlightRef.current = true;
         syncActiveView(module, view, id, tab);
-        if (pathname !== path) {
+        const search =
+          typeof window !== "undefined" ? window.location.search : "";
+        if (currentAppPath(pathname, search) !== path) {
           router.push(path);
         }
         queueMicrotask(() => {
@@ -65,8 +71,11 @@ export function navigateCompatStatic(
   if (isModuleMigrated(module)) {
     const path = moduleToPath(module, view, id, tab);
     store.syncActiveView(module, view, id, tab);
-    if (typeof window !== "undefined" && window.location.pathname !== path) {
-      window.history.pushState(null, "", path);
+    if (typeof window !== "undefined") {
+      const current = currentAppPath(window.location.pathname, window.location.search);
+      if (current !== path) {
+        window.history.pushState(null, "", path);
+      }
     }
     return;
   }

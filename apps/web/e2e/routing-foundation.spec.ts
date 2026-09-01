@@ -107,12 +107,12 @@ authTest.describe("B0R-1V — authenticated App Router (migration flag ON)", () 
     await authExpect(page.locator("main[data-e2e-active-module='dashboard']")).toBeVisible();
   });
 
-  authTest("15. mixed mode: unmigrated module then Dashboard via sidebar", async ({
+  authTest("15. mixed mode: migrated Trips then Dashboard via sidebar", async ({
     authenticatedPage: page,
   }) => {
     await page.getByRole("button", { name: "Trips", exact: true }).click();
     await authExpect(page.locator("main[data-e2e-active-module='trips']")).toBeVisible();
-    await authExpect(page).toHaveURL(/\/app\/dashboard$/);
+    await authExpect(page).toHaveURL(/\/app\/trips$/);
 
     await page.getByRole("button", { name: "Dashboard", exact: true }).click();
     await authExpect(page).toHaveURL(/\/app\/dashboard$/);

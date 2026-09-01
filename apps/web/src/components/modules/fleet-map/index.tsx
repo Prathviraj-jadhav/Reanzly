@@ -1,11 +1,12 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import dynamic from "next/dynamic";
+import { useSearchParams } from "next/navigation";
 import { PageHeader } from "@/components/shared/page-header";
 import { Btn } from "@/components/shared/btn";
 import { toast } from "sonner";
-import { useAppStore } from "@/lib/store/app-store";
+import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
 import type { Vehicle, Trip, Driver } from "@/lib/types";
 import {
   Shield,
@@ -42,6 +43,9 @@ const OsmMap = dynamic(() => import("./osm-map"), {
 });
 
 export function FleetMapModule() {
+  const searchParams = useSearchParams();
+  const { navigateCompat } = useNavigateCompat();
+  const urlVehicleId = searchParams.get("vehicle");
   // Real, database-backed vehicles/trips/drivers (src/app/api/*) -
   // previously read directly from mock-data.ts. Read-only here (Fleet Map
   // doesn't create/edit records, just visualizes fleet state), so a plain
@@ -76,17 +80,22 @@ export function FleetMapModule() {
   });
 
   // ---- Selection ----
-  const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
+  const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(urlVehicleId);
 
-  // ---- Transient preselection from other modules ("View on Map" action) ----
-  const preselect = useAppStore((s) => s.selectedMapVehicleId);
-  const clearPreselect = useAppStore((s) => s.setSelectedMapVehicleId);
   useEffect(() => {
-    if (preselect) {
-      setSelectedVehicleId(preselect);
-      clearPreselect(undefined);
-    }
-  }, [preselect, clearPreselect]);
+    setSelectedVehicleId(urlVehicleId);
+  }, [urlVehicleId]);
+
+  const updateVehicleSelection = useCallback(
+    (id: string | null) => {
+      if (id) {
+        navigateCompat("fleet-map", "list", id);
+      } else {
+        navigateCompat("fleet-map");
+      }
+    },
+    [navigateCompat],
+  );
 
   // ---- Geofence drawer ----
   const [geofenceOpen, setGeofenceOpen] = useState(false);
@@ -153,7 +162,7 @@ export function FleetMapModule() {
   );
 
   function handleSelectVehicle(id: string) {
-    setSelectedVehicleId(id);
+    updateVehicleSelection(id);
   }
 
   function handleRefresh() {
@@ -166,7 +175,7 @@ export function FleetMapModule() {
     // Pick a random active vehicle and center on it.
     const active = filteredVehicles.find((v) => v.status === "Active");
     if (active) {
-      setSelectedVehicleId(active.id);
+      updateVehicleSelection(active.id);
       toast.success("Located nearest active vehicle", {
         description: `${active.name} · ${active.licensePlate}`,
       });
@@ -300,7 +309,7 @@ export function FleetMapModule() {
               vehicle={selectedVehicle}
               trip={selectedTrip}
               open={!!selectedVehicle}
-              onClose={() => setSelectedVehicleId(null)}
+              onClose={() => updateVehicleSelection(null)}
             />
 
             {/* Mobile legend overlay */}

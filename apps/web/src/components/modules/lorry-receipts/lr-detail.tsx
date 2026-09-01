@@ -3,7 +3,7 @@ import { useState, useMemo } from "react";
 import { DetailLayout, InfoRow, InfoSection, StatCard } from "@/components/shared/detail-layout";
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
-import { useAppStore } from "@/lib/store/app-store";
+import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
 import { TRIPS } from "@/lib/mock-data";
 import type { LorryReceipt } from "@/lib/types";
 import { EditLRDrawer } from "./edit-lr-drawer";
@@ -79,7 +79,7 @@ export function LRDetail({
   editRecord = null,
   onCloseEdit,
 }: LRDetailProps) {
-  const { navigate, navigateDetail } = useAppStore();
+  const { navigateCompat, navigateDetailCompat } = useNavigateCompat();
   const [activeTab, setActiveTab] = useState("overview");
   const [extOpen, setExtOpen] = useState(false);
   const [extForm, setExtForm] = useState<ExtensionForm>(EMPTY_EXTENSION_FORM);
@@ -100,7 +100,7 @@ export function LRDetail({
         <p className="text-[14px] text-muted-foreground">
           Lorry Receipt <span className="tabular">{lrId}</span> not found.
         </p>
-        <Btn variant="outline" onClick={() => navigate("lorry-receipts")}>Back to Lorry Receipts</Btn>
+        <Btn variant="outline" onClick={() => navigateCompat("lorry-receipts")}>Back to Lorry Receipts</Btn>
       </div>
     );
   }
@@ -170,7 +170,7 @@ export function LRDetail({
       label: "Archive LR",
       onClick: () => {
         toast(`LR archived`, { description: lr.lrNumber });
-        navigate("lorry-receipts");
+        navigateCompat("lorry-receipts");
       },
     },
   ];
@@ -218,7 +218,7 @@ export function LRDetail({
                 <InfoRow label="LR Number" value={<span className="tabular">{lr.lrNumber}</span>} />
                 <InfoRow label="Trip ID" value={
                   <button
-                    onClick={() => trip && navigateDetail("trips", trip.tripId)}
+                    onClick={() => trip && navigateDetailCompat("trips", trip.tripId)}
                     className="text-foreground hover:text-foreground/70 tabular transition-colors"
                   >
                     {lr.tripId} →
@@ -266,7 +266,7 @@ export function LRDetail({
               <InfoSection title="Linked Trip">
                 <div className="px-4 py-3">
                   <button
-                    onClick={() => navigateDetail("trips", trip.tripId)}
+                    onClick={() => navigateDetailCompat("trips", trip.tripId)}
                     className="w-full flex items-center justify-between gap-3 rounded-[5px] border border-border px-3 py-2.5 hover:bg-accent transition-colors text-left"
                   >
                     <div className="flex items-center gap-2.5 min-w-0">

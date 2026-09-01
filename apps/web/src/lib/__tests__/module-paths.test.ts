@@ -69,6 +69,12 @@ describe("module path registry", () => {
     expect(moduleToPath("warehouse", "list", undefined, "inbound")).toBe(
       "/app/warehouse/inbound",
     );
+    expect(moduleToPath("vehicles", "detail", "V-1", "fuel")).toBe(
+      "/app/vehicles/V-1?tab=fuel",
+    );
+    expect(moduleToPath("fleet-map", "list", "veh-42")).toBe(
+      "/app/fleet-map?vehicle=veh-42",
+    );
     expect(moduleToPath("settings", "list", undefined, "billing")).toBe(
       "/app/settings/billing",
     );
@@ -87,6 +93,21 @@ describe("module path registry", () => {
       module: "trips",
       view: "detail",
       id: "TX-99",
+    });
+    expect(
+      pathToModule("/app/vehicles/V-1", new URLSearchParams("tab=fuel")),
+    ).toEqual({
+      module: "vehicles",
+      view: "detail",
+      id: "V-1",
+      tab: "fuel",
+    });
+    expect(
+      pathToModule("/app/fleet-map", new URLSearchParams("vehicle=veh-42")),
+    ).toEqual({
+      module: "fleet-map",
+      view: "list",
+      id: "veh-42",
     });
     expect(pathToModule("/app/settings/access-matrix")).toEqual({
       module: "access-matrix",

@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { DetailLayout } from "@/components/shared/detail-layout";
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge, vehicleStatusBadge } from "@/components/shared/status-badge";
 import { SavageInput, SavageTextarea } from "@/components/shared/savage-input";
-import { useAppStore } from "@/lib/store/app-store";
+import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
 import type { Vehicle } from "@/lib/types";
 import {
   Truck, Gauge, Calendar, User, Navigation, Pencil, Wrench, Fuel,
@@ -49,18 +49,31 @@ const TABS = [
 
 interface VehicleDetailProps {
   vehicleId: string;
+  initialTab?: string;
   vehicles: Vehicle[];
   onUpdate: (id: string, data: Partial<Vehicle>) => void;
 }
 
-export function VehicleDetail({ vehicleId, vehicles, onUpdate }: VehicleDetailProps) {
-  const { navigate, setSelectedMapVehicleId } = useAppStore();
-  const [activeTab, setActiveTab] = useState("overview");
+const VALID_TAB_IDS = new Set(TABS.map((t) => t.id));
+
+export function VehicleDetail({ vehicleId, initialTab, vehicles, onUpdate }: VehicleDetailProps) {
+  const { navigateCompat } = useNavigateCompat();
+  const resolvedInitial =
+    initialTab && VALID_TAB_IDS.has(initialTab) ? initialTab : "overview";
+  const [activeTab, setActiveTab] = useState(resolvedInitial);
   const [editOpen, setEditOpen] = useState(false);
   const [addServiceOpen, setAddServiceOpen] = useState(false);
   const [logFuelOpen, setLogFuelOpen] = useState(false);
   const [createWoOpen, setCreateWoOpen] = useState(false);
   const [reminderOpen, setReminderOpen] = useState(false);
+
+  const handleTabChange = useCallback(
+    (tab: string) => {
+      setActiveTab(tab);
+      navigateCompat("vehicles", "detail", vehicleId, tab === "overview" ? undefined : tab);
+    },
+    [navigateCompat, vehicleId],
+  );
 
   const vehicle = useMemo(() => vehicles.find((v) => v.id === vehicleId), [vehicles, vehicleId]);
 
@@ -70,7 +83,7 @@ export function VehicleDetail({ vehicleId, vehicles, onUpdate }: VehicleDetailPr
         <p className="text-[14px] text-muted-foreground">
           Vehicle <span className="tabular">{vehicleId}</span> not found.
         </p>
-        <Btn variant="outline" onClick={() => navigate("vehicles")}>
+        <Btn variant="outline" onClick={() => navigateCompat("vehicles")}>
           Back to Vehicles
         </Btn>
       </div>
@@ -80,8 +93,7 @@ export function VehicleDetail({ vehicleId, vehicles, onUpdate }: VehicleDetailPr
   const { variant, pulse } = vehicleStatusBadge(vehicle.status);
 
   const handleViewOnMap = () => {
-    setSelectedMapVehicleId(vehicle.id);
-    navigate("fleet-map");
+    navigateCompat("fleet-map", "list", vehicle.id);
   };
 
   const actions = (
@@ -130,7 +142,7 @@ export function VehicleDetail({ vehicleId, vehicles, onUpdate }: VehicleDetailPr
       }
       tabs={TABS}
       activeTab={activeTab}
-      onTabChange={setActiveTab}
+      onTabChange={handleTabChange}
       actions={actions}
       quickActions={quickActions}
     >
