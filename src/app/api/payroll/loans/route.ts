@@ -19,7 +19,8 @@ const INCLUDE = {
   employee: { select: { code: true, name: true, designation: true, department: true } },
   installments: { orderBy: { no: "asc" as const } },
 } as const;
-type Row = Awaited<ReturnType<typeof db.payrollLoan.findFirst<{ include: typeof INCLUDE }>>>;
+import type { Prisma } from "@prisma/client";
+type Row = Prisma.PayrollLoanGetPayload<{ include: typeof INCLUDE }>;
 
 function installmentStatus(status: string, dueDate: Date): "Paid" | "Pending" | "Upcoming" {
   if (status === "Paid") return "Paid";

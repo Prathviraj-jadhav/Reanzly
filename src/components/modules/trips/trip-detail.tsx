@@ -1,5 +1,5 @@
 "use client";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   DetailLayout,
   InfoRow,
@@ -14,6 +14,7 @@ import {
   paymentStatusBadge,
 } from "@/components/shared/status-badge";
 import type { Trip, TripStatus } from "@/lib/types";
+import { INVOICES } from "@/lib/mock-data";
 import {
   Printer,
   Send,

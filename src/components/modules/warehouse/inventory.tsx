@@ -41,6 +41,7 @@ import {
 import {
   SKU_CATEGORIES,
   type SkuCategory,
+  type Sku,
   formatINR,
   formatINRCompact,
   formatDate,

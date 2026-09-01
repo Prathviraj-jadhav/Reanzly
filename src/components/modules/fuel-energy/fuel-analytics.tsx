@@ -30,6 +30,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { FuelEntry, Vehicle } from "@/lib/types";
+import { FUEL_ENTRIES } from "@/lib/mock-data";
 import {
   formatDate,
   formatINR,

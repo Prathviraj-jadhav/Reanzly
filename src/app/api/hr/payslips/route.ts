@@ -4,7 +4,8 @@ import { getSessionUser } from "@/lib/auth";
 import { requireModuleAccess } from "@/lib/permissions";
 
 const INCLUDE = { employee: { select: { code: true, name: true, designation: true } } } as const;
-type Row = Awaited<ReturnType<typeof db.payslip.findFirst<{ include: typeof INCLUDE }>>>;
+import type { Prisma } from "@prisma/client";
+type Row = Prisma.PayslipGetPayload<{ include: typeof INCLUDE }>;
 
 function toDTO(p: NonNullable<Row>) {
   const gross = p.basic + p.hra + p.conveyance + p.overtime + p.allowances + p.incentives;

@@ -112,7 +112,7 @@ export async function GET(req: NextRequest) {
                 (acc[r.emoji] ||= []).push(r.userId);
                 return acc;
               }, {})
-            ).map(([emoji, users]) => ({ emoji, users }))
+            ).map(([emoji, users]) => ({ emoji, users: users as string[] }))
           : undefined,
       });
     }

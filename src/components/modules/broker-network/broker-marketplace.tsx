@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { PageHeader } from "@/components/shared/page-header";
 import { SectionCard } from "@/components/shared/section-card";
 import { Btn } from "@/components/shared/btn";
@@ -56,7 +56,7 @@ import {
 } from "./_helpers";
 
 import { useBrokerEnquiriesData } from "./use-broker-enquiries-data";
-import { useBrokerQuotesData } from "./use-broker-quotes-data";
+import { useBrokerQuotesData, type BrokerQuoteDTO } from "./use-broker-quotes-data";
 import { useBrokerProfileData } from "./use-broker-profile-data";
 
 type PostingTimeFilter = "any" | "24h" | "48h" | "7d";
@@ -164,7 +164,7 @@ export function BrokerMarketplaceModule() {
     }
   };
 
-  const followUpQuote = (q: BrokerQuote) => {
+  const followUpQuote = (q: BrokerQuoteDTO) => {
     toast(`Reminder set for ${q.id}`, {
       description: `Follow-up scheduled for tomorrow 10:00 IST · ${q.customer}.`,
       icon: <BellRing className="h-4 w-4" />,
@@ -370,9 +370,9 @@ export function BrokerMarketplaceModule() {
             </thead>
             <tbody>
               {filteredLoads.map((l, i) => {
-                const resale = resaleRate(l.baseRatePerKm, markupPct);
-                const urgent = l.timeToQuoteHrs <= 4;
-                const postedLabel = relativeTime(l.postedAt);
+                const resale = resaleRate(l.baseRatePerKm ?? l.expectedRatePerKm, markupPct);
+                const urgent = (l.timeToQuoteHrs ?? 24) <= 4;
+                const postedLabel = relativeTime(l.postedAt ?? l.receivedAt);
                 return (
                   <tr
                     key={l.id}
@@ -385,7 +385,7 @@ export function BrokerMarketplaceModule() {
                       <div className="text-[11px] text-muted-foreground">
                         <span className={"inline-flex items-center gap-1 " + (urgent ? "font-medium text-foreground" : "")}>
                           <Clock className="h-3 w-3" />
-                          {l.timeToQuoteHrs}h left to quote
+                          {l.timeToQuoteHrs ?? 24}h left to quote
                         </span>
                       </div>
                     </td>
@@ -393,7 +393,7 @@ export function BrokerMarketplaceModule() {
                     <td className="hidden px-4 py-2.5 text-left text-muted-foreground sm:table-cell">{l.vehicleType}</td>
                     <td className="px-4 py-2.5 text-right tabular text-muted-foreground">{l.weightTon} T</td>
                     <td className="px-4 py-2.5 text-left text-muted-foreground">{formatDate(l.pickupDate)}</td>
-                    <td className="px-4 py-2.5 text-right tabular text-muted-foreground">{formatINR(l.baseRatePerKm)}/km</td>
+                    <td className="px-4 py-2.5 text-right tabular text-muted-foreground">{formatINR(l.baseRatePerKm ?? l.expectedRatePerKm)}/km</td>
                     <td className="px-4 py-2.5 text-right">
                       <span className="tabular font-medium text-foreground">{formatINR(resale)}/km</span>
                     </td>
@@ -401,7 +401,7 @@ export function BrokerMarketplaceModule() {
                       <div className="text-foreground">{l.customer}</div>
                       <div className="mt-0.5 inline-flex items-center gap-1 text-[10px] tabular text-muted-foreground">
                         <Star className="h-2.5 w-2.5" />
-                        {l.customerRating.toFixed(1)}
+                        {(l.customerRating ?? 0).toFixed(1)}
                       </div>
                     </td>
                     <td className="px-4 py-2.5 text-left">

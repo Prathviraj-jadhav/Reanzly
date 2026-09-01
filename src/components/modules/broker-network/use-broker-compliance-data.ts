@@ -13,6 +13,7 @@ export interface BrokerTaxReturnDTO {
   ackNo?: string | null;
   liabilityINR: number;
   status: "Due" | "Filed" | "Overdue";
+  deducteeCount?: number;
 }
 
 export interface BrokerLicenseDTO {

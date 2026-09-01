@@ -10,7 +10,8 @@ import { logAudit } from "@/lib/audit";
 // trusted from the client body.
 
 const INCLUDE = { employee: { select: { code: true, name: true, designation: true, department: true } } } as const;
-type Row = Awaited<ReturnType<typeof db.payrollReimbursement.findFirst<{ include: typeof INCLUDE }>>>;
+import type { Prisma } from "@prisma/client";
+type Row = Prisma.PayrollReimbursementGetPayload<{ include: typeof INCLUDE }>;
 
 function toDTO(r: NonNullable<Row>) {
   return {

@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
 
-export async function GET(req: Request, { params }: { params: { id: string } }) {
+export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   try {
     const session = await getSessionUser();
     if (!session) {
@@ -11,7 +12,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
 
     const po = await db.purchaseOrder.findFirst({
       where: {
-        id: params.id,
+        id: id,
         companyId: session.companyId,
       },
     });
@@ -36,7 +37,8 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
   }
 }
 
-export async function PATCH(req: Request, { params }: { params: { id: string } }) {
+export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   try {
     const session = await getSessionUser();
     if (!session) {
@@ -58,7 +60,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
     const po = await db.purchaseOrder.update({
       where: {
-        id: params.id,
+        id: id,
         companyId: session.companyId,
       },
       data: dataToUpdate,
@@ -80,7 +82,8 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   }
 }
 
-export async function DELETE(req: Request, { params }: { params: { id: string } }) {
+export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   try {
     const session = await getSessionUser();
     if (!session) {
@@ -89,7 +92,7 @@ export async function DELETE(req: Request, { params }: { params: { id: string } 
 
     const deleted = await db.purchaseOrder.deleteMany({
       where: {
-        id: params.id,
+        id: id,
         companyId: session.companyId,
       },
     });

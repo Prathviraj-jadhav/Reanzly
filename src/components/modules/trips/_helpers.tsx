@@ -1,5 +1,6 @@
 "use client";
-import type { TripStatus, PaymentStatus, OrderMode, RateType } from "@/lib/types";
+import type { TripStatus, PaymentStatus, OrderMode, RateType, Trip } from "@/lib/types";
+import { DRIVERS } from "@/lib/mock-data";
 
 // ===== Formatters =====
 export function formatINR(amount: number): string {

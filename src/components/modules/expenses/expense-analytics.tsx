@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Expense, Trip, Vehicle } from "@/lib/types";
+import { EXPENSES } from "@/lib/mock-data";
 import {
   Select,
   SelectContent,

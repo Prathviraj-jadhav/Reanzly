@@ -6,7 +6,8 @@ import { logAudit } from "@/lib/audit";
 import { notifyRole } from "@/lib/notify";
 
 const INCLUDE = { _count: { select: { payslips: true } } } as const;
-type Row = Awaited<ReturnType<typeof db.payrollRun.findFirst<{ include: typeof INCLUDE }>>>;
+import type { Prisma } from "@prisma/client";
+type Row = Prisma.PayrollRunGetPayload<{ include: typeof INCLUDE }>;
 
 function toDTO(r: NonNullable<Row>) {
   return {

@@ -4,7 +4,8 @@ import { getSessionUser } from "@/lib/auth";
 import { requireModuleAccess } from "@/lib/permissions";
 import { getSessionBrokerProfile, requireBrokerProfile } from "@/lib/broker";
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const sessionUser = await getSessionUser();
   if (!sessionUser) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
 
@@ -19,7 +20,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     const body = await req.json();
 
     const existing = await db.helpdeskTicket.findUnique({
-      where: { id: params.id, companyId: sessionUser.companyId },
+      where: { id: id, companyId: sessionUser.companyId },
     });
 
     if (!existing || existing.customerCode !== profile!.brokerCode) {
@@ -38,7 +39,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     }
 
     const updated = await db.helpdeskTicket.update({
-      where: { id: params.id },
+      where: { id: id },
       data: {
         messagesJson: JSON.stringify(messages),
         status: existing.status === "Resolved" || existing.status === "Closed" ? "New" : existing.status,

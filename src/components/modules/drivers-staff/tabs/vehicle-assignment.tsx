@@ -9,6 +9,7 @@ import { SavageInput, SavageTextarea } from "@/components/shared/savage-input";
 import { DataTable, type Column } from "@/components/shared/data-table";
 import { useAppStore } from "@/lib/store/app-store";
 import type { Driver } from "@/lib/types";
+import { VEHICLES } from "@/lib/mock-data";
 import { Car, Plus, ArrowUpRight, Calendar, ArrowRightLeft } from "lucide-react";
 import { toast } from "sonner";
 import {

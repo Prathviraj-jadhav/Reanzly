@@ -4,7 +4,8 @@ import { getSessionUser } from "@/lib/auth";
 import { requireModuleAccess } from "@/lib/permissions";
 
 const INCLUDE = { employee: { select: { code: true, name: true, designation: true } } } as const;
-type Row = Awaited<ReturnType<typeof db.attendanceRecord.findFirst<{ include: typeof INCLUDE }>>>;
+import type { Prisma } from "@prisma/client";
+type Row = Prisma.AttendanceRecordGetPayload<{ include: typeof INCLUDE }>;
 
 function toDTO(r: NonNullable<Row>) {
   return {

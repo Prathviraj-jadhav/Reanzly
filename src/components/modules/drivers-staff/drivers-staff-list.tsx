@@ -7,6 +7,7 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { useAppStore } from "@/lib/store/app-store";
 
 import type { Driver } from "@/lib/types";
+import { VEHICLES, TRIPS } from "@/lib/mock-data";
 import {
   Plus,
   Download,

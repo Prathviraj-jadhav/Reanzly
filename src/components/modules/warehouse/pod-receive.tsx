@@ -41,7 +41,7 @@ import { useWarehouseStore } from "@/lib/store/warehouse-store";
 import { useEffect } from "react";
 
 export function WarehousePodReceive() {
-  const { podReceives: rows, fetchPodReceives, updatePodReceive } = useWarehouseStore();
+  const { receives: rows, fetchPodReceives, updatePodReceive } = useWarehouseStore();
 
   useEffect(() => {
     fetchPodReceives();

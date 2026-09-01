@@ -148,8 +148,8 @@ export async function GET(req: NextRequest) {
   const vehiclesRunning = vehicles.filter((v) => v.status === "Active" && v.assignedTripId).length;
   const vehicleUtilizationPct = fleetTotal ? Math.round((vehiclesRunning / fleetTotal) * 100) : 0;
   const systemCodesByType = Array.from(
-    vehicles.reduce((m, v) => m.set(v.type ?? "Unspecified", (m.get(v.type ?? "Unspecified") ?? 0) + 1), new Map<string, number>()),
-  ).map(([type, count]) => ({ type, count })).sort((a, b) => b.count - a.count);
+    vehicles.reduce((m, v) => m.set(v.type ?? "Unspecified", (m.get(v.type ?? "Unspecified") ?? 0) + 1), new Map<string, number>()).entries(),
+  ).map(([type, count]: [string, number]) => ({ type, count })).sort((a, b) => b.count - a.count);
 
   // ===== Fuel =====
   const scopedFuel = hasLocationFilter ? fuelEntries.filter((f) => f.vehicle?.location === location) : fuelEntries;
@@ -228,11 +228,11 @@ export async function GET(req: NextRequest) {
     severity, count: scopedIssues.filter((i) => i.severity === severity).length,
   }));
   const issuesBySource = Array.from(
-    scopedIssues.reduce((m, i) => m.set(i.source, (m.get(i.source) ?? 0) + 1), new Map<string, number>()),
-  ).map(([source, count]) => ({ source, count }));
+    scopedIssues.reduce((m, i) => m.set(i.source, (m.get(i.source) ?? 0) + 1), new Map<string, number>()).entries(),
+  ).map(([source, count]: [string, number]) => ({ source, count }));
   const recurringDefectCounts = Array.from(
-    scopedIssues.reduce((m, i) => m.set(i.title, (m.get(i.title) ?? 0) + 1), new Map<string, number>()),
-  ).map(([reason, count]) => ({ reason, count })).sort((a, b) => b.count - a.count).slice(0, 6);
+    scopedIssues.reduce((m, i) => m.set(i.title, (m.get(i.title) ?? 0) + 1), new Map<string, number>()).entries(),
+  ).map(([reason, count]: [string, number]) => ({ reason, count })).sort((a, b) => b.count - a.count).slice(0, 6);
   const incidentTrendMap = new Map<string, number>();
   for (let i = 11; i >= 0; i--) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
@@ -287,8 +287,8 @@ export async function GET(req: NextRequest) {
 
   // ===== Expenses =====
   const expenseCategoryCounts = Array.from(
-    expenses.reduce((m, e) => m.set(e.category, (m.get(e.category) ?? 0) + 1), new Map<string, number>()),
-  ).map(([category, count]) => ({ category, count })).sort((a, b) => b.count - a.count);
+    expenses.reduce((m, e) => m.set(e.category, (m.get(e.category) ?? 0) + 1), new Map<string, number>()).entries(),
+  ).map(([category, count]: [string, number]) => ({ category, count })).sort((a, b) => b.count - a.count);
 
   // ===== Reminders =====
   const upcomingReminders = [...reminders]

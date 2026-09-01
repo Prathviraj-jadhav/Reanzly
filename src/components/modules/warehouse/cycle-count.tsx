@@ -83,11 +83,11 @@ const BINS = [
 ];
 
 export function WarehouseCycleCount() {
-  const { cycleCounts: rows, fetchCycleCounts, updateCycleCount, createCycleCount } = useWarehouseStore();
+  const { counts: rows, fetchCounts, updateCount, createCount } = useWarehouseStore();
 
   useEffect(() => {
-    fetchCycleCounts();
-  }, [fetchCycleCounts]);
+    fetchCounts();
+  }, [fetchCounts]);
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<Set<string>>(new Set());
@@ -246,7 +246,7 @@ export function WarehouseCycleCount() {
       label: "Start Counting",
       onClick: async (s: any) => {
         try {
-          await updateCycleCount(s.id, { status: "Counting", counter: s.counter ?? "Manjeet Singh" });
+          await updateCount(s.id, { status: "Counting", counter: s.counter ?? "Manjeet Singh" });
           toast.success(`Count started`, { description: s.countId });
         } catch (e) {
           toast.error("Failed to start counting");
@@ -260,7 +260,7 @@ export function WarehouseCycleCount() {
           const counted = s.systemQty + ((s.id.length % 3) - 1) * 2;
           const variance = counted - s.systemQty;
           const nextStatus = variance === 0 ? "Counted" : "Variance";
-          await updateCycleCount(s.id, { status: nextStatus, countedQty: counted, variance, countedDate: new Date().toISOString() });
+          await updateCount(s.id, { status: nextStatus, countedQty: counted, variance, countedDate: new Date().toISOString() });
           toast.success(`Count submitted`, { description: `${s.countId} · variance ${variance > 0 ? "+" : ""}${variance}` });
         } catch (e) {
           toast.error("Failed to submit count");
@@ -271,7 +271,7 @@ export function WarehouseCycleCount() {
       label: "Approve",
       onClick: async (s: any) => {
         try {
-          await updateCycleCount(s.id, { status: "Approved" });
+          await updateCount(s.id, { status: "Approved" });
           toast.success(`Count approved`, { description: s.countId });
         } catch (e) {
           toast.error("Failed to approve count");
@@ -282,7 +282,7 @@ export function WarehouseCycleCount() {
       label: "Post Adjustment",
       onClick: async (s: any) => {
         try {
-          await updateCycleCount(s.id, { status: "Posted" });
+          await updateCount(s.id, { status: "Posted" });
           toast(`Stock adjustment posted`, { description: s.countId });
         } catch (e) {
           toast.error("Failed to post adjustment");
@@ -325,7 +325,7 @@ export function WarehouseCycleCount() {
         unit: data.unit ?? "Bag",
         godown: data.godown ?? "Bhiwandi Godown A",
       };
-      await createCycleCount(newCount);
+      await createCount(newCount);
       toast.success(`Count scheduled`, { description: newCount.countId });
       setAddOpen(false);
     } catch (e) {

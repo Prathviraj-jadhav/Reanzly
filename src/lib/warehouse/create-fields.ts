@@ -1,4 +1,5 @@
 import { tenantCreateData } from "@/lib/api-guards";
+import type { Prisma } from "@prisma/client";
 
 const INBOUND_FIELDS = [
   "grn", "refNo", "consignor", "origin", "vehicle", "lrNumber",
@@ -55,25 +56,25 @@ const RETURN_FIELDS = [
 
 export const warehouseCreateMappers = {
   inbound: (body: Record<string, unknown>, companyId: string) =>
-    tenantCreateData(body, companyId, INBOUND_FIELDS),
+    tenantCreateData<Prisma.WarehouseInboundUncheckedCreateInput>(body, companyId, INBOUND_FIELDS),
   outbound: (body: Record<string, unknown>, companyId: string) =>
-    tenantCreateData(body, companyId, OUTBOUND_FIELDS),
+    tenantCreateData<Prisma.WarehouseOutboundUncheckedCreateInput>(body, companyId, OUTBOUND_FIELDS),
   sku: (body: Record<string, unknown>, companyId: string) =>
-    tenantCreateData(body, companyId, SKU_FIELDS),
+    tenantCreateData<Prisma.WarehouseSkuUncheckedCreateInput>(body, companyId, SKU_FIELDS),
   storage: (body: Record<string, unknown>, companyId: string) =>
-    tenantCreateData(body, companyId, STORAGE_FIELDS),
+    tenantCreateData<Prisma.WarehouseStorageLocationUncheckedCreateInput>(body, companyId, STORAGE_FIELDS),
   podReceive: (body: Record<string, unknown>, companyId: string) =>
-    tenantCreateData(body, companyId, POD_RECEIVE_FIELDS),
+    tenantCreateData<Prisma.WarehousePodReceiveUncheckedCreateInput>(body, companyId, POD_RECEIVE_FIELDS),
   pickList: (body: Record<string, unknown>, companyId: string) =>
-    tenantCreateData(body, companyId, PICK_LIST_FIELDS),
+    tenantCreateData<Prisma.WarehousePickListUncheckedCreateInput>(body, companyId, PICK_LIST_FIELDS),
   cycleCount: (body: Record<string, unknown>, companyId: string) =>
-    tenantCreateData(body, companyId, CYCLE_COUNT_FIELDS),
+    tenantCreateData<Prisma.WarehouseCycleCountUncheckedCreateInput>(body, companyId, CYCLE_COUNT_FIELDS),
   crossDock: (body: Record<string, unknown>, companyId: string) =>
-    tenantCreateData(body, companyId, CROSS_DOCK_FIELDS),
+    tenantCreateData<Prisma.WarehouseCrossDockUncheckedCreateInput>(body, companyId, CROSS_DOCK_FIELDS),
   yard: (body: Record<string, unknown>, companyId: string) =>
-    tenantCreateData(body, companyId, YARD_FIELDS),
+    tenantCreateData<Prisma.WarehouseYardUncheckedCreateInput>(body, companyId, YARD_FIELDS),
   dockAppt: (body: Record<string, unknown>, companyId: string) =>
-    tenantCreateData(body, companyId, DOCK_APPT_FIELDS),
+    tenantCreateData<Prisma.WarehouseDockApptUncheckedCreateInput>(body, companyId, DOCK_APPT_FIELDS),
   returns: (body: Record<string, unknown>, companyId: string) =>
-    tenantCreateData(body, companyId, RETURN_FIELDS),
+    tenantCreateData<Prisma.WarehouseReturnUncheckedCreateInput>(body, companyId, RETURN_FIELDS),
 };

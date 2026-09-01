@@ -15,6 +15,11 @@ export interface EnquiryDTO {
   status: "New" | "Quoted" | "Won" | "Lost";
   quotedRate: number | null;
   receivedAt: string;
+  /** Optional UI fields when sourced from marketplace seed data */
+  baseRatePerKm?: number;
+  timeToQuoteHrs?: number;
+  postedAt?: string;
+  customerRating?: number;
 }
 
 /**

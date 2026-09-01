@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { getSessionUser } from "@/lib/auth";
 import type { ChatMessage } from "@/lib/types";
 import { chatInternalBroadcastHeaders, chatServiceBaseUrl } from "@/lib/chat-broadcast";
 

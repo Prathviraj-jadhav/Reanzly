@@ -22,6 +22,28 @@ import {
 import type { Trip, Vehicle, Driver } from "@/lib/types";
 import { TRIP_STATUSES, PAYMENT_STATUSES } from "./_helpers";
 
+const EMPTY_TRIP: Trip = {
+  id: "",
+  tripId: "",
+  lrNumber: "",
+  consignor: "",
+  consignee: "",
+  origin: "",
+  destination: "",
+  vehicleId: "",
+  vehicleName: "",
+  driverId: "",
+  driverName: "",
+  status: "Planned",
+  createdDate: new Date().toISOString(),
+  expectedDelivery: new Date().toISOString(),
+  freightAmount: 0,
+  paymentStatus: "Unpaid",
+  orderMode: "FTL",
+  distanceKm: 0,
+  customer: "",
+};
+
 /**
  * EditTripDrawer - lightweight summary-only editor for an existing Trip.
  *

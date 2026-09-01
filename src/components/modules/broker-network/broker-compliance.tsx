@@ -94,17 +94,17 @@ export function BrokerCompliance() {
     .sort((a, b) => new Date(a.expiresAt).getTime() - new Date(b.expiresAt).getTime())[0];
 
   // ===== Handlers =====
-  const fileReturn = async (r: BrokerTaxReturnDTO) => {
+  const fileReturn = async (r: { id: string; formType?: string; period?: string; quarter?: string }) => {
     const ok = await fileTaxReturn(r.id);
     if (ok) {
       toastSuccess(
         "Return filed",
-        `${r.formType} for ${r.period} filed successfully.`,
+        `${r.formType ?? "Return"} for ${r.period ?? r.quarter ?? "period"} filed successfully.`,
       );
     }
   };
 
-  const downloadAck = (r: BrokerTaxReturnDTO) => {
+  const downloadAck = (r: { formType: string }) => {
     toastInfo("Downloading acknowledgment", `${r.formType} - ACK receipt PDF will be saved.`);
   };
 
@@ -149,11 +149,11 @@ export function BrokerCompliance() {
       header: "Due date",
       sortable: true,
       align: "left",
-      sortValue: (r) => r.dueDate,
+      sortValue: (r) => r.dueDate ?? "",
       render: (r) => (
         <div className="text-[12px] tabular">
-          <div className="text-foreground">{formatDate(r.dueDate)}</div>
-          <div className="text-[10px] text-muted-foreground">{relativeTime(r.dueDate)}</div>
+          <div className="text-foreground">{formatDate(r.dueDate ?? undefined)}</div>
+          <div className="text-[10px] text-muted-foreground">{relativeTime(r.dueDate ?? undefined)}</div>
         </div>
       ),
     },
@@ -180,7 +180,7 @@ export function BrokerCompliance() {
           {r.ackNo ? (
             <>
               <div className="text-foreground">{r.ackNo}</div>
-              <div className="text-[10px] text-muted-foreground">{r.filedAt ? formatDate(r.filedAt) : ""}</div>
+              <div className="text-[10px] text-muted-foreground">{r.filedDate ? formatDate(r.filedDate) : ""}</div>
             </>
           ) : (
             <span className="text-muted-foreground">-</span>
@@ -226,7 +226,7 @@ export function BrokerCompliance() {
   ];
 
   // ===== TDS columns =====
-  const tdsColumns: Column<BrokerTaxReturnDTO>[] = [
+  const tdsColumns: Column<TdsReturnRow>[] = [
     {
       key: "formType",
       header: "Form",
@@ -243,23 +243,23 @@ export function BrokerCompliance() {
       ),
     },
     {
-      key: "period",
+      key: "quarter",
       header: "Period",
       sortable: true,
       align: "left",
-      sortValue: (r) => r.period,
-      render: (r) => <span className="text-[12px] text-foreground">{r.period}</span>,
+      sortValue: (r) => r.quarter,
+      render: (r) => <span className="text-[12px] text-foreground">{r.quarter}</span>,
     },
     {
       key: "dueDate",
       header: "Due date",
       sortable: true,
       align: "left",
-      sortValue: (r) => r.dueDate,
+      sortValue: (r) => r.dueDate ?? "",
       render: (r) => (
         <div className="text-[12px] tabular">
-          <div className="text-foreground">{formatDate(r.dueDate)}</div>
-          <div className="text-[10px] text-muted-foreground">{relativeTime(r.dueDate)}</div>
+          <div className="text-foreground">{formatDate(r.dueDate ?? undefined)}</div>
+          <div className="text-[10px] text-muted-foreground">{relativeTime(r.dueDate ?? undefined)}</div>
         </div>
       ),
     },
@@ -268,7 +268,7 @@ export function BrokerCompliance() {
       header: "Deductees",
       sortable: true,
       align: "right",
-      sortValue: (r) => r.deducteeCount,
+      sortValue: (r) => r.deducteeCount ?? 0,
       hideable: true,
       render: (r) => <span className="tabular text-muted-foreground">{r.deducteeCount}</span>,
     },
@@ -277,8 +277,8 @@ export function BrokerCompliance() {
       header: "TDS amount",
       sortable: true,
       align: "right",
-      sortValue: (r) => r.liabilityINR,
-      render: (r) => <span className="tabular text-foreground">{formatINR(r.liabilityINR)}</span>,
+      sortValue: (r) => r.amountINR,
+      render: (r) => <span className="tabular text-foreground">{formatINR(r.amountINR)}</span>,
     },
     {
       key: "ackNo",
@@ -516,14 +516,21 @@ export function BrokerCompliance() {
             <div className="flex items-center gap-2 rounded-[5px] border border-border bg-muted/30 px-2.5 py-1 text-[11px]">
               <Clock className="h-3 w-3 text-muted-foreground" />
               <span className="text-muted-foreground">Next expiry:</span>
-              <span className="font-medium text-foreground">{nextExpiry.name}</span>
+              <span className="font-medium text-foreground">{nextExpiry.licenseType}</span>
               <span className="tabular text-muted-foreground">Â· {formatDate(nextExpiry.expiresAt)}</span>
             </div>
           ) : undefined
         }
       >
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {SEED_LICENSES.map((l) => {
+          {(licenses.length ? licenses : SEED_LICENSES.map((l) => ({
+            id: l.id,
+            licenseType: l.name,
+            licenseNumber: l.referenceNo,
+            issuedBy: l.issuingAuthority,
+            expiresAt: l.expiresAt,
+            status: (l.status === "Missing" ? "Expired" : l.status) as BrokerLicenseDTO["status"],
+          }))).map((l) => {
             const b = documentStatusBadge(l.status);
             const daysLeft = Math.ceil((new Date(l.expiresAt).getTime() - Date.now()) / 86400000);
             return (
@@ -549,7 +556,7 @@ export function BrokerCompliance() {
                 <div className="grid grid-cols-2 gap-2 border-t border-border pt-2 text-[11px]">
                   <div>
                     <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Reference</div>
-                    <div className="mt-0.5 truncate text-foreground tabular">{l.referenceNo}</div>
+                    <div className="mt-0.5 truncate text-foreground tabular">{l.licenseNumber}</div>
                   </div>
                   <div>
                     <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Expires</div>

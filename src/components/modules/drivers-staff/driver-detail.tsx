@@ -57,6 +57,15 @@ export function DriverDetail({ driverId, drivers, onUpdate }: DriverDetailProps)
   const [resetOpen, setResetOpen] = useState(false);
   const [deactivateOpen, setDeactivateOpen] = useState(false);
 
+  const [vehicles, setVehicles] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetch("/api/vehicles")
+      .then((r) => r.ok ? r.json() : { vehicles: [] })
+      .then((data) => setVehicles(data.vehicles ?? []))
+      .catch(() => {});
+  }, []);
+
   const driver = useMemo(() => drivers.find((d) => d.id === driverId), [drivers, driverId]);
 
   if (!driver) {
@@ -107,15 +116,6 @@ export function DriverDetail({ driverId, drivers, onUpdate }: DriverDetailProps)
     { label: "Download KYC", onClick: () => toast("KYC pack exported") },
     { label: "Deactivate", onClick: () => setDeactivateOpen(true) },
   ];
-
-  const [vehicles, setVehicles] = useState<any[]>([]);
-
-  useEffect(() => {
-    fetch("/api/vehicles")
-      .then((r) => r.ok ? r.json() : { vehicles: [] })
-      .then((data) => setVehicles(data.vehicles ?? []))
-      .catch(() => {});
-  }, []);
 
   return (
     <DetailLayout

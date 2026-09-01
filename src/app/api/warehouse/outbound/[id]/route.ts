@@ -3,13 +3,14 @@ import { db } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
 import { requireModuleAccess } from "@/lib/permissions";
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const sessionUser = await getSessionUser();
   if (!sessionUser) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
   const denied = requireModuleAccess(sessionUser, "warehouse");
   if (denied) return denied;
 
-  const { id } = params;
+  
   const body = await req.json();
   try {
     const record = await db.warehouseOutbound.findUnique({ where: { id } });

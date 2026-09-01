@@ -1,5 +1,5 @@
 "use client";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { toast } from "sonner";
@@ -454,6 +454,8 @@ function Step1Customer({
   selectCustomer,
   applyPaymentTerms,
   toggleAssignee,
+  customers,
+  trips,
 }: {
   form: InvoiceForm;
   update: <K extends keyof InvoiceForm>(k: K, v: InvoiceForm[K]) => void;

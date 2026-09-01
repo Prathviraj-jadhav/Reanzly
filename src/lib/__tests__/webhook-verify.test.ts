@@ -1,4 +1,5 @@
 import { describe, expect, it, beforeEach, afterEach } from "vitest";
+import { createHmac } from "crypto";
 import { verifyWebhookSignature, getWebhookVerifier } from "@/lib/integrations/webhook-verify";
 
 describe("webhook-verify", () => {
@@ -32,7 +33,6 @@ describe("webhook-verify", () => {
     const body = '{"event":"payment.captured"}';
     const verifier = getWebhookVerifier("test");
     expect(verifier).toBeTruthy();
-    const { createHmac } = require("crypto");
     const sig = createHmac("sha256", "test-secret-key").update(body, "utf8").digest("hex");
     const result = verifyWebhookSignature("test", { "x-test-signature": sig }, body);
     expect(result.ok).toBe(true);

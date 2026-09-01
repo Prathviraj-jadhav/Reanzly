@@ -1,5 +1,5 @@
 "use client";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -109,7 +109,7 @@ export function RouteCostPlannerDialog({ open, onOpenChange }: RouteCostPlannerD
             <Autocomplete
               value={destination}
               onChange={setDestination}
-              options={CITY_OPTIONS}
+              options={cityOptions}
               placeholder="Destination city"
               emptyText="No city found"
               className="mt-1 h-8"

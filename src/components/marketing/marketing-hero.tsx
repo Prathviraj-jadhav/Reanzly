@@ -99,7 +99,7 @@ export function MarketingHero() {
             <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
           </button>
           <button
-            onClick={() => { setAuthMode("login"); setMarketingView("auth"); }}
+            onClick={() => { setAuthMode("signin"); setMarketingView("auth"); }}
             className="inline-flex h-11 items-center rounded-[6px] border border-white/20 bg-white/5 backdrop-blur-md px-6 text-[14px] font-[500] text-white transition-all hover:bg-white/10"
           >
             Sign in

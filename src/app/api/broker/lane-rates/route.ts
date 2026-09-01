@@ -22,7 +22,7 @@ export async function GET() {
   if (denied) return denied;
 
   try {
-    const rows = await cacheWrap(
+    const rows = (await cacheWrap(
       "broker:lane-rates:active",
       { ...CACHE_TTL.reference, tags: ["broker:lane-rates"] },
       () =>
@@ -30,7 +30,7 @@ export async function GET() {
           where: { active: true },
           orderBy: { laneId: "asc" },
         })
-    );
+    )) as Awaited<ReturnType<typeof db.laneRate.findMany>>;
 
     return NextResponse.json(
       rows.map((r) => ({

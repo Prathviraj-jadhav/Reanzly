@@ -420,7 +420,7 @@ export function WarehousePickPack() {
           bulkActions={bulkActions}
           emptyDescription="Create a new pick list to assign a picker."
           initialSort={{ key: "pickId", dir: "desc" }}
-          isLoading={loading}
+          loading={loading}
         />
       </div>
 

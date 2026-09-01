@@ -9,7 +9,8 @@ const ACTIVITY_INCLUDE = {
   contact: { select: { name: true } },
   customer: { select: { companyName: true } },
 } as const;
-type ActivityWithRelations = Awaited<ReturnType<typeof db.crmActivity.findFirst<{ include: typeof ACTIVITY_INCLUDE }>>>;
+import type { Prisma } from "@prisma/client";
+type ActivityWithRelations = Prisma.CrmActivityGetPayload<{ include: typeof ACTIVITY_INCLUDE }>;
 
 function toDTO(a: NonNullable<ActivityWithRelations>) {
   return {

@@ -4,7 +4,8 @@ import { getSessionUser } from "@/lib/auth";
 import { requireModuleAccess } from "@/lib/permissions";
 import { getSessionBrokerProfile, requireBrokerProfile } from "@/lib/broker";
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const sessionUser = await getSessionUser();
   if (!sessionUser) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
 
@@ -19,13 +20,13 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     const body = await req.json();
 
     // Verify ownership
-    const existing = await db.payoutRun.findUnique({ where: { id: params.id } });
+    const existing = await db.payoutRun.findUnique({ where: { id: id } });
     if (!existing || existing.brokerProfileId !== profile!.id) {
       return NextResponse.json({ error: "Payout run not found." }, { status: 404 });
     }
 
     const updated = await db.payoutRun.update({
-      where: { id: params.id },
+      where: { id: id },
       data: {
         status: body.status !== undefined ? body.status : undefined,
         bankRef: body.bankRef !== undefined ? body.bankRef : undefined,

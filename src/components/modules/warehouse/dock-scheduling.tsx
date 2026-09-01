@@ -465,7 +465,7 @@ export function WarehouseDockScheduling() {
           bulkActions={bulkActions}
           emptyDescription="Schedule an appointment to reserve a dock door."
           initialSort={{ key: "apptId", dir: "desc" }}
-          isLoading={loading}
+          loading={loading}
         />
       </div>
 

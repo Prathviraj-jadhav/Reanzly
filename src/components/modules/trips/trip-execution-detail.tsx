@@ -15,6 +15,7 @@ import {
   paymentStatusBadge,
 } from "@/components/shared/status-badge";
 import type { Trip } from "@/lib/types";
+import { VEHICLES, DRIVERS } from "@/lib/mock-data";
 import {
   Printer,
   Send,

@@ -177,7 +177,7 @@ export async function generateReportData(companyId: string, reportId: string, fi
           Driver: d.name,
           Trips: String(d.tripsCompleted),
           "On-Time %": `${Math.round(d.onTimeRate)}%`,
-          "Avg km/L": eff ? eff.toFixed(2) : "-",
+          "Avg km/L": eff != null ? Number(eff).toFixed(2) : "-",
           Rating: d.rating.toFixed(1),
           "Last Active": relativeShort(d.lastActive),
         };

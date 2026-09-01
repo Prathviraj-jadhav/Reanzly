@@ -5,7 +5,8 @@ import { requireModuleAccess } from "@/lib/permissions";
 import { logAudit } from "@/lib/audit";
 
 const INCLUDE = { employee: { select: { code: true, name: true, designation: true, department: true } } } as const;
-type Row = Awaited<ReturnType<typeof db.payrollBonus.findFirst<{ include: typeof INCLUDE }>>>;
+import type { Prisma } from "@prisma/client";
+type Row = Prisma.PayrollBonusGetPayload<{ include: typeof INCLUDE }>;
 
 function toDTO(r: NonNullable<Row>) {
   return {

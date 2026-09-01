@@ -4,7 +4,8 @@ import { getSessionUser } from "@/lib/auth";
 import { requireModuleAccess } from "@/lib/permissions";
 
 const INCLUDE = { _count: { select: { payslips: true } } } as const;
-type Row = Awaited<ReturnType<typeof db.payrollRun.findFirst<{ include: typeof INCLUDE }>>>;
+import type { Prisma } from "@prisma/client";
+type Row = Prisma.PayrollRunGetPayload<{ include: typeof INCLUDE }>;
 
 // Real audit trail derived from the run's own real timestamps - not a
 // fabricated event log, just what genuinely happened to this record.

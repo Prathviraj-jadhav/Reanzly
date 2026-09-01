@@ -1,11 +1,12 @@
 "use client";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { SavageInput } from "@/components/shared/savage-input";
 import { Autocomplete, type AutocompleteOption } from "@/components/shared/autocomplete";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { VEHICLES } from "@/lib/mock-data";
 import {
   X,
   Check,

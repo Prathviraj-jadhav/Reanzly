@@ -5,7 +5,8 @@ import { requireModuleAccess } from "@/lib/permissions";
 import { logAudit } from "@/lib/audit";
 
 const INCLUDE = { candidates: { orderBy: { appliedAt: "desc" as const } } } as const;
-type Row = Awaited<ReturnType<typeof db.hrPosition.findFirst<{ include: typeof INCLUDE }>>>;
+import type { Prisma } from "@prisma/client";
+type Row = Prisma.HrPositionGetPayload<{ include: typeof INCLUDE }>;
 
 function candidateDTO(c: NonNullable<Row>["candidates"][number]) {
   return {

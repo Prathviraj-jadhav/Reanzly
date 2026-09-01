@@ -27,7 +27,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (Math.abs(dr - cr) > 0.5) {
       return NextResponse.json({ error: `Entry is not balanced: debit ${dr} != credit ${cr}.` }, { status: 400 });
     }
-    const accountIds = [...new Set(body.lines.map((l: { accountId: string }) => l.accountId))];
+    const accountIds = [...new Set(body.lines.map((l: { accountId: string }) => l.accountId))] as string[];
     const accounts = await db.ledgerAccount.findMany({
       where: { id: { in: accountIds }, companyId: sessionUser.companyId },
     });

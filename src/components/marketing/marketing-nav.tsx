@@ -25,7 +25,7 @@ export function MarketingNav() {
   ];
 
   function openSignup() { setAuthMode("signup"); setMarketingView("auth"); }
-  function openLogin() { setAuthMode("login"); setMarketingView("auth"); }
+  function openLogin() { setAuthMode("signin"); setMarketingView("auth"); }
 
   return (
     <>

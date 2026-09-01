@@ -6,6 +6,7 @@ import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { useAppStore } from "@/lib/store/app-store";
 import type { Expense } from "@/lib/types";
+import { TRIPS } from "@/lib/mock-data";
 import {
   Plus,
   Download,

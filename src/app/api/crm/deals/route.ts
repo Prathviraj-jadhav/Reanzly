@@ -14,7 +14,8 @@ const DEAL_INCLUDE = {
   contact: { select: { name: true } },
 } as const;
 
-type DealWithRelations = Awaited<ReturnType<typeof db.deal.findFirst<{ include: typeof DEAL_INCLUDE }>>>;
+import type { Prisma } from "@prisma/client";
+type DealWithRelations = Prisma.DealGetPayload<{ include: typeof DEAL_INCLUDE }>;
 
 function toDTO(d: NonNullable<DealWithRelations>) {
   return {

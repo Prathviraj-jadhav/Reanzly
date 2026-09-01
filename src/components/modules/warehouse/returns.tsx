@@ -436,7 +436,7 @@ export function WarehouseReturns() {
           bulkActions={bulkActions}
           emptyDescription="Create a new RMA to authorize a customer return."
           initialSort={{ key: "rmaId", dir: "desc" }}
-          isLoading={loading}
+          loading={loading}
         />
       </div>
 

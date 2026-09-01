@@ -4,7 +4,8 @@ import { getSessionUser } from "@/lib/auth";
 import { requireModuleAccess } from "@/lib/permissions";
 
 const INCLUDE = { _count: { select: { payslips: true } } } as const;
-type Row = Awaited<ReturnType<typeof db.payrollRun.findFirst<{ include: typeof INCLUDE }>>>;
+import type { Prisma } from "@prisma/client";
+type Row = Prisma.PayrollRunGetPayload<{ include: typeof INCLUDE }>;
 
 function realAudit(r: NonNullable<Row>) {
   const entries: { id: string; at: string; by: string; action: string; note?: string }[] = [

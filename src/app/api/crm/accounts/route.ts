@@ -37,7 +37,7 @@ async function withComputedFields(customers: Awaited<ReturnType<typeof db.custom
     outstanding: c.outstandingBalance,
     contractStatus: c.contractStatus ?? "None",
     accountManager: c.accountManager ?? "",
-    lastShipment: (lastTripMap.get(c.id) ?? null)?.toISOString() ?? "",
+    lastShipment: (lastTripMap.get(c.id) as Date | null | undefined)?.toISOString() ?? "",
     city: c.city ?? "",
     phone: c.phone ?? "",
     email: c.email ?? "",

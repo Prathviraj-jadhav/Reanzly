@@ -41,6 +41,7 @@ import {
 import {
   INBOUND_STATUSES,
   type InboundStatus,
+  type InboundShipment,
   formatINR,
   formatINRCompact,
   formatDate,

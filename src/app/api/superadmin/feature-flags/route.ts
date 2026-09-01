@@ -35,7 +35,7 @@ export async function GET() {
   const byModule = new Map(existing.map((f) => [f.moduleId, f.enabled]));
   const flags: Record<string, boolean> = {};
   for (const m of MODULE_DEFAULTS) {
-    flags[m.id] = byModule.has(m.id) ? byModule.get(m.id)! : m.defaultOn;
+    flags[m.id] = byModule.has(m.id) ? Boolean(byModule.get(m.id)) : m.defaultOn;
   }
   return NextResponse.json({ flags });
 }

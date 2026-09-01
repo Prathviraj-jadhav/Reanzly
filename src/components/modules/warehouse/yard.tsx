@@ -435,7 +435,7 @@ export function WarehouseYard() {
           bulkActions={bulkActions}
           emptyDescription="Log a movement to track an equipment entering the yard."
           initialSort={{ key: "movementId", dir: "desc" }}
-          isLoading={loading}
+          loading={loading}
         />
       </div>
 

@@ -3,7 +3,9 @@ import { db } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
 import { requireModuleAccess } from "@/lib/permissions";
 
-function toDTO(s: Awaited<ReturnType<typeof db.subscription.findFirstOrThrow<{ include: { plan: true } }>>>) {
+import type { Prisma } from "@prisma/client";
+type SubscriptionWithPlan = Prisma.SubscriptionGetPayload<{ include: { plan: true } }>;
+function toDTO(s: SubscriptionWithPlan) {
   return {
     id: s.id,
     status: s.status,

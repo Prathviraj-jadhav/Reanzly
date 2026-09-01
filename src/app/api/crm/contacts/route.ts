@@ -4,7 +4,8 @@ import { getSessionUser } from "@/lib/auth";
 import { requireModuleAccess } from "@/lib/permissions";
 
 const CONTACT_INCLUDE = { customer: { select: { companyName: true } } } as const;
-type ContactWithRelations = Awaited<ReturnType<typeof db.crmContact.findFirst<{ include: typeof CONTACT_INCLUDE }>>>;
+import type { Prisma } from "@prisma/client";
+type ContactWithRelations = Prisma.CrmContactGetPayload<{ include: typeof CONTACT_INCLUDE }>;
 
 function toDTO(c: NonNullable<ContactWithRelations>) {
   return {

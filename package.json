@@ -2,13 +2,17 @@
   "name": "nextjs_tailwind_shadcn_ts",
   "version": "0.2.1",
   "private": true,
+  "engines": {
+    "node": ">=20.9.0 <25"
+  },
   "scripts": {
     "dev": "concurrently -k -n next,chat -c blue,green \"npm:dev:web\" \"npm:dev:chat\"",
     "dev:web": "next dev -p 3000",
     "dev:chat": "cd mini-services/chat-service && bun --hot index.ts",
-    "build": "next build && cp -r .next/static .next/standalone/.next/ && cp -r public .next/standalone/",
+    "build": "next build && node scripts/copy-standalone.mjs",
     "start": "NODE_ENV=production bun .next/standalone/server.js",
     "lint": "eslint .",
+    "lint:seed": "eslint src/scripts --max-warnings 0",
     "test": "vitest run",
     "test:watch": "vitest",
     "db:push": "prisma db push --accept-data-loss",
