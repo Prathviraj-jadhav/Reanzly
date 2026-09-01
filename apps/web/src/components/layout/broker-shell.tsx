@@ -134,11 +134,18 @@ const SUB_NAV: SubNavItem[] = [
 
 const GROUPS: SubNavItem["group"][] = ["Operations", "Network", "Finance", "Profile"];
 
-export function BrokerShell() {
+export function BrokerShell({
+  activeView: controlledActive,
+  onNavigate,
+}: {
+  activeView?: BrokerSubView;
+  onNavigate?: (view: BrokerSubView) => void;
+} = {}) {
   const authUser = useAppStore((s) => s.authUser);
   const logout = useAppStore((s) => s.logout);
   const setAnnounceOpen = useAppStore((s) => s.setAnnounceOpen);
-  const [active, setActive] = useState<BrokerSubView>("overview");
+  const [localActive, setActive] = useState<BrokerSubView>("overview");
+  const active = controlledActive ?? localActive;
   const [navCollapsed, setNavCollapsed] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -149,9 +156,13 @@ export function BrokerShell() {
   // the active state updates on the very first click. The mobile-drawer
   // close call is harmless on desktop (the drawer is already closed).
   const selectSubView = useCallback((id: BrokerSubView) => {
-    setActive(id);
+    if (onNavigate) {
+      onNavigate(id);
+    } else {
+      setActive(id);
+    }
     setMobileNavOpen(false);
-  }, []);
+  }, [onNavigate]);
 
   function handleSignOut() {
     logout();
@@ -284,9 +295,7 @@ export function BrokerShell() {
                     return (
                       <button
                         key={item.id}
-                        // Use the unified selectSubView handler on desktop too -
-                        // guarantees the same immediate setActive path that
-                        // mobile uses, with no chance of a divergent closure.
+                        data-e2e-portal-nav={item.id}
                         onClick={() => selectSubView(item.id)}
                         aria-current={isActive ? "page" : undefined}
                         title={navCollapsed ? item.label : undefined}
@@ -474,7 +483,11 @@ export function BrokerShell() {
         )}
 
         {/* Content */}
-        <main className="flex flex-1 flex-col overflow-hidden">
+        <main
+          className="flex flex-1 flex-col overflow-hidden"
+          data-e2e-portal="broker"
+          data-e2e-portal-view={safeActive}
+        >
           {/* Alert banner - surfaces system-wide alerts above the content */}
           <AlertBanner />
 

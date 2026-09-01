@@ -6,7 +6,7 @@ import { useAppStore, type PortalType } from "@/lib/store/app-store";
 import { ROLE_ARCHETYPES } from "@/lib/mock-data";
 import { pick } from "@/lib/content/savage-placeholders";
 import { authForgotPassword, authErrorMessage } from "@/lib/auth-api";
-import { validateReturnTo } from "@/lib/navigation/return-to";
+import { validateReturnTo, resolvePostLoginRoute } from "@/lib/navigation/return-to";
 import { isRoutingMigrationEnabled, DASHBOARD_ROUTE } from "@/lib/navigation/routing-config";
 import { cn } from "@/lib/utils";
 import {
@@ -137,10 +137,12 @@ export function LoginScreen() {
   const [resetSuccessMsg, setResetSuccessMsg] = useState<string | null>(null);
   const [isSubdomainLocked, setIsSubdomainLocked] = useState(false);
 
-  const returnTo = validateReturnTo(
-    searchParams.get("returnTo"),
-    isRoutingMigrationEnabled() ? DASHBOARD_ROUTE : "/dashboard",
-  );
+  const returnToParam = searchParams.get("returnTo");
+  const defaultLanding = isRoutingMigrationEnabled() ? DASHBOARD_ROUTE : "/dashboard";
+
+  function postLoginRoute(portalType: PortalType, roleId: string): string {
+    return resolvePostLoginRoute(portalType, roleId, returnToParam ?? defaultLanding);
+  }
 
   // Subdomain detection on mount
   useEffect(() => {
@@ -238,7 +240,8 @@ export function LoginScreen() {
       setError(result.error || "Sign in failed. Check your email and password.");
       return;
     }
-    router.replace(returnTo);
+    const state = useAppStore.getState();
+    router.replace(postLoginRoute(state.portal, state.currentRole.id));
   }
 
   // "Quick sign in" tiles still go through real, server-verified
@@ -257,7 +260,8 @@ export function LoginScreen() {
       setError(result.error || "Sign in failed.");
       return;
     }
-    router.replace(returnTo);
+    const state = useAppStore.getState();
+    router.replace(postLoginRoute(state.portal, state.currentRole.id));
   }
 
   const selectedRoleObj = ROLE_ARCHETYPES.find((r) => r.id === effectiveRole);

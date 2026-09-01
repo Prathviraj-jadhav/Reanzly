@@ -11,6 +11,10 @@ describe("module path registry", () => {
   it("defines base paths for all 54 ModuleIds", () => {
     expect(ALL_MODULE_IDS).toHaveLength(54);
     for (const id of ALL_MODULE_IDS) {
+      if (id === "superadmin") {
+        expect(MODULE_BASE_PATH[id]).toBe("/admin");
+        continue;
+      }
       expect(MODULE_BASE_PATH[id]).toMatch(/^\/app\//);
     }
   });
@@ -30,7 +34,7 @@ describe("module path registry", () => {
   });
 
   it("round-trips list paths for canonical modules", () => {
-    const skipRoundTrip = new Set(["financial-ops", "app-store"]);
+    const skipRoundTrip = new Set(["financial-ops", "app-store", "superadmin"]);
     for (const id of ALL_MODULE_IDS) {
       if (skipRoundTrip.has(id)) continue;
       const path = moduleToPath(id);
@@ -75,6 +79,10 @@ describe("module path registry", () => {
   it("pathToModule alias: integrations accepts app-store target", () => {
     const parsed = pathToModule("/app/integrations");
     expect(parsed).toEqual({ module: "integrations", view: "list" });
+  });
+
+  it("moduleToPath superadmin portal route", () => {
+    expect(moduleToPath("superadmin")).toBe("/admin");
   });
 
   it("pathToModule returns null for invalid paths", () => {

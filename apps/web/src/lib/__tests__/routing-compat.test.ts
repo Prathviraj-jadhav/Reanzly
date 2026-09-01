@@ -13,7 +13,7 @@ describe("routing migration config", () => {
     vi.unstubAllEnvs();
   });
 
-  it("MIGRATED_MODULES contains B0R-2…6 desktop modules (excludes superadmin)", () => {
+  it("MIGRATED_MODULES contains all 53 desktop + superadmin portal modules", () => {
     expect([...MIGRATED_MODULES].sort()).toEqual(
       [
         "access-matrix",
@@ -62,6 +62,7 @@ describe("routing migration config", () => {
         "services",
         "settings",
         "subscriptions",
+        "superadmin",
         "surveys",
         "system-design",
         "trips",
@@ -71,7 +72,7 @@ describe("routing migration config", () => {
         "workshop",
       ].sort(),
     );
-    expect(MIGRATED_MODULES.has("superadmin")).toBe(false);
+    expect(MIGRATED_MODULES.has("superadmin")).toBe(true);
   });
 
   it("isRoutingMigrationEnabled respects env flag", () => {
@@ -96,7 +97,7 @@ describe("routing migration config", () => {
     expect(isModuleMigrated("document-studio")).toBe(true);
     expect(isModuleMigrated("settings")).toBe(true);
     expect(isModuleMigrated("warehouse")).toBe(true);
-    expect(isModuleMigrated("superadmin")).toBe(false);
+    expect(isModuleMigrated("superadmin")).toBe(true);
   });
 });
 

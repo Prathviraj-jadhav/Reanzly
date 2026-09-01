@@ -117,7 +117,13 @@ const SUB_NAV: SubNavItem[] = [
 
 const GROUPS: SubNavItem["group"][] = ["Operations", "Revenue", "Intelligence", "Platform"];
 
-export function SuperAdminShell() {
+export function SuperAdminShell({
+  activeView: controlledActive,
+  onNavigate,
+}: {
+  activeView?: AdminSubView;
+  onNavigate?: (view: AdminSubView) => void;
+} = {}) {
   const currentStaff = useSuperadminStore((s) => s.currentStaff);
   const adminLogin = useSuperadminStore((s) => s.adminLogin);
   const adminLogout = useSuperadminStore((s) => s.adminLogout);
@@ -125,7 +131,8 @@ export function SuperAdminShell() {
   const authUser = useAppStore((s) => s.authUser);
   const logout = useAppStore((s) => s.logout);
   const setAnnounceOpen = useAppStore((s) => s.setAnnounceOpen);
-  const [active, setActive] = useState<AdminSubView>("overview");
+  const [localActive, setActive] = useState<AdminSubView>("overview");
+  const active = controlledActive ?? localActive;
   const [navCollapsed, setNavCollapsed] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -157,7 +164,11 @@ export function SuperAdminShell() {
   // Selecting a nav item from the mobile drawer should also close the
   // drawer so the user lands directly on the chosen view.
   function selectSubView(id: AdminSubView) {
-    setActive(id);
+    if (onNavigate) {
+      onNavigate(id);
+    } else {
+      setActive(id);
+    }
     setMobileNavOpen(false);
   }
 
@@ -291,7 +302,8 @@ export function SuperAdminShell() {
                     return (
                       <button
                         key={item.id}
-                        onClick={() => setActive(item.id)}
+                        data-e2e-portal-nav={item.id}
+                        onClick={() => selectSubView(item.id)}
                         aria-current={isActive ? "page" : undefined}
                         title={navCollapsed ? item.label : undefined}
                         className={cn(
@@ -512,7 +524,11 @@ export function SuperAdminShell() {
         )}
 
         {/* Content */}
-        <main className="flex flex-1 flex-col overflow-hidden">
+        <main
+          className="flex flex-1 flex-col overflow-hidden"
+          data-e2e-portal="admin"
+          data-e2e-portal-view={safeActive}
+        >
           {/* Alert banner - surfaces system-wide alerts above the content */}
           <AlertBanner />
 
@@ -541,7 +557,7 @@ export function SuperAdminShell() {
           <div className="flex flex-1 flex-col overflow-y-auto scrollbar-thin">
             <div className="mx-auto w-full max-w-[1400px] px-4 py-5 sm:px-6 lg:px-8">
               <ErrorBoundary label={SUB_NAV.find((i) => i.id === safeActive)?.label ?? safeActive}>
-                {safeActive === "overview" && <OverviewView onNavigate={(v) => setActive(v as AdminSubView)} />}
+                {safeActive === "overview" && <OverviewView onNavigate={(v) => selectSubView(v as AdminSubView)} />}
                 {safeActive === "organizations" && <OrganizationsView />}
                 {safeActive === "users" && <UsersView />}
                 {safeActive === "billing" && <BillingView />}

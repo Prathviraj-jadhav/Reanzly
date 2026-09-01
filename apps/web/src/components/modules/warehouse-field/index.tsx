@@ -24,8 +24,23 @@ const TABS: { id: Tab; label: string; icon: typeof Home }[] = [
   { id: "profile", label: "Profile", icon: User },
 ];
 
-export function WarehouseFieldApp() {
-  const [tab, setTab] = useState<Tab>("home");
+export function WarehouseFieldApp({
+  activeTab: controlledTab,
+  onNavigate,
+}: {
+  activeTab?: Tab;
+  onNavigate?: (tab: Tab) => void;
+} = {}) {
+  const [localTab, setLocalTab] = useState<Tab>("home");
+  const tab = controlledTab ?? localTab;
+
+  function navigateTab(next: Tab) {
+    if (onNavigate) {
+      onNavigate(next);
+    } else {
+      setLocalTab(next);
+    }
+  }
   const crewName = useWarehouseFieldStore((s) => s.crewName);
   const duty = useWarehouseFieldStore((s) => s.duty);
   const checkOut = useWarehouseFieldStore((s) => s.checkOut);
@@ -50,7 +65,7 @@ export function WarehouseFieldApp() {
           rounded-[6px] buttons, hairline borders, no shadows. */}
       <header className="flex h-14 shrink-0 items-center justify-between border-b border-border bg-background px-4">
         <button
-          onClick={() => setTab("home")}
+          onClick={() => navigateTab("home")}
           className="flex items-center gap-2"
           aria-label="Go home"
         >
@@ -98,9 +113,13 @@ export function WarehouseFieldApp() {
       </header>
 
       {/* Scrollable screen area */}
-      <main className="scrollbar-thin flex-1 overflow-y-auto">
+      <main
+        className="scrollbar-thin flex-1 overflow-y-auto"
+        data-e2e-portal="warehouse"
+        data-e2e-portal-tab={tab}
+      >
         <div className="mx-auto w-full max-w-[640px] px-4 py-4 pb-24">
-          {tab === "home" && <WarehouseFieldHome onNavigate={setTab} />}
+          {tab === "home" && <WarehouseFieldHome onNavigate={navigateTab} />}
           {tab === "tasks" && <WarehouseFieldTasks />}
           {tab === "capture" && <WarehouseFieldCapture />}
           {tab === "records" && <WarehouseFieldRecords />}
@@ -120,7 +139,7 @@ export function WarehouseFieldApp() {
             return (
               <button
                 key={t.id}
-                onClick={() => setTab(t.id)}
+                onClick={() => navigateTab(t.id)}
                 className={cn(
                   "flex h-14 flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition-colors",
                   active ? "text-foreground" : "text-muted-foreground hover:text-foreground"

@@ -7,6 +7,7 @@ import { useAppStore } from "@/lib/store/app-store";
 import { AppDesktopShell } from "./app-desktop-shell";
 import { useActiveViewSync } from "@/lib/navigation/use-active-view-sync";
 import { buildLoginUrl } from "@/lib/navigation/return-to";
+import { getPortalLandingRoute } from "@/lib/navigation/portal-landing";
 import { usePathname } from "next/navigation";
 
 function ActiveViewSyncBridge() {
@@ -20,9 +21,8 @@ function ActiveViewSyncBridge() {
  * Auth: middleware checks session cookie; this wrapper re-validates via
  * `restoreSession()` → Fastify `/v1/auth/me` (no JWT decode in Next.js).
  *
- * Portal gating (B0R-1): only the regular tenant desktop shell renders here.
- * Driver, warehouse-crew, vendor, broker, and superadmin portals keep their
- * dedicated shells at legacy `/dashboard` until B0R-7 migrates portal routes.
+ * Portal gating (B0R-7): non-tenant portals redirect to canonical `/admin`,
+ * `/broker`, `/vendor`, `/field/driver`, `/field/warehouse` routes.
  */
 export function AppRouteShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -59,10 +59,12 @@ export function AppRouteShell({ children }: { children: React.ReactNode }) {
       portal === "vendor" ||
       portal === "driver" ||
       currentRole.id === "driver" ||
-      currentRole.id === "warehouse-crew";
+      currentRole.id === "warehouse-crew" ||
+      currentRole.id === "customer" ||
+      currentRole.id === "broker";
 
     if (nonAppPortal) {
-      router.replace("/dashboard");
+      router.replace(getPortalLandingRoute(portal, currentRole.id));
     }
   }, [hydrated, sessionChecked, isAuthenticated, portal, currentRole.id, pathname, router]);
 
@@ -88,7 +90,9 @@ export function AppRouteShell({ children }: { children: React.ReactNode }) {
     portal === "vendor" ||
     portal === "driver" ||
     currentRole.id === "driver" ||
-    currentRole.id === "warehouse-crew"
+    currentRole.id === "warehouse-crew" ||
+    currentRole.id === "customer" ||
+    currentRole.id === "broker"
   ) {
     return null;
   }

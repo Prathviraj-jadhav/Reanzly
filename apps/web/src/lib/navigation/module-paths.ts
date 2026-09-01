@@ -101,7 +101,7 @@ export const MODULE_BASE_PATH: Record<ModuleId, string> = {
   workshop: "/app/workshop",
   "access-matrix": "/app/settings/access-matrix",
   chat: "/app/chat",
-  superadmin: "/app/superadmin",
+  superadmin: "/admin",
   crm: "/app/crm",
   hr: "/app/hr",
   ledger: "/app/ledger",

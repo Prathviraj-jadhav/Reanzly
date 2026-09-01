@@ -4,17 +4,32 @@ import type { NextRequest } from "next/server";
 /** Must match `SESSION_COOKIE` in `@reanzly/auth` — inlined for Edge middleware bundle. */
 const SESSION_COOKIE = "reanzly_session";
 
+const PROTECTED_PREFIXES = [
+  "/app",
+  "/admin",
+  "/broker",
+  "/vendor",
+  "/field/driver",
+  "/field/warehouse",
+] as const;
+
+function isProtectedPath(pathname: string): boolean {
+  return PROTECTED_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+  );
+}
+
 /**
- * UX auth gate for `/app/*` — Fastify session cookie check only.
- * Security authority remains the API; this redirects unauthenticated users
- * to `/login?returnTo=` before the client layout hydrates.
+ * UX auth gate for authenticated product surfaces — Fastify session cookie only.
+ * Security authority remains the API; unauthenticated users redirect to
+ * `/login?returnTo=` before client layouts hydrate.
  *
  * Public routes (no middleware match): `/`, `/login`, `/marketplace`.
  */
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  if (!pathname.startsWith("/app")) {
+  if (!isProtectedPath(pathname)) {
     return NextResponse.next();
   }
 
@@ -30,5 +45,17 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/app/:path*"],
+  matcher: [
+    "/app/:path*",
+    "/admin",
+    "/admin/:path*",
+    "/broker",
+    "/broker/:path*",
+    "/vendor",
+    "/vendor/:path*",
+    "/field/driver",
+    "/field/driver/:path*",
+    "/field/warehouse",
+    "/field/warehouse/:path*",
+  ],
 };

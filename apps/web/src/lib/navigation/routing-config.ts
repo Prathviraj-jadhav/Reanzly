@@ -19,6 +19,7 @@ export function isRoutingMigrationEnabled(): boolean {
  * Modules that route through Next.js App Router segments (dual-write with Zustand).
  * B0R-1: dashboard. B0R-2: core operations. B0R-3: fleet cluster. B0R-4: finance.
  * B0R-5: people & documents clusters. B0R-6: platform & remaining desktop modules.
+ * B0R-7: superadmin portal at `/admin`.
  */
 export const MIGRATED_MODULES: ReadonlySet<ModuleId> = new Set([
   "dashboard",
@@ -74,6 +75,7 @@ export const MIGRATED_MODULES: ReadonlySet<ModuleId> = new Set([
   "broker-console",
   "broker-marketplace",
   "broker-settlements",
+  "superadmin",
 ]);
 
 export function isModuleMigrated(module: ModuleId): boolean {

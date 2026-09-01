@@ -98,11 +98,18 @@ const SUB_NAV: SubNavItem[] = [
 
 const GROUPS: SubNavItem["group"][] = ["Operations", "Finance", "Account"];
 
-export function VendorShell() {
+export function VendorShell({
+  activeView: controlledActive,
+  onNavigate,
+}: {
+  activeView?: VendorSubView;
+  onNavigate?: (view: VendorSubView) => void;
+} = {}) {
   const authUser = useAppStore((s) => s.authUser);
   const logout = useAppStore((s) => s.logout);
   const setAnnounceOpen = useAppStore((s) => s.setAnnounceOpen);
-  const [active, setActive] = useState<VendorSubView>("overview");
+  const [localActive, setActive] = useState<VendorSubView>("overview");
+  const active = controlledActive ?? localActive;
   const [navCollapsed, setNavCollapsed] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -116,7 +123,11 @@ export function VendorShell() {
   }, []);
 
   function selectSubView(id: VendorSubView) {
-    setActive(id);
+    if (onNavigate) {
+      onNavigate(id);
+    } else {
+      setActive(id);
+    }
     setMobileNavOpen(false);
   }
 
@@ -254,7 +265,8 @@ export function VendorShell() {
                     return (
                       <button
                         key={item.id}
-                        onClick={() => setActive(item.id)}
+                        data-e2e-portal-nav={item.id}
+                        onClick={() => selectSubView(item.id)}
                         aria-current={isActive ? "page" : undefined}
                         title={navCollapsed ? item.label : undefined}
                         className={cn(
@@ -441,7 +453,11 @@ export function VendorShell() {
         )}
 
         {/* Content */}
-        <main className="flex flex-1 flex-col overflow-hidden">
+        <main
+          className="flex flex-1 flex-col overflow-hidden"
+          data-e2e-portal="vendor"
+          data-e2e-portal-view={safeActive}
+        >
           {/* Alert banner - surfaces system-wide alerts above the content */}
           <AlertBanner />
 

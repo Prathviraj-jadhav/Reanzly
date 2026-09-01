@@ -2703,7 +2703,7 @@ function WeatherWidget(): ReactElement {
 /* ---- Superadmin (4) ---- */
 
 function TotalOrgsKpi(): ReactElement {
-  const { navigate } = useAppStore();
+  const { navigate } = useWidgetNavigation();
   const { stats, loaded } = useDashboardStats();
   const value = stats?.superadmin.totalOrgs ?? 0;
   return (
@@ -2717,7 +2717,7 @@ function TotalOrgsKpi(): ReactElement {
 }
 
 function ActiveUsersKpi(): ReactElement {
-  const { navigate } = useAppStore();
+  const { navigate } = useWidgetNavigation();
   const { stats, loaded } = useDashboardStats();
   const value = stats?.superadmin.activeUsers24h ?? 0;
   return (
@@ -2733,7 +2733,7 @@ function ActiveUsersKpi(): ReactElement {
 /** Sourced from the real SLM approvals store (useSuperadminStore), a
  *  separate subsystem from mock-data.ts - not touched here. */
 function PendingApprovalsKpi(): ReactElement {
-  const { navigate } = useAppStore();
+  const { navigate } = useWidgetNavigation();
   return (
     <KpiCard
       label="Pending Approvals"
