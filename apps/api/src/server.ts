@@ -1,0 +1,42 @@
+import Fastify from "fastify";
+import cors from "@fastify/cors";
+import { loadApiEnv } from "./env.js";
+import { registerErrorHandler } from "./plugins/error-handler.js";
+import { healthRoutes } from "./routes/health.js";
+
+export async function buildApp() {
+  const env = loadApiEnv();
+  const app = Fastify({
+    logger: {
+      level: env.NODE_ENV === "production" ? "info" : "debug",
+    },
+  });
+
+  await app.register(cors, {
+    origin: env.CORS_ORIGIN ?? true,
+    credentials: true,
+  });
+
+  registerErrorHandler(app);
+  await app.register(healthRoutes);
+
+  return { app, env };
+}
+
+export async function startServer() {
+  const { app, env } = await buildApp();
+
+  await app.listen({ host: env.API_HOST, port: env.API_PORT });
+  app.log.info({ host: env.API_HOST, port: env.API_PORT }, "Reanzly API listening");
+
+  const shutdown = async (signal: string) => {
+    app.log.info({ signal }, "shutting down API");
+    await app.close();
+    process.exit(0);
+  };
+
+  process.on("SIGINT", () => void shutdown("SIGINT"));
+  process.on("SIGTERM", () => void shutdown("SIGTERM"));
+
+  return app;
+}

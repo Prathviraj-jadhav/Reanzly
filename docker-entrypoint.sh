@@ -27,7 +27,7 @@ fi
 
 # --- 2. Chat service (Socket.IO on :3003) -------------------------------------
 echo "[reanzly] starting chat service on port ${CHAT_SERVICE_PORT:-3003}..."
-cd /app/mini-services/chat-service
+cd /app/apps/chat
 ( bun run index.ts > /tmp/chat.log 2>&1 ) &
 CHAT_PID=$!
 cd /app
@@ -41,4 +41,4 @@ echo "[reanzly] caddy started (pid ${CADDY_PID})"
 
 # --- 4. Next.js standalone server on :3000 (foreground) -----------------------
 echo "[reanzly] starting next.js standalone server on port ${PORT:-3000}..."
-exec node server.js
+exec node apps/web/server.js

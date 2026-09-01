@@ -6,6 +6,12 @@ node_modules
 # Next.js build output
 /.next/
 /out/
+**/.next/
+**/out/
+**/dist/
+apps/api/dist/
+apps/worker/dist/
+*.tsbuildinfo
 dev.log
 server.log
 

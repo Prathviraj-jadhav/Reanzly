@@ -2,10 +2,9 @@
   "extends": "./tsconfig.json",
   "include": [
     "src/scripts/**/*.ts",
-    "prisma/**/*.ts"
+    "../../packages/database/prisma/**/*.ts"
   ],
   "exclude": [
-    "node_modules",
-    "mini-services"
+    "node_modules"
   ]
 }

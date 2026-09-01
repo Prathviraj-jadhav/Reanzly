@@ -1,0 +1,22 @@
+{
+  "name": "@reanzly/shared",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./api-client": "./src/api-client.ts",
+    "./env": "./src/env.ts",
+    "./errors": "./src/errors.ts"
+  },
+  "dependencies": {
+    "@reanzly/contracts": "0.0.0",
+    "zod": "^4.0.2"
+  },
+  "devDependencies": {
+    "typescript": "^5"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  }
+}
