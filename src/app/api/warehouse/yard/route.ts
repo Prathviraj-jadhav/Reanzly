@@ -1,11 +1,15 @@
 import { NextResponse } from 'next/server';
 import { db as prisma } from '@/lib/db';
 import { getSessionUser } from '@/lib/auth';
+import { warehouseCreateMappers } from '@/lib/warehouse/create-fields';
+import { requireModuleAccess } from '@/lib/permissions';
 
 export async function GET(req: Request) {
   try {
     const auth = await getSessionUser();
     if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const denied = requireModuleAccess(auth, 'warehouse');
+    if (denied) return denied;
 
     const rows = await prisma.warehouseYard.findMany({
       where: { companyId: auth.companyId },
@@ -21,13 +25,12 @@ export async function POST(req: Request) {
   try {
     const auth = await getSessionUser();
     if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const denied = requireModuleAccess(auth, 'warehouse');
+    if (denied) return denied;
 
-    const data = await req.json();
+    const body = await req.json();
     const row = await prisma.warehouseYard.create({
-      data: {
-        ...data,
-        companyId: auth.companyId,
-      },
+      data: warehouseCreateMappers.yard(body, auth.companyId),
     });
     return NextResponse.json(row);
   } catch (error) {

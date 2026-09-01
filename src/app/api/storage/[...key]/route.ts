@@ -1,16 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getStorage, isImmutableKey } from "@/lib/storage/object-storage";
+import { canAccessStorageObject, isSafeStoragePath } from "@/lib/storage/access-control";
 import { getSessionUser } from "@/lib/auth";
-import { unauthorized } from "@/lib/permissions";
+import { forbidden, unauthorized } from "@/lib/permissions";
 
-// ===== Object Storage Serving Route =====
-// Serves blobs (POD photos, documents, exports) from object storage with
-// CDN-friendly cache headers:
-//   - Content-addressed keys (photos) → immutable, 1 year, public
-//   - Mutated keys (documents/exports) → must-revalidate, 5 min
-//
-// In production, front this with a CDN (CloudFront/Cloudflare). The CDN caches
-// by URL + ETag; immutable URLs never need revalidation.
+// Serves blobs from object storage with tenant ownership checks.
 
 const BUCKET_RE = /^[a-z0-9-]+$/;
 
@@ -30,9 +24,12 @@ export async function GET(
   if (!BUCKET_RE.test(bucket)) {
     return NextResponse.json({ error: "Invalid bucket" }, { status: 400 });
   }
-  if (key.includes("..")) {
+  if (!isSafeStoragePath(bucket, key)) {
     return NextResponse.json({ error: "Invalid key" }, { status: 400 });
   }
+
+  const allowed = await canAccessStorageObject(sessionUser, bucket, key);
+  if (!allowed) return forbidden("You do not have access to this file.");
 
   const obj = await getStorage().getObject(bucket, key);
   if (!obj) {

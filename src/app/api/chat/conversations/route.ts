@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { ROLE_ARCHETYPES } from "@/lib/mock-data";
 import type { Conversation } from "@/lib/types";
 import { getSessionUser } from "@/lib/auth";
+import { chatInternalBroadcastHeaders, chatServiceBaseUrl } from "@/lib/chat-broadcast";
 
 // POST /api/chat/conversations
 // Body:
@@ -142,9 +143,9 @@ function serializeConversation(conv: any): Conversation {
 // listed users' personal rooms and tell the sender's socket to join the room.
 async function broadcastConversationNew(conv: any, userIds: string[]) {
   try {
-    await fetch("http://localhost:3003/internal/broadcast", {
+    await fetch(`${chatServiceBaseUrl()}/internal/broadcast`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: chatInternalBroadcastHeaders(),
       body: JSON.stringify({
         event: "conversation:new",
         userIds,
@@ -159,9 +160,9 @@ async function broadcastConversationNew(conv: any, userIds: string[]) {
 
 async function broadcastRoomEvent(room: string, event: string, payload: any) {
   try {
-    await fetch("http://localhost:3003/internal/broadcast", {
+    await fetch(`${chatServiceBaseUrl()}/internal/broadcast`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: chatInternalBroadcastHeaders(),
       body: JSON.stringify({ event, room, payload }),
     });
   } catch (e) {

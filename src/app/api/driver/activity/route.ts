@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, primaryRead } from "@/lib/db";
+import { getSessionUser } from "@/lib/auth";
 import { getClientIP, rateLimit, sanitize } from "@/lib/security";
+import { resolveDriverScope } from "@/lib/driver-access";
 import {
   cacheWrap,
   cacheInvalidate,
@@ -12,13 +14,8 @@ import { enqueue } from "@/lib/queue";
 // ===== Driver Field App - Activity Log API =====
 // Append-only log for: STATUS_UPDATE | FUEL_LOG | EXPENSE | ISSUE | INSPECTION | POD | CHECK_IN | CHECK_OUT | NOTE
 //
-// System-design integration:
-//  - GET is cache-aside (cacheWrap) keyed by driver+type+limit with tag
-//    "activities" + "driver:{id}". Stale-while-revalidate keeps reads fast.
-//  - POST writes to the primary DB, invalidates the activity cache tags
-//    (write-through → next read always returns fresh data), and enqueues a
-//    photo.process job to move the base64 photo into object storage off the
-//    request path. The row is updated async to point at storage://{key}.
+// Auth: session required. Drivers may only read/write their own activity.
+// Fleet roles may access drivers within the same company.
 
 const RATE_LIMIT_WINDOW = 60_000;
 const RATE_LIMIT_MAX = 120;
@@ -35,7 +32,6 @@ const ALLOWED_TYPES = new Set([
   "NOTE",
 ]);
 
-// 2MB cap on photo data URLs (base64 JPEG after downsampling)
 const MAX_PHOTO_BYTES = 2 * 1024 * 1024;
 const MAX_PAYLOAD_BYTES = 16 * 1024;
 
@@ -45,6 +41,7 @@ function cacheKey(driverId: string, type: string, limit: number): string {
 
 export async function GET(req: NextRequest) {
   try {
+    const sessionUser = await getSessionUser();
     const ip = getClientIP(req);
     const rl = rateLimit(ip, { limit: RATE_LIMIT_MAX, window: RATE_LIMIT_WINDOW });
     if (!rl.allowed) {
@@ -55,24 +52,23 @@ export async function GET(req: NextRequest) {
     }
 
     const { searchParams } = new URL(req.url);
-    const driverId = sanitize(searchParams.get("driverId") || "", 50);
+    const requestedDriverId = sanitize(searchParams.get("driverId") || "", 50);
     const type = sanitize(searchParams.get("type") || "", 40);
     const limit = Math.min(parseInt(searchParams.get("limit") || "100", 10), 500);
 
-    const tags = [CACHE_TAGS.activities, ...(driverId ? [CACHE_TAGS.driver(driverId)] : [])];
+    const scope = await resolveDriverScope(sessionUser, requestedDriverId || undefined);
+    if (!scope.ok) return scope.response;
+    const driverId = scope.driverId;
 
-    // Cache-aside: reads can go to a replica in prod; here we use the primary
-    // client's read path (dbRead). Cache guarantees fresh data via tag invalidation.
+    const tags = [CACHE_TAGS.activities, CACHE_TAGS.driver(driverId)];
+
     const data = await cacheWrap(
       cacheKey(driverId, type, limit),
       { ...CACHE_TTL.activities, tags },
       async () => {
-        const where: Record<string, unknown> = {};
-        if (driverId) where.driverId = driverId;
+        const where: Record<string, unknown> = { driverId };
         if (type && ALLOWED_TYPES.has(type)) where.type = type;
 
-        // Use primaryRead() for read-after-write consistency within a session;
-        // switch to dbRead for cold reads in prod with replica lag tolerance.
         const rows = await primaryRead().driverActivity.findMany({
           where,
           orderBy: { createdAt: "desc" },
@@ -100,6 +96,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const sessionUser = await getSessionUser();
     const ip = getClientIP(req);
     const rl = rateLimit(ip, { limit: RATE_LIMIT_MAX, window: RATE_LIMIT_WINDOW });
     if (!rl.allowed) {
@@ -116,16 +113,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
     }
 
-    const driverId = sanitize(String(body.driverId || ""), 50);
+    const requestedDriverId = sanitize(String(body.driverId || ""), 50);
+    const scope = await resolveDriverScope(sessionUser, requestedDriverId || undefined);
+    if (!scope.ok) return scope.response;
+    const driverId = scope.driverId;
+
     const driverName = sanitize(String(body.driverName || ""), 100);
     const tripId = sanitize(String(body.tripId || ""), 50);
     const vehicleId = sanitize(String(body.vehicleId || ""), 50);
     const type = sanitize(String(body.type || ""), 40);
     const note = sanitize(String(body.note || ""), 500);
 
-    if (!driverId) {
-      return NextResponse.json({ error: "driverId is required" }, { status: 400 });
-    }
     if (!ALLOWED_TYPES.has(type)) {
       return NextResponse.json(
         { error: `Invalid type. Allowed: ${[...ALLOWED_TYPES].join(", ")}` },
@@ -133,7 +131,16 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Payload: sanitize + size cap
+    if (tripId && sessionUser) {
+      const trip = await db.trip.findFirst({
+        where: { id: tripId, companyId: sessionUser.companyId, driverId },
+        select: { id: true },
+      });
+      if (!trip) {
+        return NextResponse.json({ error: "Trip not found or not assigned to this driver." }, { status: 403 });
+      }
+    }
+
     let payloadStr = "{}";
     if (body.payload && typeof body.payload === "object") {
       try {
@@ -146,9 +153,6 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Photo: validate base64 data URL + size cap.
-    // Store inline for now (so the response is immediate), then enqueue an async
-    // job to migrate it to object storage and rewrite the row to storage://{key}.
     let photoDataUrl: string | null = null;
     if (typeof body.photoDataUrl === "string" && body.photoDataUrl) {
       const p = body.photoDataUrl;
@@ -162,13 +166,11 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Geo fields (optional)
     const lat = typeof body.lat === "number" ? body.lat : null;
     const lng = typeof body.lng === "number" ? body.lng : null;
     const accuracy = typeof body.accuracy === "number" ? body.accuracy : null;
     const address = sanitize(String(body.address || ""), 200);
 
-    // WRITE → primary DB.
     const created = await db.driverActivity.create({
       data: {
         driverId,
@@ -187,15 +189,9 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // WRITE-THROUGH cache invalidation: purge all activity reads for this
-    // driver + the global activities tag so the next GET re-queries the DB
-    // and caches FRESH data. This is what guarantees "fresh data not old data".
     cacheInvalidate(CACHE_TAGS.activities, CACHE_TAGS.driver(driverId));
     if (tripId) cacheInvalidate(CACHE_TAGS.trip(tripId), CACHE_TAGS.dashboard);
 
-    // ASYNC offload: if a photo was attached, enqueue a job to move it from
-    // base64-in-DB → object storage. The row is rewritten to storage://{key}
-    // so the DB stays lean. Failure is non-fatal (row keeps the inline photo).
     if (photoDataUrl) {
       void enqueue(
         "photo.process",
@@ -204,13 +200,12 @@ export async function POST(req: NextRequest) {
       ).catch(() => {});
     }
 
-    // ASYNC audit log (off the request path).
     void enqueue(
       "audit.log",
       {
         entity: "DriverActivity",
         action: type,
-        actorId: driverId,
+        actorId: sessionUser?.id ?? driverId,
         metadata: { tripId, vehicleId, hasPhoto: !!photoDataUrl, lat, lng },
       },
       { priority: 0 }

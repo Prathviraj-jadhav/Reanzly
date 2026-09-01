@@ -1,14 +1,18 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { db, replicaHealth } from "@/lib/db";
+import { getSessionUser } from "@/lib/auth";
+import { requireMetricsAccess } from "@/lib/api-guards";
 import { cacheStats } from "@/lib/cache";
 import { queueStats, isWorkerRunning } from "@/lib/queue";
 import { storageStats } from "@/lib/storage/object-storage";
 
-// ===== Observability Metrics =====
-// Prometheus-style metrics + a JSON summary for the System Design dashboard.
-// Exposed at /api/metrics for scraping. No PII.
+// Detailed observability metrics — internal secret or platform admin only.
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const sessionUser = await getSessionUser();
+  const denied = await requireMetricsAccess(req, sessionUser);
+  if (denied) return denied;
+
   const [cache, queue, storage, replica] = await Promise.all([
     Promise.resolve(cacheStats()),
     queueStats(),
@@ -16,16 +20,23 @@ export async function GET() {
     replicaHealth(),
   ]);
 
-  let dbCount = 0;
+  let tableCount = 0;
   try {
-    const rows = await (db as unknown as { $queryRawUnsafe: (q: string) => Promise<unknown[]> }).$queryRawUnsafe(
-      "SELECT count(*) as c FROM sqlite_master WHERE type='table'"
-    );
-    if (Array.isArray(rows) && rows[0] && typeof rows[0] === "object" && "c" in rows[0]) {
-      dbCount = Number((rows[0] as { c: unknown }).c);
-    }
+    const rows = await db.$queryRaw<{ count: bigint }[]>`
+      SELECT count(*)::bigint AS count FROM information_schema.tables
+      WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
+    `;
+    tableCount = Number(rows[0]?.count ?? 0);
   } catch {
-    /* ignore */
+    try {
+      const rows = await (db as unknown as { $queryRawUnsafe: (q: string) => Promise<{ c: unknown }[]> })
+        .$queryRawUnsafe("SELECT count(*) as c FROM sqlite_master WHERE type='table'");
+      if (Array.isArray(rows) && rows[0] && "c" in rows[0]) {
+        tableCount = Number(rows[0].c);
+      }
+    } catch {
+      /* ignore */
+    }
   }
 
   const uptimeSec = Math.floor(process.uptime());
@@ -42,7 +53,7 @@ export async function GET() {
       externalMb: Math.round(mem.external / 1024 / 1024),
     },
     database: {
-      tables: dbCount,
+      tables: tableCount,
       replica: {
         configured: replica.configured,
         connected: replica.connected,
@@ -67,17 +78,10 @@ export async function GET() {
       })),
     },
     architecture: {
-      // Hybrid monolith + microservices readiness:
-      // - Core app = monolith (this Next.js process)
-      // - GPS ingestion service = candidate to split (high write QPS)
-      // - Photo processing service = candidate to split (CPU-bound)
       mode: "hybrid-monolith",
-      primaryDb: "sqlite",
       cache: "in-memory-lru",
-      queue: "sqlite-persistent",
-      objectStorage: "local-file",
-      cdn: "ready",
-      loadBalancer: "ready",
+      queue: "persistent",
+      objectStorage: storage.driver,
     },
   };
 

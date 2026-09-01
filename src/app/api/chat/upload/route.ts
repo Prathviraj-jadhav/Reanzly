@@ -102,7 +102,7 @@ export async function POST(req: NextRequest) {
       key,
       body,
       contentType: file.type || "application/octet-stream",
-      metadata: { originalName: file.name || "" },
+      metadata: { originalName: file.name || "", companyId: sessionUser.companyId, userId: sessionUser.id },
     });
 
     return NextResponse.json(

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
+import { warehouseCreateMappers } from "@/lib/warehouse/create-fields";
 import { requireModuleAccess } from "@/lib/permissions";
 
 export async function GET() {
@@ -25,10 +26,7 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   try {
     const created = await db.warehousePickList.create({
-      data: {
-        companyId: sessionUser.companyId,
-        ...body,
-      }
+      data: warehouseCreateMappers.pickList(body, sessionUser.companyId),
     });
     return NextResponse.json({ pickList: created }, { status: 201 });
   } catch (e: any) {

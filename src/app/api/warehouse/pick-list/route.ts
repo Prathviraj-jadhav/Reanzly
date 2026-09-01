@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db as prisma } from '@/lib/db';
 import { getSessionUser } from '@/lib/auth';
+import { warehouseCreateMappers } from '@/lib/warehouse/create-fields';
 
 export async function GET(req: Request) {
   try {
@@ -22,12 +23,9 @@ export async function POST(req: Request) {
     const auth = await getSessionUser();
     if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const data = await req.json();
+    const body = await req.json();
     const row = await prisma.warehousePickList.create({
-      data: {
-        ...data,
-        companyId: auth.companyId,
-      },
+      data: warehouseCreateMappers.pickList(body, auth.companyId),
     });
     return NextResponse.json(row);
   } catch (error) {

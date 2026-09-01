@@ -48,6 +48,7 @@
 // broadcast as "message:updated" with { id, deleted: true } instead.
 
 import { createServer } from "http";
+import { timingSafeEqual } from "crypto";
 import { Server, Socket } from "socket.io";
 import { Database } from "bun:sqlite";
 
@@ -83,6 +84,15 @@ interface VerifiedUser {
   userName: string;
   userRole: string;
   companyId: string;
+}
+
+function verifyInternalSecret(provided: string | null | undefined): boolean {
+  const expected = process.env.CHAT_INTERNAL_SECRET || process.env.INTERNAL_SERVICE_SECRET || process.env.REANZLY_INTERNAL_SECRET;
+  if (!provided || !expected) return false;
+  const a = Buffer.from(provided, "utf8");
+  const b = Buffer.from(expected, "utf8");
+  if (a.length !== b.length) return false;
+  return timingSafeEqual(a, b);
 }
 
 function parseCookie(header: string | undefined, name: string): string | null {
@@ -384,6 +394,14 @@ httpServer.on("request", (req, res) => {
   // and guard against headers already being sent.
   if (res.headersSent) return;
   if (req.method === "POST" && req.url === "/internal/broadcast") {
+    const secret = req.headers["x-reanzly-internal-secret"] as string | undefined;
+    if (!verifyInternalSecret(secret)) {
+      if (!res.headersSent) {
+        res.writeHead(403, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Forbidden" }));
+      }
+      return;
+    }
     let body = "";
     req.on("data", (c) => (body += c));
     req.on("end", () => {

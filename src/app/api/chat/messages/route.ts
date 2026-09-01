@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import type { ChatMessage } from "@/lib/types";
-import { getSessionUser } from "@/lib/auth";
+import { chatInternalBroadcastHeaders, chatServiceBaseUrl } from "@/lib/chat-broadcast";
 
 // POST /api/chat/messages
 // REST fallback for sending a message when the socket isn't connected. The
@@ -54,9 +54,9 @@ export async function POST(req: NextRequest) {
   });
   // Best-effort fan-out via the chat service.
   try {
-    await fetch("http://localhost:3003/internal/broadcast", {
+    await fetch(`${chatServiceBaseUrl()}/internal/broadcast`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: chatInternalBroadcastHeaders(),
       body: JSON.stringify({
         event: "message:new",
         room: `conv:${conversationId}`,

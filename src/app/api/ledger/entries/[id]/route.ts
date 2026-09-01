@@ -27,6 +27,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (Math.abs(dr - cr) > 0.5) {
       return NextResponse.json({ error: `Entry is not balanced: debit ${dr} != credit ${cr}.` }, { status: 400 });
     }
+    const accountIds = [...new Set(body.lines.map((l: { accountId: string }) => l.accountId))];
+    const accounts = await db.ledgerAccount.findMany({
+      where: { id: { in: accountIds }, companyId: sessionUser.companyId },
+    });
+    if (accounts.length !== accountIds.length) {
+      return NextResponse.json({ error: "One or more accounts were not found." }, { status: 400 });
+    }
     await db.ledgerJournalLine.deleteMany({ where: { entryId: id } });
     data.lines = {
       create: body.lines.map((l: { accountId: string; debit?: number; credit?: number }) => ({
