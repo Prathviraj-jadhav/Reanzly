@@ -4,6 +4,8 @@ import { getSessionUser } from "@/lib/auth";
 import { requireModuleAccess } from "@/lib/permissions";
 import { logAudit } from "@/lib/audit";
 
+/** @deprecated Use `/api/v1/knowledge` (Fastify). Rollback via `NEXT_PUBLIC_KNOWLEDGE_API_VERSION=legacy`. */
+
 // Real CRUD for Knowledge Base articles, replacing the module's entirely
 // client-only KNOWLEDGE_ARTICLES mock array (article-detail.tsx searched
 // that same static array independently of the list's state, so a newly

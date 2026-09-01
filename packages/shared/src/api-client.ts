@@ -13,10 +13,28 @@ function resolveAuthVersion(): "v1" | "legacy" {
   return flag === "legacy" ? "legacy" : "v1";
 }
 
+function resolvePilotDomainVersion(domain: string): "v1" | "legacy" {
+  const envKey = domain.toUpperCase().replace(/-/g, "_");
+  const flag =
+    process.env[`NEXT_PUBLIC_${envKey}_API_VERSION`] ??
+    process.env[`REANZLY_${envKey}_API_VERSION`] ??
+    "v1";
+  return flag === "legacy" ? "legacy" : "v1";
+}
+
 const DOMAIN_VERSION: Record<string, "v1" | "legacy"> = {
   health: "v1",
   get auth() {
     return resolveAuthVersion();
+  },
+  get reminders() {
+    return resolvePilotDomainVersion("reminders");
+  },
+  get knowledge() {
+    return resolvePilotDomainVersion("knowledge");
+  },
+  get helpdesk() {
+    return resolvePilotDomainVersion("helpdesk");
   },
 };
 

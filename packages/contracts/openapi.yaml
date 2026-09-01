@@ -1,0 +1,142 @@
+openapi: 3.1.0
+info:
+  title: Reanzly API v1 — Pilot Domains
+  version: 0.2.1
+  description: Reminders, Knowledge, and Helpdesk endpoints migrated in B0A-2.
+
+paths:
+  /v1/reminders:
+    get:
+      summary: List reminders for the signed-in tenant
+      responses:
+        "200":
+          description: Reminder list
+        "401":
+          description: AUTH_REQUIRED
+        "403":
+          description: FORBIDDEN
+    post:
+      summary: Create a reminder
+      responses:
+        "201":
+          description: Created reminder
+        "400":
+          description: VALIDATION_ERROR
+
+  /v1/reminders/{id}:
+    patch:
+      summary: Update a reminder
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Updated reminder
+        "404":
+          description: NOT_FOUND
+    delete:
+      summary: Delete a reminder
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ok true
+        "404":
+          description: NOT_FOUND
+
+  /v1/knowledge:
+    get:
+      summary: List knowledge articles
+      responses:
+        "200":
+          description: Article list
+    post:
+      summary: Create knowledge article
+      responses:
+        "201":
+          description: Created article
+
+  /v1/knowledge/{id}:
+    get:
+      summary: Get article with computed related links
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Article detail
+        "404":
+          description: NOT_FOUND
+    patch:
+      summary: Update article or submit feedback vote
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Updated article
+
+  /v1/helpdesk:
+    get:
+      summary: List helpdesk tickets
+      responses:
+        "200":
+          description: Ticket list
+    post:
+      summary: Create helpdesk ticket
+      responses:
+        "201":
+          description: Created ticket
+
+  /v1/helpdesk/{id}:
+    get:
+      summary: Get ticket by cuid or display ticketId
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Ticket detail
+        "404":
+          description: NOT_FOUND
+    patch:
+      summary: Update ticket, status, assignee, or append message
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Updated ticket
+
+components:
+  schemas:
+    ApiErrorEnvelope:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              enum: [AUTH_REQUIRED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, CONFLICT]
+            message:
+              type: string

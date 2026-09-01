@@ -5,6 +5,8 @@ import { requireModuleAccess } from "@/lib/permissions";
 import { logAudit } from "@/lib/audit";
 import { toListDTO } from "../route";
 
+/** @deprecated Use `/api/v1/knowledge/:id` (Fastify). Rollback via `NEXT_PUBLIC_KNOWLEDGE_API_VERSION=legacy`. */
+
 // Related articles are computed live from the company's current article
 // set (shared category or an overlapping tag), not stored - a frozen
 // "related" snapshot goes stale the moment an article is added or retagged.

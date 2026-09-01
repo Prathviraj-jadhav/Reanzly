@@ -9,6 +9,33 @@ export {
 } from "./errors";
 
 export {
+  ReminderDtoSchema,
+  ReminderListResponseSchema,
+  ReminderResponseSchema,
+  ReminderCreateSchema,
+  ReminderPatchSchema,
+  type ReminderDto,
+} from "./reminders";
+
+export {
+  KnowledgeArticleDtoSchema,
+  KnowledgeListResponseSchema,
+  KnowledgeResponseSchema,
+  KnowledgeCreateSchema,
+  KnowledgePatchSchema,
+  type KnowledgeArticleDto,
+} from "./knowledge";
+
+export {
+  HelpdeskTicketDtoSchema,
+  HelpdeskListResponseSchema,
+  HelpdeskResponseSchema,
+  HelpdeskCreateSchema,
+  HelpdeskPatchSchema,
+  type HelpdeskTicketDto,
+} from "./helpdesk";
+
+export {
   SessionUserSchema,
   LoginRequestSchema,
   LoginResponseSchema,

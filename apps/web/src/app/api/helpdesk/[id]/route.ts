@@ -5,6 +5,8 @@ import { requireModuleAccess } from "@/lib/permissions";
 import { logAudit } from "@/lib/audit";
 import { toDTO } from "../route";
 
+/** @deprecated Use `/api/v1/helpdesk/:id` (Fastify). Rollback via `NEXT_PUBLIC_HELPDESK_API_VERSION=legacy`. */
+
 // Accepts both the real cuid `id` and the display `ticketId` (TKT-####),
 // since the module's own links/search use either interchangeably.
 async function findTicket(companyId: string, idOrTicketId: string) {

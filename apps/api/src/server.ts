@@ -2,8 +2,12 @@ import Fastify from "fastify";
 import cors from "@fastify/cors";
 import { loadApiEnv } from "./env.js";
 import { registerErrorHandler } from "./plugins/error-handler.js";
+import { resolveRequestAuth } from "./plugins/auth.js";
 import { healthRoutes } from "./routes/health.js";
 import { authRoutes } from "./routes/auth.js";
+import { remindersRoutes } from "./modules/reminders/routes.js";
+import { knowledgeRoutes } from "./modules/knowledge/routes.js";
+import { helpdeskRoutes } from "./modules/helpdesk/routes.js";
 
 export async function buildApp() {
   const env = loadApiEnv();
@@ -19,8 +23,16 @@ export async function buildApp() {
   });
 
   registerErrorHandler(app);
+
+  app.addHook("preHandler", async (request) => {
+    request.auth = await resolveRequestAuth(request);
+  });
+
   await app.register(healthRoutes);
   await app.register(authRoutes);
+  await app.register(remindersRoutes);
+  await app.register(knowledgeRoutes);
+  await app.register(helpdeskRoutes);
 
   return { app, env };
 }

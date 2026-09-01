@@ -3,6 +3,8 @@ import { db } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
 import { requireModuleAccess } from "@/lib/permissions";
 
+/** @deprecated Use `/api/v1/reminders/:id` (Fastify). Rollback via `NEXT_PUBLIC_REMINDERS_API_VERSION=legacy`. */
+
 function statusForDays(days: number): string {
   if (days < 0) return "Overdue";
   if (days <= 7) return "Due Soon";

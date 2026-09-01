@@ -4,6 +4,8 @@ import { getSessionUser } from "@/lib/auth";
 import { requireModuleAccess } from "@/lib/permissions";
 import { logAudit } from "@/lib/audit";
 
+/** @deprecated Use `/api/v1/helpdesk` (Fastify). Rollback via `NEXT_PUBLIC_HELPDESK_API_VERSION=legacy`. */
+
 // Real CRUD for Helpdesk tickets (the internal support-team ticketing tab
 // inside the CRM cluster), replacing the module's entirely client-only
 // HELPDESK_TICKETS mock array. This is deliberately a separate model from

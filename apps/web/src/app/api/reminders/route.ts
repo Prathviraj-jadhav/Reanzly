@@ -3,6 +3,8 @@ import { db } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
 import { requireModuleAccess } from "@/lib/permissions";
 
+/** @deprecated Use `/api/v1/reminders` (Fastify). Rollback via `NEXT_PUBLIC_REMINDERS_API_VERSION=legacy`. */
+
 // Real CRUD for the Reminders module. daysRemaining/status are computed
 // live from dueDate rather than stored, so they can't go stale.
 

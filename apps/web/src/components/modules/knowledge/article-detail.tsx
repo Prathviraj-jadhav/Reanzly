@@ -45,6 +45,10 @@ import {
   type ArticleFeedback,
 } from "./_helpers";
 import { toast } from "sonner";
+import {
+  fetchKnowledgeArticle,
+  patchKnowledgeArticle,
+} from "@/lib/pilot-api";
 
 const TABS = [
   { id: "content", label: "Content" },
@@ -79,11 +83,13 @@ function useArticle(articleId: string) {
     let cancelled = false;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-by-id on prop change, guarded by `cancelled`
     setLoading(true);
-    fetch(`/api/knowledge/${articleId}`, { cache: "no-store" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
+    fetchKnowledgeArticle(articleId)
+      .then((article) => {
         if (cancelled) return;
-        setArticle(data?.article ?? undefined);
+        setArticle(article);
+      })
+      .catch(() => {
+        if (!cancelled) setArticle(undefined);
       })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
@@ -101,19 +107,14 @@ export function ArticleDetail({ articleId, initialTab }: ArticleDetailProps) {
   const castVote = async (vote: "up" | "down") => {
     if (!article) return;
     setFeedbackVote(vote);
-    const res = await fetch(`/api/knowledge/${article.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ vote }),
-    });
-    if (!res.ok) {
+    try {
+      const updated = await patchKnowledgeArticle(article.id, { vote });
+      setArticle(updated);
+      if (vote === "up") toastSuccess("Thanks for the feedback", "Marked as helpful");
+      else toastInfo("Thanks for the feedback", "Marked as not helpful");
+    } catch {
       toast.error("Couldn't save feedback", { description: "Try again." });
-      return;
     }
-    const { article: updated } = await res.json();
-    setArticle(updated);
-    if (vote === "up") toastSuccess("Thanks for the feedback", "Marked as helpful");
-    else toastInfo("Thanks for the feedback", "Marked as not helpful");
   };
 
   if (loading) {

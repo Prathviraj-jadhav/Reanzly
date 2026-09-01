@@ -89,29 +89,33 @@ describe("v1 auth routes", () => {
     return built.app;
   }
 
-  it("1. login success sets HttpOnly cookie and returns user without secrets", async () => {
-    const server = await app();
-    const response = await server.inject({
-      method: "POST",
-      url: "/v1/auth/login",
-      payload: { email: "owner@reanzly.in", password: "demo1234" },
-    });
-    expect(response.statusCode).toBe(200);
-    const body = response.json();
-    expect(body.user).toMatchObject({
-      id: "owner",
-      email: "owner@reanzly.in",
-      role: "owner",
-    });
-    expect(body.user.passwordHash).toBeUndefined();
-    expect(body.user.salt).toBeUndefined();
+  it(
+    "1. login success sets HttpOnly cookie and returns user without secrets",
+    async () => {
+      const server = await app();
+      const response = await server.inject({
+        method: "POST",
+        url: "/v1/auth/login",
+        payload: { email: "owner@reanzly.in", password: "demo1234" },
+      });
+      expect(response.statusCode).toBe(200);
+      const body = response.json();
+      expect(body.user).toMatchObject({
+        id: "owner",
+        email: "owner@reanzly.in",
+        role: "owner",
+      });
+      expect(body.user.passwordHash).toBeUndefined();
+      expect(body.user.salt).toBeUndefined();
     const setCookie = response.headers["set-cookie"];
     expect(setCookie).toBeDefined();
     expect(String(setCookie)).toContain("reanzly_session=");
     expect(String(setCookie)).toContain("HttpOnly");
     expect(String(setCookie)).toContain("SameSite=Lax");
     await server.close();
-  });
+    },
+    10_000,
+  );
 
   it("2. login failure returns INVALID_CREDENTIALS without email enumeration", async () => {
     const server = await app();

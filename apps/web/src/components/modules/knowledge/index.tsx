@@ -6,38 +6,37 @@ import { ArticlesList } from "./articles-list";
 import { ArticleDetail } from "./article-detail";
 import { AddArticleDrawer } from "./add-article-drawer";
 import { toast } from "sonner";
+import {
+  fetchKnowledgeArticles,
+  createKnowledgeArticle,
+  pilotErrorMessage,
+} from "@/lib/pilot-api";
 
 export function KnowledgeModule() {
   const { activeView, navigate } = useAppStore();
 
-  // Real, database-backed articles (src/app/api/knowledge) - previously
-  // useState(KNOWLEDGE_ARTICLES) seeded from a client-only mock array.
   const [articles, setArticles] = useState<KnowledgeArticle[]>([]);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    fetch("/api/knowledge")
-      .then((r) => (r.ok ? r.json() : Promise.reject(r)))
-      .then(({ articles }) => setArticles(articles))
+    fetchKnowledgeArticles()
+      .then(setArticles)
       .catch(() => toast.error("Couldn't load knowledge base", { description: "Try reloading the page." }))
       .finally(() => setLoaded(true));
   }, []);
 
   const addArticle = useCallback(async (a: KnowledgeArticle): Promise<boolean> => {
     const { id: _clientId, related: _related, ...payload } = a;
-    const res = await fetch("/api/knowledge", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      toast.error("Couldn't create article", { description: body.error || "Try again." });
+    try {
+      const article = await createKnowledgeArticle(payload);
+      setArticles((prev) => [article, ...prev]);
+      return true;
+    } catch (error) {
+      toast.error("Couldn't create article", {
+        description: pilotErrorMessage(error, "Try again."),
+      });
       return false;
     }
-    const { article } = await res.json();
-    setArticles((prev) => [article, ...prev]);
-    return true;
   }, []);
 
   // Detail view

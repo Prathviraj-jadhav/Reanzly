@@ -27,6 +27,10 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import {
+  fetchHelpdeskTicket,
+  patchHelpdeskTicket,
+} from "@/lib/pilot-api";
+import {
   formatDate,
   formatDateTime,
   relativeTime,
@@ -76,11 +80,13 @@ function useTicket(ticketId: string) {
     let cancelled = false;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-by-id on prop change, guarded by `cancelled`
     setLoading(true);
-    fetch(`/api/helpdesk/${ticketId}`, { cache: "no-store" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
+    fetchHelpdeskTicket(ticketId)
+      .then((ticket) => {
         if (cancelled) return;
-        setTicket(data?.ticket ?? undefined);
+        setTicket(ticket);
+      })
+      .catch(() => {
+        if (!cancelled) setTicket(undefined);
       })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
@@ -112,18 +118,14 @@ export function TicketDetail({ ticketId }: TicketDetailProps) {
   }
 
   const patch = async (body: Record<string, unknown>) => {
-    const res = await fetch(`/api/helpdesk/${ticket.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    if (!res.ok) {
+    try {
+      const updated = await patchHelpdeskTicket(ticket.id, body);
+      setTicket(updated);
+      return updated;
+    } catch {
       toast.error("Couldn't save ticket", { description: "Try again." });
       return null;
     }
-    const { ticket: updated } = await res.json();
-    setTicket(updated);
-    return updated;
   };
 
   const handleStatusChange = async (newStatus: TicketStatus) => {
