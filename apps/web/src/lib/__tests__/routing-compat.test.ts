@@ -1,0 +1,87 @@
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
+import { useAppStore } from "@/lib/store/app-store";
+import { moduleToPath } from "@/lib/navigation/module-paths";
+import {
+  isModuleMigrated,
+  isRoutingMigrationEnabled,
+  MIGRATED_MODULES,
+} from "@/lib/navigation/routing-config";
+import { navigateCompatStatic } from "@/lib/navigation/navigate-compat";
+
+describe("routing migration config", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("MIGRATED_MODULES contains dashboard only in B0R-1", () => {
+    expect([...MIGRATED_MODULES]).toEqual(["dashboard"]);
+  });
+
+  it("isRoutingMigrationEnabled respects env flag", () => {
+    vi.stubEnv("NEXT_PUBLIC_ROUTING_MIGRATION", "");
+    expect(isRoutingMigrationEnabled()).toBe(false);
+    vi.stubEnv("NEXT_PUBLIC_ROUTING_MIGRATION", "1");
+    expect(isRoutingMigrationEnabled()).toBe(true);
+  });
+
+  it("isModuleMigrated requires flag and set membership", () => {
+    vi.stubEnv("NEXT_PUBLIC_ROUTING_MIGRATION", "");
+    expect(isModuleMigrated("dashboard")).toBe(false);
+    vi.stubEnv("NEXT_PUBLIC_ROUTING_MIGRATION", "1");
+    expect(isModuleMigrated("dashboard")).toBe(true);
+    expect(isModuleMigrated("trips")).toBe(false);
+  });
+});
+
+describe("navigateCompat dual-write (store)", () => {
+  beforeEach(() => {
+    useAppStore.setState({
+      activeView: {
+        module: "trips",
+        view: "list",
+        breadcrumb: [{ label: "Trips", module: "trips" }],
+      },
+      history: [{ module: "dashboard", view: "list", breadcrumb: [] }],
+    });
+    vi.stubEnv("NEXT_PUBLIC_ROUTING_MIGRATION", "");
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("syncActiveView updates activeView without history push", () => {
+    useAppStore.getState().syncActiveView("dashboard");
+    expect(useAppStore.getState().activeView.module).toBe("dashboard");
+    expect(useAppStore.getState().history).toHaveLength(1);
+  });
+
+  it("legacy navigate still pushes history stack", () => {
+    useAppStore.getState().navigate("dashboard");
+    expect(useAppStore.getState().activeView.module).toBe("dashboard");
+    expect(useAppStore.getState().history.length).toBeGreaterThan(1);
+  });
+
+  it("navigateCompatStatic uses legacy navigate when flag off", () => {
+    const navigateSpy = vi.spyOn(useAppStore.getState(), "navigate");
+    navigateCompatStatic("trips");
+    expect(navigateSpy).toHaveBeenCalledWith("trips", "list", undefined, undefined);
+  });
+
+  it("navigateCompatStatic syncs activeView without history when migrated", () => {
+    vi.stubEnv("NEXT_PUBLIC_ROUTING_MIGRATION", "1");
+    const historyBefore = useAppStore.getState().history.length;
+    navigateCompatStatic("dashboard");
+    expect(useAppStore.getState().activeView.module).toBe("dashboard");
+    expect(useAppStore.getState().history.length).toBe(historyBefore);
+    expect(moduleToPath("dashboard")).toBe("/app/dashboard");
+  });
+});
+
+describe("activeView URL sync contract", () => {
+  it("pathToModule dashboard matches activeView list state shape", async () => {
+    const { pathToModule } = await import("@/lib/navigation/module-paths");
+    const parsed = pathToModule("/app/dashboard");
+    expect(parsed).toEqual({ module: "dashboard", view: "list" });
+  });
+});

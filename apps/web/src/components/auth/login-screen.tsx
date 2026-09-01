@@ -1,10 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAppStore, type PortalType } from "@/lib/store/app-store";
 import { ROLE_ARCHETYPES } from "@/lib/mock-data";
 import { pick } from "@/lib/content/savage-placeholders";
 import { authForgotPassword, authErrorMessage } from "@/lib/auth-api";
+import { validateReturnTo } from "@/lib/navigation/return-to";
+import { isRoutingMigrationEnabled, DASHBOARD_ROUTE } from "@/lib/navigation/routing-config";
 import { cn } from "@/lib/utils";
 import {
   Truck,
@@ -112,6 +115,8 @@ const ROLE_TAG: Record<string, string> = {
 };
 
 export function LoginScreen() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const loginWithPassword = useAppStore((s) => s.loginWithPassword);
   const setAuthMode = useAppStore((s) => s.setAuthMode);
   const setMarketingView = useAppStore((s) => s.setMarketingView);
@@ -131,6 +136,11 @@ export function LoginScreen() {
   const [resetNewPassword, setResetNewPassword] = useState("");
   const [resetSuccessMsg, setResetSuccessMsg] = useState<string | null>(null);
   const [isSubdomainLocked, setIsSubdomainLocked] = useState(false);
+
+  const returnTo = validateReturnTo(
+    searchParams.get("returnTo"),
+    isRoutingMigrationEnabled() ? DASHBOARD_ROUTE : "/dashboard",
+  );
 
   // Subdomain detection on mount
   useEffect(() => {
@@ -226,9 +236,9 @@ export function LoginScreen() {
     if (!result.ok) {
       setSubmitting(false);
       setError(result.error || "Sign in failed. Check your email and password.");
+      return;
     }
-    // On success, isAuthenticated flips and AppShell swaps the screen away -
-    // no need to reset `submitting` here.
+    router.replace(returnTo);
   }
 
   // "Quick sign in" tiles still go through real, server-verified
@@ -245,7 +255,9 @@ export function LoginScreen() {
     if (!result.ok) {
       setSubmitting(false);
       setError(result.error || "Sign in failed.");
+      return;
     }
+    router.replace(returnTo);
   }
 
   const selectedRoleObj = ROLE_ARCHETYPES.find((r) => r.id === effectiveRole);

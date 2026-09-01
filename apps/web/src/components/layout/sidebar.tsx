@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useAppStore, type ModuleId } from "@/lib/store/app-store";
+import { usePathname } from "next/navigation";
+import { useAppStore, type ModuleId, type ViewState } from "@/lib/store/app-store";
+import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
 import { cn } from "@/lib/utils";
 import { getRoleFeatures } from "@/lib/content/role-features";
 import {
@@ -243,19 +245,22 @@ function allAccessibleModules(
 }
 
 export function Sidebar() {
+  const pathname = usePathname();
+  const { navigateCompat } = useNavigateCompat();
   const {
     activeView,
-    navigate,
     sidebarCollapsed,
     currentRole,
     mobileSidebarOpen,
     setMobileSidebarOpen,
   } = useAppStore();
 
-  // Close mobile drawer on route change
+  const navigate = navigateCompat;
+
+  // Close mobile drawer on route change (App Router or legacy activeView)
   useEffect(() => {
     setMobileSidebarOpen(false);
-  }, [activeView.module, activeView.id, setMobileSidebarOpen]);
+  }, [activeView.module, activeView.id, pathname, setMobileSidebarOpen]);
 
   // Close on Escape
   useEffect(() => {
@@ -307,7 +312,7 @@ export function Sidebar() {
 
 interface SidebarProps {
   activeView: { module: ModuleId; id?: string };
-  navigate: (m: ModuleId, view?: "list" | "detail" | "create", id?: string, tab?: string) => void;
+  navigate: (m: ModuleId, view?: ViewState["view"], id?: string, tab?: string) => void;
   currentRole: { id: string; initials: string; name: string; branch: string; permissions: string[] };
 }
 

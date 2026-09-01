@@ -341,9 +341,11 @@ interface AppState {
   setSignupRequestStatus: (id: string, status: SignupRequest["status"]) => void;
 
   activeView: ViewState;
-  navigate: (module: ModuleId, view?: "list" | "detail" | "create", id?: string, tab?: string) => void;
+  navigate: (module: ModuleId, view?: ViewState["view"], id?: string, tab?: string) => void;
   navigateDetail: (module: ModuleId, id: string, tab?: string) => void;
   navigateBack: () => void;
+  /** Sync activeView from App Router URL without pushing legacy history stack. */
+  syncActiveView: (module: ModuleId, view?: ViewState["view"], id?: string, tab?: string) => void;
   setSettingsTab: (tab: SettingsTab) => void;
 
   sidebarCollapsed: boolean;
@@ -671,6 +673,18 @@ export const useAppStore = create<AppState>()(
         } else {
           set({ activeView: DEFAULT_VIEW });
         }
+      },
+      syncActiveView: (module, view = "list", id, tab) => {
+        const resolved: ModuleId =
+          module === "financial-ops" ? "ledger" : module;
+        const newView: ViewState = {
+          module: resolved,
+          view,
+          id,
+          tab,
+          breadcrumb: [{ label: MODULE_LABELS[resolved] ?? resolved, module: resolved }],
+        };
+        set({ activeView: newView });
       },
       setSettingsTab: (tab) =>
         set((s) => ({
