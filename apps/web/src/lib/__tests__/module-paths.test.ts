@@ -109,6 +109,13 @@ describe("module path registry", () => {
     expect(moduleToPath("compliance", "list", undefined, "calendar")).toBe(
       "/app/compliance",
     );
+    expect(moduleToPath("crm", "list", undefined, "pipeline")).toBe("/app/crm");
+    expect(moduleToPath("crm", "list", undefined, "leads")).toBe("/app/crm/leads");
+    expect(moduleToPath("hr", "list", undefined, "overview")).toBe("/app/hr");
+    expect(moduleToPath("hr", "list", undefined, "employees")).toBe("/app/hr/employees");
+    expect(moduleToPath("payroll", "list", undefined, "overview")).toBe("/app/payroll");
+    expect(moduleToPath("payroll", "list", undefined, "cycles")).toBe("/app/payroll/cycles");
+    expect(moduleToPath("drivers-staff", "detail", "DRV-1")).toBe("/app/drivers/DRV-1");
     expect(moduleToPath("fleet-map", "list", "veh-42")).toBe(
       "/app/fleet-map?vehicle=veh-42",
     );
@@ -156,6 +163,26 @@ describe("module path registry", () => {
       module: "compliance",
       view: "list",
       tab: "filings",
+    });
+    expect(pathToModule("/app/crm/leads")).toEqual({
+      module: "crm",
+      view: "list",
+      tab: "leads",
+    });
+    expect(pathToModule("/app/hr/attendance")).toEqual({
+      module: "hr",
+      view: "list",
+      tab: "attendance",
+    });
+    expect(pathToModule("/app/payroll/payslips")).toEqual({
+      module: "payroll",
+      view: "list",
+      tab: "payslips",
+    });
+    expect(pathToModule("/app/drivers/DRV-1")).toEqual({
+      module: "drivers-staff",
+      view: "detail",
+      id: "DRV-1",
     });
     expect(
       pathToModule("/app/fleet-map", new URLSearchParams("vehicle=veh-42")),

@@ -10,6 +10,7 @@ import { Btn } from "@/components/shared/btn";
 import { SectionCard } from "@/components/shared/section-card";
 import { StatusBadge, paymentStatusBadge, docStatusBadge } from "@/components/shared/status-badge";
 import { useAppStore } from "@/lib/store/app-store";
+import { useModuleNavigation } from "@/lib/navigation/navigate-compat";
 import {
   CUSTOMERS,
   TRIPS,
@@ -68,7 +69,7 @@ interface CustomerDetailProps {
 }
 
 export function CustomerDetail({ customerId, customers, onUpdate }: CustomerDetailProps) {
-  const { navigate, navigateDetail } = useAppStore();
+  const { navigate, navigateDetail } = useModuleNavigation();
   const [activeTab, setActiveTab] = useState("overview");
   const [editing, setEditing] = useState<Customer | null>(null);
 
@@ -302,7 +303,7 @@ function Customer360Tab({
   customer: Customer;
   creditUtilisation: number;
 }) {
-  const { navigateDetail } = useAppStore();
+  const { navigateDetail } = useModuleNavigation();
   const seed = parseInt(customer.id.replace(/\D/g, "")) || 1;
 
   const trips = TRIPS.filter((t) => t.customer === customer.companyName);
@@ -668,7 +669,7 @@ function ProfitabilityTile({
 
 // ===== Trips Tab =====
 function TripsTab({ customer }: { customer: Customer }) {
-  const { navigateDetail } = useAppStore();
+  const { navigateDetail } = useModuleNavigation();
   const trips = TRIPS.filter((t) => t.customer === customer.companyName);
   return (
     <div className="flex flex-col gap-4">
@@ -753,7 +754,7 @@ function TripsTab({ customer }: { customer: Customer }) {
 
 // ===== Invoices Tab =====
 function InvoicesTab({ customer }: { customer: Customer }) {
-  const { navigateDetail } = useAppStore();
+  const { navigateDetail } = useModuleNavigation();
   const invoices = INVOICES.filter((i) => i.customer === customer.companyName);
   const outstanding = invoices
     .filter((i) => i.paymentStatus !== "Paid")

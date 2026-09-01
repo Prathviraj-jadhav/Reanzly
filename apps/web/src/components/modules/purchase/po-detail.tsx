@@ -4,6 +4,7 @@ import { DetailLayout, InfoRow, InfoSection, StatCard } from "@/components/share
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { useAppStore } from "@/lib/store/app-store";
+import { useModuleNavigation } from "@/lib/navigation/navigate-compat";
 import {
   Pencil,
   FileDown,
@@ -53,7 +54,7 @@ interface PODetailProps {
 }
 
 export function PODetail({ poId, initialTab, orders, onUpdate }: PODetailProps) {
-  const { navigate, navigateDetail } = useAppStore();
+  const { navigate, navigateDetail } = useModuleNavigation();
   const [activeTab, setActiveTab] = useState(initialTab || "overview");
   const po = useMemo(() => orders.find((p) => p.id === poId), [orders, poId]);
 

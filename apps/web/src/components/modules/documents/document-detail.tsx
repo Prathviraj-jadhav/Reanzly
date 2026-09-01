@@ -4,6 +4,7 @@ import { DetailLayout, InfoRow, InfoSection, StatCard } from "@/components/share
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge, docStatusBadge } from "@/components/shared/status-badge";
 import { useAppStore } from "@/lib/store/app-store";
+import { useModuleNavigation } from "@/lib/navigation/navigate-compat";
 import type { DocumentRecord, Vehicle, Driver, Customer, Vendor } from "@/lib/types";
 import {
   Pencil,
@@ -45,7 +46,7 @@ interface DocumentDetailProps {
 }
 
 export function DocumentDetail({ documentId, documents, onUpdate: onUpdateReal }: DocumentDetailProps) {
-  const { navigate, navigateDetail } = useAppStore();
+  const { navigate, navigateDetail } = useModuleNavigation();
   const [activeTab, setActiveTab] = useState("overview");
   const doc = documents.find((d) => d.id === documentId);
   const [editing, setEditing] = useState(false);

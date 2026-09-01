@@ -13,29 +13,43 @@ describe("routing migration config", () => {
     vi.unstubAllEnvs();
   });
 
-  it("MIGRATED_MODULES contains B0R-2/3 operations and B0R-4 finance cluster", () => {
+  it("MIGRATED_MODULES contains B0R-2/3 operations, B0R-4 finance, and B0R-5 people/docs", () => {
     expect([...MIGRATED_MODULES].sort()).toEqual(
       [
         "approvals",
         "compliance",
+        "crm",
+        "customers",
         "dashboard",
+        "document-studio",
+        "documents",
+        "drivers-staff",
         "expenses",
         "financial-ops",
         "fleet-map",
         "fuel-energy",
+        "helpdesk",
+        "hr",
         "inspection",
         "invoice",
         "issues",
+        "knowledge",
         "ledger",
         "lorry-receipts",
         "maintenance",
+        "marketing",
         "payments",
+        "payroll",
         "pod",
+        "purchase",
         "quality",
         "rate-cards",
+        "reminders",
         "services",
+        "surveys",
         "trips",
         "vehicles",
+        "vendors",
         "workshop",
       ].sort(),
     );
@@ -58,7 +72,10 @@ describe("routing migration config", () => {
     expect(isModuleMigrated("invoice")).toBe(true);
     expect(isModuleMigrated("ledger")).toBe(true);
     expect(isModuleMigrated("financial-ops")).toBe(true);
-    expect(isModuleMigrated("customers")).toBe(false);
+    expect(isModuleMigrated("customers")).toBe(true);
+    expect(isModuleMigrated("crm")).toBe(true);
+    expect(isModuleMigrated("document-studio")).toBe(true);
+    expect(isModuleMigrated("settings")).toBe(false);
   });
 });
 

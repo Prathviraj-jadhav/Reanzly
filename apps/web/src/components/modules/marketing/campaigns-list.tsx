@@ -6,6 +6,7 @@ import { DataTable, type Column } from "@/components/shared/data-table";
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { useAppStore } from "@/lib/store/app-store";
+import { useModuleNavigation } from "@/lib/navigation/navigate-compat";
 import {
   Plus,
   Download,
@@ -78,7 +79,7 @@ export function CampaignsList({
   onPauseBulk,
   onNavigateToMarketplace,
 }: CampaignsListProps) {
-  const { navigateDetail } = useAppStore();
+  const { navigateDetail } = useModuleNavigation();
   const [section, setSection] = useState<SectionTab>("campaigns");
   const [search, setSearch] = useState("");
   const [channelFilter, setChannelFilter] = useState<Set<string>>(new Set());

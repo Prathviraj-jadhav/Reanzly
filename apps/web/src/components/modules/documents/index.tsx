@@ -1,18 +1,18 @@
 "use client";
 import { useState, useCallback, useEffect } from "react";
 import { useAppStore } from "@/lib/store/app-store";
+import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
+import { resolveModuleView, type ModuleRouteState } from "@/lib/navigation/module-route-state";
 import type { DocumentRecord } from "@/lib/types";
 import { toast } from "sonner";
 import { DocumentsList } from "./documents-list";
 import { DocumentDetail } from "./document-detail";
 import { UploadDocumentDrawer } from "./upload-document-drawer";
 
-export function DocumentsModule() {
-  const { activeView, navigate } = useAppStore();
-  // Real, database-backed documents (src/app/api/documents) - previously
-  // useState(DOCUMENTS) seeded from mock-data.ts, and the "create" flow
-  // here had no onAdd handler at all, so uploads were already a silent
-  // no-op even before this rewiring.
+export function DocumentsModule({ route }: { route?: ModuleRouteState } = {}) {
+  const { activeView } = useAppStore();
+  const { navigateCompat } = useNavigateCompat();
+  const view = resolveModuleView(route, activeView, "documents");
   const [documents, setDocuments] = useState<DocumentRecord[]>([]);
   const [loaded, setLoaded] = useState(false);
 
@@ -41,7 +41,7 @@ export function DocumentsModule() {
   }, []);
 
   const updateDocument = useCallback(async (id: string, data: Partial<DocumentRecord>): Promise<boolean> => {
-    setDocuments((prev) => prev.map((d) => (d.id === id ? { ...d, ...data } : d))); // optimistic
+    setDocuments((prev) => prev.map((d) => (d.id === id ? { ...d, ...data } : d)));
     const res = await fetch(`/api/documents/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -61,25 +61,20 @@ export function DocumentsModule() {
     return <div className="p-6 text-[13px] text-muted-foreground">Loading documents…</div>;
   }
 
-  if (
-    activeView.module === "documents" &&
-    activeView.view === "detail" &&
-    activeView.id
-  ) {
-    return <DocumentDetail documentId={activeView.id} documents={documents} onUpdate={updateDocument} />;
+  if (view.view === "detail" && view.id) {
+    return <DocumentDetail documentId={view.id} documents={documents} onUpdate={updateDocument} />;
   }
 
-  const drawerOpen =
-    activeView.module === "documents" && activeView.view === "create";
+  const drawerOpen = view.view === "create";
   const closeDrawer = () => {
-    if (activeView.module === "documents" && activeView.view === "create") {
-      navigate("documents");
+    if (view.view === "create") {
+      navigateCompat("documents");
     }
   };
 
   return (
     <>
-      <DocumentsList onCreate={() => navigate("documents", "create")} documents={documents} onUpdate={updateDocument} />
+      <DocumentsList onCreate={() => navigateCompat("documents", "create")} documents={documents} onUpdate={updateDocument} />
       <UploadDocumentDrawer open={drawerOpen} onClose={closeDrawer} onAdd={addDocument} />
     </>
   );

@@ -1,16 +1,18 @@
 "use client";
 import { useState, useCallback, useEffect } from "react";
 import { useAppStore } from "@/lib/store/app-store";
+import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
+import { resolveModuleView, type ModuleRouteState } from "@/lib/navigation/module-route-state";
 import { DriversStaffList } from "./drivers-staff-list";
 import { DriverDetail } from "./driver-detail";
 import { AddEmployeeDrawer } from "./add-employee-drawer";
 import type { Driver } from "@/lib/types";
 import { toast } from "sonner";
 
-export function DriversStaffModule() {
-  const { activeView, navigate } = useAppStore();
-  // Real, database-backed drivers (src/app/api/drivers) - previously
-  // useState(DRIVERS) seeded from mock-data.ts.
+export function DriversStaffModule({ route }: { route?: ModuleRouteState } = {}) {
+  const { activeView } = useAppStore();
+  const { navigateCompat } = useNavigateCompat();
+  const view = resolveModuleView(route, activeView, "drivers-staff");
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [loaded, setLoaded] = useState(false);
 
@@ -23,7 +25,7 @@ export function DriversStaffModule() {
   }, []);
 
   const updateDriver = useCallback(async (id: string, data: Partial<Driver>) => {
-    setDrivers((prev) => prev.map((d) => (d.id === id ? { ...d, ...data } : d))); // optimistic
+    setDrivers((prev) => prev.map((d) => (d.id === id ? { ...d, ...data } : d)));
     const res = await fetch(`/api/drivers/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -59,22 +61,20 @@ export function DriversStaffModule() {
     return <div className="p-6 text-[13px] text-muted-foreground">Loading drivers…</div>;
   }
 
-  // Detail view
-  if (activeView.module === "drivers-staff" && activeView.view === "detail" && activeView.id) {
+  if (view.view === "detail" && view.id) {
     return (
       <DriverDetail
-        driverId={activeView.id}
+        driverId={view.id}
         drivers={drivers}
         onUpdate={updateDriver}
       />
     );
   }
 
-  const drawerOpen =
-    activeView.module === "drivers-staff" && activeView.view === "create";
+  const drawerOpen = view.view === "create";
   const closeDrawer = () => {
-    if (activeView.module === "drivers-staff" && activeView.view === "create") {
-      navigate("drivers-staff");
+    if (view.view === "create") {
+      navigateCompat("drivers-staff");
     }
   };
 
@@ -82,7 +82,7 @@ export function DriversStaffModule() {
     <>
       <DriversStaffList
         drivers={drivers}
-        onCreate={() => navigate("drivers-staff", "create")}
+        onCreate={() => navigateCompat("drivers-staff", "create")}
         onUpdate={updateDriver}
       />
       <AddEmployeeDrawer open={drawerOpen} onClose={closeDrawer} onAdd={addDriver} />

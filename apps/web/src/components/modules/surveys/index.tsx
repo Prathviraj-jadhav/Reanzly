@@ -2,14 +2,18 @@
 
 import { useState, useCallback } from "react";
 import { useAppStore } from "@/lib/store/app-store";
+import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
+import { resolveModuleView, type ModuleRouteState } from "@/lib/navigation/module-route-state";
 import { SurveysList } from "./surveys-list";
 import { SurveyDetail } from "./survey-detail";
 import { SurveyBuilder } from "./survey-builder";
 import { SURVEYS, type Survey, type SurveyQuestion } from "./_helpers";
 import { toastInfo } from "@/lib/toast";
 
-export function SurveysModule() {
-  const { activeView, navigate } = useAppStore();
+export function SurveysModule({ route }: { route?: ModuleRouteState } = {}) {
+  const { activeView } = useAppStore();
+  const { navigateCompat } = useNavigateCompat();
+  const view = resolveModuleView(route, activeView, "surveys");
   const [surveys, setSurveys] = useState<Survey[]>(SURVEYS);
   const [buildingSurvey, setBuildingSurvey] = useState<Survey | null>(null);
 
@@ -17,11 +21,10 @@ export function SurveysModule() {
     setSurveys((prev) => prev.map((s) => (s.id === surveyId ? { ...s, questions } : s)));
   }, []);
 
-  // Detail view
-  if (activeView.module === "surveys" && activeView.view === "detail" && activeView.id) {
+  if (view.view === "detail" && view.id) {
     return (
       <SurveyDetail
-        surveyId={activeView.id}
+        surveyId={view.id}
         surveys={surveys}
         onBuild={(s) => {
           setBuildingSurvey(s);
@@ -30,7 +33,6 @@ export function SurveysModule() {
     );
   }
 
-  // Builder drawer visibility
   const builderOpen = !!buildingSurvey;
   const closeBuilder = () => setBuildingSurvey(null);
 
@@ -63,7 +65,6 @@ export function SurveysModule() {
         onClose={closeBuilder}
         onSave={(surveyId, questions) => {
           updateSurveyQuestions(surveyId, questions);
-          // Ensure the survey list reflects the saved state
           setSurveys((prev) =>
             prev.map((s) =>
               s.id === surveyId
@@ -71,12 +72,11 @@ export function SurveysModule() {
                 : s,
             ),
           );
-          // If the survey was new (not yet in the list), add it
           setSurveys((prev) => {
             if (prev.some((s) => s.id === surveyId)) return prev;
             return [buildingSurvey!, ...prev];
           });
-          navigate("surveys");
+          navigateCompat("surveys");
         }}
       />
     </>

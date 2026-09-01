@@ -60,6 +60,30 @@ export function useNavigateCompat() {
   return { navigateCompat, navigateDetailCompat, isNavigatingFromCompat: () => inFlightRef.current };
 }
 
+/**
+ * Module-family navigation: routes migrated targets through App Router,
+ * unmigrated targets through legacy Zustand navigate().
+ */
+export function useModuleNavigation() {
+  const legacy = useAppStore();
+  const { navigateCompat, navigateDetailCompat } = useNavigateCompat();
+  return {
+    navigate: (
+      module: ModuleId,
+      view: ViewState["view"] = "list",
+      id?: string,
+      tab?: string,
+    ) => {
+      if (isModuleMigrated(module)) return navigateCompat(module, view, id, tab);
+      return legacy.navigate(module, view, id, tab);
+    },
+    navigateDetail: (module: ModuleId, id: string, tab?: string) => {
+      if (isModuleMigrated(module)) return navigateDetailCompat(module, id, tab);
+      return legacy.navigateDetail(module, id, tab);
+    },
+  };
+}
+
 /** Imperative helper for non-hook call sites (e.g. future header migration). */
 export function navigateCompatStatic(
   module: ModuleId,

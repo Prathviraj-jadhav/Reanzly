@@ -5,6 +5,8 @@ import { PageHeader } from "@/components/shared/page-header";
 import { Btn } from "@/components/shared/btn";
 import { Banknote } from "lucide-react";
 import { useAppStore } from "@/lib/store/app-store";
+import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
+import { resolveModuleView, type ModuleRouteState } from "@/lib/navigation/module-route-state";
 import { cn } from "@/lib/utils";
 import { Overview } from "./overview";
 import { Employees } from "./employees";
@@ -20,9 +22,12 @@ import { HR_TABS, type HrTab } from "./_helpers";
 import type { IssuanceType, Employee } from "./_data";
 import { useHrStore } from "./_store";
 
-export function HRModule() {
-  const [tab, setTab] = useState<HrTab>("overview");
-  const navigate = useAppStore((s) => s.navigate);
+export function HRModule({ route }: { route?: ModuleRouteState } = {}) {
+  const { activeView } = useAppStore();
+  const { navigateCompat } = useNavigateCompat();
+  const view = resolveModuleView(route, activeView, "hr");
+  const resolvedTab = (view.tab as HrTab | undefined) ?? "overview";
+  const [tab, setTab] = useState<HrTab>(resolvedTab);
   const hrLoaded = useHrStore((s) => s.loaded);
   const hydrate = useHrStore((s) => s.hydrate);
 
@@ -30,8 +35,18 @@ export function HRModule() {
     void hydrate();
   }, [hydrate]);
 
-  // ===== Issuance drawer state (owned here so Onboarding / Exit / Recruitment
-  // can pre-open it with a template + employee). =====
+  useEffect(() => {
+    setTab(resolvedTab);
+  }, [resolvedTab]);
+
+  const onTabChange = useCallback(
+    (next: HrTab) => {
+      setTab(next);
+      navigateCompat("hr", "list", undefined, next === "overview" ? undefined : next);
+    },
+    [navigateCompat],
+  );
+
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [presetTemplate, setPresetTemplate] = useState<IssuanceType | null>(null);
   const [presetEmployee, setPresetEmployee] = useState<Employee | null>(null);
@@ -43,9 +58,9 @@ export function HRModule() {
       setPresetEmployee(employee || null);
       setDrawerKey(`open-${Date.now()}`);
       setDrawerOpen(true);
-      setTab("issuances");
+      onTabChange("issuances");
     },
-    [],
+    [onTabChange],
   );
 
   const closeIssuanceDrawer = useCallback(() => {
@@ -71,19 +86,18 @@ export function HRModule() {
             variant="outline"
             size="sm"
             icon={<Banknote className="h-3.5 w-3.5" />}
-            onClick={() => navigate("payroll")}
+            onClick={() => navigateCompat("payroll")}
           >
             Open Payroll
           </Btn>
         }
       />
 
-      {/* Sub-nav - 10 tabs */}
       <div className="sticky top-0 z-10 -mx-1 flex items-center gap-1 overflow-x-auto border-b border-border bg-background/95 px-1 backdrop-blur supports-[backdrop-filter]:bg-background/80">
         {HR_TABS.map((t) => (
           <button
             key={t.id}
-            onClick={() => setTab(t.id)}
+            onClick={() => onTabChange(t.id)}
             className={cn(
               "relative shrink-0 px-3 py-2.5 text-[13px] transition-colors tap",
               tab === t.id
@@ -136,4 +150,3 @@ export function HRModule() {
     </div>
   );
 }
-

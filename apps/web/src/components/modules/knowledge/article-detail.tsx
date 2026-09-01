@@ -4,6 +4,7 @@ import { DetailLayout, InfoRow, InfoSection, StatCard } from "@/components/share
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { useAppStore } from "@/lib/store/app-store";
+import { useModuleNavigation } from "@/lib/navigation/navigate-compat";
 import {
   Pencil,
   FileDown,
@@ -99,7 +100,7 @@ function useArticle(articleId: string) {
 }
 
 export function ArticleDetail({ articleId, initialTab }: ArticleDetailProps) {
-  const { navigate, navigateDetail } = useAppStore();
+  const { navigate, navigateDetail } = useModuleNavigation();
   const [activeTab, setActiveTab] = useState(initialTab || "content");
   const [feedbackVote, setFeedbackVote] = useState<"up" | "down" | null>(null);
   const { article, setArticle, loading } = useArticle(articleId);

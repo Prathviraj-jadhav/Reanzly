@@ -2,6 +2,8 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { useAppStore } from "@/lib/store/app-store";
+import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
+import { resolveModuleView, type ModuleRouteState } from "@/lib/navigation/module-route-state";
 import type { HelpdeskTicket } from "./_helpers";
 import { TicketsList } from "./tickets-list";
 import { TicketDetail } from "./ticket-detail";
@@ -14,8 +16,10 @@ import {
   pilotErrorMessage,
 } from "@/lib/pilot-api";
 
-export function HelpdeskModule() {
-  const { activeView, navigate } = useAppStore();
+export function HelpdeskModule({ route }: { route?: ModuleRouteState } = {}) {
+  const { activeView } = useAppStore();
+  const { navigateCompat } = useNavigateCompat();
+  const view = resolveModuleView(route, activeView, "helpdesk");
 
   const [tickets, setTickets] = useState<HelpdeskTicket[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -53,20 +57,14 @@ export function HelpdeskModule() {
     }
   }, []);
 
-  // Detail view - route before any list hooks to keep hook order stable.
-  if (
-    activeView.module === "helpdesk" &&
-    activeView.view === "detail" &&
-    activeView.id
-  ) {
-    return <TicketDetail ticketId={activeView.id} />;
+  if (view.view === "detail" && view.id) {
+    return <TicketDetail ticketId={view.id} />;
   }
 
-  const drawerOpen =
-    activeView.module === "helpdesk" && activeView.view === "create";
+  const drawerOpen = view.view === "create";
   const closeDrawer = () => {
-    if (activeView.module === "helpdesk" && activeView.view === "create") {
-      navigate("helpdesk");
+    if (view.view === "create") {
+      navigateCompat("helpdesk");
     }
   };
 
@@ -76,7 +74,7 @@ export function HelpdeskModule() {
 
   return (
     <>
-      <TicketsList tickets={tickets} onCreate={() => navigate("helpdesk", "create")} onUpdate={updateTicket} />
+      <TicketsList tickets={tickets} onCreate={() => navigateCompat("helpdesk", "create")} onUpdate={updateTicket} />
       <AddTicketDrawer open={drawerOpen} onClose={closeDrawer} onAdd={addTicket} />
     </>
   );

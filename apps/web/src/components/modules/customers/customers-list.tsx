@@ -5,6 +5,7 @@ import { DataTable, type Column } from "@/components/shared/data-table";
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { useAppStore } from "@/lib/store/app-store";
+import { useModuleNavigation } from "@/lib/navigation/navigate-compat";
 import { TRIPS, INVOICES } from "@/lib/mock-data";
 import type { Customer } from "@/lib/types";
 import {
@@ -44,7 +45,8 @@ interface CustomersListProps {
 }
 
 export function CustomersList({ customers, onCreate, onUpdate, onAdd }: CustomersListProps) {
-  const { navigateDetail, currentRole } = useAppStore();
+  const { currentRole } = useAppStore();
+  const { navigateDetail } = useModuleNavigation();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<Set<string>>(new Set());
   const [cityFilter, setCityFilter] = useState<string>("");

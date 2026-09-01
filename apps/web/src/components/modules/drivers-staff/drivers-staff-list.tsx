@@ -5,6 +5,7 @@ import { DataTable, type Column } from "@/components/shared/data-table";
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { useAppStore } from "@/lib/store/app-store";
+import { useModuleNavigation } from "@/lib/navigation/navigate-compat";
 
 import type { Driver } from "@/lib/types";
 import { VEHICLES, TRIPS } from "@/lib/mock-data";
@@ -53,7 +54,7 @@ interface DriversStaffListProps {
 type SubTab = "all" | "drivers" | "staff";
 
 export function DriversStaffList({ drivers, onCreate, onUpdate }: DriversStaffListProps) {
-  const { navigateDetail } = useAppStore();
+  const { navigateDetail } = useModuleNavigation();
   const [subTab, setSubTab] = useState<SubTab>("all");
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<Set<string>>(new Set());

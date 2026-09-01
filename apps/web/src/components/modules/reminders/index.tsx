@@ -1,6 +1,8 @@
 "use client";
 import { useState, useCallback, useEffect } from "react";
 import { useAppStore } from "@/lib/store/app-store";
+import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
+import { resolveModuleView, type ModuleRouteState } from "@/lib/navigation/module-route-state";
 import type { Reminder } from "@/lib/types";
 import { toast } from "sonner";
 import { RemindersList } from "./reminders-list";
@@ -12,8 +14,10 @@ import {
   pilotErrorMessage,
 } from "@/lib/pilot-api";
 
-export function RemindersModule() {
-  const { activeView, navigate } = useAppStore();
+export function RemindersModule({ route }: { route?: ModuleRouteState } = {}) {
+  const { activeView } = useAppStore();
+  const { navigateCompat } = useNavigateCompat();
+  const view = resolveModuleView(route, activeView, "reminders");
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [loaded, setLoaded] = useState(false);
 
@@ -56,11 +60,10 @@ export function RemindersModule() {
     return <div className="p-6 text-[13px] text-muted-foreground">Loading reminders…</div>;
   }
 
-  const drawerOpen =
-    activeView.module === "reminders" && activeView.view === "create";
+  const drawerOpen = view.view === "create";
   const closeDrawer = () => {
-    if (activeView.module === "reminders" && activeView.view === "create") {
-      navigate("reminders");
+    if (view.view === "create") {
+      navigateCompat("reminders");
     }
   };
 
@@ -68,7 +71,7 @@ export function RemindersModule() {
     <>
       <RemindersList
         reminders={reminders}
-        onCreate={() => navigate("reminders", "create")}
+        onCreate={() => navigateCompat("reminders", "create")}
         onUpdate={updateReminder}
       />
       <AddReminderDrawer open={drawerOpen} onClose={closeDrawer} onAdd={addReminder} />

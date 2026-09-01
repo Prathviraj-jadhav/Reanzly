@@ -1,13 +1,17 @@
 "use client";
 import { useState, useCallback, useEffect } from "react";
 import { useAppStore } from "@/lib/store/app-store";
+import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
+import { resolveModuleView, type ModuleRouteState } from "@/lib/navigation/module-route-state";
 import type { PurchaseOrder } from "./_helpers";
 import { POList } from "./po-list";
 import { PODetail } from "./po-detail";
 import { AddPODrawer } from "./add-po-drawer";
 
-export function PurchaseModule() {
-  const { activeView, navigate } = useAppStore();
+export function PurchaseModule({ route }: { route?: ModuleRouteState } = {}) {
+  const { activeView } = useAppStore();
+  const { navigateCompat } = useNavigateCompat();
+  const view = resolveModuleView(route, activeView, "purchase");
   const [orders, setOrders] = useState<PurchaseOrder[]>([]);
   const [loaded, setLoaded] = useState(false);
 
@@ -29,27 +33,20 @@ export function PurchaseModule() {
     setOrders((prev) => prev.map((o) => (o.id === id ? updated : o)));
   }, []);
 
-  // Detail view
-  if (
-    activeView.module === "purchase" &&
-    activeView.view === "detail" &&
-    activeView.id
-  ) {
-    return <PODetail poId={activeView.id} initialTab={activeView.tab} orders={orders} onUpdate={updatePO} />;
+  if (view.view === "detail" && view.id) {
+    return <PODetail poId={view.id} initialTab={view.tab} orders={orders} onUpdate={updatePO} />;
   }
 
-  // Drawer visibility
-  const drawerOpen =
-    activeView.module === "purchase" && activeView.view === "create";
+  const drawerOpen = view.view === "create";
   const closeDrawer = () => {
-    if (activeView.module === "purchase" && activeView.view === "create") {
-      navigate("purchase");
+    if (view.view === "create") {
+      navigateCompat("purchase");
     }
   };
 
   return (
     <>
-      <POList purchaseOrders={orders} loaded={loaded} onCreate={() => navigate("purchase", "create")} onUpdate={updatePO} />
+      <POList purchaseOrders={orders} loaded={loaded} onCreate={() => navigateCompat("purchase", "create")} onUpdate={updatePO} />
       <AddPODrawer open={drawerOpen} onClose={closeDrawer} onAdd={addPO} />
     </>
   );

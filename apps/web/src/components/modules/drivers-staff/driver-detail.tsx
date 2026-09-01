@@ -6,6 +6,7 @@ import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { SavageInput, SavageTextarea } from "@/components/shared/savage-input";
 import { useAppStore } from "@/lib/store/app-store";
+import { useModuleNavigation } from "@/lib/navigation/navigate-compat";
 import type { Driver } from "@/lib/types";
 import {
   User, Truck, Car, Send, Pencil, Star,

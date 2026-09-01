@@ -6,6 +6,7 @@ import { SectionCard } from "@/components/shared/section-card";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Btn } from "@/components/shared/btn";
 import { useAppStore } from "@/lib/store/app-store";
+import { useModuleNavigation } from "@/lib/navigation/navigate-compat";
 import type { Driver } from "@/lib/types";
 import {
   Truck, TrendingUp, Gauge, Star, ShieldCheck, Fuel, Activity,
@@ -18,7 +19,7 @@ import {
 } from "../_helpers";
 
 export function DriverOverviewTab({ driver }: { driver: Driver }) {
-  const { navigateDetail } = useAppStore();
+  const { navigateDetail } = useModuleNavigation();
   const seed = driverSeed(driver.id);
 
   const [vehicles, setVehicles] = useState<any[]>([]);

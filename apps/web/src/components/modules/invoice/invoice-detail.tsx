@@ -325,7 +325,7 @@ function InvoiceViewTab({
   meta?: InvoiceMeta;
   onAssign?: (invoice: Invoice, contactIds: string[]) => void;
 }) {
-  const { navigate } = useAppStore();
+  const { navigateCompat: navigate } = useNavigateCompat();
   // Deterministic line items derived from invoice
   const seed = parseInt(invoice.id.replace(/\D/g, "")) || 1;
   const lineItems = useMemo(() => {

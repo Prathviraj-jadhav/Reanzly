@@ -5,6 +5,7 @@ import { DataTable, type Column } from "@/components/shared/data-table";
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { useAppStore } from "@/lib/store/app-store";
+import { useModuleNavigation } from "@/lib/navigation/navigate-compat";
 import { WORK_ORDERS, FUEL_ENTRIES, EXPENSES } from "@/lib/mock-data";
 import type { Vendor } from "@/lib/types";
 import {
@@ -56,7 +57,7 @@ interface VendorsListProps {
 }
 
 export function VendorsList({ vendors, onCreate, onUpdate, onAdd }: VendorsListProps) {
-  const { navigateDetail } = useAppStore();
+  const { navigateDetail } = useModuleNavigation();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<Set<string>>(new Set());
   const [cityFilter, setCityFilter] = useState<string>("");

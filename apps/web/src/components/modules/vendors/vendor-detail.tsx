@@ -10,6 +10,7 @@ import { Btn } from "@/components/shared/btn";
 import { SectionCard } from "@/components/shared/section-card";
 import { StatusBadge, docStatusBadge } from "@/components/shared/status-badge";
 import { useAppStore } from "@/lib/store/app-store";
+import { useModuleNavigation } from "@/lib/navigation/navigate-compat";
 import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
 import {
   VENDORS,
@@ -76,7 +77,7 @@ interface VendorDetailProps {
 }
 
 export function VendorDetail({ vendorId, vendors, onUpdate }: VendorDetailProps) {
-  const { navigate } = useAppStore();
+  const { navigate } = useModuleNavigation();
   const [activeTab, setActiveTab] = useState("overview");
   const [editing, setEditing] = useState<Vendor | null>(null);
 

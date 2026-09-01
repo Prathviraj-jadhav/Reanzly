@@ -209,6 +209,15 @@ export function moduleToPath(
     if (resolved === "compliance" && tab === "calendar") {
       return base;
     }
+    if (resolved === "crm" && tab === "pipeline") {
+      return base;
+    }
+    if (resolved === "hr" && tab === "overview") {
+      return base;
+    }
+    if (resolved === "payroll" && tab === "overview") {
+      return base;
+    }
     return `${base}/${tab}`;
   }
 

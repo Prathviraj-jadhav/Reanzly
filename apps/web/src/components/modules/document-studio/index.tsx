@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { useAppStore } from "@/lib/store/app-store";
+import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
+import { resolveModuleView, type ModuleRouteState } from "@/lib/navigation/module-route-state";
 import { StudioList } from "./studio-list";
 import { TemplateGallery } from "./template-gallery";
 import { DocumentBuilder } from "./document-builder";
@@ -14,13 +16,12 @@ import {
 } from "lucide-react";
 import { Btn } from "@/components/shared/btn";
 
-// Local-only views that are NOT driven by the global app-store navigation.
-// The global activeView.view drives "list" / "create" (builder) / "detail" (preview),
-// while "gallery" and "settings" are local-only.
 type LocalView = "gallery" | "settings" | null;
 
-export function DocumentStudioModule() {
-  const { activeView, navigate, navigateDetail } = useAppStore();
+export function DocumentStudioModule({ route }: { route?: ModuleRouteState } = {}) {
+  const { activeView } = useAppStore();
+  const { navigateCompat, navigateDetailCompat } = useNavigateCompat();
+  const view = resolveModuleView(route, activeView, "document-studio");
   const documents = useDocStudioStore((s) => s.documents);
   const draft = useDocStudioStore((s) => s.draft);
   const clearDraft = useDocStudioStore((s) => s.clearDraft);
@@ -28,59 +29,54 @@ export function DocumentStudioModule() {
   const [localView, setLocalView] = useState<LocalView>(null);
   const [brandedOverride, setBrandedOverride] = useState<boolean | undefined>(undefined);
 
-  // Derive the view directly from activeView + localView.
-  // Priority: localView (gallery/settings) > activeView.view > list default
-  let view: "list" | "builder" | "preview" | "gallery" | "settings";
+  let screen: "list" | "builder" | "preview" | "gallery" | "settings";
   if (localView === "gallery") {
-    view = "gallery";
+    screen = "gallery";
   } else if (localView === "settings") {
-    view = "settings";
-  } else if (activeView.view === "create") {
-    view = "builder";
-  } else if (activeView.view === "detail" && activeView.id) {
-    view = "preview";
+    screen = "settings";
+  } else if (view.view === "create") {
+    screen = "builder";
+  } else if (view.view === "detail" && view.id) {
+    screen = "preview";
   } else {
-    view = "list";
+    screen = "list";
   }
 
-  // Builder view is also entered when a draft exists in the store
-  if (view === "list" && draft) {
-    view = "builder";
+  if (screen === "list" && draft) {
+    screen = "builder";
   }
 
-  const previewDocId = view === "preview" ? activeView.id : null;
+  const previewDocId = screen === "preview" ? view.id : null;
 
-  // ===== Render =====
-  if (view === "builder") {
+  if (screen === "builder") {
     return (
       <DocumentBuilder
         onExit={() => {
           clearDraft();
-          navigate("document-studio");
+          navigateCompat("document-studio");
           setLocalView(null);
         }}
         onCommitted={(docId) => {
-          // After commit, jump straight to the preview of the new doc.
           clearDraft();
-          navigateDetail("document-studio", docId);
+          navigateDetailCompat("document-studio", docId);
           setLocalView(null);
         }}
       />
     );
   }
 
-  if (view === "settings") {
+  if (screen === "settings") {
     return (
       <BrandingSettings
         onBack={() => {
-          navigate("document-studio");
+          navigateCompat("document-studio");
           setLocalView(null);
         }}
       />
     );
   }
 
-  if (view === "preview" && previewDocId) {
+  if (screen === "preview" && previewDocId) {
     const doc = documents.find((d) => d.id === previewDocId);
     if (!doc) {
       return (
@@ -89,7 +85,7 @@ export function DocumentStudioModule() {
           <Btn
             variant="outline"
             onClick={() => {
-              navigate("document-studio");
+              navigateCompat("document-studio");
               setLocalView(null);
             }}
           >
@@ -102,11 +98,11 @@ export function DocumentStudioModule() {
       <DocumentPreview
         doc={doc}
         onBack={() => {
-          navigate("document-studio");
+          navigateCompat("document-studio");
           setLocalView(null);
         }}
         onEdit={() => {
-          navigate("document-studio", "create");
+          navigateCompat("document-studio", "create");
           setLocalView(null);
         }}
         reanzlyBrandedOverride={brandedOverride ?? doc.branding.reanzlyBranded}
@@ -115,26 +111,23 @@ export function DocumentStudioModule() {
     );
   }
 
-  if (view === "gallery") {
+  if (screen === "gallery") {
     return (
       <TemplateGallery
         onBack={() => {
-          navigate("document-studio");
+          navigateCompat("document-studio");
           setLocalView(null);
         }}
         onPick={() => {
-          // Draft started in store; switch to builder via global nav
-          navigate("document-studio", "create");
+          navigateCompat("document-studio", "create");
           setLocalView(null);
         }}
       />
     );
   }
 
-  // Default: list view
   return (
     <div className="flex flex-col gap-4">
-      {/* Quick-actions strip (above the list) */}
       <div className="flex flex-wrap items-center justify-end gap-2">
         <Btn
           variant="outline"
@@ -158,7 +151,7 @@ export function DocumentStudioModule() {
         onCreate={() => setLocalView("gallery")}
         onView={(docId) => {
           setBrandedOverride(undefined);
-          navigateDetail("document-studio", docId);
+          navigateDetailCompat("document-studio", docId);
         }}
       />
     </div>

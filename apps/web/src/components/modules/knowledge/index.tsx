@@ -1,6 +1,8 @@
 "use client";
 import { useState, useCallback, useEffect } from "react";
 import { useAppStore } from "@/lib/store/app-store";
+import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
+import { resolveModuleView, type ModuleRouteState } from "@/lib/navigation/module-route-state";
 import type { KnowledgeArticle } from "./_helpers";
 import { ArticlesList } from "./articles-list";
 import { ArticleDetail } from "./article-detail";
@@ -12,8 +14,10 @@ import {
   pilotErrorMessage,
 } from "@/lib/pilot-api";
 
-export function KnowledgeModule() {
-  const { activeView, navigate } = useAppStore();
+export function KnowledgeModule({ route }: { route?: ModuleRouteState } = {}) {
+  const { activeView } = useAppStore();
+  const { navigateCompat } = useNavigateCompat();
+  const view = resolveModuleView(route, activeView, "knowledge");
 
   const [articles, setArticles] = useState<KnowledgeArticle[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -39,21 +43,14 @@ export function KnowledgeModule() {
     }
   }, []);
 
-  // Detail view
-  if (
-    activeView.module === "knowledge" &&
-    activeView.view === "detail" &&
-    activeView.id
-  ) {
-    return <ArticleDetail articleId={activeView.id} initialTab={activeView.tab} />;
+  if (view.view === "detail" && view.id) {
+    return <ArticleDetail articleId={view.id} initialTab={view.tab} />;
   }
 
-  // Drawer visibility
-  const drawerOpen =
-    activeView.module === "knowledge" && activeView.view === "create";
+  const drawerOpen = view.view === "create";
   const closeDrawer = () => {
-    if (activeView.module === "knowledge" && activeView.view === "create") {
-      navigate("knowledge");
+    if (view.view === "create") {
+      navigateCompat("knowledge");
     }
   };
 
@@ -63,7 +60,7 @@ export function KnowledgeModule() {
 
   return (
     <>
-      <ArticlesList articles={articles} onCreate={() => navigate("knowledge", "create")} />
+      <ArticlesList articles={articles} onCreate={() => navigateCompat("knowledge", "create")} />
       <AddArticleDrawer open={drawerOpen} onClose={closeDrawer} onAdd={addArticle} />
     </>
   );

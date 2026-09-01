@@ -1,16 +1,18 @@
 "use client";
 import { useState, useCallback, useEffect } from "react";
 import { useAppStore } from "@/lib/store/app-store";
+import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
+import { resolveModuleView, type ModuleRouteState } from "@/lib/navigation/module-route-state";
 import { CustomersList } from "./customers-list";
 import { CustomerDetail } from "./customer-detail";
 import { AddCustomerDrawer } from "./add-customer-drawer";
 import type { Customer } from "@/lib/types";
 import { toast } from "sonner";
 
-export function CustomersModule() {
-  const { activeView, navigate } = useAppStore();
-  // Real, database-backed customers (src/app/api/customers) - previously
-  // useState(CUSTOMERS) seeded from mock-data.ts.
+export function CustomersModule({ route }: { route?: ModuleRouteState } = {}) {
+  const { activeView } = useAppStore();
+  const { navigateCompat } = useNavigateCompat();
+  const view = resolveModuleView(route, activeView, "customers");
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loaded, setLoaded] = useState(false);
 
@@ -23,7 +25,7 @@ export function CustomersModule() {
   }, []);
 
   const updateCustomer = useCallback(async (id: string, data: Partial<Customer>): Promise<boolean> => {
-    setCustomers((prev) => prev.map((c) => (c.id === id ? { ...c, ...data } : c))); // optimistic
+    setCustomers((prev) => prev.map((c) => (c.id === id ? { ...c, ...data } : c)));
     const res = await fetch(`/api/customers/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -60,32 +62,28 @@ export function CustomersModule() {
     return <div className="p-6 text-[13px] text-muted-foreground">Loading customers…</div>;
   }
 
-  // Detail view
-  if (activeView.module === "customers" && activeView.view === "detail" && activeView.id) {
+  if (view.view === "detail" && view.id) {
     return (
       <CustomerDetail
-        customerId={activeView.id}
+        customerId={view.id}
         customers={customers}
         onUpdate={updateCustomer}
       />
     );
   }
 
-  // Drawer visibility is derived from active view - no setState-in-effect needed.
-  const drawerOpen =
-    activeView.module === "customers" && activeView.view === "create";
+  const drawerOpen = view.view === "create";
   const closeDrawer = () => {
-    if (activeView.module === "customers" && activeView.view === "create") {
-      navigate("customers");
+    if (view.view === "create") {
+      navigateCompat("customers");
     }
   };
 
-  // List view (default) - drawer overlays when create is requested
   return (
     <>
       <CustomersList
         customers={customers}
-        onCreate={() => navigate("customers", "create")}
+        onCreate={() => navigateCompat("customers", "create")}
         onUpdate={updateCustomer}
         onAdd={addCustomer}
       />

@@ -1,8 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { PageHeader } from "@/components/shared/page-header";
 import { cn } from "@/lib/utils";
+import { useAppStore } from "@/lib/store/app-store";
+import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
+import { resolveModuleView, type ModuleRouteState } from "@/lib/navigation/module-route-state";
 import {
   Banknote,
   CalendarClock,
@@ -29,13 +32,13 @@ import { OverviewTab } from "./overview";
 import { ReimbursementsTab } from "./reimbursements";
 import { LoansTab } from "./loans-advances";
 
-export function PayrollModule() {
-  const [tab, setTab] = useState<PayrollTab>("overview");
+export function PayrollModule({ route }: { route?: ModuleRouteState } = {}) {
+  const { activeView } = useAppStore();
+  const { navigateCompat } = useNavigateCompat();
+  const view = resolveModuleView(route, activeView, "payroll");
+  const resolvedTab = (view.tab as PayrollTab | undefined) ?? "overview";
+  const [tab, setTab] = useState<PayrollTab>(resolvedTab);
 
-  // Real counts for the header KPI bar and footer strip, fetched once here
-  // rather than duplicating each tab's own fetch. All five sub-areas
-  // (Statutory/Bank Advice/Reimbursements/Bonuses/Loans) are real API-backed
-  // data now, same as Cycles/Payslips/Structures.
   const [cycleCount, setCycleCount] = useState(0);
   const [payslipCount, setPayslipCount] = useState(0);
   const [structureCount, setStructureCount] = useState(0);
@@ -48,6 +51,18 @@ export function PayrollModule() {
   const [kpis, setKpis] = useState({
     totalPayrollCost: 0, netPayable: 0, currentCycleMonth: "", pendingApprovals: 0, headcount: 0,
   });
+
+  useEffect(() => {
+    setTab(resolvedTab);
+  }, [resolvedTab]);
+
+  const onTabChange = useCallback(
+    (next: PayrollTab) => {
+      setTab(next);
+      navigateCompat("payroll", "list", undefined, next === "overview" ? undefined : next);
+    },
+    [navigateCompat],
+  );
 
   useEffect(() => {
     Promise.all([
@@ -70,14 +85,14 @@ export function PayrollModule() {
       setReimbCount((reimbRes.reimbursements ?? []).length);
       setBonusCount((bonusRes.bonuses ?? []).length);
       setLoanCount((loansRes.loans ?? []).length);
-      setUpcomingDue((statutoryRes.returns ?? []).filter((r: any) => r.status !== "Filed").length);
+      setUpcomingDue((statutoryRes.returns ?? []).filter((r: { status: string }) => r.status !== "Filed").length);
       const currentCycle = cycles[0];
       setKpis({
-        totalPayrollCost: payslips.reduce((s: number, p: any) => s + p.gross + p.employerPF + p.employerESI, 0),
+        totalPayrollCost: payslips.reduce((s: number, p: { gross: number; employerPF: number; employerESI: number }) => s + p.gross + p.employerPF + p.employerESI, 0),
         netPayable: currentCycle?.netTotal ?? 0,
         currentCycleMonth: currentCycle?.month ?? "",
-        pendingApprovals: payslips.filter((p: any) => p.status === "Draft" || p.status === "Hold").length,
-        headcount: new Set(payslips.map((p: any) => p.empCode)).size,
+        pendingApprovals: payslips.filter((p: { status: string }) => p.status === "Draft" || p.status === "Hold").length,
+        headcount: new Set(payslips.map((p: { empCode: string }) => p.empCode)).size,
       });
     });
   }, []);
@@ -112,7 +127,7 @@ export function PayrollModule() {
         {PAYROLL_TABS.map((t) => (
           <button
             key={t.id}
-            onClick={() => setTab(t.id)}
+            onClick={() => onTabChange(t.id)}
             className={cn(
               "relative shrink-0 px-3 py-2.5 text-[13px] transition-colors tap",
               tab === t.id ? "font-medium text-foreground" : "text-muted-foreground hover:text-foreground",
@@ -125,7 +140,7 @@ export function PayrollModule() {
       </div>
 
       <div className="flex-1 pb-8">
-        {tab === "overview" && <OverviewTab onNavigate={(t) => setTab(t)} />}
+        {tab === "overview" && <OverviewTab onNavigate={(t) => onTabChange(t)} />}
         {tab === "cycles" && <PayCyclesTab />}
         {tab === "structures" && <SalaryStructuresTab />}
         {tab === "payslips" && <PayslipsTab />}
