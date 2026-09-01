@@ -85,3 +85,47 @@ describe("activeView URL sync contract", () => {
     expect(parsed).toEqual({ module: "dashboard", view: "list" });
   });
 });
+
+describe("navigation loop guards (B0R-1V)", () => {
+  beforeEach(() => {
+    useAppStore.setState({
+      activeView: {
+        module: "dashboard",
+        view: "list",
+        breadcrumb: [{ label: "Dashboard", module: "dashboard" }],
+      },
+      history: [],
+    });
+    vi.stubEnv("NEXT_PUBLIC_ROUTING_MIGRATION", "1");
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("syncActiveView is idempotent for matching dashboard state", () => {
+    const before = useAppStore.getState().activeView;
+    useAppStore.getState().syncActiveView("dashboard", "list");
+    const after = useAppStore.getState().activeView;
+    expect(after.module).toBe(before.module);
+    expect(after.view).toBe(before.view);
+    expect(useAppStore.getState().history).toHaveLength(0);
+  });
+
+  it("navigateCompatStatic does not push history when already on dashboard path", () => {
+    const historyBefore = useAppStore.getState().history.length;
+    vi.stubGlobal("window", { location: { pathname: "/app/dashboard" } });
+    navigateCompatStatic("dashboard");
+    expect(useAppStore.getState().history.length).toBe(historyBefore);
+    expect(useAppStore.getState().activeView.module).toBe("dashboard");
+    vi.unstubAllGlobals();
+  });
+
+  it("legacy navigate still adds history while syncActiveView does not", () => {
+    useAppStore.getState().navigate("trips");
+    expect(useAppStore.getState().history.length).toBe(1);
+    const histLen = useAppStore.getState().history.length;
+    useAppStore.getState().syncActiveView("trips", "list");
+    expect(useAppStore.getState().history.length).toBe(histLen);
+  });
+});

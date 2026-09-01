@@ -31,7 +31,10 @@ export function AppDesktopShell({ children }: { children: React.ReactNode }) {
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header />
         <AlertBanner />
-        <main className="scrollbar-thin flex flex-1 flex-col overflow-y-auto">
+        <main
+          className="scrollbar-thin flex flex-1 flex-col overflow-y-auto"
+          data-e2e-active-module={activeView.module}
+        >
           <div className="mx-auto w-full max-w-[1440px] px-4 py-4 sm:px-5 sm:py-5 lg:px-8">
             <ErrorBoundary label="Module">{children}</ErrorBoundary>
           </div>

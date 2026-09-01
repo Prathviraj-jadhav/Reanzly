@@ -1,23 +1,62 @@
 import { defineConfig, devices } from "@playwright/test";
+import { existsSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
 
 const PORT = process.env.PLAYWRIGHT_PORT ?? "3099";
 const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? `http://127.0.0.1:${PORT}`;
 
+/** Load DATABASE_URL (and peers) from repo root for real-session E2E. */
+function loadRootEnvFile(name: string): void {
+  const filePath = resolve(__dirname, "../..", name);
+  if (!existsSync(filePath)) return;
+  for (const line of readFileSync(filePath, "utf8").split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const eq = trimmed.indexOf("=");
+    if (eq <= 0) continue;
+    const key = trimmed.slice(0, eq).trim();
+    if (process.env[key]) continue;
+    let value = trimmed.slice(eq + 1).trim();
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1);
+    }
+    process.env[key] = value;
+  }
+}
+
+loadRootEnvFile(".env");
+loadRootEnvFile(".env.production");
+
+// Prisma + Supabase transaction pooler (6543) breaks prepared statements in dev;
+// prefer the direct session URL for deterministic E2E auth.
+if (process.env.DIRECT_URL && process.env.PLAYWRIGHT_USE_POOLER !== "1") {
+  process.env.DATABASE_URL = process.env.DIRECT_URL;
+}
+
+const migrationFlag = process.env.NEXT_PUBLIC_ROUTING_MIGRATION ?? "1";
+
 export default defineConfig({
   testDir: "./e2e",
-  fullyParallel: true,
+  fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  workers: 1,
+  timeout: 60_000,
   reporter: [["list"]],
   use: {
     baseURL,
     trace: "on-first-retry",
   },
   projects: [
+    { name: "setup", testMatch: /auth\.setup\.ts/ },
     {
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
+      dependencies: ["setup"],
+      testIgnore: /auth\.setup\.ts/,
     },
   ],
   webServer: process.env.PLAYWRIGHT_SKIP_WEBSERVER
@@ -26,10 +65,14 @@ export default defineConfig({
         command: `npx next dev -p ${PORT}`,
         url: baseURL,
         reuseExistingServer: false,
-        timeout: 120_000,
+        timeout: 180_000,
         env: {
           ...process.env,
-          NEXT_PUBLIC_ROUTING_MIGRATION: process.env.NEXT_PUBLIC_ROUTING_MIGRATION ?? "1",
+          E2E_TEST_MODE: "1",
+          NEXT_PUBLIC_ROUTING_MIGRATION: migrationFlag,
+          // Keep auth on Next.js route handlers during E2E (Fastify not started).
+          NEXT_PUBLIC_AUTH_API_VERSION: "legacy",
+          REANZLY_AUTH_API_VERSION: "legacy",
         },
       },
 });

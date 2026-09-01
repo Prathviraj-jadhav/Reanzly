@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { useAppStore } from "@/lib/store/app-store";
@@ -23,11 +23,18 @@ export function AppRouteShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const { isAuthenticated, portal, currentRole, restoreSession } = useAppStore();
+  const [sessionChecked, setSessionChecked] = useState(false);
 
   useActiveViewSync();
 
   useEffect(() => {
-    restoreSession();
+    let active = true;
+    void restoreSession().finally(() => {
+      if (active) setSessionChecked(true);
+    });
+    return () => {
+      active = false;
+    };
   }, [restoreSession]);
 
   const hydrated = useSyncExternalStore(
@@ -37,7 +44,7 @@ export function AppRouteShell({ children }: { children: React.ReactNode }) {
   );
 
   useEffect(() => {
-    if (!hydrated) return;
+    if (!hydrated || !sessionChecked) return;
     if (!isAuthenticated) {
       router.replace(buildLoginUrl(pathname));
       return;
@@ -54,9 +61,9 @@ export function AppRouteShell({ children }: { children: React.ReactNode }) {
     if (nonAppPortal) {
       router.replace("/dashboard");
     }
-  }, [hydrated, isAuthenticated, portal, currentRole.id, pathname, router]);
+  }, [hydrated, sessionChecked, isAuthenticated, portal, currentRole.id, pathname, router]);
 
-  if (!hydrated) {
+  if (!hydrated || !sessionChecked) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background text-foreground">
         <div className="flex items-center gap-2.5">

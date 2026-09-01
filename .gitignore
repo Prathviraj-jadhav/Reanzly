@@ -50,6 +50,10 @@ Thumbs.db
 # Fastembed Cache
 **/.fastembed_cache/
 
+# Playwright E2E artifacts
+apps/web/test-results/
+apps/web/e2e/fixtures/.auth/
+
 # Local Claude settings
 .claude/
 
