@@ -8,6 +8,7 @@ import { authRoutes } from "./routes/auth.js";
 import { remindersRoutes } from "./modules/reminders/routes.js";
 import { knowledgeRoutes } from "./modules/knowledge/routes.js";
 import { helpdeskRoutes } from "./modules/helpdesk/routes.js";
+import { warehouseRoutes } from "./modules/warehouse/routes.js";
 
 export async function buildApp() {
   const env = loadApiEnv();
@@ -33,6 +34,7 @@ export async function buildApp() {
   await app.register(remindersRoutes);
   await app.register(knowledgeRoutes);
   await app.register(helpdeskRoutes);
+  await app.register(warehouseRoutes);
 
   return { app, env };
 }

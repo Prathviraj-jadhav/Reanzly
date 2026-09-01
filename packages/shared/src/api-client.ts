@@ -36,6 +36,9 @@ const DOMAIN_VERSION: Record<string, "v1" | "legacy"> = {
   get helpdesk() {
     return resolvePilotDomainVersion("helpdesk");
   },
+  get warehouse() {
+    return resolvePilotDomainVersion("warehouse");
+  },
 };
 
 function resolveApiUrl(path: string, domain: ApiDomain = "legacy"): string {

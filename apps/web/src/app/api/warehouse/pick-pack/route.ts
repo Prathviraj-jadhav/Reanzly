@@ -1,3 +1,5 @@
+/** @deprecated Use /api/v1/warehouse/* (Fastify). Rollback via `NEXT_PUBLIC_WAREHOUSE_API_VERSION=legacy`. */
+
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";

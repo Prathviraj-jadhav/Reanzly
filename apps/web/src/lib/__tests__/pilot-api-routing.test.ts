@@ -8,6 +8,7 @@ describe("api client pilot domain routing", () => {
     delete process.env.NEXT_PUBLIC_REMINDERS_API_VERSION;
     delete process.env.NEXT_PUBLIC_KNOWLEDGE_API_VERSION;
     delete process.env.NEXT_PUBLIC_HELPDESK_API_VERSION;
+    delete process.env.NEXT_PUBLIC_WAREHOUSE_API_VERSION;
   });
 
   afterEach(() => {
@@ -55,5 +56,34 @@ describe("api client pilot domain routing", () => {
 
     await api("helpdesk/TKT-2841", { domain: "helpdesk" });
     expect(calls).toEqual(["/api/v1/helpdesk/TKT-2841"]);
+  });
+
+  it("routes warehouse skus to v1 by default", async () => {
+    const calls: string[] = [];
+    globalThis.fetch = (async (input: RequestInfo | URL) => {
+      calls.push(typeof input === "string" ? input : input.toString());
+      return new Response(JSON.stringify({ skus: [] }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    }) as typeof fetch;
+
+    await api("warehouse/skus", { domain: "warehouse" });
+    expect(calls).toEqual(["/api/v1/warehouse/skus"]);
+  });
+
+  it("routes warehouse to legacy when flag set", async () => {
+    process.env.NEXT_PUBLIC_WAREHOUSE_API_VERSION = "legacy";
+    const calls: string[] = [];
+    globalThis.fetch = (async (input: RequestInfo | URL) => {
+      calls.push(typeof input === "string" ? input : input.toString());
+      return new Response(JSON.stringify({ skus: [] }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    }) as typeof fetch;
+
+    await api("warehouse/skus", { domain: "warehouse" });
+    expect(calls).toEqual(["/api/warehouse/skus"]);
   });
 });

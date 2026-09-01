@@ -1,4 +1,39 @@
 import { create } from "zustand";
+import {
+  fetchWarehouseSkus,
+  createWarehouseSku,
+  patchWarehouseSku,
+  fetchWarehouseInbounds,
+  createWarehouseInbound,
+  patchWarehouseInbound,
+  fetchWarehouseOutbounds,
+  createWarehouseOutbound,
+  patchWarehouseOutbound,
+  fetchWarehouseLocations,
+  createWarehouseLocation,
+  patchWarehouseLocation,
+  fetchWarehousePodReceives,
+  createWarehousePodReceive,
+  patchWarehousePodReceive,
+  fetchWarehousePickLists,
+  createWarehousePickList,
+  patchWarehousePickList,
+  fetchWarehouseCycleCounts,
+  createWarehouseCycleCount,
+  patchWarehouseCycleCount,
+  fetchWarehouseCrossDocks,
+  createWarehouseCrossDock,
+  patchWarehouseCrossDock,
+  fetchWarehouseReturns,
+  createWarehouseReturn,
+  patchWarehouseReturn,
+  fetchWarehouseYards,
+  createWarehouseYard,
+  patchWarehouseYard,
+  fetchWarehouseDockAppts,
+  createWarehouseDockAppt,
+  patchWarehouseDockAppt,
+} from "@/lib/warehouse-api";
 
 interface WarehouseState {
   skus: any[];
@@ -13,7 +48,7 @@ interface WarehouseState {
   yards: any[];
   dockAppts: any[];
   loading: boolean;
-  
+
   fetchSkus: () => Promise<void>;
   createSku: (data: any) => Promise<any>;
   updateSku: (id: string, data: any) => Promise<any>;
@@ -59,7 +94,7 @@ interface WarehouseState {
   updateDockAppt: (id: string, data: any) => Promise<any>;
 }
 
-export const useWarehouseStore = create<WarehouseState>((set, get) => ({
+export const useWarehouseStore = create<WarehouseState>((set) => ({
   skus: [],
   shipmentsIn: [],
   shipmentsOut: [],
@@ -76,408 +111,220 @@ export const useWarehouseStore = create<WarehouseState>((set, get) => ({
   fetchSkus: async () => {
     set({ loading: true });
     try {
-      const res = await fetch("/api/warehouse/skus");
-      if (res.ok) {
-        const data = await res.json();
-        set({ skus: data.skus });
-      }
+      const skus = await fetchWarehouseSkus();
+      set({ skus });
     } finally {
       set({ loading: false });
     }
   },
   createSku: async (data: any) => {
-    const res = await fetch("/api/warehouse/skus", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-    if (res.ok) {
-      const { sku } = await res.json();
-      set((s) => ({ skus: [sku, ...s.skus] }));
-      return sku;
-    }
-    throw new Error("Failed");
+    const sku = await createWarehouseSku(data);
+    set((s) => ({ skus: [sku, ...s.skus] }));
+    return sku;
   },
   updateSku: async (id: string, data: any) => {
-    const res = await fetch(`/api/warehouse/skus/${id}`, {
-      method: "PATCH",
-      body: JSON.stringify(data),
-    });
-    if (res.ok) {
-      const { sku } = await res.json();
-      set((s) => ({ skus: s.skus.map((item) => (item.id === id ? sku : item)) }));
-      return sku;
-    }
-    throw new Error("Failed");
+    const sku = await patchWarehouseSku(id, data);
+    set((s) => ({ skus: s.skus.map((item) => (item.id === id ? sku : item)) }));
+    return sku;
   },
 
   fetchInbounds: async () => {
     set({ loading: true });
     try {
-      const res = await fetch("/api/warehouse/inbound");
-      if (res.ok) {
-        const data = await res.json();
-        set({ shipmentsIn: data.shipments });
-      }
+      const shipmentsIn = await fetchWarehouseInbounds();
+      set({ shipmentsIn });
     } finally {
       set({ loading: false });
     }
   },
   createInbound: async (data: any) => {
-    const res = await fetch("/api/warehouse/inbound", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-    if (res.ok) {
-      const { shipment } = await res.json();
-      set((s) => ({ shipmentsIn: [shipment, ...s.shipmentsIn] }));
-      return shipment;
-    }
-    throw new Error("Failed");
+    const shipment = await createWarehouseInbound(data);
+    set((s) => ({ shipmentsIn: [shipment, ...s.shipmentsIn] }));
+    return shipment;
   },
   updateInbound: async (id: string, data: any) => {
-    const res = await fetch(`/api/warehouse/inbound/${id}`, {
-      method: "PATCH",
-      body: JSON.stringify(data),
-    });
-    if (res.ok) {
-      const { shipment } = await res.json();
-      set((s) => ({ shipmentsIn: s.shipmentsIn.map((item) => (item.id === id ? shipment : item)) }));
-      return shipment;
-    }
-    throw new Error("Failed");
+    const shipment = await patchWarehouseInbound(id, data);
+    set((s) => ({ shipmentsIn: s.shipmentsIn.map((item) => (item.id === id ? shipment : item)) }));
+    return shipment;
   },
 
   fetchOutbounds: async () => {
     set({ loading: true });
     try {
-      const res = await fetch("/api/warehouse/outbound");
-      if (res.ok) {
-        const data = await res.json();
-        set({ shipmentsOut: data.shipments });
-      }
+      const shipmentsOut = await fetchWarehouseOutbounds();
+      set({ shipmentsOut });
     } finally {
       set({ loading: false });
     }
   },
   createOutbound: async (data: any) => {
-    const res = await fetch("/api/warehouse/outbound", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-    if (res.ok) {
-      const { shipment } = await res.json();
-      set((s) => ({ shipmentsOut: [shipment, ...s.shipmentsOut] }));
-      return shipment;
-    }
-    throw new Error("Failed");
+    const shipment = await createWarehouseOutbound(data);
+    set((s) => ({ shipmentsOut: [shipment, ...s.shipmentsOut] }));
+    return shipment;
   },
   updateOutbound: async (id: string, data: any) => {
-    const res = await fetch(`/api/warehouse/outbound/${id}`, {
-      method: "PATCH",
-      body: JSON.stringify(data),
-    });
-    if (res.ok) {
-      const { shipment } = await res.json();
-      set((s) => ({ shipmentsOut: s.shipmentsOut.map((item) => (item.id === id ? shipment : item)) }));
-      return shipment;
-    }
-    throw new Error("Failed");
+    const shipment = await patchWarehouseOutbound(id, data);
+    set((s) => ({ shipmentsOut: s.shipmentsOut.map((item) => (item.id === id ? shipment : item)) }));
+    return shipment;
   },
 
   fetchLocations: async () => {
     set({ loading: true });
     try {
-      const res = await fetch("/api/warehouse/storage");
-      if (res.ok) {
-        const data = await res.json();
-        set({ locations: data.locations });
-      }
+      const locations = await fetchWarehouseLocations();
+      set({ locations });
     } finally {
       set({ loading: false });
     }
   },
   createLocation: async (data: any) => {
-    const res = await fetch("/api/warehouse/storage", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-    if (res.ok) {
-      const { location } = await res.json();
-      set((s) => ({ locations: [location, ...s.locations] }));
-      return location;
-    }
-    throw new Error("Failed");
+    const location = await createWarehouseLocation(data);
+    set((s) => ({ locations: [location, ...s.locations] }));
+    return location;
   },
   updateLocation: async (id: string, data: any) => {
-    const res = await fetch(`/api/warehouse/storage/${id}`, {
-      method: "PATCH",
-      body: JSON.stringify(data),
-    });
-    if (res.ok) {
-      const { location } = await res.json();
-      set((s) => ({ locations: s.locations.map((item) => (item.id === id ? location : item)) }));
-      return location;
-    }
-    throw new Error("Failed");
+    const location = await patchWarehouseLocation(id, data);
+    set((s) => ({ locations: s.locations.map((item) => (item.id === id ? location : item)) }));
+    return location;
   },
 
   fetchPodReceives: async () => {
     set({ loading: true });
     try {
-      const res = await fetch("/api/warehouse/pod-receive");
-      if (res.ok) {
-        const data = await res.json();
-        set({ receives: data.receives });
-      }
+      const receives = await fetchWarehousePodReceives();
+      set({ receives });
     } finally {
       set({ loading: false });
     }
   },
   createPodReceive: async (data: any) => {
-    const res = await fetch("/api/warehouse/pod-receive", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-    if (res.ok) {
-      const { receive } = await res.json();
-      set((s) => ({ receives: [receive, ...s.receives] }));
-      return receive;
-    }
-    throw new Error("Failed");
+    const receive = await createWarehousePodReceive(data);
+    set((s) => ({ receives: [receive, ...s.receives] }));
+    return receive;
   },
   updatePodReceive: async (id: string, data: any) => {
-    const res = await fetch(`/api/warehouse/pod-receive/${id}`, {
-      method: "PATCH",
-      body: JSON.stringify(data),
-    });
-    if (res.ok) {
-      const { receive } = await res.json();
-      set((s) => ({ receives: s.receives.map((item) => (item.id === id ? receive : item)) }));
-      return receive;
-    }
-    throw new Error("Failed");
+    const receive = await patchWarehousePodReceive(id, data);
+    set((s) => ({ receives: s.receives.map((item) => (item.id === id ? receive : item)) }));
+    return receive;
   },
 
   fetchPickLists: async () => {
     set({ loading: true });
     try {
-      const res = await fetch("/api/warehouse/pick-pack");
-      if (res.ok) {
-        const data = await res.json();
-        set({ pickLists: data.pickLists });
-      }
+      const pickLists = await fetchWarehousePickLists();
+      set({ pickLists });
     } finally {
       set({ loading: false });
     }
   },
   createPickList: async (data: any) => {
-    const res = await fetch("/api/warehouse/pick-pack", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-    if (res.ok) {
-      const { pickList } = await res.json();
-      set((s) => ({ pickLists: [pickList, ...s.pickLists] }));
-      return pickList;
-    }
-    throw new Error("Failed");
+    const pickList = await createWarehousePickList(data);
+    set((s) => ({ pickLists: [pickList, ...s.pickLists] }));
+    return pickList;
   },
   updatePickList: async (id: string, data: any) => {
-    const res = await fetch(`/api/warehouse/pick-pack/${id}`, {
-      method: "PATCH",
-      body: JSON.stringify(data),
-    });
-    if (res.ok) {
-      const { pickList } = await res.json();
-      set((s) => ({ pickLists: s.pickLists.map((item) => (item.id === id ? pickList : item)) }));
-      return pickList;
-    }
-    throw new Error("Failed");
+    const pickList = await patchWarehousePickList(id, data);
+    set((s) => ({ pickLists: s.pickLists.map((item) => (item.id === id ? pickList : item)) }));
+    return pickList;
   },
 
   fetchCounts: async () => {
     set({ loading: true });
     try {
-      const res = await fetch("/api/warehouse/cycle-count");
-      if (res.ok) {
-        const data = await res.json();
-        set({ counts: data.counts });
-      }
+      const counts = await fetchWarehouseCycleCounts();
+      set({ counts });
     } finally {
       set({ loading: false });
     }
   },
   createCount: async (data: any) => {
-    const res = await fetch("/api/warehouse/cycle-count", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-    if (res.ok) {
-      const { count } = await res.json();
-      set((s) => ({ counts: [count, ...s.counts] }));
-      return count;
-    }
-    throw new Error("Failed");
+    const count = await createWarehouseCycleCount(data);
+    set((s) => ({ counts: [count, ...s.counts] }));
+    return count;
   },
   updateCount: async (id: string, data: any) => {
-    const res = await fetch(`/api/warehouse/cycle-count/${id}`, {
-      method: "PATCH",
-      body: JSON.stringify(data),
-    });
-    if (res.ok) {
-      const { count } = await res.json();
-      set((s) => ({ counts: s.counts.map((item) => (item.id === id ? count : item)) }));
-      return count;
-    }
-    throw new Error("Failed");
+    const count = await patchWarehouseCycleCount(id, data);
+    set((s) => ({ counts: s.counts.map((item) => (item.id === id ? count : item)) }));
+    return count;
   },
 
   fetchCrossDocks: async () => {
     set({ loading: true });
     try {
-      const res = await fetch("/api/warehouse/cross-dock");
-      if (res.ok) {
-        const data = await res.json();
-        set({ crossDocks: data.crossDocks });
-      }
+      const crossDocks = await fetchWarehouseCrossDocks();
+      set({ crossDocks });
     } finally {
       set({ loading: false });
     }
   },
   createCrossDock: async (data: any) => {
-    const res = await fetch("/api/warehouse/cross-dock", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-    if (res.ok) {
-      const { crossDock } = await res.json();
-      set((s) => ({ crossDocks: [crossDock, ...s.crossDocks] }));
-      return crossDock;
-    }
-    throw new Error("Failed");
+    const crossDock = await createWarehouseCrossDock(data);
+    set((s) => ({ crossDocks: [crossDock, ...s.crossDocks] }));
+    return crossDock;
   },
   updateCrossDock: async (id: string, data: any) => {
-    const res = await fetch(`/api/warehouse/cross-dock/${id}`, {
-      method: "PATCH",
-      body: JSON.stringify(data),
-    });
-    if (res.ok) {
-      const { crossDock } = await res.json();
-      set((s) => ({ crossDocks: s.crossDocks.map((item) => (item.id === id ? crossDock : item)) }));
-      return crossDock;
-    }
-    throw new Error("Failed");
+    const crossDock = await patchWarehouseCrossDock(id, data);
+    set((s) => ({ crossDocks: s.crossDocks.map((item) => (item.id === id ? crossDock : item)) }));
+    return crossDock;
   },
 
   fetchReturns: async () => {
     set({ loading: true });
     try {
-      const res = await fetch("/api/warehouse/returns");
-      if (res.ok) {
-        const data = await res.json();
-        set({ returns: data });
-      }
+      const returns = await fetchWarehouseReturns();
+      set({ returns });
     } finally {
       set({ loading: false });
     }
   },
   createReturn: async (data: any) => {
-    const res = await fetch("/api/warehouse/returns", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-    if (res.ok) {
-      const returnItem = await res.json();
-      set((s) => ({ returns: [returnItem, ...s.returns] }));
-      return returnItem;
-    }
-    throw new Error("Failed");
+    const returnItem = await createWarehouseReturn(data);
+    set((s) => ({ returns: [returnItem, ...s.returns] }));
+    return returnItem;
   },
   updateReturn: async (id: string, data: any) => {
-    const res = await fetch(`/api/warehouse/returns/${id}`, {
-      method: "PATCH",
-      body: JSON.stringify(data),
-    });
-    if (res.ok) {
-      const returnItem = await res.json();
-      set((s) => ({ returns: s.returns.map((item) => (item.id === id ? returnItem : item)) }));
-      return returnItem;
-    }
-    throw new Error("Failed");
+    const returnItem = await patchWarehouseReturn(id, data);
+    set((s) => ({ returns: s.returns.map((item) => (item.id === id ? returnItem : item)) }));
+    return returnItem;
   },
 
   fetchYards: async () => {
     set({ loading: true });
     try {
-      const res = await fetch("/api/warehouse/yard");
-      if (res.ok) {
-        const data = await res.json();
-        set({ yards: data });
-      }
+      const yards = await fetchWarehouseYards();
+      set({ yards });
     } finally {
       set({ loading: false });
     }
   },
   createYard: async (data: any) => {
-    const res = await fetch("/api/warehouse/yard", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-    if (res.ok) {
-      const yard = await res.json();
-      set((s) => ({ yards: [yard, ...s.yards] }));
-      return yard;
-    }
-    throw new Error("Failed");
+    const yard = await createWarehouseYard(data);
+    set((s) => ({ yards: [yard, ...s.yards] }));
+    return yard;
   },
   updateYard: async (id: string, data: any) => {
-    const res = await fetch(`/api/warehouse/yard/${id}`, {
-      method: "PATCH",
-      body: JSON.stringify(data),
-    });
-    if (res.ok) {
-      const yard = await res.json();
-      set((s) => ({ yards: s.yards.map((item) => (item.id === id ? yard : item)) }));
-      return yard;
-    }
-    throw new Error("Failed");
+    const yard = await patchWarehouseYard(id, data);
+    set((s) => ({ yards: s.yards.map((item) => (item.id === id ? yard : item)) }));
+    return yard;
   },
 
   fetchDockAppts: async () => {
     set({ loading: true });
     try {
-      const res = await fetch("/api/warehouse/dock-appt");
-      if (res.ok) {
-        const data = await res.json();
-        set({ dockAppts: data });
-      }
+      const dockAppts = await fetchWarehouseDockAppts();
+      set({ dockAppts });
     } finally {
       set({ loading: false });
     }
   },
   createDockAppt: async (data: any) => {
-    const res = await fetch("/api/warehouse/dock-appt", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-    if (res.ok) {
-      const appt = await res.json();
-      set((s) => ({ dockAppts: [appt, ...s.dockAppts] }));
-      return appt;
-    }
-    throw new Error("Failed");
+    const appt = await createWarehouseDockAppt(data);
+    set((s) => ({ dockAppts: [appt, ...s.dockAppts] }));
+    return appt;
   },
   updateDockAppt: async (id: string, data: any) => {
-    const res = await fetch(`/api/warehouse/dock-appt/${id}`, {
-      method: "PATCH",
-      body: JSON.stringify(data),
-    });
-    if (res.ok) {
-      const appt = await res.json();
-      set((s) => ({ dockAppts: s.dockAppts.map((item) => (item.id === id ? appt : item)) }));
-      return appt;
-    }
-    throw new Error("Failed");
+    const appt = await patchWarehouseDockAppt(id, data);
+    set((s) => ({ dockAppts: s.dockAppts.map((item) => (item.id === id ? appt : item)) }));
+    return appt;
   },
-
 }));

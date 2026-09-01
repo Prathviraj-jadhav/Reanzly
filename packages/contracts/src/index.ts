@@ -35,6 +35,8 @@ export {
   type HelpdeskTicketDto,
 } from "./helpdesk";
 
+export * from "./warehouse";
+
 export {
   SessionUserSchema,
   LoginRequestSchema,

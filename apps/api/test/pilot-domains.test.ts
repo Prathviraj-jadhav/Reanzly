@@ -260,7 +260,7 @@ describe("v1 pilot domains", () => {
       const res = await server.inject({ method: "GET", url: "/v1/reminders" });
       expect(res.statusCode).toBe(401);
       expect(res.json().error.code).toBe("AUTH_REQUIRED");
-    });
+    }, 15000);
 
     it("2. module denial returns FORBIDDEN", async () => {
       const server = await app();

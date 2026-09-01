@@ -2,7 +2,7 @@ openapi: 3.1.0
 info:
   title: Reanzly API v1 — Pilot Domains
   version: 0.2.1
-  description: Reminders, Knowledge, and Helpdesk endpoints migrated in B0A-2.
+  description: Reminders, Knowledge, Helpdesk (B0A-2), and Warehouse (B0A-3) endpoints.
 
 paths:
   /v1/reminders:
@@ -126,6 +126,358 @@ paths:
       responses:
         "200":
           description: Updated ticket
+
+  /v1/warehouse/skus:
+    get:
+      summary: List warehouse SKUs for tenant
+      responses:
+        "200":
+          description: "{ skus: WarehouseSku[] }"
+        "401":
+          description: AUTH_REQUIRED
+        "403":
+          description: FORBIDDEN
+    post:
+      summary: Create SKU
+      responses:
+        "201":
+          description: "{ sku }"
+        "400":
+          description: VALIDATION_ERROR
+
+  /v1/warehouse/skus/{id}:
+    patch:
+      summary: Update SKU
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "{ sku }"
+        "404":
+          description: NOT_FOUND
+
+  /v1/warehouse/inbound:
+    get:
+      summary: List inbound shipments
+      responses:
+        "200":
+          description: "{ shipments: WarehouseInbound[] }"
+    post:
+      summary: Create inbound shipment
+      responses:
+        "201":
+          description: "{ shipment }"
+
+  /v1/warehouse/inbound/{id}:
+    patch:
+      summary: Update inbound shipment
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "{ shipment }"
+
+  /v1/warehouse/outbound:
+    get:
+      summary: List outbound shipments
+      responses:
+        "200":
+          description: "{ shipments: WarehouseOutbound[] }"
+    post:
+      summary: Create outbound shipment
+      responses:
+        "201":
+          description: "{ shipment }"
+
+  /v1/warehouse/outbound/{id}:
+    patch:
+      summary: Update outbound shipment
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "{ shipment }"
+
+  /v1/warehouse/storage:
+    get:
+      summary: List storage locations
+      responses:
+        "200":
+          description: "{ locations: WarehouseStorageLocation[] }"
+    post:
+      summary: Create storage location
+      responses:
+        "201":
+          description: "{ location }"
+
+  /v1/warehouse/storage/{id}:
+    patch:
+      summary: Update storage location
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "{ location }"
+
+  /v1/warehouse/pod-receive:
+    get:
+      summary: List POD receive records
+      responses:
+        "200":
+          description: "{ receives: WarehousePodReceive[] }"
+    post:
+      summary: Create POD receive record
+      responses:
+        "201":
+          description: "{ receive }"
+
+  /v1/warehouse/pod-receive/{id}:
+    patch:
+      summary: Update POD receive record
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "{ receive }"
+
+  /v1/warehouse/pick-pack:
+    get:
+      summary: List pick lists (pick-pack UI)
+      responses:
+        "200":
+          description: "{ pickLists: WarehousePickList[] }"
+    post:
+      summary: Create pick list
+      responses:
+        "201":
+          description: "{ pickList }"
+
+  /v1/warehouse/pick-pack/{id}:
+    patch:
+      summary: Update pick list
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "{ pickList }"
+
+  /v1/warehouse/pick-list:
+    get:
+      summary: List pick lists (legacy raw array)
+      responses:
+        "200":
+          description: WarehousePickList[]
+    post:
+      summary: Create pick list (legacy raw row)
+      responses:
+        "200":
+          description: WarehousePickList
+
+  /v1/warehouse/pick-list/{id}:
+    patch:
+      summary: Update pick list (legacy)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: WarehousePickList
+    delete:
+      summary: Delete pick list
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "{ success: true }"
+
+  /v1/warehouse/cycle-count:
+    get:
+      summary: List cycle counts
+      responses:
+        "200":
+          description: "{ counts: WarehouseCycleCount[] }"
+    post:
+      summary: Create cycle count
+      responses:
+        "201":
+          description: "{ count }"
+
+  /v1/warehouse/cycle-count/{id}:
+    patch:
+      summary: Update cycle count
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "{ count }"
+
+  /v1/warehouse/cross-dock:
+    get:
+      summary: List cross-dock records
+      responses:
+        "200":
+          description: "{ crossDocks: WarehouseCrossDock[] }"
+    post:
+      summary: Create cross-dock record
+      responses:
+        "201":
+          description: "{ crossDock }"
+
+  /v1/warehouse/cross-dock/{id}:
+    patch:
+      summary: Update cross-dock record
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "{ crossDock }"
+
+  /v1/warehouse/returns:
+    get:
+      summary: List returns (legacy raw array)
+      responses:
+        "200":
+          description: WarehouseReturn[]
+    post:
+      summary: Create return (legacy raw row)
+      responses:
+        "200":
+          description: WarehouseReturn
+
+  /v1/warehouse/returns/{id}:
+    patch:
+      summary: Update return
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: WarehouseReturn
+    delete:
+      summary: Delete return
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "{ success: true }"
+
+  /v1/warehouse/yard:
+    get:
+      summary: List yard movements (legacy raw array)
+      responses:
+        "200":
+          description: WarehouseYard[]
+    post:
+      summary: Create yard movement
+      responses:
+        "200":
+          description: WarehouseYard
+
+  /v1/warehouse/yard/{id}:
+    patch:
+      summary: Update yard movement
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: WarehouseYard
+    delete:
+      summary: Delete yard movement
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "{ success: true }"
+
+  /v1/warehouse/dock-appt:
+    get:
+      summary: List dock appointments (legacy raw array)
+      responses:
+        "200":
+          description: WarehouseDockAppt[]
+    post:
+      summary: Create dock appointment
+      responses:
+        "200":
+          description: WarehouseDockAppt
+
+  /v1/warehouse/dock-appt/{id}:
+    patch:
+      summary: Update dock appointment
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: WarehouseDockAppt
+    delete:
+      summary: Delete dock appointment
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "{ success: true }"
 
 components:
   schemas:

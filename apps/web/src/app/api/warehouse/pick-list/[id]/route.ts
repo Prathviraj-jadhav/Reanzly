@@ -1,3 +1,5 @@
+/** @deprecated Use /api/v1/warehouse/* (Fastify). Rollback via NEXT_PUBLIC_WAREHOUSE_API_VERSION=legacy. */
+
 import { NextResponse } from 'next/server';
 import { db as prisma } from '@/lib/db';
 import { getSessionUser } from '@/lib/auth';
