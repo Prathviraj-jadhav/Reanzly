@@ -12,6 +12,12 @@ import {
 } from "@/lib/store/app-store";
 import { ROLE_ARCHETYPES } from "@/lib/mock-data";
 import {
+  authSignupDriver,
+  authSignupShipper,
+  authSignupBroker,
+  authErrorMessage,
+} from "@/lib/auth-api";
+import {
   ONBOARDING_MODULES,
   recommendedPackFor,
   SUBSCRIPTION_MODELS,
@@ -433,23 +439,14 @@ export function SignupScreen() {
 
     setDriverSubmitting(true);
     try {
-      const res = await fetch("/api/auth/signup-driver", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...driverForm,
-          phone: cleanPhone.slice(-10),
-        }),
+      await authSignupDriver({
+        ...driverForm,
+        phone: cleanPhone.slice(-10),
       });
-      const data = await res.json();
-      if (!res.ok) {
-        setDriverError(data.error || "Driver signup failed.");
-      } else {
-        toast.success("Driver account and vehicle listed successfully!");
-        useAppStore.getState().login(driverForm.email.trim(), "driver", "app", `Driver: ${driverForm.name.trim()}`);
-      }
+      toast.success("Driver account and vehicle listed successfully!");
+      useAppStore.getState().login(driverForm.email.trim(), "driver", "app", `Driver: ${driverForm.name.trim()}`);
     } catch (err) {
-      setDriverError("Could not reach the server. Try again.");
+      setDriverError(authErrorMessage(err, "Could not reach the server. Try again."));
     } finally {
       setDriverSubmitting(false);
     }
@@ -484,23 +481,14 @@ export function SignupScreen() {
 
     setShipperSubmitting(true);
     try {
-      const res = await fetch("/api/auth/signup-shipper", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...shipperForm,
-          phone: cleanPhone.slice(-10),
-        }),
+      await authSignupShipper({
+        ...shipperForm,
+        phone: cleanPhone.slice(-10),
       });
-      const data = await res.json();
-      if (!res.ok) {
-        setShipperError(data.error || "Shipper signup failed.");
-      } else {
-        toast.success("Shipper account created successfully!");
-        useAppStore.getState().login(shipperForm.email.trim(), "customer", "vendor", shipperForm.companyName.trim());
-      }
+      toast.success("Shipper account created successfully!");
+      useAppStore.getState().login(shipperForm.email.trim(), "customer", "vendor", shipperForm.companyName.trim());
     } catch (err) {
-      setShipperError("Could not reach the server. Try again.");
+      setShipperError(authErrorMessage(err, "Could not reach the server. Try again."));
     } finally {
       setShipperSubmitting(false);
     }
@@ -539,23 +527,14 @@ export function SignupScreen() {
 
     setBrokerSubmitting(true);
     try {
-      const res = await fetch("/api/auth/signup-broker", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...brokerForm,
-          phone: cleanPhone.slice(-10),
-        }),
+      await authSignupBroker({
+        ...brokerForm,
+        phone: cleanPhone.slice(-10),
       });
-      const data = await res.json();
-      if (!res.ok) {
-        setBrokerError(data.error || "Broker signup failed.");
-      } else {
-        toast.success("Broker account created successfully!");
-        useAppStore.getState().login(brokerForm.email.trim(), "broker", "broker", brokerForm.companyName.trim());
-      }
+      toast.success("Broker account created successfully!");
+      useAppStore.getState().login(brokerForm.email.trim(), "broker", "broker", brokerForm.companyName.trim());
     } catch (err) {
-      setBrokerError("Could not reach the server. Try again.");
+      setBrokerError(authErrorMessage(err, "Could not reach the server. Try again."));
     } finally {
       setBrokerSubmitting(false);
     }

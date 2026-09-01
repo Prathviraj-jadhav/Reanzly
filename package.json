@@ -22,7 +22,7 @@
     "start": "npm run start -w @reanzly/web",
     "lint": "npm run lint -w @reanzly/web",
     "lint:seed": "npm run lint:seed -w @reanzly/web",
-    "typecheck": "npm run typecheck -w @reanzly/web && npm run typecheck -w @reanzly/api && npm run typecheck -w @reanzly/worker && npm run typecheck -w @reanzly/contracts && npm run typecheck -w @reanzly/shared && npm run typecheck -w @reanzly/database",
+    "typecheck": "npm run typecheck -w @reanzly/web && npm run typecheck -w @reanzly/api && npm run typecheck -w @reanzly/worker && npm run typecheck -w @reanzly/contracts && npm run typecheck -w @reanzly/shared && npm run typecheck -w @reanzly/database && npm run typecheck -w @reanzly/auth",
     "test": "vitest run",
     "test:watch": "vitest",
     "db:push": "npm run db:push -w @reanzly/database",

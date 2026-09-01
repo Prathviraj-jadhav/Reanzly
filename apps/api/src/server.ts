@@ -3,6 +3,7 @@ import cors from "@fastify/cors";
 import { loadApiEnv } from "./env.js";
 import { registerErrorHandler } from "./plugins/error-handler.js";
 import { healthRoutes } from "./routes/health.js";
+import { authRoutes } from "./routes/auth.js";
 
 export async function buildApp() {
   const env = loadApiEnv();
@@ -19,6 +20,7 @@ export async function buildApp() {
 
   registerErrorHandler(app);
   await app.register(healthRoutes);
+  await app.register(authRoutes);
 
   return { app, env };
 }

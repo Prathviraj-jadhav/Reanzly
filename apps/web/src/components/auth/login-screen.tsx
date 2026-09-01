@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useAppStore, type PortalType } from "@/lib/store/app-store";
 import { ROLE_ARCHETYPES } from "@/lib/mock-data";
 import { pick } from "@/lib/content/savage-placeholders";
+import { authForgotPassword, authErrorMessage } from "@/lib/auth-api";
 import { cn } from "@/lib/utils";
 import {
   Truck,
@@ -168,24 +169,15 @@ export function LoginScreen() {
 
     setSubmitting(true);
     try {
-      const res = await fetch("/api/auth/forgot-password", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: resetEmail.trim(), newPassword: resetNewPassword.trim() }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error || "Failed to reset password.");
-      } else {
-        setResetSuccessMsg("Password reset successfully! Redirecting...");
-        setTimeout(() => {
-          setEmail(resetEmail);
-          setMode("login");
-          setResetSuccessMsg(null);
-        }, 1500);
-      }
+      await authForgotPassword(resetEmail.trim(), resetNewPassword.trim());
+      setResetSuccessMsg("Password reset successfully! Redirecting...");
+      setTimeout(() => {
+        setEmail(resetEmail);
+        setMode("login");
+        setResetSuccessMsg(null);
+      }, 1500);
     } catch (err) {
-      setError("Could not reach the server. Try again.");
+      setError(authErrorMessage(err, "Could not reach the server. Try again."));
     } finally {
       setSubmitting(false);
     }

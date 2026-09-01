@@ -45,6 +45,7 @@
     "@radix-ui/react-toggle-group": "^1.1.10",
     "@radix-ui/react-tooltip": "^1.2.7",
     "@reactuses/core": "^6.0.5",
+    "@reanzly/auth": "0.0.0",
     "@reanzly/contracts": "0.0.0",
     "@reanzly/database": "0.0.0",
     "@reanzly/shared": "0.0.0",

@@ -27,6 +27,7 @@ import { AutosaveIndicator } from "@/components/shared/autosave-indicator";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { searchPlaceholders } from "@/lib/content/savage-placeholders";
 import { toastInfo } from "@/lib/toast";
+import { authSwitchRole, authErrorMessage } from "@/lib/auth-api";
 
 // Savage search placeholders - rotates every 3.2s with a smart-aleck ops buddy voice.
 // Falls back to the first item on the server so SSR markup is stable.
@@ -307,20 +308,10 @@ export function Header() {
     if (roleId === currentRole.id || switchingRole) return;
     setSwitchingRole(roleId);
     try {
-      const res = await fetch("/api/auth/switch-role", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ roleId }),
-      });
-      if (!res.ok) {
-        const { error } = await res.json().catch(() => ({ error: "Could not switch role." }));
-        toastInfo("Could not switch role", error);
-        setSwitchingRole(null);
-        return;
-      }
+      await authSwitchRole(roleId);
       window.location.reload();
-    } catch {
-      toastInfo("Could not switch role", "Network error - try again.");
+    } catch (error) {
+      toastInfo("Could not switch role", authErrorMessage(error, "Network error - try again."));
       setSwitchingRole(null);
     }
   };

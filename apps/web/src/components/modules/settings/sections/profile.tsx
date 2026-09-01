@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/select";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { toast } from "sonner";
+import { authGetProfile, authPatchProfile, authErrorMessage } from "@/lib/auth-api";
 import {
   User, Mail, Phone, MapPin, Briefcase, Camera, Calendar, Globe, Clock, Edit3, Save, X,
 } from "lucide-react";
@@ -58,8 +59,7 @@ export function ProfileSection() {
   const [draft, setDraft] = useState<ProfileData>(EMPTY_PROFILE);
 
   useEffect(() => {
-    fetch("/api/auth/profile")
-      .then((r) => (r.ok ? r.json() : Promise.reject(r)))
+    authGetProfile()
       .then(({ profile }) => {
         setData(profile);
         setDraft(profile);
@@ -74,20 +74,15 @@ export function ProfileSection() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const res = await fetch("/api/auth/profile", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(draft),
-      });
-      const body = await res.json();
-      if (!res.ok) {
-        toast.error("Couldn't save your profile", { description: body.error || "Try again." });
-        return;
-      }
+      const body = await authPatchProfile(draft);
       setData(body.profile);
       setDraft(body.profile);
       setEditing(false);
       toast.success("Profile updated", { description: "Your changes have been saved." });
+    } catch (error) {
+      toast.error("Couldn't save your profile", {
+        description: authErrorMessage(error, "Try again."),
+      });
     } finally {
       setSaving(false);
     }

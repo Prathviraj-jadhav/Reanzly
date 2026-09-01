@@ -9,6 +9,14 @@ import { ROLE_ARCHETYPES } from "@/lib/mock-data";
 // import does not create a runtime circular dependency - it's only used
 // inside the toggleModuleProvisioned() closure below.
 import { ONBOARDING_MODULES } from "@/lib/onboarding/module-catalog";
+import { ApiError } from "@reanzly/shared";
+import {
+  authLogin,
+  authLogout,
+  authMe,
+  authSignup,
+  authErrorMessage,
+} from "@/lib/auth-api";
 
 // ===== NAVIGATION TYPES =====
 // New module ids introduced for in-parallel module builds:
@@ -500,17 +508,7 @@ export const useAppStore = create<AppState>()(
       },
       loginWithPassword: async (email, password, portal = "app", orgName) => {
         try {
-          const res = await fetch("/api/auth/login", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email, password }),
-          });
-          const data = await res.json();
-          if (!res.ok) {
-            return { ok: false, error: data?.error || "Sign in failed." };
-          }
-          // data.user.role holds the ROLE_ARCHETYPES id (see seed-users.ts) -
-          // resolve it here rather than trusting anything from the client.
+          const data = await authLogin(email, password);
           const resolvedPortal =
             data.user.role === "superadmin"
               ? "superadmin"
@@ -521,18 +519,17 @@ export const useAppStore = create<AppState>()(
                   : portal;
           get().login(data.user.email, data.user.role, resolvedPortal, orgName);
           return { ok: true };
-        } catch {
-          return { ok: false, error: "Could not reach the server. Try again." };
+        } catch (error) {
+          return { ok: false, error: authErrorMessage(error, "Sign in failed.") };
         }
       },
       restoreSession: async () => {
         try {
-          const res = await fetch("/api/auth/me");
-          if (!res.ok) {
+          const { user } = await authMe();
+          if (!user) {
             if (get().isAuthenticated) set({ isAuthenticated: false, authUser: null });
             return;
           }
-          const { user } = await res.json();
           const role = ROLE_ARCHETYPES.find((r) => r.id === user.role) || ROLE_ARCHETYPES[0];
           const portal =
             user.role === "superadmin"
@@ -553,13 +550,14 @@ export const useAppStore = create<AppState>()(
             currentRole: role,
           });
           void get().fetchNotifications();
-        } catch {
-          // Network hiccup on boot - leave whatever state was persisted;
-          // the next authenticated API call will 401 and surface it properly.
+        } catch (error) {
+          if (error instanceof ApiError && error.status === 401) {
+            if (get().isAuthenticated) set({ isAuthenticated: false, authUser: null });
+          }
         }
       },
       logout: () => {
-        fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
+        authLogout().catch(() => {});
         set({
           isAuthenticated: false,
           authUser: null,
@@ -588,15 +586,7 @@ export const useAppStore = create<AppState>()(
           ...payload,
         };
         try {
-          const res = await fetch("/api/auth/signup", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ ...req }),
-          });
-          const data = await res.json();
-          if (!res.ok) {
-            return { ok: false, error: data?.error || "Failed to create account." };
-          }
+          const data = await authSignup({ ...req });
           // Auto-login on the App portal so the user can start their trial
           // immediately - the request remains pending for SuperAdmin review.
           get().login(payload.workEmail, payload.roleChoice, "app", payload.companyName);
@@ -624,9 +614,9 @@ export const useAppStore = create<AppState>()(
               : null,
           }));
           return { ok: true };
-        } catch (err: any) {
+        } catch (err: unknown) {
           console.error("Signup error:", err);
-          return { ok: false, error: "Could not reach the server. Try again." };
+          return { ok: false, error: authErrorMessage(err, "Could not reach the server. Try again.") };
         }
       },
       setSignupRequestStatus: (id, status) =>

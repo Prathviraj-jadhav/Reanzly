@@ -1,15 +1,23 @@
 import { HealthResponseSchema, type HealthResponse } from "@reanzly/contracts";
-import { parseApiError } from "./errors.js";
+import { parseApiError } from "./errors";
 
-export type ApiDomain = "health" | (string & {});
+export type ApiDomain = "health" | "auth" | (string & {});
 
 export type ApiRequestOptions = Omit<RequestInit, "credentials"> & {
   /** API routing domain; defaults to legacy `/api/*`. */
   domain?: ApiDomain;
 };
 
+function resolveAuthVersion(): "v1" | "legacy" {
+  const flag = process.env.NEXT_PUBLIC_AUTH_API_VERSION ?? process.env.REANZLY_AUTH_API_VERSION ?? "v1";
+  return flag === "legacy" ? "legacy" : "v1";
+}
+
 const DOMAIN_VERSION: Record<string, "v1" | "legacy"> = {
   health: "v1",
+  get auth() {
+    return resolveAuthVersion();
+  },
 };
 
 function resolveApiUrl(path: string, domain: ApiDomain = "legacy"): string {

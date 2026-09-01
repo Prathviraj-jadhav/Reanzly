@@ -1,9 +1,10 @@
-import { NextResponse } from "next/server";
-import { destroySession } from "@/lib/auth";
+import { handleAuthRouteError, handleLogout } from "@/lib/auth-routes";
 
-// POST /api/auth/logout - deletes the session row server-side (real
-// revocation, not just discarding a client-side value) and clears the cookie.
+/** @deprecated Compatibility shim — prefer /api/v1/auth/logout via api-client. */
 export async function POST() {
-  await destroySession();
-  return NextResponse.json({ ok: true });
+  try {
+    return await handleLogout();
+  } catch (error) {
+    return handleAuthRouteError(error);
+  }
 }

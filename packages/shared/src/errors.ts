@@ -23,6 +23,12 @@ export function parseApiError(status: number, body: unknown): ApiError {
   if (parsed.success) {
     return new ApiError(status, parsed.data.error);
   }
+  if (body && typeof body === "object" && "error" in body) {
+    const legacy = (body as { error: unknown }).error;
+    if (typeof legacy === "string") {
+      return new ApiError(status, { code: "unknown_error", message: legacy });
+    }
+  }
   return new ApiError(status, {
     code: "unknown_error",
     message: typeof body === "string" ? body : `Request failed with status ${status}`,

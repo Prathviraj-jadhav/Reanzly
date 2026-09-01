@@ -12,7 +12,9 @@
   },
   "dependencies": {
     "@fastify/cors": "^11.0.1",
+    "@reanzly/auth": "0.0.0",
     "@reanzly/contracts": "0.0.0",
+    "@reanzly/database": "0.0.0",
     "@reanzly/shared": "0.0.0",
     "fastify": "^5.4.0",
     "zod": "^4.0.2"
