@@ -1,8 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import { PageHeader } from "@/components/shared/page-header";
 import { cn } from "@/lib/utils";
+import { useAppStore } from "@/lib/store/app-store";
+import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
+import { resolveModuleView, type ModuleRouteState } from "@/lib/navigation/module-route-state";
 import {
   ShieldCheck,
   FileText,
@@ -32,8 +35,24 @@ import { AuditLogTab } from "./audit";
 import { ComplianceCalendarTab } from "./compliance-calendar";
 import { KpiTile } from "./_helpers";
 
-export function ComplianceModule() {
-  const [tab, setTab] = useState<ComplianceTab>("calendar");
+export function ComplianceModule({ route }: { route?: ModuleRouteState } = {}) {
+  const { activeView } = useAppStore();
+  const { navigateCompat } = useNavigateCompat();
+  const view = resolveModuleView(route, activeView, "compliance");
+  const resolvedTab = (view.tab as ComplianceTab | undefined) ?? "calendar";
+  const [tab, setTab] = useState<ComplianceTab>(resolvedTab);
+
+  useEffect(() => {
+    setTab(resolvedTab);
+  }, [resolvedTab]);
+
+  const onTabChange = useCallback(
+    (next: ComplianceTab) => {
+      setTab(next);
+      navigateCompat("compliance", "list", undefined, next === "calendar" ? undefined : next);
+    },
+    [navigateCompat],
+  );
 
   const kpis = useMemo(() => {
     const filed = STATUTORY_FILINGS.filter((f) => f.status === "Filed").length;
@@ -79,7 +98,7 @@ export function ComplianceModule() {
         {COMPLIANCE_TABS.map((t) => (
           <button
             key={t.id}
-            onClick={() => setTab(t.id)}
+            onClick={() => onTabChange(t.id)}
             className={cn(
               "relative shrink-0 px-3 py-2.5 text-[13px] transition-colors tap",
               tab === t.id ? "font-medium text-foreground" : "text-muted-foreground hover:text-foreground",

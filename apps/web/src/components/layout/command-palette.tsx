@@ -12,7 +12,7 @@ import {
   FolderArchive, BarChart3, Settings, Zap,
   Search, ArrowRight, Clock,
 } from "lucide-react";
-import { TRIPS, VEHICLES, DRIVERS, CUSTOMERS, INVOICES } from "@/lib/mock-data";
+import { TRIPS, VEHICLES, DRIVERS, CUSTOMERS, INVOICES, ISSUES, INSPECTIONS } from "@/lib/mock-data";
 
 interface ModuleShortcut {
   id: ModuleId;
@@ -183,6 +183,26 @@ export function CommandPalette() {
             <CommandItem key={c.id} onSelect={() => goDetail("customers", c.id)} className="gap-2">
               <Users className="h-4 w-4 text-muted-foreground" />
               <span className="flex-1">{c.companyName}</span>
+              <ArrowRight className="h-3 w-3 text-muted-foreground" />
+            </CommandItem>
+          ))}
+        </CommandGroup>
+
+        <CommandGroup heading="Issues">
+          {ISSUES.slice(0, 5).map((i) => (
+            <CommandItem key={i.id} onSelect={() => goDetail("issues", i.issueId)} className="gap-2">
+              <AlertCircle className="h-4 w-4 text-muted-foreground" />
+              <span className="flex-1">{i.issueId} · {i.title}</span>
+              <ArrowRight className="h-3 w-3 text-muted-foreground" />
+            </CommandItem>
+          ))}
+        </CommandGroup>
+
+        <CommandGroup heading="Inspections">
+          {INSPECTIONS.slice(0, 5).map((i) => (
+            <CommandItem key={i.id} onSelect={() => goDetail("inspection", i.inspectionId)} className="gap-2">
+              <ClipboardCheck className="h-4 w-4 text-muted-foreground" />
+              <span className="flex-1">{i.inspectionId} · {i.vehicle}</span>
               <ArrowRight className="h-3 w-3 text-muted-foreground" />
             </CommandItem>
           ))}

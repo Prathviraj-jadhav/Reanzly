@@ -3,7 +3,7 @@ import { useState, useMemo } from "react";
 import { DetailLayout, InfoRow, InfoSection, StatCard } from "@/components/shared/detail-layout";
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
-import { useAppStore } from "@/lib/store/app-store";
+import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
 import {
   Pencil,
   FileDown,
@@ -66,7 +66,7 @@ interface CheckDetailProps {
 }
 
 export function CheckDetail({ checkId, initialTab, checks, onUpdate }: CheckDetailProps) {
-  const { navigate, navigateDetail } = useAppStore();
+  const { navigateCompat: navigate, navigateDetailCompat: navigateDetail } = useNavigateCompat();
   const [activeTab, setActiveTab] = useState(initialTab || "overview");
   const check = useMemo<QualityCheck | undefined>(
     () => checks.find((c) => c.id === checkId),

@@ -1,6 +1,7 @@
 "use client";
 
 import { useAppStore, type ModuleId } from "@/lib/store/app-store";
+import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
 import {
@@ -292,9 +293,10 @@ export function Header() {
   const {
     toggleSidebar, setCommandOpen, setNotifOpen, notifications,
     companySwitchOpen, setCompanySwitchOpen, activeCompany,
-    currentRole, navigate, setTourOpen,
+    currentRole, setTourOpen,
     toggleMobileSidebar, logout, setAnnounceOpen, authUser,
   } = useAppStore();
+  const { navigateCompat: navigate } = useNavigateCompat();
   const [switchingRole, setSwitchingRole] = useState<string | null>(null);
 
   // Real session switch, replacing what used to be a client-only setRole()

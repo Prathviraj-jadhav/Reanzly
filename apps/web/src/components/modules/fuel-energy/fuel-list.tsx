@@ -4,7 +4,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { DataTable, type Column } from "@/components/shared/data-table";
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
-import { useAppStore } from "@/lib/store/app-store";
+import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
 import type { FuelEntry, Vehicle, Driver } from "@/lib/types";
 import {
   Plus,
@@ -75,7 +75,7 @@ export function FuelList({
   onAdd,
   onDelete,
 }: FuelListProps) {
-  const { navigateDetail } = useAppStore();
+  const { navigateDetailCompat: navigateDetail } = useNavigateCompat();
   const [editing, setEditing] = useState<FuelEntry | null>(null);
   const [search, setSearch] = useState("");
   const [vehicleFilter, setVehicleFilter] = useState<string>("");

@@ -1,6 +1,8 @@
 "use client";
 import { useState, useCallback, useEffect } from "react";
 import { useAppStore } from "@/lib/store/app-store";
+import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
+import { resolveModuleView, type ModuleRouteState } from "@/lib/navigation/module-route-state";
 import type { FuelEntry, Vehicle, Driver } from "@/lib/types";
 import { toast } from "sonner";
 import { FuelList } from "./fuel-list";
@@ -11,11 +13,11 @@ import { AnomalyAlerts } from "./anomaly-alerts";
 
 type SecondaryView = "list" | "analytics" | "anomalies";
 
-export function FuelEnergyModule() {
-  const { activeView, navigate } = useAppStore();
+export function FuelEnergyModule({ route }: { route?: ModuleRouteState } = {}) {
+  const { activeView } = useAppStore();
+  const { navigateCompat } = useNavigateCompat();
+  const view = resolveModuleView(route, activeView, "fuel-energy");
   const [secondary, setSecondary] = useState<SecondaryView>("list");
-  // Real, database-backed fuel entries (src/app/api/fuel-entries) -
-  // previously useState(FUEL_ENTRIES) seeded from mock-data.ts.
   const [fuelEntries, setFuelEntries] = useState<FuelEntry[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
@@ -54,7 +56,7 @@ export function FuelEnergyModule() {
   }, []);
 
   const updateFuelEntry = useCallback(async (id: string, data: Partial<FuelEntry>): Promise<boolean> => {
-    setFuelEntries((prev) => prev.map((f) => (f.id === id ? { ...f, ...data } : f))); // optimistic
+    setFuelEntries((prev) => prev.map((f) => (f.id === id ? { ...f, ...data } : f)));
     const res = await fetch(`/api/fuel-entries/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -84,19 +86,21 @@ export function FuelEnergyModule() {
     return <div className="p-6 text-[13px] text-muted-foreground">Loading fuel entries…</div>;
   }
 
-  if (
-    activeView.module === "fuel-energy" &&
-    activeView.view === "detail" &&
-    activeView.id
-  ) {
-    return <FuelDetail fuelId={activeView.id} fuelEntries={fuelEntries} onUpdate={updateFuelEntry} onDelete={deleteFuelEntry} />;
+  if (view.module === "fuel-energy" && view.view === "detail" && view.id) {
+    return (
+      <FuelDetail
+        fuelId={view.id}
+        fuelEntries={fuelEntries}
+        onUpdate={updateFuelEntry}
+        onDelete={deleteFuelEntry}
+      />
+    );
   }
 
-  const drawerOpen =
-    activeView.module === "fuel-energy" && activeView.view === "create";
+  const drawerOpen = view.module === "fuel-energy" && view.view === "create";
   const closeDrawer = () => {
-    if (activeView.module === "fuel-energy" && activeView.view === "create") {
-      navigate("fuel-energy");
+    if (view.module === "fuel-energy" && view.view === "create") {
+      navigateCompat("fuel-energy");
     }
   };
 
@@ -111,7 +115,7 @@ export function FuelEnergyModule() {
           fuelEntries={fuelEntries}
           vehicles={vehicles}
           drivers={drivers}
-          onCreate={() => navigate("fuel-energy", "create")}
+          onCreate={() => navigateCompat("fuel-energy", "create")}
           onOpenAnalytics={() => setSecondary("analytics")}
           onOpenAnomalies={() => setSecondary("anomalies")}
           onUpdate={updateFuelEntry}

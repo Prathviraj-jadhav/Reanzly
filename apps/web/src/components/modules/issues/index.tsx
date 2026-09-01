@@ -1,16 +1,18 @@
 "use client";
 import { useState, useCallback, useEffect } from "react";
 import { useAppStore } from "@/lib/store/app-store";
+import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
+import { resolveModuleView, type ModuleRouteState } from "@/lib/navigation/module-route-state";
 import type { Issue, Vehicle, Driver, Inspection, WorkOrder } from "@/lib/types";
 import { toast } from "sonner";
 import { IssuesList } from "./issues-list";
 import { IssueDetail } from "./issue-detail";
 import { AddIssueDrawer } from "./add-issue-drawer";
 
-export function IssuesModule() {
-  const { activeView, navigate } = useAppStore();
-  // Real, database-backed issues (src/app/api/issues) - previously
-  // useState(ISSUES) seeded from mock-data.ts.
+export function IssuesModule({ route }: { route?: ModuleRouteState } = {}) {
+  const { activeView } = useAppStore();
+  const { navigateCompat } = useNavigateCompat();
+  const view = resolveModuleView(route, activeView, "issues");
   const [issues, setIssues] = useState<Issue[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
@@ -55,7 +57,7 @@ export function IssuesModule() {
   }, []);
 
   const updateIssue = useCallback(async (id: string, data: Partial<Issue>): Promise<boolean> => {
-    setIssues((prev) => prev.map((i) => (i.id === id ? { ...i, ...data } : i))); // optimistic
+    setIssues((prev) => prev.map((i) => (i.id === id ? { ...i, ...data } : i)));
     const res = await fetch(`/api/issues/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -75,19 +77,24 @@ export function IssuesModule() {
     return <div className="p-6 text-[13px] text-muted-foreground">Loading issues…</div>;
   }
 
-  if (
-    activeView.module === "issues" &&
-    activeView.view === "detail" &&
-    activeView.id
-  ) {
-    return <IssueDetail issueId={activeView.id} issues={issues} vehicles={vehicles} drivers={drivers} inspections={inspections} workOrders={workOrders} onUpdate={updateIssue} />;
+  if (view.module === "issues" && view.view === "detail" && view.id) {
+    return (
+      <IssueDetail
+        issueId={view.id}
+        issues={issues}
+        vehicles={vehicles}
+        drivers={drivers}
+        inspections={inspections}
+        workOrders={workOrders}
+        onUpdate={updateIssue}
+      />
+    );
   }
 
-  const drawerOpen =
-    activeView.module === "issues" && activeView.view === "create";
+  const drawerOpen = view.module === "issues" && view.view === "create";
   const closeDrawer = () => {
-    if (activeView.module === "issues" && activeView.view === "create") {
-      navigate("issues");
+    if (view.module === "issues" && view.view === "create") {
+      navigateCompat("issues");
     }
   };
 
@@ -97,7 +104,7 @@ export function IssuesModule() {
         issues={issues}
         vehicles={vehicles}
         drivers={drivers}
-        onCreate={() => navigate("issues", "create")}
+        onCreate={() => navigateCompat("issues", "create")}
         onUpdate={updateIssue}
         onAdd={addIssue}
       />

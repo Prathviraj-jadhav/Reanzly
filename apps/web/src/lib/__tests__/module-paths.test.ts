@@ -72,6 +72,17 @@ describe("module path registry", () => {
     expect(moduleToPath("vehicles", "detail", "V-1", "fuel")).toBe(
       "/app/vehicles/V-1?tab=fuel",
     );
+    expect(moduleToPath("inspection", "detail", "INSP-1", "issues")).toBe(
+      "/app/inspection/INSP-1?tab=issues",
+    );
+    expect(moduleToPath("fuel-energy", "detail", "F-1")).toBe("/app/fuel/F-1");
+    expect(moduleToPath("fuel-energy", "create")).toBe("/app/fuel/new");
+    expect(moduleToPath("compliance", "list", undefined, "filings")).toBe(
+      "/app/compliance/filings",
+    );
+    expect(moduleToPath("compliance", "list", undefined, "calendar")).toBe(
+      "/app/compliance",
+    );
     expect(moduleToPath("fleet-map", "list", "veh-42")).toBe(
       "/app/fleet-map?vehicle=veh-42",
     );
@@ -101,6 +112,24 @@ describe("module path registry", () => {
       view: "detail",
       id: "V-1",
       tab: "fuel",
+    });
+    expect(
+      pathToModule("/app/inspection/INSP-1", new URLSearchParams("tab=issues")),
+    ).toEqual({
+      module: "inspection",
+      view: "detail",
+      id: "INSP-1",
+      tab: "issues",
+    });
+    expect(pathToModule("/app/fuel/FE-1")).toEqual({
+      module: "fuel-energy",
+      view: "detail",
+      id: "FE-1",
+    });
+    expect(pathToModule("/app/compliance/filings")).toEqual({
+      module: "compliance",
+      view: "list",
+      tab: "filings",
     });
     expect(
       pathToModule("/app/fleet-map", new URLSearchParams("vehicle=veh-42")),

@@ -410,7 +410,7 @@ export async function GET(req: NextRequest) {
     },
     customers: { pnl: customerPnl, topDelinquent: topDelinquentCustomers },
     issues: {
-      openCount: openIssues.length, criticalHigh: criticalHighIssues.map((i) => ({ id: i.id, title: i.title, vehicle: i.vehicle?.name ?? "-", assignee: i.assignee ?? "Unassigned", severity: i.severity })),
+      openCount: openIssues.length, criticalHigh: criticalHighIssues.map((i) => ({ id: i.id, issueId: i.issueId, title: i.title, vehicle: i.vehicle?.name ?? "-", assignee: i.assignee ?? "Unassigned", severity: i.severity })),
       bySeverity: issuesBySeverity, bySource: issuesBySource, recurringDefects: recurringDefectCounts, incidentTrend,
     },
     inspections: {

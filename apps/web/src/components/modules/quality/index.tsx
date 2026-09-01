@@ -1,13 +1,17 @@
 "use client";
 import { useState, useCallback, useEffect } from "react";
 import { useAppStore } from "@/lib/store/app-store";
+import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
+import { resolveModuleView, type ModuleRouteState } from "@/lib/navigation/module-route-state";
 import type { QualityCheck } from "./_helpers";
 import { ChecksList } from "./checks-list";
 import { CheckDetail } from "./check-detail";
 import { AddCheckDrawer } from "./add-check-drawer";
 
-export function QualityModule() {
-  const { activeView, navigate } = useAppStore();
+export function QualityModule({ route }: { route?: ModuleRouteState } = {}) {
+  const { activeView } = useAppStore();
+  const { navigateCompat } = useNavigateCompat();
+  const view = resolveModuleView(route, activeView, "quality");
   const [checks, setChecks] = useState<QualityCheck[]>([]);
   const [loaded, setLoaded] = useState(false);
 
@@ -29,27 +33,28 @@ export function QualityModule() {
     setChecks((prev) => prev.map((c) => (c.id === id ? updated : c)));
   }, []);
 
-  // Detail view
-  if (
-    activeView.module === "quality" &&
-    activeView.view === "detail" &&
-    activeView.id
-  ) {
-    return <CheckDetail checkId={activeView.id} initialTab={activeView.tab} checks={checks} onUpdate={updateCheck} />;
+  if (view.module === "quality" && view.view === "detail" && view.id) {
+    return (
+      <CheckDetail
+        key={`${view.id}-${view.tab ?? "overview"}`}
+        checkId={view.id}
+        initialTab={view.tab}
+        checks={checks}
+        onUpdate={updateCheck}
+      />
+    );
   }
 
-  // Drawer visibility
-  const drawerOpen =
-    activeView.module === "quality" && activeView.view === "create";
+  const drawerOpen = view.module === "quality" && view.view === "create";
   const closeDrawer = () => {
-    if (activeView.module === "quality" && activeView.view === "create") {
-      navigate("quality");
+    if (view.module === "quality" && view.view === "create") {
+      navigateCompat("quality");
     }
   };
 
   return (
     <>
-      <ChecksList checks={checks} loaded={loaded} onCreate={() => navigate("quality", "create")} onUpdate={updateCheck} />
+      <ChecksList checks={checks} loaded={loaded} onCreate={() => navigateCompat("quality", "create")} onUpdate={updateCheck} />
       <AddCheckDrawer open={drawerOpen} onClose={closeDrawer} onAdd={addCheck} />
     </>
   );

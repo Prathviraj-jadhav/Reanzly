@@ -1,15 +1,18 @@
 "use client";
 import { useState, useCallback, useEffect } from "react";
 import { useAppStore } from "@/lib/store/app-store";
+import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
+import { resolveModuleView, type ModuleRouteState } from "@/lib/navigation/module-route-state";
 import { ServicesList, ServiceDueList } from "./services-list";
 import { AddServiceProgramDrawer } from "./add-service-program-drawer";
 import { EditServiceProgramDrawer } from "./edit-service-program-drawer";
 import { type ServiceProgram } from "./_helpers";
 
-export function ServicesModule() {
-  const { activeView, navigate } = useAppStore();
+export function ServicesModule({ route }: { route?: ModuleRouteState } = {}) {
+  const { activeView } = useAppStore();
+  const { navigateCompat } = useNavigateCompat();
+  const view = resolveModuleView(route, activeView, "services");
   const [showDue, setShowDue] = useState(false);
-
   const [programs, setPrograms] = useState<ServiceProgram[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [editRecord, setEditRecord] = useState<ServiceProgram | null>(null);
@@ -24,11 +27,10 @@ export function ServicesModule() {
       .catch(() => setLoaded(true));
   }, []);
 
-  const drawerOpen =
-    activeView.module === "services" && activeView.view === "create";
+  const drawerOpen = view.module === "services" && view.view === "create";
   const closeDrawer = () => {
-    if (activeView.module === "services" && activeView.view === "create") {
-      navigate("services");
+    if (view.module === "services" && view.view === "create") {
+      navigateCompat("services");
     }
   };
 
@@ -52,22 +54,13 @@ export function ServicesModule() {
         <ServicesList
           programs={programs}
           loaded={loaded}
-          onCreate={() => navigate("services", "create")}
+          onCreate={() => navigateCompat("services", "create")}
           onOpenDue={() => setShowDue(true)}
           onEdit={openEdit}
         />
       )}
-      <AddServiceProgramDrawer
-        open={drawerOpen}
-        onClose={closeDrawer}
-        onAdd={addProgram}
-      />
-      <EditServiceProgramDrawer
-        open={!!editRecord}
-        program={editRecord}
-        onClose={closeEdit}
-        onUpdate={handleUpdate}
-      />
+      <AddServiceProgramDrawer open={drawerOpen} onClose={closeDrawer} onAdd={addProgram} />
+      <EditServiceProgramDrawer open={!!editRecord} program={editRecord} onClose={closeEdit} onUpdate={handleUpdate} />
     </>
   );
 }

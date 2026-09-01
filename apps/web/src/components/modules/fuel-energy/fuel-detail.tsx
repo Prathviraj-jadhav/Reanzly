@@ -3,7 +3,7 @@ import { useState, useMemo, useEffect } from "react";
 import { DetailLayout, InfoRow, InfoSection, StatCard } from "@/components/shared/detail-layout";
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
-import { useAppStore } from "@/lib/store/app-store";
+import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
 import type { FuelEntry, Vehicle, Driver } from "@/lib/types";
 import {
   Pencil,
@@ -44,7 +44,7 @@ interface FuelDetailProps {
 }
 
 export function FuelDetail({ fuelId, fuelEntries, onUpdate: onUpdateReal, onDelete }: FuelDetailProps) {
-  const { navigate, navigateDetail } = useAppStore();
+  const { navigateCompat: navigate, navigateDetailCompat: navigateDetail } = useNavigateCompat();
   const [activeTab, setActiveTab] = useState("overview");
   const entry = fuelEntries.find((f) => f.id === fuelId);
   const [editing, setEditing] = useState(false);

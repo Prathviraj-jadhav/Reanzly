@@ -230,7 +230,7 @@ function FuelCostKmKpi(): ReactElement {
 }
 
 function OpenIssuesKpi(): ReactElement {
-  const { navigate } = useAppStore();
+  const { navigate } = useWidgetNavigation();
   const { stats, loaded } = useDashboardStats();
   const value = stats?.issues.openCount ?? 0;
   return (
@@ -390,7 +390,7 @@ function RecentActivitiesList(): ReactElement {
 }
 
 function CriticalFaultsList(): ReactElement {
-  const { navigateDetail } = useAppStore();
+  const { navigateDetail } = useWidgetNavigation();
   const { stats } = useDashboardStats();
   const visible = stats?.issues.criticalHigh.slice(0, 6) ?? [];
   return (
@@ -406,7 +406,7 @@ function CriticalFaultsList(): ReactElement {
               {iss.severity}
             </StatusBadge>
           }
-          onClick={() => navigateDetail("issues", iss.id)}
+          onClick={() => navigateDetail("issues", iss.issueId ?? iss.id)}
         />
       ))}
     </div>
@@ -414,7 +414,7 @@ function CriticalFaultsList(): ReactElement {
 }
 
 function OverdueInspectionsList(): ReactElement {
-  const { navigateDetail } = useAppStore();
+  const { navigateDetail } = useWidgetNavigation();
   const { stats } = useDashboardStats();
   const visible = stats?.inspections.overdue.slice(0, 6) ?? [];
   return (
@@ -426,7 +426,7 @@ function OverdueInspectionsList(): ReactElement {
           primary={ins.inspectionId}
           secondary={`${ins.vehicle} · ${ins.type}`}
           right={<StatusBadge variant={ins.result === "Fail" ? "solid" : "outline"} pulse={ins.result === "Fail"}>{ins.result}</StatusBadge>}
-          onClick={() => navigateDetail("inspection", ins.id)}
+          onClick={() => navigateDetail("inspection", ins.inspectionId)}
         />
       ))}
     </div>
@@ -480,7 +480,7 @@ function OnboardingTasksList(): ReactElement {
 }
 
 function WorkOrderUpdatesList(): ReactElement {
-  const { navigateDetail } = useAppStore();
+  const { navigateDetail } = useWidgetNavigation();
   const { stats } = useDashboardStats();
   const visible = stats?.workOrders.recentUpdates.slice(0, 6) ?? [];
   return (
@@ -496,7 +496,7 @@ function WorkOrderUpdatesList(): ReactElement {
               {wo.status}
             </StatusBadge>
           }
-          onClick={() => navigateDetail("maintenance", wo.id)}
+          onClick={() => navigateDetail("maintenance", wo.workOrderId)}
         />
       ))}
     </div>
@@ -878,7 +878,7 @@ function CustomerPnlSnapshotWidget(): ReactElement {
 /* ---- mechanic (6) ---- */
 
 function OpenWorkOrdersKpi(): ReactElement {
-  const { navigate } = useAppStore();
+  const { navigate } = useWidgetNavigation();
   const { stats, loaded } = useDashboardStats();
   const value = stats?.workOrders.openCount ?? 0;
   return (
@@ -895,7 +895,7 @@ function OpenWorkOrdersKpi(): ReactElement {
  *  survey) - this widget still reads a placeholder value rather than a
  *  real stock count. Flagged here instead of silently faked. */
 function PartsLowAlertKpi(): ReactElement {
-  const { navigate } = useAppStore();
+  const { navigate } = useWidgetNavigation();
   return (
     <KpiCard
       label="Parts Low Alert"
@@ -909,7 +909,7 @@ function PartsLowAlertKpi(): ReactElement {
 
 /** No real workshop-bay model exists yet - flagged rather than faked. */
 function BaysOccupiedKpi(): ReactElement {
-  const { navigate } = useAppStore();
+  const { navigate } = useWidgetNavigation();
   return (
     <KpiCard
       label="Bays Occupied"
@@ -936,7 +936,7 @@ function AvgTurnaroundKpi(): ReactElement {
 }
 
 function MyCompletedWosTodayList(): ReactElement {
-  const { navigateDetail } = useAppStore();
+  const { navigateDetail } = useWidgetNavigation();
   const { stats } = useDashboardStats();
   const visible = stats?.workOrders.recentCompleted.slice(0, 6) ?? [];
   return (
@@ -948,7 +948,7 @@ function MyCompletedWosTodayList(): ReactElement {
           primary={`${wo.workOrderId} · ${wo.title}`}
           secondary={`${wo.vehicle} · ${wo.technician}`}
           right={<StatusBadge variant="muted">Completed</StatusBadge>}
-          onClick={() => navigateDetail("maintenance", wo.id)}
+          onClick={() => navigateDetail("maintenance", wo.workOrderId)}
         />
       ))}
     </div>
@@ -989,7 +989,7 @@ function RecurringDefectsList(): ReactElement {
 /* ---- safety-officer (5 new + reuse kpi-compliance-score) ---- */
 
 function InspectionsDueKpi(): ReactElement {
-  const { navigate } = useAppStore();
+  const { navigate } = useWidgetNavigation();
   const { stats, loaded } = useDashboardStats();
   const value = stats?.inspections.dueSoonCount ?? 0;
   return (
@@ -1243,7 +1243,7 @@ function BranchOnTimeKpi(): ReactElement {
 }
 
 function BranchIssuesKpi(): ReactElement {
-  const { navigate } = useAppStore();
+  const { navigate } = useWidgetNavigation();
   const { stats, loaded } = useDashboardStats();
   const value = stats?.branch.issues ?? 0;
   return (
@@ -1310,7 +1310,7 @@ function BranchPnlComposite(): ReactElement {
    the one real adjacent signal (documents expiring soon). */
 
 function GstPayableKpi(): ReactElement {
-  const { navigate } = useAppStore();
+  const { navigate } = useWidgetNavigation();
   return (
     <KpiCard label="GST Payable" value="—" icon={<ShieldAlert className="h-4 w-4" />}
       progressLabel="no GST ledger module yet" onClick={() => navigate("compliance")} />
@@ -1326,7 +1326,7 @@ function TdsDeductedKpi(): ReactElement {
 }
 
 function FilingsDueKpi(): ReactElement {
-  const { navigate } = useAppStore();
+  const { navigate } = useWidgetNavigation();
   const { stats, loaded } = useDashboardStats();
   const value = stats?.documents.filingsDueCount ?? 0;
   return (
@@ -2331,7 +2331,7 @@ function InventoryValueKpi(): ReactElement {
 }
 
 function LowStockSkusList(): ReactElement {
-  const { navigate } = useAppStore();
+  const { navigate } = useWidgetNavigation();
   return (
     <div className="py-6 text-center text-[11px] text-muted-foreground">
       No parts/inventory module yet.
@@ -2429,7 +2429,7 @@ function VehicleUtilizationKpi(): ReactElement {
 }
 
 function FuelEfficiencyLeadersList(): ReactElement {
-  const { navigate } = useAppStore();
+  const { navigate } = useWidgetNavigation();
   const { stats } = useDashboardStats();
   const visible = stats?.fuel.efficiencyLeaders.slice(0, 5) ?? [];
   const max = Math.max(...visible.map((l) => l.avgEfficiency), 1);
@@ -2569,7 +2569,7 @@ function TeamAvailabilityWidget(): ReactElement {
  *  "Inspections Due" above covers the real, adjacent vehicle-inspection
  *  signal. */
 function PendingAuditsKpi(): ReactElement {
-  const { navigate } = useAppStore();
+  const { navigate } = useWidgetNavigation();
   return <KpiCard label="Pending Audits" value="—" icon={<ClipboardCheck className="h-4 w-4" />} progressLabel="no audit-schedule module yet" onClick={() => navigate("compliance")} />;
 }
 

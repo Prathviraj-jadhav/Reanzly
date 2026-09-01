@@ -92,15 +92,13 @@ authTest.describe("B0R-2 — core operations App Router (migration flag ON)", ()
     await authExpect(page.locator("main[data-e2e-active-module='vehicles']")).toBeVisible();
   });
 
-  authTest("35. cluster Inspection tab falls back to legacy SPA", async ({
+  authTest("35. cluster Inspection tab navigates to /app/inspection", async ({
     authenticatedPage: page,
   }) => {
     await page.goto("/app/vehicles");
     await page.getByRole("button", { name: "Inspection", exact: true }).click();
-    await authExpect(page).toHaveURL(/\/dashboard\?legacy=1$/);
-    await authExpect(page.getByRole("heading", { name: /inspection/i }).first()).toBeVisible({
-      timeout: 30_000,
-    });
+    await authExpect(page).toHaveURL(/\/app\/inspection$/);
+    await authExpect(page.locator("main[data-e2e-active-module='inspection']")).toBeVisible();
   });
 
   authTest("36. browser back from trip detail returns to list", async ({

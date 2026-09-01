@@ -185,7 +185,7 @@ export function moduleToPath(
       return tab ? `${taskBase}/${tab}` : taskBase;
     }
     const detailBase = `${base}/${encodeURIComponent(id)}`;
-    if (resolved === "vehicles" && tab) {
+    if ((resolved === "vehicles" || resolved === "inspection") && tab) {
       return `${detailBase}?tab=${encodeURIComponent(tab)}`;
     }
     return tab ? `${detailBase}/${tab}` : detailBase;
@@ -196,6 +196,9 @@ export function moduleToPath(
   }
 
   if (tab && MODULE_TAB_ROUTES.has(resolved)) {
+    if (resolved === "compliance" && tab === "calendar") {
+      return base;
+    }
     return `${base}/${tab}`;
   }
 
@@ -338,7 +341,7 @@ export function pathToModule(pathname: string, searchParams?: URLSearchParams): 
     if (MODULE_TAB_ROUTES.has(oneSegmentModule)) {
       return { module: oneSegmentModule, view: "list", tab: tail };
     }
-    if (oneSegmentModule === "vehicles") {
+    if (oneSegmentModule === "vehicles" || oneSegmentModule === "inspection") {
       const tab = searchParams?.get("tab") ?? undefined;
       return {
         module: oneSegmentModule,

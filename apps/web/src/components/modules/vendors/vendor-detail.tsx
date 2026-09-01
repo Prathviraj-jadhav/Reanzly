@@ -10,6 +10,7 @@ import { Btn } from "@/components/shared/btn";
 import { SectionCard } from "@/components/shared/section-card";
 import { StatusBadge, docStatusBadge } from "@/components/shared/status-badge";
 import { useAppStore } from "@/lib/store/app-store";
+import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
 import {
   VENDORS,
   WORK_ORDERS,
@@ -255,7 +256,7 @@ function OverviewTab({ vendor }: { vendor: Vendor }) {
 // ===== 360 View Tab =====
 function Vendor360Tab({ vendor }: { vendor: Vendor }) {
   const seed = parseInt(vendor.id.replace(/\D/g, "")) || 1;
-  const { navigateDetail } = useAppStore();
+  const { navigateDetailCompat: navigateDetail } = useNavigateCompat();
 
   // ===== Bills / paid / pending =====
   const vendorExpenses = EXPENSES.filter(
@@ -513,7 +514,7 @@ function Vendor360Tab({ vendor }: { vendor: Vendor }) {
               <div key={w.id} className="px-4 py-2.5">
                 <div className="flex items-center justify-between gap-2">
                   <button
-                    onClick={() => navigateDetail("maintenance", w.id)}
+                    onClick={() => navigateDetail("maintenance", w.workOrderId)}
                     className="truncate text-[12px] font-medium text-foreground hover:underline"
                   >
                     {w.workOrderId} · {w.title}

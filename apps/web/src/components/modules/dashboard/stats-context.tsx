@@ -34,7 +34,7 @@ export interface DashboardStats {
   };
   issues: {
     openCount: number;
-    criticalHigh: { id: string; title: string; vehicle: string; assignee: string; severity: string }[];
+    criticalHigh: { id: string; issueId: string; title: string; vehicle: string; assignee: string; severity: string }[];
     bySeverity: { severity: string; count: number }[]; bySource: { source: string; count: number }[];
     recurringDefects: { reason: string; count: number }[]; incidentTrend: { month: string; count: number }[];
   };

@@ -13,9 +13,24 @@ describe("routing migration config", () => {
     vi.unstubAllEnvs();
   });
 
-  it("MIGRATED_MODULES contains B0R-2 core operations", () => {
+  it("MIGRATED_MODULES contains B0R-2 core operations and B0R-3 fleet cluster", () => {
     expect([...MIGRATED_MODULES].sort()).toEqual(
-      ["dashboard", "fleet-map", "lorry-receipts", "pod", "trips", "vehicles"].sort(),
+      [
+        "compliance",
+        "dashboard",
+        "fleet-map",
+        "fuel-energy",
+        "inspection",
+        "issues",
+        "lorry-receipts",
+        "maintenance",
+        "pod",
+        "quality",
+        "services",
+        "trips",
+        "vehicles",
+        "workshop",
+      ].sort(),
     );
   });
 

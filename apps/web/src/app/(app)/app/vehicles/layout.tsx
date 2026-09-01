@@ -1,7 +1,7 @@
 "use client";
 
-import { VehiclesClusterLayout } from "@/components/modules/vehicles/vehicles-cluster-layout";
+import { FleetClusterLayout } from "@/components/shared/fleet-cluster-layout";
 
 export default function VehiclesAppLayout({ children }: { children: React.ReactNode }) {
-  return <VehiclesClusterLayout>{children}</VehiclesClusterLayout>;
+  return <FleetClusterLayout>{children}</FleetClusterLayout>;
 }

@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { DataTable, type Column } from "@/components/shared/data-table";
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge, issueSeverityBadge } from "@/components/shared/status-badge";
+import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
 import { useAppStore } from "@/lib/store/app-store";
 import type { Issue, Vehicle, Driver } from "@/lib/types";
 import {
@@ -64,7 +65,8 @@ export function IssuesList({
   onUpdate,
   onAdd,
 }: IssuesListProps) {
-  const { navigateDetail, currentRole } = useAppStore();
+  const { currentRole } = useAppStore();
+  const { navigateDetailCompat: navigateDetail } = useNavigateCompat();
   const [editing, setEditing] = useState<Issue | null>(null);
   const [raiseOpen, setRaiseOpen] = useState(false);
   const [search, setSearch] = useState("");
