@@ -2,144 +2,150 @@ import { test, expect } from "@playwright/test";
 import {
   test as authTest,
   expect as authExpect,
-  E2E_OWNER_EMAIL,
-  E2E_OWNER_PASSWORD,
   loginViaApi,
 } from "./fixtures/auth";
 
 const migrationOff = (process.env.NEXT_PUBLIC_ROUTING_MIGRATION ?? "1") !== "1";
 
-async function loginOwner(page: import("@playwright/test").Page) {
-  await loginViaApi(page.request, E2E_OWNER_EMAIL, E2E_OWNER_PASSWORD);
-  await page.goto("/app/dashboard");
-  await expect(page).toHaveURL(/\/app\/dashboard/);
+function sidebarNav(page: import("@playwright/test").Page, label: string) {
+  return page.getByRole("complementary").getByRole("button", { name: label, exact: true });
 }
 
-test.describe("B0R-8P — decommission-critical (flag ON)", () => {
-  test.beforeEach(async ({ page }) => {
-    test.skip(migrationOff, "Requires NEXT_PUBLIC_ROUTING_MIGRATION=1");
-    await loginOwner(page);
+async function openCommandPalette(page: import("@playwright/test").Page) {
+  await page.locator("header button").filter({ has: page.locator("kbd") }).click();
+  await authExpect(page.getByPlaceholder(/search across reanzly/i)).toBeVisible({ timeout: 10_000 });
+}
+
+authTest.describe("B0R-8P — decommission-critical (flag ON)", () => {
+  authTest.beforeEach(async ({ authenticatedPage: page }) => {
+    authTest.skip(migrationOff, "Requires NEXT_PUBLIC_ROUTING_MIGRATION=1");
+    await page.goto("/app/dashboard");
+    await authExpect(page).toHaveURL(/\/app\/dashboard/);
   });
 
-  test("301. sidebar trips nav updates URL", async ({ page }) => {
-    await page.getByRole("button", { name: "Trips", exact: true }).click();
-    await expect(page).toHaveURL(/\/app\/trips$/);
+  authTest("301. sidebar trips nav updates URL", async ({ authenticatedPage: page }) => {
+    await sidebarNav(page, "Trips").click();
+    await authExpect(page).toHaveURL(/\/app\/trips$/);
   });
 
-  test("302. sidebar vehicles nav updates URL", async ({ page }) => {
-    await page.getByRole("button", { name: "Vehicles", exact: true }).click();
-    await expect(page).toHaveURL(/\/app\/vehicles$/);
+  authTest("302. sidebar vehicles nav updates URL", async ({ authenticatedPage: page }) => {
+    await sidebarNav(page, "Vehicles").click();
+    await authExpect(page).toHaveURL(/\/app\/vehicles$/);
   });
 
-  test("303. command palette opens and navigates to settings", async ({ page }) => {
-    await page.keyboard.press("Control+k");
+  authTest("303. command palette opens and navigates to settings", async ({ authenticatedPage: page }) => {
+    await openCommandPalette(page);
+    await page.getByPlaceholder(/search across reanzly/i).fill("Settings");
     await page.getByRole("option", { name: /^Settings$/ }).click();
-    await expect(page).toHaveURL(/\/app\/settings/);
+    await authExpect(page).toHaveURL(/\/app\/settings/);
   });
 
-  test("304. fleet cluster tab inspection URL", async ({ page }) => {
+  authTest("304. fleet cluster tab inspection URL", async ({ authenticatedPage: page }) => {
     await page.goto("/app/vehicles");
     await page.getByRole("button", { name: "Inspection" }).click();
-    await expect(page).toHaveURL(/\/app\/inspection$/);
+    await authExpect(page).toHaveURL(/\/app\/inspection$/);
   });
 
-  test("305. trips list deep link refresh", async ({ page }) => {
+  authTest("305. trips list deep link refresh", async ({ authenticatedPage: page }) => {
     await page.goto("/app/trips");
     await page.reload({ waitUntil: "networkidle" });
-    await expect(page).toHaveURL(/\/app\/trips$/);
+    await authExpect(page).toHaveURL(/\/app\/trips$/);
   });
 
-  test("306. settings tab URL segment", async ({ page }) => {
+  authTest("306. settings tab URL segment", async ({ authenticatedPage: page }) => {
     await page.goto("/app/settings/notifications");
-    await expect(page).toHaveURL(/\/app\/settings\/notifications/);
+    await authExpect(page).toHaveURL(/\/app\/settings\/notifications/);
   });
 
-  test("307. financial-ops alias redirects to ledger treasury", async ({ page }) => {
+  authTest("307. financial-ops alias redirects to ledger treasury", async ({ authenticatedPage: page }) => {
     await page.goto("/app/financial-ops");
-    await expect(page).toHaveURL(/\/app\/ledger\/treasury/);
+    await authExpect(page).toHaveURL(/\/app\/ledger\/treasury/);
   });
 
-  test("308. app-store alias redirects to integrations", async ({ page }) => {
+  authTest("308. app-store alias redirects to integrations", async ({ authenticatedPage: page }) => {
     await page.goto("/app/app-store");
-    await expect(page).toHaveURL(/\/app\/integrations/);
+    await authExpect(page).toHaveURL(/\/app\/integrations/);
   });
 
-  test("309. legacy /dashboard redirects to /app/dashboard", async ({ page }) => {
+  authTest("309. legacy /dashboard redirects to /app/dashboard", async ({ authenticatedPage: page }) => {
     await page.goto("/dashboard");
-    await expect(page).toHaveURL(/\/app\/dashboard/);
+    await authExpect(page).toHaveURL(/\/app\/dashboard/);
   });
 
-  test("310. /app index redirects to dashboard", async ({ page }) => {
+  authTest("310. /app index redirects to dashboard", async ({ authenticatedPage: page }) => {
     await page.goto("/app");
-    await expect(page).toHaveURL(/\/app\/dashboard/);
+    await authExpect(page).toHaveURL(/\/app\/dashboard/);
   });
 
-  test("311. back from trip detail returns to list URL", async ({ page }) => {
+  authTest("311. back from trip detail returns to list URL", async ({ authenticatedPage: page }) => {
     await page.goto("/app/trips");
     const firstRow = page.locator("table tbody tr").first();
     if (await firstRow.count()) {
       await firstRow.click();
-      await expect(page).toHaveURL(/\/app\/trips\/.+/);
+      await authExpect(page).toHaveURL(/\/app\/trips\/.+/);
       await page.getByRole("button", { name: /go back/i }).click();
-      await expect(page).toHaveURL(/\/app\/trips$/);
+      await authExpect(page).toHaveURL(/\/app\/trips$/);
     }
   });
 
-  test("312. invoice module list URL", async ({ page }) => {
+  authTest("312. invoice module list URL", async ({ authenticatedPage: page }) => {
     await page.goto("/app/invoice");
-    await expect(page).toHaveURL(/\/app\/invoice$/);
+    await authExpect(page).toHaveURL(/\/app\/invoice$/);
   });
 
-  test("313. CRM cluster customers tab", async ({ page }) => {
+  authTest("313. CRM cluster customers tab", async ({ authenticatedPage: page }) => {
     await page.goto("/app/crm");
     await page.getByRole("button", { name: "Customers" }).click();
-    await expect(page).toHaveURL(/\/app\/customers$/);
+    await authExpect(page).toHaveURL(/\/app\/customers$/);
   });
 
-  test("314. documents cluster knowledge tab", async ({ page }) => {
+  authTest("314. documents cluster knowledge tab", async ({ authenticatedPage: page }) => {
     await page.goto("/app/documents");
     await page.getByRole("button", { name: "Knowledge Base" }).click();
-    await expect(page).toHaveURL(/\/app\/knowledge$/);
+    await authExpect(page).toHaveURL(/\/app\/knowledge$/);
   });
 
-  test("315. chat module URL", async ({ page }) => {
+  authTest("315. chat module URL", async ({ authenticatedPage: page }) => {
     await page.goto("/app/chat");
-    await expect(page).toHaveURL(/\/app\/chat$/);
+    await authExpect(page).toHaveURL(/\/app\/chat$/);
   });
 
-  test("316. warehouse module URL", async ({ page }) => {
+  authTest("316. warehouse module URL", async ({ authenticatedPage: page }) => {
     await page.goto("/app/warehouse");
-    await expect(page).toHaveURL(/\/app\/warehouse$/);
+    await authExpect(page).toHaveURL(/\/app\/warehouse$/);
   });
 
-  test("317. operations hub URL", async ({ page }) => {
+  authTest("317. operations hub URL", async ({ authenticatedPage: page }) => {
     await page.goto("/app/operations");
-    await expect(page).toHaveURL(/\/app\/operations$/);
+    await authExpect(page).toHaveURL(/\/app\/operations$/);
   });
 
-  test("318. ledger module URL", async ({ page }) => {
+  authTest("318. ledger module URL", async ({ authenticatedPage: page }) => {
     await page.goto("/app/ledger");
-    await expect(page).toHaveURL(/\/app\/ledger$/);
+    await authExpect(page).toHaveURL(/\/app\/ledger$/);
   });
 
-  test("319. reports module URL", async ({ page }) => {
+  authTest("319. reports module URL", async ({ authenticatedPage: page }) => {
     await page.goto("/app/reports");
-    await expect(page).toHaveURL(/\/app\/reports$/);
+    await authExpect(page).toHaveURL(/\/app\/reports$/);
   });
 
-  test("320. hard refresh on /app/vehicles preserves URL", async ({ page }) => {
+  authTest("320. hard refresh on /app/vehicles preserves URL", async ({ authenticatedPage: page }) => {
     await page.goto("/app/vehicles");
     await page.reload({ waitUntil: "networkidle" });
-    await expect(page).toHaveURL(/\/app\/vehicles$/);
+    await authExpect(page).toHaveURL(/\/app\/vehicles$/);
   });
 });
 
 test.describe("B0R-8P — rollback (flag OFF)", () => {
-  test("321. legacy /dashboard SPA when migration OFF", async ({ page }) => {
+  test("321. legacy /dashboard SPA when migration OFF", async ({ browser }) => {
     test.skip(!migrationOff, "Requires NEXT_PUBLIC_ROUTING_MIGRATION=0");
-    await loginViaApi(page.request, E2E_OWNER_EMAIL, E2E_OWNER_PASSWORD);
+    const context = await browser.newContext({ storageState: undefined });
+    const page = await context.newPage();
+    await loginViaApi(page.request);
     await page.goto("/dashboard");
     await expect(page).toHaveURL(/\/dashboard/);
     await expect(page.locator("body")).toBeVisible();
+    await context.close();
   });
 });

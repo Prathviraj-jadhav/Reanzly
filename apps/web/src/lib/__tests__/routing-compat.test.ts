@@ -7,6 +7,7 @@ import {
   MIGRATED_MODULES,
 } from "@/lib/navigation/routing-config";
 import { navigateCompatStatic } from "@/lib/navigation/navigate-compat";
+import { isActiveViewSyncEnabled } from "@/lib/navigation/use-active-view-sync";
 
 describe("routing migration config", () => {
   afterEach(() => {
@@ -153,6 +154,19 @@ describe("navigateCompat dual-write (store)", () => {
     expect(useAppStore.getState().activeView.module).toBe("dashboard");
     expect(useAppStore.getState().history.length).toBe(historyBefore);
     expect(moduleToPath("dashboard")).toBe("/app/dashboard");
+  });
+});
+
+describe("useActiveViewSync (B0R-8P)", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("no-ops when NEXT_PUBLIC_ROUTING_MIGRATION=1 (URL is authoritative)", () => {
+    vi.stubEnv("NEXT_PUBLIC_ROUTING_MIGRATION", "1");
+    expect(isActiveViewSyncEnabled()).toBe(false);
+    vi.stubEnv("NEXT_PUBLIC_ROUTING_MIGRATION", "0");
+    expect(isActiveViewSyncEnabled()).toBe(true);
   });
 });
 

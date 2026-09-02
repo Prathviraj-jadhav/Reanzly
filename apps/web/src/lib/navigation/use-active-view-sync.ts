@@ -15,6 +15,10 @@ function currentAppPath(pathname: string, search: string): string {
  * dual-write migration. **Disabled when `NEXT_PUBLIC_ROUTING_MIGRATION=1`**
  * (B0R-8P) — URL is authoritative; chrome derives state from pathname.
  */
+export function isActiveViewSyncEnabled(): boolean {
+  return !isRoutingMigrationEnabled();
+}
+
 export function useActiveViewSync() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -24,7 +28,7 @@ export function useActiveViewSync() {
 
   useEffect(() => {
     // B0R-8P: normal migrated nav does not read activeView for routing.
-    if (isRoutingMigrationEnabled()) return;
+    if (!isActiveViewSyncEnabled()) return;
     if (!pathname.startsWith("/app")) return;
 
     const search = searchParams.toString();
