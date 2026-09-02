@@ -1,8 +1,8 @@
 # Reanzly — Routing Production Soak
 
-**Status:** NOT STARTED  
+**Status:** READY TO START AFTER DEPLOYMENT  
 **Created:** 2026-09-02  
-**Prerequisite:** B0R-8PV verification complete; B0R-8P code CLOSED  
+**Prerequisite:** B0R-8PV2 verification complete; B0R-8P critical E2E green; code counts at zero  
 **Blocks:** B0R-8B (legacy navigation decommission)
 
 ---
@@ -28,9 +28,15 @@ Validate `NEXT_PUBLIC_ROUTING_MIGRATION=1` in a production-like environment befo
 
 ---
 
+## Required soak duration
+
+**14 days** minimum with flag ON in staging/production before B0R-8B decommission.
+
+---
+
 ## Soak checklist (do not fabricate)
 
-- [ ] 7-day minimum with flag ON in staging/production
+- [ ] 14-day minimum with flag ON in staging/production
 - [ ] Zero P1/P2 routing regressions (404 loops, blank screens, auth loss)
 - [ ] Sidebar, command palette, cluster tabs, detail deep-links verified manually
 - [ ] Legacy `/dashboard?legacy=1` rollback tested once per week

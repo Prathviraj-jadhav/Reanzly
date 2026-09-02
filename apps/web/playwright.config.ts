@@ -3,7 +3,10 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 const PORT = process.env.PLAYWRIGHT_PORT ?? "3099";
+const PORT_FLAG_OFF = process.env.PLAYWRIGHT_PORT_FLAG_OFF ?? "3110";
 const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? `http://127.0.0.1:${PORT}`;
+const baseURLFlagOff =
+  process.env.PLAYWRIGHT_BASE_URL_FLAG_OFF ?? `http://127.0.0.1:${PORT_FLAG_OFF}`;
 
 /** Load DATABASE_URL (and peers) from repo root for real-session E2E. */
 function loadRootEnvFile(name: string): void {
@@ -37,6 +40,9 @@ if (process.env.DIRECT_URL && process.env.PLAYWRIGHT_USE_POOLER !== "1") {
 }
 
 const migrationFlag = process.env.NEXT_PUBLIC_ROUTING_MIGRATION ?? "1";
+const flagOffMode = migrationFlag !== "1";
+const effectivePort = flagOffMode ? PORT_FLAG_OFF : PORT;
+const effectiveBaseURL = flagOffMode ? baseURLFlagOff : baseURL;
 
 export default defineConfig({
   testDir: "./e2e",
@@ -47,13 +53,13 @@ export default defineConfig({
   timeout: 60_000,
   reporter: [["list"]],
   use: {
-    baseURL,
+    baseURL: effectiveBaseURL,
     trace: "on-first-retry",
   },
   projects: [
     { name: "setup", testMatch: /auth\.setup\.ts/ },
     {
-      name: "chromium",
+      name: flagOffMode ? "chromium-flag-off" : "chromium",
       use: { ...devices["Desktop Chrome"] },
       dependencies: ["setup"],
       testIgnore: /auth\.setup\.ts/,
@@ -62,8 +68,8 @@ export default defineConfig({
   webServer: process.env.PLAYWRIGHT_SKIP_WEBSERVER
     ? undefined
     : {
-        command: `npx next dev -p ${PORT}`,
-        url: baseURL,
+        command: `npx next dev -p ${effectivePort}`,
+        url: effectiveBaseURL,
         reuseExistingServer: false,
         timeout: 180_000,
         env: {

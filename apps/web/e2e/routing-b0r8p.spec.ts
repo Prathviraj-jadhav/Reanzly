@@ -148,4 +148,51 @@ test.describe("B0R-8P — rollback (flag OFF)", () => {
     await expect(page.locator("body")).toBeVisible();
     await context.close();
   });
+
+  test("322. flag OFF ModuleRouter navigates trips via sidebar", async ({ browser }) => {
+    test.skip(!migrationOff, "Requires NEXT_PUBLIC_ROUTING_MIGRATION=0");
+    const context = await browser.newContext({ storageState: undefined });
+    const page = await context.newPage();
+    await loginViaApi(page.request);
+    await page.goto("/dashboard");
+    await page.getByRole("complementary").getByRole("button", { name: "Trips", exact: true }).click();
+    await expect(page).toHaveURL(/\/dashboard/);
+    await expect(page.getByRole("heading", { name: /trips/i })).toBeVisible({ timeout: 15_000 });
+    await context.close();
+  });
+
+  test("323. flag OFF ModuleRouter navigates settings via sidebar", async ({ browser }) => {
+    test.skip(!migrationOff, "Requires NEXT_PUBLIC_ROUTING_MIGRATION=0");
+    const context = await browser.newContext({ storageState: undefined });
+    const page = await context.newPage();
+    await loginViaApi(page.request);
+    await page.goto("/dashboard");
+    await page.getByRole("complementary").getByRole("button", { name: "Settings", exact: true }).click();
+    await expect(page).toHaveURL(/\/dashboard/);
+    await expect(page.getByRole("heading", { name: /settings/i })).toBeVisible({ timeout: 15_000 });
+    await context.close();
+  });
+
+  test("324. flag OFF ModuleRouter navigates warehouse via sidebar", async ({ browser }) => {
+    test.skip(!migrationOff, "Requires NEXT_PUBLIC_ROUTING_MIGRATION=0");
+    const context = await browser.newContext({ storageState: undefined });
+    const page = await context.newPage();
+    await loginViaApi(page.request);
+    await page.goto("/dashboard");
+    await page.getByRole("complementary").getByRole("button", { name: "Warehouse", exact: true }).click();
+    await expect(page).toHaveURL(/\/dashboard/);
+    await expect(page.getByRole("heading", { name: /warehouse/i })).toBeVisible({ timeout: 15_000 });
+    await context.close();
+  });
+
+  test("325. flag OFF /dashboard?legacy=1 stays on AppShell SPA", async ({ browser }) => {
+    test.skip(!migrationOff, "Requires NEXT_PUBLIC_ROUTING_MIGRATION=0");
+    const context = await browser.newContext({ storageState: undefined });
+    const page = await context.newPage();
+    await loginViaApi(page.request);
+    await page.goto("/dashboard?legacy=1");
+    await expect(page).toHaveURL(/\/dashboard/);
+    await expect(page.getByRole("button", { name: "Dashboard" }).first()).toBeVisible();
+    await context.close();
+  });
 });
