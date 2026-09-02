@@ -1,8 +1,8 @@
 "use client";
 import { useState, useCallback, useEffect } from "react";
 import { useAppStore } from "@/lib/store/app-store";
-import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
-import { resolveModuleView, type ModuleRouteState } from "@/lib/navigation/module-route-state";
+import { useAppNavigation } from "@/lib/navigation/use-app-navigation";
+import type { ModuleRouteState } from "@/lib/navigation/module-route-state";
 import type { Inspection, Vehicle, Driver, Issue } from "@/lib/types";
 import { toast } from "sonner";
 import { InspectionList } from "./inspection-list";
@@ -10,10 +10,9 @@ import { InspectionDetail } from "./inspection-detail";
 import { AddInspectionDrawer } from "./add-inspection-drawer";
 import { FormBuilder } from "./form-builder";
 
-export function InspectionModule({ route }: { route?: ModuleRouteState } = {}) {
-  const { activeView } = useAppStore();
-  const { navigateCompat } = useNavigateCompat();
-  const view = resolveModuleView(route, activeView, "inspection");
+export function InspectionModule({ route }: { route: ModuleRouteState }) {
+  const { goToModule, goToDetail, goToCreate, goToTab } = useAppNavigation();
+  const view = route;
   const [showFormBuilder, setShowFormBuilder] = useState(false);
   const [inspections, setInspections] = useState<Inspection[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
@@ -94,7 +93,7 @@ export function InspectionModule({ route }: { route?: ModuleRouteState } = {}) {
   const drawerOpen = view.module === "inspection" && view.view === "create";
   const closeDrawer = () => {
     if (view.module === "inspection" && view.view === "create") {
-      navigateCompat("inspection");
+      goToModule("inspection");
     }
   };
 
@@ -107,7 +106,7 @@ export function InspectionModule({ route }: { route?: ModuleRouteState } = {}) {
           inspections={inspections}
           vehicles={vehicles}
           drivers={drivers}
-          onCreate={() => navigateCompat("inspection", "create")}
+          onCreate={() => goToModule("inspection", "create")}
           onOpenFormBuilder={() => setShowFormBuilder(true)}
           onUpdate={updateInspection}
           onAdd={addInspection}

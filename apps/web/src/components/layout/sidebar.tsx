@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import { usePathname } from "next/navigation";
 import { useAppStore, type ModuleId, type ViewState } from "@/lib/store/app-store";
-import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
+import { useAppNavigation, useActiveModuleFromPath } from "@/lib/navigation/use-app-navigation";
+import { pathToModule } from "@/lib/navigation/module-paths";
+import { isRoutingMigrationEnabled } from "@/lib/navigation/routing-config";
 import { cn } from "@/lib/utils";
 import { getRoleFeatures } from "@/lib/content/role-features";
 import {
@@ -246,21 +248,26 @@ function allAccessibleModules(
 
 export function Sidebar() {
   const pathname = usePathname();
-  const { navigateCompat } = useNavigateCompat();
+  const pathActive = useActiveModuleFromPath();
+  const legacyActiveView = useAppStore((s) => s.activeView);
+  const activeView = useMemo(
+    () => (isRoutingMigrationEnabled() ? pathActive : legacyActiveView),
+    [pathActive, legacyActiveView],
+  );
+  const { goToModule } = useAppNavigation();
   const {
-    activeView,
     sidebarCollapsed,
     currentRole,
     mobileSidebarOpen,
     setMobileSidebarOpen,
   } = useAppStore();
 
-  const navigate = navigateCompat;
+  const navigate = goToModule;
 
-  // Close mobile drawer on route change (App Router or legacy activeView)
+  // Close mobile drawer on route change
   useEffect(() => {
     setMobileSidebarOpen(false);
-  }, [activeView.module, activeView.id, pathname, setMobileSidebarOpen]);
+  }, [pathname, activeView.module, activeView.id, setMobileSidebarOpen]);
 
   // Close on Escape
   useEffect(() => {

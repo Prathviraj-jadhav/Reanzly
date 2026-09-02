@@ -5,7 +5,7 @@ import { DetailLayout } from "@/components/shared/detail-layout";
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge, vehicleStatusBadge } from "@/components/shared/status-badge";
 import { SavageInput, SavageTextarea } from "@/components/shared/savage-input";
-import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
+import { useAppNavigation } from "@/lib/navigation/use-app-navigation";
 import type { Vehicle } from "@/lib/types";
 import {
   Truck, Gauge, Calendar, User, Navigation, Pencil, Wrench, Fuel,
@@ -57,7 +57,7 @@ interface VehicleDetailProps {
 const VALID_TAB_IDS = new Set(TABS.map((t) => t.id));
 
 export function VehicleDetail({ vehicleId, initialTab, vehicles, onUpdate }: VehicleDetailProps) {
-  const { navigateCompat } = useNavigateCompat();
+  const { goToModule, goToDetail, goToCreate, goToTab } = useAppNavigation();
   const resolvedInitial =
     initialTab && VALID_TAB_IDS.has(initialTab) ? initialTab : "overview";
   const [activeTab, setActiveTab] = useState(resolvedInitial);
@@ -70,9 +70,9 @@ export function VehicleDetail({ vehicleId, initialTab, vehicles, onUpdate }: Veh
   const handleTabChange = useCallback(
     (tab: string) => {
       setActiveTab(tab);
-      navigateCompat("vehicles", "detail", vehicleId, tab === "overview" ? undefined : tab);
+      goToModule("vehicles", "detail", vehicleId, tab === "overview" ? undefined : tab);
     },
-    [navigateCompat, vehicleId],
+    [goToModule, vehicleId],
   );
 
   const vehicle = useMemo(() => vehicles.find((v) => v.id === vehicleId), [vehicles, vehicleId]);
@@ -83,7 +83,7 @@ export function VehicleDetail({ vehicleId, initialTab, vehicles, onUpdate }: Veh
         <p className="text-[14px] text-muted-foreground">
           Vehicle <span className="tabular">{vehicleId}</span> not found.
         </p>
-        <Btn variant="outline" onClick={() => navigateCompat("vehicles")}>
+        <Btn variant="outline" onClick={() => goToModule("vehicles")}>
           Back to Vehicles
         </Btn>
       </div>
@@ -93,7 +93,7 @@ export function VehicleDetail({ vehicleId, initialTab, vehicles, onUpdate }: Veh
   const { variant, pulse } = vehicleStatusBadge(vehicle.status);
 
   const handleViewOnMap = () => {
-    navigateCompat("fleet-map", "list", vehicle.id);
+    goToModule("fleet-map", "list", vehicle.id);
   };
 
   const actions = (

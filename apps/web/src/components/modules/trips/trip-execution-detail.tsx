@@ -35,7 +35,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
+import { useAppNavigation } from "@/lib/navigation/use-app-navigation";
 import {
   Select,
   SelectContent,
@@ -91,7 +91,7 @@ interface TripExecutionDetailProps {
 }
 
 export function TripExecutionDetail({ tripId, trips, onUpdate }: TripExecutionDetailProps) {
-  const { navigateCompat } = useNavigateCompat();
+  const { goToModule, goToDetail, goToCreate, goToTab } = useAppNavigation();
   const [activeTab, setActiveTab] = useState("route");
   const [expenses, setExpenses] = useState<ExpenseItem[]>(() => [
     { id: "e1", type: "Loading", amount: "1200", note: "Origin loading" },
@@ -112,7 +112,7 @@ export function TripExecutionDetail({ tripId, trips, onUpdate }: TripExecutionDe
         <p className="text-[14px] text-muted-foreground">
           Trip <span className="tabular">{tripId}</span> not found.
         </p>
-        <Btn variant="outline" onClick={() => navigateCompat("trips")}>
+        <Btn variant="outline" onClick={() => goToModule("trips")}>
           Back to Trips
         </Btn>
       </div>
@@ -160,7 +160,7 @@ export function TripExecutionDetail({ tripId, trips, onUpdate }: TripExecutionDe
   const handleCancel = (reason: string) => {
     setCancelOpen(false);
     toast(`Trip cancelled`, { description: `${trip.tripId} · ${reason}` });
-    navigateCompat("trips");
+    goToModule("trips");
   };
 
   const quickActions = [

@@ -3,7 +3,7 @@ import { useState, useMemo } from "react";
 import { DetailLayout, InfoRow, InfoSection, StatCard } from "@/components/shared/detail-layout";
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
-import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
+import { useAppNavigation } from "@/lib/navigation/use-app-navigation";
 import type { WorkOrder, Vehicle, Vendor, Issue } from "@/lib/types";
 import {
   Pencil,
@@ -62,7 +62,7 @@ interface WorkOrderDetailProps {
 }
 
 export function WorkOrderDetail({ workOrderId, workOrders, vehicles, vendors, issues, onUpdate }: WorkOrderDetailProps) {
-  const { navigateCompat: navigate, navigateDetailCompat: navigateDetail } = useNavigateCompat();
+    const { goToModule: navigate, goToDetail: navigateDetail } = useAppNavigation();
   const [activeTab, setActiveTab] = useState("overview");
   const record = workOrders.find((w) => w.workOrderId === workOrderId);
   const [editing, setEditing] = useState(false);

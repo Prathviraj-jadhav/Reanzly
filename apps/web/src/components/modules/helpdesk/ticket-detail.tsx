@@ -5,7 +5,7 @@ import { DetailLayout, InfoRow, InfoSection, StatCard } from "@/components/share
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { useAppStore } from "@/lib/store/app-store";
-import { useModuleNavigation } from "@/lib/navigation/navigate-compat";
+import { useAppNavigation } from "@/lib/navigation/use-app-navigation";
 import { type HelpdeskTicket } from "./_helpers";
 import {
   Pencil,
@@ -97,7 +97,7 @@ function useTicket(ticketId: string) {
 }
 
 export function TicketDetail({ ticketId }: TicketDetailProps) {
-  const { navigate } = useModuleNavigation();
+    const { goToModule: navigate } = useAppNavigation();
   const [activeTab, setActiveTab] = useState("overview");
   const [reply, setReply] = useState("");
   const [internal, setInternal] = useState(false);

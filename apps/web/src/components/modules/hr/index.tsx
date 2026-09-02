@@ -5,8 +5,8 @@ import { PageHeader } from "@/components/shared/page-header";
 import { Btn } from "@/components/shared/btn";
 import { Banknote } from "lucide-react";
 import { useAppStore } from "@/lib/store/app-store";
-import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
-import { resolveModuleView, type ModuleRouteState } from "@/lib/navigation/module-route-state";
+import { useAppNavigation } from "@/lib/navigation/use-app-navigation";
+import type { ModuleRouteState } from "@/lib/navigation/module-route-state";
 import { cn } from "@/lib/utils";
 import { Overview } from "./overview";
 import { Employees } from "./employees";
@@ -22,10 +22,9 @@ import { HR_TABS, type HrTab } from "./_helpers";
 import type { IssuanceType, Employee } from "./_data";
 import { useHrStore } from "./_store";
 
-export function HRModule({ route }: { route?: ModuleRouteState } = {}) {
-  const { activeView } = useAppStore();
-  const { navigateCompat } = useNavigateCompat();
-  const view = resolveModuleView(route, activeView, "hr");
+export function HRModule({ route }: { route: ModuleRouteState }) {
+  const { goToModule, goToDetail, goToCreate, goToTab } = useAppNavigation();
+  const view = route;
   const resolvedTab = (view.tab as HrTab | undefined) ?? "overview";
   const [tab, setTab] = useState<HrTab>(resolvedTab);
   const hrLoaded = useHrStore((s) => s.loaded);
@@ -42,9 +41,9 @@ export function HRModule({ route }: { route?: ModuleRouteState } = {}) {
   const onTabChange = useCallback(
     (next: HrTab) => {
       setTab(next);
-      navigateCompat("hr", "list", undefined, next === "overview" ? undefined : next);
+      goToModule("hr", "list", undefined, next === "overview" ? undefined : next);
     },
-    [navigateCompat],
+    [goToModule],
   );
 
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -86,7 +85,7 @@ export function HRModule({ route }: { route?: ModuleRouteState } = {}) {
             variant="outline"
             size="sm"
             icon={<Banknote className="h-3.5 w-3.5" />}
-            onClick={() => navigateCompat("payroll")}
+            onClick={() => goToModule("payroll")}
           >
             Open Payroll
           </Btn>

@@ -5,8 +5,7 @@ import { DataTable, type Column } from "@/components/shared/data-table";
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge, docStatusBadge } from "@/components/shared/status-badge";
 import { useAppStore } from "@/lib/store/app-store";
-import { useModuleNavigation } from "@/lib/navigation/navigate-compat";
-import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
+import { useAppNavigation } from "@/lib/navigation/use-app-navigation";
 import type { DocumentRecord, Vehicle, Driver, Customer, Vendor } from "@/lib/types";
 import {
   Plus,
@@ -55,8 +54,8 @@ const EXPIRY_FILTERS = [
 ];
 
 export function DocumentsList({ onCreate, documents, onUpdate: onUpdateReal }: DocumentsListProps) {
-  const { navigateDetail } = useModuleNavigation();
-  const { navigateCompat } = useNavigateCompat();
+    const { goToDetail: navigateDetail } = useAppNavigation();
+  const { goToModule, goToDetail, goToCreate, goToTab } = useAppNavigation();
   const rows = documents;
   const [editing, setEditing] = useState<DocumentRecord | null>(null);
   const [search, setSearch] = useState("");
@@ -302,7 +301,7 @@ export function DocumentsList({ onCreate, documents, onUpdate: onUpdateReal }: D
             <Btn
               icon={<FileText className="h-3.5 w-3.5" />}
               onClick={() => {
-                navigateCompat("document-studio");
+                goToModule("document-studio");
                 toast("Open Document Studio", {
                   description: "Generate offer letters, certifications, bills, quotations, NOCs and more - branded, customizable, downloadable.",
                 });

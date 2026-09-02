@@ -10,7 +10,7 @@ import {
   paymentStatusBadge,
 } from "@/components/shared/status-badge";
 import { useAppStore } from "@/lib/store/app-store";
-import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
+import { useAppNavigation } from "@/lib/navigation/use-app-navigation";
 import type { Trip } from "@/lib/types";
 import {
   Plus,
@@ -54,7 +54,7 @@ interface TripsListProps {
 
 export function TripsList({ trips, onCreateJobOrder, onPlanTrip, onUpdate }: TripsListProps) {
   const { currentRole } = useAppStore();
-  const { navigateDetailCompat } = useNavigateCompat();
+    const { goToModule, goToDetail, goToCreate, goToTab } = useAppNavigation();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<Set<string>>(new Set());
   const [paymentFilter, setPaymentFilter] = useState<string>("");
@@ -535,7 +535,7 @@ export function TripsList({ trips, onCreateJobOrder, onPlanTrip, onUpdate }: Tri
     },
     {
       label: "View Details",
-      onClick: (t: Trip) => navigateDetailCompat("trips", t.tripId),
+      onClick: (t: Trip) => goToDetail("trips", t.tripId),
     },
     {
       label: "Print LR",
@@ -802,7 +802,7 @@ export function TripsList({ trips, onCreateJobOrder, onPlanTrip, onUpdate }: Tri
         <DataTable
           data={filtered}
           columns={columns}
-          onRowClick={(t) => navigateDetailCompat("trips", t.tripId)}
+          onRowClick={(t) => goToDetail("trips", t.tripId)}
           rowActions={rowActions}
           bulkActions={bulkActions}
           emptyTitle={emptyState.title}

@@ -1,9 +1,9 @@
 "use client";
 
-import { ModuleClusterTabs, type ClusterTab } from "@/components/shared/module-cluster-tabs";
-import { useAppStore } from "@/lib/store/app-store";
+import { AppClusterTabs, type AppClusterTab } from "@/components/shared/app-cluster-tabs";
+import { useActiveModuleFromPath } from "@/lib/navigation/use-app-navigation";
 
-const CRM_CLUSTER_TABS: ClusterTab[] = [
+const CRM_CLUSTER_TABS: AppClusterTab[] = [
   { id: "crm", label: "Overview" },
   { id: "customers", label: "Customers" },
   { id: "vendors", label: "Vendors" },
@@ -13,36 +13,30 @@ const CRM_CLUSTER_TABS: ClusterTab[] = [
   { id: "surveys", label: "Surveys" },
 ];
 
-/** CRM ↔ customers ↔ vendors ↔ purchase ↔ helpdesk ↔ marketing ↔ surveys (B0R-5). */
 export function CrmClusterLayout({ children }: { children: React.ReactNode }) {
-  const activeView = useAppStore((s) => s.activeView);
-  const clusterActive = CRM_CLUSTER_TABS.some((t) => t.id === activeView.module)
-    ? activeView.module
-    : "crm";
+  const { module } = useActiveModuleFromPath();
+  const clusterActive = CRM_CLUSTER_TABS.some((t) => t.id === module) ? module : "crm";
 
   return (
-    <ModuleClusterTabs tabs={CRM_CLUSTER_TABS} active={clusterActive}>
+    <AppClusterTabs tabs={CRM_CLUSTER_TABS} active={clusterActive}>
       {children}
-    </ModuleClusterTabs>
+    </AppClusterTabs>
   );
 }
 
-const HR_CLUSTER_TABS: ClusterTab[] = [
+const HR_CLUSTER_TABS: AppClusterTab[] = [
   { id: "hr", label: "Overview" },
   { id: "drivers-staff", label: "Drivers & Staff" },
   { id: "payroll", label: "Payroll" },
 ];
 
-/** HR ↔ drivers-staff ↔ payroll cluster (B0R-5). */
 export function HrClusterLayout({ children }: { children: React.ReactNode }) {
-  const activeView = useAppStore((s) => s.activeView);
-  const clusterActive = HR_CLUSTER_TABS.some((t) => t.id === activeView.module)
-    ? activeView.module
-    : "hr";
+  const { module } = useActiveModuleFromPath();
+  const clusterActive = HR_CLUSTER_TABS.some((t) => t.id === module) ? module : "hr";
 
   return (
-    <ModuleClusterTabs tabs={HR_CLUSTER_TABS} active={clusterActive}>
+    <AppClusterTabs tabs={HR_CLUSTER_TABS} active={clusterActive}>
       {children}
-    </ModuleClusterTabs>
+    </AppClusterTabs>
   );
 }

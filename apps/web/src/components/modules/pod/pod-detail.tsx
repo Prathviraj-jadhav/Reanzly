@@ -9,7 +9,7 @@ import {
 } from "@/components/shared/detail-layout";
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
-import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
+import { useAppNavigation } from "@/lib/navigation/use-app-navigation";
 import { usePODStore } from "@/lib/store/pod-store";
 import { EditPODDrawer } from "./edit-pod-drawer";
 import {
@@ -60,7 +60,7 @@ interface PODDetailProps {
 }
 
 export function PODDetail({ podId }: PODDetailProps) {
-  const { navigateCompat } = useNavigateCompat();
+  const { goToModule, goToDetail, goToCreate, goToTab } = useAppNavigation();
   const [activeTab, setActiveTab] = useState("overview");
   const pod = usePODStore((s) => s.pods.find((p) => p.id === podId));
   const setSubmissionStatus = usePODStore((s) => s.setSubmissionStatus);
@@ -77,7 +77,7 @@ export function PODDetail({ podId }: PODDetailProps) {
         <p className="text-[14px] text-muted-foreground">
           POD <span className="tabular">{podId}</span> not found.
         </p>
-        <Btn variant="outline" onClick={() => navigateCompat("pod")}>
+        <Btn variant="outline" onClick={() => goToModule("pod")}>
           Back to PODs
         </Btn>
       </div>
@@ -131,7 +131,7 @@ export function PODDetail({ podId }: PODDetailProps) {
         variant="primary"
         icon={<Plus className="h-3.5 w-3.5" />}
         onClick={() => {
-          navigateCompat("pod", "create");
+          goToModule("pod", "create");
           toast("New POD from template", { description: `Prefilled with route ${pod.source} → ${pod.destination}` });
         }}
       >
@@ -167,7 +167,7 @@ export function PODDetail({ podId }: PODDetailProps) {
   quickActions.push({
     label: "Duplicate",
     onClick: () => {
-      navigateCompat("pod", "create");
+      goToModule("pod", "create");
       toast("Duplicating POD", { description: pod.voucherNumber });
     },
   });

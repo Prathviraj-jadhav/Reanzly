@@ -20,7 +20,7 @@ import { KpiCard } from "@/components/shared/kpi-card";
 import { StatusBadge, LiveDot } from "@/components/shared/status-badge";
 import { Btn } from "@/components/shared/btn";
 import { useAppStore, type ModuleId } from "@/lib/store/app-store";
-import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
+import { useAppNavigation } from "@/lib/navigation/use-app-navigation";
 import { isModuleMigrated } from "@/lib/navigation/routing-config";
 import { useDashboardStore, selectActiveDashboard, type DashboardFilter } from "@/lib/store/dashboard-store";
 import { REAN_RECOMMENDATIONS, REAN_ANOMALIES } from "@/lib/mock-data";
@@ -123,14 +123,14 @@ const CHART_PALETTE = [
 /** Dashboard widgets: route migrated modules through App Router (B0R-2+). */
 function useWidgetNavigation() {
   const legacy = useAppStore();
-  const { navigateCompat, navigateDetailCompat } = useNavigateCompat();
+  const { goToModule, goToDetail, goToCreate, goToTab } = useAppNavigation();
   return {
     navigate: (module: ModuleId, view?: Parameters<typeof legacy.navigate>[1], id?: string, tab?: string) => {
-      if (isModuleMigrated(module)) return navigateCompat(module, view, id, tab);
+      if (isModuleMigrated(module)) return goToModule(module, view, id, tab);
       return legacy.navigate(module, view, id, tab);
     },
     navigateDetail: (module: ModuleId, id: string, tab?: string) => {
-      if (isModuleMigrated(module)) return navigateDetailCompat(module, id, tab);
+      if (isModuleMigrated(module)) return goToDetail(module, id, tab);
       return legacy.navigateDetail(module, id, tab);
     },
   };
@@ -796,7 +796,7 @@ function ReanAnomaliesWidget(): ReactElement {
 }
 
 function ComplianceExpiryCalendarWidget(): ReactElement {
-  const { navigateDetail } = useAppStore();
+  const { navigateDetail } = useWidgetNavigation();
   const { stats } = useDashboardStats();
   const visible = stats?.documents.expiryCalendar.slice(0, 8) ?? [];
   return (

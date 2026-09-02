@@ -1,9 +1,9 @@
 "use client";
 
-import { ModuleClusterTabs, type ClusterTab } from "@/components/shared/module-cluster-tabs";
-import { useAppStore } from "@/lib/store/app-store";
+import { AppClusterTabs, type AppClusterTab } from "@/components/shared/app-cluster-tabs";
+import { useActiveModuleFromPath } from "@/lib/navigation/use-app-navigation";
 
-const FLEET_CLUSTER_TABS: ClusterTab[] = [
+const FLEET_CLUSTER_TABS: AppClusterTab[] = [
   { id: "vehicles", label: "Overview" },
   { id: "inspection", label: "Inspection" },
   { id: "issues", label: "Issues" },
@@ -15,16 +15,14 @@ const FLEET_CLUSTER_TABS: ClusterTab[] = [
   { id: "quality", label: "Quality" },
 ];
 
-/** Fleet cluster tab strip for migrated `/app/{vehicles|inspection|…}/*` routes (B0R-2/3). */
+/** Fleet cluster tab strip for migrated `/app/{vehicles|inspection|…}/*` routes (B0R-8P). */
 export function FleetClusterLayout({ children }: { children: React.ReactNode }) {
-  const activeView = useAppStore((s) => s.activeView);
-  const clusterActive = FLEET_CLUSTER_TABS.some((t) => t.id === activeView.module)
-    ? activeView.module
-    : "vehicles";
+  const { module } = useActiveModuleFromPath();
+  const clusterActive = FLEET_CLUSTER_TABS.some((t) => t.id === module) ? module : "vehicles";
 
   return (
-    <ModuleClusterTabs tabs={FLEET_CLUSTER_TABS} active={clusterActive}>
+    <AppClusterTabs tabs={FLEET_CLUSTER_TABS} active={clusterActive}>
       {children}
-    </ModuleClusterTabs>
+    </AppClusterTabs>
   );
 }

@@ -1,8 +1,8 @@
 "use client";
 import { useState, useCallback, useEffect } from "react";
 import { useAppStore } from "@/lib/store/app-store";
-import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
-import { resolveModuleView, type ModuleRouteState } from "@/lib/navigation/module-route-state";
+import { useAppNavigation } from "@/lib/navigation/use-app-navigation";
+import type { ModuleRouteState } from "@/lib/navigation/module-route-state";
 import type { Reminder } from "@/lib/types";
 import { toast } from "sonner";
 import { RemindersList } from "./reminders-list";
@@ -14,10 +14,9 @@ import {
   pilotErrorMessage,
 } from "@/lib/pilot-api";
 
-export function RemindersModule({ route }: { route?: ModuleRouteState } = {}) {
-  const { activeView } = useAppStore();
-  const { navigateCompat } = useNavigateCompat();
-  const view = resolveModuleView(route, activeView, "reminders");
+export function RemindersModule({ route }: { route: ModuleRouteState }) {
+  const { goToModule, goToDetail, goToCreate, goToTab } = useAppNavigation();
+  const view = route;
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [loaded, setLoaded] = useState(false);
 
@@ -63,7 +62,7 @@ export function RemindersModule({ route }: { route?: ModuleRouteState } = {}) {
   const drawerOpen = view.view === "create";
   const closeDrawer = () => {
     if (view.view === "create") {
-      navigateCompat("reminders");
+      goToModule("reminders");
     }
   };
 
@@ -71,7 +70,7 @@ export function RemindersModule({ route }: { route?: ModuleRouteState } = {}) {
     <>
       <RemindersList
         reminders={reminders}
-        onCreate={() => navigateCompat("reminders", "create")}
+        onCreate={() => goToModule("reminders", "create")}
         onUpdate={updateReminder}
       />
       <AddReminderDrawer open={drawerOpen} onClose={closeDrawer} onAdd={addReminder} />

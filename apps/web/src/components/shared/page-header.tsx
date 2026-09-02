@@ -3,8 +3,7 @@
 import { cn } from "@/lib/utils";
 import type { ReactNode } from "react";
 import { ArrowLeft } from "lucide-react";
-import { useAppStore } from "@/lib/store/app-store";
-import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
+import { useAppNavigation, useActiveModuleFromPath } from "@/lib/navigation/use-app-navigation";
 import { useMigratedNavBack } from "@/lib/navigation/use-migrated-nav-back";
 import {
   Breadcrumb,
@@ -48,31 +47,31 @@ interface PageHeaderProps {
 export function PageHeader({
   title,
   description,
+  breadcrumb,
   actions,
   meta,
   showBack,
   className,
   context,
 }: PageHeaderProps) {
-  const { activeView } = useAppStore();
-  const { navigateCompat } = useNavigateCompat();
-  const navigateBack = useMigratedNavBack(activeView.module);
+  const { module } = useActiveModuleFromPath();
+  const { goToModule } = useAppNavigation();
+  const navigateBack = useMigratedNavBack(module);
 
   return (
     <div className={cn("flex flex-col gap-3 border-b border-border pb-4 animate-slide-up", className)}>
-      {/* Breadcrumb */}
-      {activeView.breadcrumb.length > 0 && (
+      {breadcrumb && breadcrumb.length > 0 && (
         <Breadcrumb>
           <BreadcrumbList>
-            {activeView.breadcrumb.map((b, i) => (
+            {breadcrumb.map((b, i) => (
               <div key={i} className="flex items-center gap-1.5">
                 {i > 0 && <BreadcrumbSeparator className="text-muted-foreground/50" />}
                 <BreadcrumbItem>
-                  {i === activeView.breadcrumb.length - 1 ? (
+                  {i === breadcrumb.length - 1 ? (
                     <BreadcrumbPage className="text-[12px] text-muted-foreground">{b.label}</BreadcrumbPage>
                   ) : (
                     <BreadcrumbLink
-                      onClick={() => b.module && navigateCompat(b.module as never)}
+                      onClick={() => b.module && goToModule(b.module as never)}
                       className="cursor-pointer text-[12px] text-muted-foreground hover:text-foreground"
                     >
                       {b.label}

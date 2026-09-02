@@ -10,8 +10,7 @@ import { Btn } from "@/components/shared/btn";
 import { SectionCard } from "@/components/shared/section-card";
 import { StatusBadge, docStatusBadge } from "@/components/shared/status-badge";
 import { useAppStore } from "@/lib/store/app-store";
-import { useModuleNavigation } from "@/lib/navigation/navigate-compat";
-import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
+import { useAppNavigation } from "@/lib/navigation/use-app-navigation";
 import {
   VENDORS,
   WORK_ORDERS,
@@ -77,7 +76,7 @@ interface VendorDetailProps {
 }
 
 export function VendorDetail({ vendorId, vendors, onUpdate }: VendorDetailProps) {
-  const { navigate } = useModuleNavigation();
+    const { goToModule: navigate } = useAppNavigation();
   const [activeTab, setActiveTab] = useState("overview");
   const [editing, setEditing] = useState<Vendor | null>(null);
 
@@ -257,7 +256,7 @@ function OverviewTab({ vendor }: { vendor: Vendor }) {
 // ===== 360 View Tab =====
 function Vendor360Tab({ vendor }: { vendor: Vendor }) {
   const seed = parseInt(vendor.id.replace(/\D/g, "")) || 1;
-  const { navigateDetailCompat: navigateDetail } = useNavigateCompat();
+    const { goToDetail: navigateDetail } = useAppNavigation();
 
   // ===== Bills / paid / pending =====
   const vendorExpenses = EXPENSES.filter(

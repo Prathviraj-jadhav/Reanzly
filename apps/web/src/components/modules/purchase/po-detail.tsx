@@ -4,7 +4,7 @@ import { DetailLayout, InfoRow, InfoSection, StatCard } from "@/components/share
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { useAppStore } from "@/lib/store/app-store";
-import { useModuleNavigation } from "@/lib/navigation/navigate-compat";
+import { useAppNavigation } from "@/lib/navigation/use-app-navigation";
 import {
   Pencil,
   FileDown,
@@ -54,7 +54,7 @@ interface PODetailProps {
 }
 
 export function PODetail({ poId, initialTab, orders, onUpdate }: PODetailProps) {
-  const { navigate, navigateDetail } = useModuleNavigation();
+  const { goToModule, goToDetail, goToCreate, goToTab } = useAppNavigation();
   const [activeTab, setActiveTab] = useState(initialTab || "overview");
   const po = useMemo(() => orders.find((p) => p.id === poId), [orders, poId]);
 
@@ -92,7 +92,7 @@ export function PODetail({ poId, initialTab, orders, onUpdate }: PODetailProps) 
         <p className="text-[14px] text-muted-foreground">
           Purchase order <span className="tabular">{poId}</span> not found.
         </p>
-        <Btn variant="outline" onClick={() => navigate("purchase")}>Back to Purchase</Btn>
+        <Btn variant="outline" onClick={() => goToModule("purchase")}>Back to Purchase</Btn>
       </div>
     );
   }
@@ -196,7 +196,7 @@ export function PODetail({ poId, initialTab, orders, onUpdate }: PODetailProps) 
           <InfoSection title="Vendor">
             <div className="px-4 py-3">
               <button
-                onClick={() => navigateDetail("vendors", po.vendorId)}
+                onClick={() => goToDetail("vendors", po.vendorId)}
                 className="flex items-center justify-between gap-3 rounded-[5px] border border-border px-3 py-2.5 hover:bg-accent transition-colors text-left w-full"
               >
                 <div className="flex items-center gap-2.5 min-w-0">

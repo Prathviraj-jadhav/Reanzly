@@ -4,20 +4,16 @@ import { useEffect, useRef } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useAppStore } from "@/lib/store/app-store";
 import { pathToModule } from "./module-paths";
-import { isModuleMigrated } from "./routing-config";
+import { isModuleMigrated, isRoutingMigrationEnabled } from "./routing-config";
 
 function currentAppPath(pathname: string, search: string): string {
   return search ? `${pathname}${search}` : pathname;
 }
 
 /**
- * Keeps Zustand `activeView` aligned with the current `/app/*` URL for migrated
- * modules without triggering navigation loops.
- *
- * Dual-write contract (B0R-1):
- * - URL → Zustand: this hook (pathname change / refresh / back-forward)
- * - Zustand → URL: `useNavigateCompat()` (sidebar clicks)
- * - Loop guard: skip sync when `activeView` already matches parsed path
+ * Rollback-only: keeps Zustand `activeView` aligned with `/app/*` URL during
+ * dual-write migration. **Disabled when `NEXT_PUBLIC_ROUTING_MIGRATION=1`**
+ * (B0R-8P) — URL is authoritative; chrome derives state from pathname.
  */
 export function useActiveViewSync() {
   const pathname = usePathname();
@@ -27,6 +23,8 @@ export function useActiveViewSync() {
   const lastSyncedPath = useRef<string | null>(null);
 
   useEffect(() => {
+    // B0R-8P: normal migrated nav does not read activeView for routing.
+    if (isRoutingMigrationEnabled()) return;
     if (!pathname.startsWith("/app")) return;
 
     const search = searchParams.toString();

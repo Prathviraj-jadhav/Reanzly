@@ -6,7 +6,7 @@ import { DataTable, type Column } from "@/components/shared/data-table";
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { useAppStore } from "@/lib/store/app-store";
-import { useModuleNavigation } from "@/lib/navigation/navigate-compat";
+import { useAppNavigation } from "@/lib/navigation/use-app-navigation";
 import {
   Plus,
   Download,
@@ -95,7 +95,7 @@ function SlaCell({ ticket }: { ticket: HelpdeskTicket }) {
 }
 
 export function TicketsList({ tickets, onCreate, onUpdate }: TicketsListProps) {
-  const { navigateDetail } = useModuleNavigation();
+    const { goToDetail: navigateDetail } = useAppNavigation();
   const [search, setSearch] = useState("");
   const [priorityFilter, setPriorityFilter] = useState<Set<string>>(new Set());
   const [statusFilter, setStatusFilter] = useState<Set<string>>(new Set());

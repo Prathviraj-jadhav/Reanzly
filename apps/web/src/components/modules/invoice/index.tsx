@@ -1,8 +1,8 @@
 "use client";
 import { useState, useCallback, useMemo, useEffect } from "react";
 import { useAppStore } from "@/lib/store/app-store";
-import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
-import { resolveModuleView, type ModuleRouteState } from "@/lib/navigation/module-route-state";
+import { useAppNavigation } from "@/lib/navigation/use-app-navigation";
+import type { ModuleRouteState } from "@/lib/navigation/module-route-state";
 import type { Invoice, InvoiceStatus } from "@/lib/types";
 import { toast } from "sonner";
 import { InvoiceList } from "./invoice-list";
@@ -27,10 +27,9 @@ import {
   type SavedInvoiceTemplate,
 } from "./_helpers";
 
-export function InvoiceModule({ route }: { route?: ModuleRouteState } = {}) {
-  const { activeView } = useAppStore();
-  const { navigateCompat } = useNavigateCompat();
-  const view = resolveModuleView(route, activeView, "invoice");
+export function InvoiceModule({ route }: { route: ModuleRouteState }) {
+  const { goToModule, goToDetail, goToCreate, goToTab } = useAppNavigation();
+  const view = route;
   const [recordPaymentTarget, setRecordPaymentTarget] =
     useState<Invoice | null>(null);
 
@@ -440,7 +439,7 @@ export function InvoiceModule({ route }: { route?: ModuleRouteState } = {}) {
   const drawerOpen = view.view === "create";
   const closeDrawer = () => {
     if (view.view === "create") {
-      navigateCompat("invoice");
+      goToModule("invoice");
     }
   };
 
@@ -449,7 +448,7 @@ export function InvoiceModule({ route }: { route?: ModuleRouteState } = {}) {
     <>
       <InvoiceList
         invoices={invoices}
-        onCreate={() => navigateCompat("invoice", "create")}
+        onCreate={() => goToModule("invoice", "create")}
         onRecordPayment={(inv) => setRecordPaymentTarget(inv)}
         onCustomizeDesign={(inv) => setDesignerTarget(inv)}
         onRelease={(inv) => setReleaseTarget(inv)}

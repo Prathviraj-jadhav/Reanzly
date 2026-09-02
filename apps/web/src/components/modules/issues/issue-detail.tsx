@@ -3,7 +3,7 @@ import { useState, useMemo, useEffect } from "react";
 import { DetailLayout, InfoRow, InfoSection, StatCard } from "@/components/shared/detail-layout";
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge, issueSeverityBadge } from "@/components/shared/status-badge";
-import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
+import { useAppNavigation } from "@/lib/navigation/use-app-navigation";
 import type { Issue, Vehicle, Driver, Inspection, WorkOrder } from "@/lib/types";
 import {
   Pencil,
@@ -68,7 +68,7 @@ interface IssueDetailProps {
 }
 
 export function IssueDetail({ issueId, issues, vehicles, drivers, inspections, workOrders, onUpdate }: IssueDetailProps) {
-  const { navigateCompat: navigate, navigateDetailCompat: navigateDetail } = useNavigateCompat();
+    const { goToModule: navigate, goToDetail: navigateDetail } = useAppNavigation();
   const [activeTab, setActiveTab] = useState("overview");
   const [comment, setComment] = useState("");
   const issue = issues.find((i) => i.issueId === issueId);

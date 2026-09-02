@@ -4,7 +4,7 @@ import { useMemo, useState, useEffect } from "react";
 import { StatCard, InfoRow } from "@/components/shared/detail-layout";
 import { SectionCard } from "@/components/shared/section-card";
 import { StatusBadge, vehicleStatusBadge, licenseExpiryBadge } from "@/components/shared/status-badge";
-import { useAppStore } from "@/lib/store/app-store";
+import { useAppNavigation } from "@/lib/navigation/use-app-navigation";
 import type { Vehicle } from "@/lib/types";
 import {
   Truck, Gauge, Fuel, Activity, Calendar, MapPin, Navigation,
@@ -13,7 +13,7 @@ import {
 import { formatNumber, relativeTime, vehicleSeed, daysFromNow, formatDate } from "../_helpers";
 
 export function VehicleOverviewTab({ vehicle }: { vehicle: Vehicle }) {
-  const { navigateDetail } = useAppStore();
+  const { goToDetail } = useAppNavigation();
   const seed = vehicleSeed(vehicle.id);
 
   const [drivers, setDrivers] = useState<any[]>([]);
@@ -89,7 +89,7 @@ export function VehicleOverviewTab({ vehicle }: { vehicle: Vehicle }) {
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <button
-                    onClick={() => navigateDetail("drivers-staff", currentDriver.id)}
+                    onClick={() => goToDetail("drivers-staff", currentDriver.id)}
                     className="text-[14px] font-medium text-foreground hover:underline inline-flex items-center gap-1"
                   >
                     {currentDriver.name}

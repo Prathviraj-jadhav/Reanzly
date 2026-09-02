@@ -5,7 +5,7 @@ import { DataTable, type Column } from "@/components/shared/data-table";
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { useAppStore } from "@/lib/store/app-store";
-import { useModuleNavigation } from "@/lib/navigation/navigate-compat";
+import { useAppNavigation } from "@/lib/navigation/use-app-navigation";
 import {
   Plus,
   Download,
@@ -53,7 +53,7 @@ const DATE_RANGE_PRESETS = [
 ];
 
 export function POList({ purchaseOrders, loaded, onCreate, onUpdate }: POListProps) {
-  const { navigateDetail } = useModuleNavigation();
+    const { goToDetail: navigateDetail } = useAppNavigation();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<Set<POStatus>>(new Set());
   const [vendorFilter, setVendorFilter] = useState("");

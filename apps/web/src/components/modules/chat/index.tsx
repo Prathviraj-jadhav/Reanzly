@@ -3,8 +3,8 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/lib/store/app-store";
-import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
-import { resolveModuleView, type ModuleRouteState } from "@/lib/navigation/module-route-state";
+import { useAppNavigation } from "@/lib/navigation/use-app-navigation";
+import type { ModuleRouteState } from "@/lib/navigation/module-route-state";
 import { useChatStore } from "@/lib/store/chat-store";
 import { ChatSidebar } from "./chat-sidebar";
 import { ChatConversation } from "./chat-conversation";
@@ -33,10 +33,10 @@ import {
  * Shares the persisted `reanzly-chat` Zustand store with the slide-in
  * ChatPanel so quick replies from the panel show up here too.
  */
-export function ChatModule({ route }: { route?: ModuleRouteState } = {}) {
+export function ChatModule({ route }: { route: ModuleRouteState }) {
   const { currentRole, chatOpen, setChatOpen, authUser, activeView } = useAppStore();
-  const { navigateCompat } = useNavigateCompat();
-  const view = resolveModuleView(route, activeView, "chat");
+  const { goToModule, goToDetail, goToCreate, goToTab } = useAppNavigation();
+  const view = route;
   // Real signup name when available, falling back to the role archetype's
   // demo persona name for quick-login / live-demo sessions.
   const displayName = authUser?.name?.trim() || currentRole.name;
@@ -89,9 +89,9 @@ export function ChatModule({ route }: { route?: ModuleRouteState } = {}) {
   const onConversationSelect = React.useCallback(
     (id: string) => {
       setActiveConversation(id);
-      navigateCompat("chat", "detail", id);
+      goToModule("chat", "detail", id);
     },
-    [navigateCompat, setActiveConversation],
+    [goToModule, setActiveConversation],
   );
 
   const handleForward = (messageId: string) => {

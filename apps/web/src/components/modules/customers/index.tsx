@@ -1,18 +1,17 @@
 "use client";
 import { useState, useCallback, useEffect } from "react";
 import { useAppStore } from "@/lib/store/app-store";
-import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
-import { resolveModuleView, type ModuleRouteState } from "@/lib/navigation/module-route-state";
+import { useAppNavigation } from "@/lib/navigation/use-app-navigation";
+import type { ModuleRouteState } from "@/lib/navigation/module-route-state";
 import { CustomersList } from "./customers-list";
 import { CustomerDetail } from "./customer-detail";
 import { AddCustomerDrawer } from "./add-customer-drawer";
 import type { Customer } from "@/lib/types";
 import { toast } from "sonner";
 
-export function CustomersModule({ route }: { route?: ModuleRouteState } = {}) {
-  const { activeView } = useAppStore();
-  const { navigateCompat } = useNavigateCompat();
-  const view = resolveModuleView(route, activeView, "customers");
+export function CustomersModule({ route }: { route: ModuleRouteState }) {
+  const { goToModule, goToDetail, goToCreate, goToTab } = useAppNavigation();
+  const view = route;
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loaded, setLoaded] = useState(false);
 
@@ -75,7 +74,7 @@ export function CustomersModule({ route }: { route?: ModuleRouteState } = {}) {
   const drawerOpen = view.view === "create";
   const closeDrawer = () => {
     if (view.view === "create") {
-      navigateCompat("customers");
+      goToModule("customers");
     }
   };
 
@@ -83,7 +82,7 @@ export function CustomersModule({ route }: { route?: ModuleRouteState } = {}) {
     <>
       <CustomersList
         customers={customers}
-        onCreate={() => navigateCompat("customers", "create")}
+        onCreate={() => goToModule("customers", "create")}
         onUpdate={updateCustomer}
         onAdd={addCustomer}
       />

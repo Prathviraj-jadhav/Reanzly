@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { PageHeader } from "@/components/shared/page-header";
-import { resolveModuleView, type ModuleRouteState } from "@/lib/navigation/module-route-state";
+import type { ModuleRouteState } from "@/lib/navigation/module-route-state";
 import { useAppStore } from "@/lib/store/app-store";
 import { cn } from "@/lib/utils";
 import {
@@ -29,9 +29,8 @@ import { LabourTab } from "./labour";
 import { WorkshopFloorTab } from "./floor";
 import { KpiTile } from "./_helpers";
 
-export function WorkshopModule({ route }: { route?: ModuleRouteState } = {}) {
-  const { activeView } = useAppStore();
-  resolveModuleView(route, activeView, "workshop");
+export function WorkshopModule({ route }: { route: ModuleRouteState }) {
+  route;
   const [tab, setTab] = useState<WorkshopTab>("job-cards");
 
   const kpis = useMemo(() => {

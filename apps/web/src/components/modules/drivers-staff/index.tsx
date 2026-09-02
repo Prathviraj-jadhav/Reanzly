@@ -1,18 +1,17 @@
 "use client";
 import { useState, useCallback, useEffect } from "react";
 import { useAppStore } from "@/lib/store/app-store";
-import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
-import { resolveModuleView, type ModuleRouteState } from "@/lib/navigation/module-route-state";
+import { useAppNavigation } from "@/lib/navigation/use-app-navigation";
+import type { ModuleRouteState } from "@/lib/navigation/module-route-state";
 import { DriversStaffList } from "./drivers-staff-list";
 import { DriverDetail } from "./driver-detail";
 import { AddEmployeeDrawer } from "./add-employee-drawer";
 import type { Driver } from "@/lib/types";
 import { toast } from "sonner";
 
-export function DriversStaffModule({ route }: { route?: ModuleRouteState } = {}) {
-  const { activeView } = useAppStore();
-  const { navigateCompat } = useNavigateCompat();
-  const view = resolveModuleView(route, activeView, "drivers-staff");
+export function DriversStaffModule({ route }: { route: ModuleRouteState }) {
+  const { goToModule, goToDetail, goToCreate, goToTab } = useAppNavigation();
+  const view = route;
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [loaded, setLoaded] = useState(false);
 
@@ -74,7 +73,7 @@ export function DriversStaffModule({ route }: { route?: ModuleRouteState } = {})
   const drawerOpen = view.view === "create";
   const closeDrawer = () => {
     if (view.view === "create") {
-      navigateCompat("drivers-staff");
+      goToModule("drivers-staff");
     }
   };
 
@@ -82,7 +81,7 @@ export function DriversStaffModule({ route }: { route?: ModuleRouteState } = {})
     <>
       <DriversStaffList
         drivers={drivers}
-        onCreate={() => navigateCompat("drivers-staff", "create")}
+        onCreate={() => goToModule("drivers-staff", "create")}
         onUpdate={updateDriver}
       />
       <AddEmployeeDrawer open={drawerOpen} onClose={closeDrawer} onAdd={addDriver} />

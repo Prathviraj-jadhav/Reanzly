@@ -5,7 +5,7 @@ import { DataTable, type Column } from "@/components/shared/data-table";
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { useAppStore } from "@/lib/store/app-store";
-import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
+import { useAppNavigation } from "@/lib/navigation/use-app-navigation";
 import type { Invoice } from "@/lib/types";
 import { CUSTOMERS, TRIPS, PAYMENTS } from "@/lib/mock-data";
 import {
@@ -95,7 +95,7 @@ export function InvoiceList({
   onSetDefaultTemplate,
 }: InvoiceListProps) {
   const { currentRole } = useAppStore();
-  const { navigateDetailCompat: navigateDetail } = useNavigateCompat();
+    const { goToDetail: navigateDetail } = useAppNavigation();
   const [search, setSearch] = useState("");
   const [customerFilter, setCustomerFilter] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState<Set<string>>(new Set());

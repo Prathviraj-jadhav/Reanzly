@@ -10,8 +10,8 @@ import {
 } from "@/components/shared/detail-layout";
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
-import { useAppStore } from "@/lib/store/app-store";
-import { useModuleNavigation } from "@/lib/navigation/navigate-compat";
+import { useAppNavigation } from "@/lib/navigation/use-app-navigation";
+import { useRouter } from "next/navigation";
 import {
   Megaphone,
   Mail,
@@ -84,7 +84,8 @@ export function CampaignDetail({
   onPause,
   onActivate,
 }: CampaignDetailProps) {
-  const { navigate, navigateBack } = useAppStore();
+  const router = useRouter();
+  const { goToModule, goBack } = useAppNavigation();
   const [tab, setTab] = useState<CampaignTab>("overview");
   const [builderOpen, setBuilderOpen] = useState(false);
   const [abOpen, setAbOpen] = useState(false);
@@ -116,7 +117,7 @@ export function CampaignDetail({
           Campaign <span className="tabular">{campaignId}</span> not found.
           It may have been archived or cancelled.
         </p>
-        <Btn variant="outline" onClick={() => navigate("marketing")}>
+        <Btn variant="outline" onClick={() => goToModule("marketing")}>
           Back to Campaigns
         </Btn>
       </div>
@@ -156,7 +157,7 @@ export function CampaignDetail({
         onDuplicate(campaign.id);
         // After duplicating, navigate back to the list so the new copy at
         // the top of the list is visible.
-        navigateBack();
+        router.back();
       },
     },
     {
@@ -171,7 +172,7 @@ export function CampaignDetail({
       label: "Archive campaign",
       onClick: () => {
         onArchive(campaign.id);
-        navigateBack();
+        router.back();
       },
     },
   ];

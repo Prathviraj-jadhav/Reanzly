@@ -4,8 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/shared/page-header";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/lib/store/app-store";
-import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
-import { resolveModuleView, type ModuleRouteState } from "@/lib/navigation/module-route-state";
+import { useAppNavigation } from "@/lib/navigation/use-app-navigation";
+import type { ModuleRouteState } from "@/lib/navigation/module-route-state";
 import {
   Warehouse as WarehouseIcon,
   Package,
@@ -57,10 +57,9 @@ import { WarehouseYard } from "./yard";
 import { WarehouseDockScheduling } from "./dock-scheduling";
 import { KpiTile } from "./_helpers";
 
-export function WarehouseModule({ route }: { route?: ModuleRouteState } = {}) {
-  const { activeView } = useAppStore();
-  const { navigateCompat } = useNavigateCompat();
-  const view = resolveModuleView(route, activeView, "warehouse");
+export function WarehouseModule({ route }: { route: ModuleRouteState }) {
+  const { goToModule, goToDetail, goToCreate, goToTab } = useAppNavigation();
+  const view = route;
   const resolvedTab = (view.tab as WarehouseTab | undefined) ?? "inventory";
   const [tab, setTab] = useState<WarehouseTab>(resolvedTab);
 
@@ -71,9 +70,9 @@ export function WarehouseModule({ route }: { route?: ModuleRouteState } = {}) {
   const onTabChange = useCallback(
     (next: WarehouseTab) => {
       setTab(next);
-      navigateCompat("warehouse", "list", undefined, next === "inventory" ? undefined : next);
+      goToModule("warehouse", "list", undefined, next === "inventory" ? undefined : next);
     },
-    [navigateCompat],
+    [goToModule],
   );
 
   const kpis = useMemo(() => {

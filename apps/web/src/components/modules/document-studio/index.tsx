@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { useAppStore } from "@/lib/store/app-store";
-import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
-import { resolveModuleView, type ModuleRouteState } from "@/lib/navigation/module-route-state";
+import { useAppNavigation } from "@/lib/navigation/use-app-navigation";
+import type { ModuleRouteState } from "@/lib/navigation/module-route-state";
 import { StudioList } from "./studio-list";
 import { TemplateGallery } from "./template-gallery";
 import { DocumentBuilder } from "./document-builder";
@@ -18,10 +18,9 @@ import { Btn } from "@/components/shared/btn";
 
 type LocalView = "gallery" | "settings" | null;
 
-export function DocumentStudioModule({ route }: { route?: ModuleRouteState } = {}) {
-  const { activeView } = useAppStore();
-  const { navigateCompat, navigateDetailCompat } = useNavigateCompat();
-  const view = resolveModuleView(route, activeView, "document-studio");
+export function DocumentStudioModule({ route }: { route: ModuleRouteState }) {
+  const { goToModule, goToDetail, goToCreate, goToTab } = useAppNavigation();
+  const view = route;
   const documents = useDocStudioStore((s) => s.documents);
   const draft = useDocStudioStore((s) => s.draft);
   const clearDraft = useDocStudioStore((s) => s.clearDraft);
@@ -53,12 +52,12 @@ export function DocumentStudioModule({ route }: { route?: ModuleRouteState } = {
       <DocumentBuilder
         onExit={() => {
           clearDraft();
-          navigateCompat("document-studio");
+          goToModule("document-studio");
           setLocalView(null);
         }}
         onCommitted={(docId) => {
           clearDraft();
-          navigateDetailCompat("document-studio", docId);
+          goToDetail("document-studio", docId);
           setLocalView(null);
         }}
       />
@@ -69,7 +68,7 @@ export function DocumentStudioModule({ route }: { route?: ModuleRouteState } = {
     return (
       <BrandingSettings
         onBack={() => {
-          navigateCompat("document-studio");
+          goToModule("document-studio");
           setLocalView(null);
         }}
       />
@@ -85,7 +84,7 @@ export function DocumentStudioModule({ route }: { route?: ModuleRouteState } = {
           <Btn
             variant="outline"
             onClick={() => {
-              navigateCompat("document-studio");
+              goToModule("document-studio");
               setLocalView(null);
             }}
           >
@@ -98,11 +97,11 @@ export function DocumentStudioModule({ route }: { route?: ModuleRouteState } = {
       <DocumentPreview
         doc={doc}
         onBack={() => {
-          navigateCompat("document-studio");
+          goToModule("document-studio");
           setLocalView(null);
         }}
         onEdit={() => {
-          navigateCompat("document-studio", "create");
+          goToModule("document-studio", "create");
           setLocalView(null);
         }}
         reanzlyBrandedOverride={brandedOverride ?? doc.branding.reanzlyBranded}
@@ -115,11 +114,11 @@ export function DocumentStudioModule({ route }: { route?: ModuleRouteState } = {
     return (
       <TemplateGallery
         onBack={() => {
-          navigateCompat("document-studio");
+          goToModule("document-studio");
           setLocalView(null);
         }}
         onPick={() => {
-          navigateCompat("document-studio", "create");
+          goToModule("document-studio", "create");
           setLocalView(null);
         }}
       />
@@ -151,7 +150,7 @@ export function DocumentStudioModule({ route }: { route?: ModuleRouteState } = {
         onCreate={() => setLocalView("gallery")}
         onView={(docId) => {
           setBrandedOverride(undefined);
-          navigateDetailCompat("document-studio", docId);
+          goToDetail("document-studio", docId);
         }}
       />
     </div>

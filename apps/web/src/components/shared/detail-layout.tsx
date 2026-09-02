@@ -3,8 +3,7 @@
 import { cn } from "@/lib/utils";
 import type { ReactNode } from "react";
 import { Children } from "react";
-import { useAppStore } from "@/lib/store/app-store";
-import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
+import { useAppNavigation, useActiveModuleFromPath } from "@/lib/navigation/use-app-navigation";
 import { useMigratedNavBack } from "@/lib/navigation/use-migrated-nav-back";
 import { ArrowLeft, ChevronRight, Clock, MoreHorizontal } from "lucide-react";
 import {
@@ -73,6 +72,7 @@ interface DetailLayoutProps {
   tabs: { id: string; label: string }[];
   activeTab: string;
   onTabChange: (tab: string) => void;
+  breadcrumb?: { label: string; module?: string }[];
   actions?: ReactNode;
   quickActions?: { label: string; onClick: () => void }[];
   /** Closure line at the very bottom (Peak-End Rule). Defaults to "Synced just now". */
@@ -88,14 +88,15 @@ export function DetailLayout({
   tabs,
   activeTab,
   onTabChange,
+  breadcrumb,
   actions,
   quickActions = [],
   lastUpdated,
   children,
 }: DetailLayoutProps) {
-  const { activeView } = useAppStore();
-  const { navigateCompat } = useNavigateCompat();
-  const navigateBack = useMigratedNavBack(activeView.module);
+  const { module } = useActiveModuleFromPath();
+  const { goToModule } = useAppNavigation();
+  const navigateBack = useMigratedNavBack(module);
 
   // Hick's Law - cap quickActions to 6; caller curates beyond that.
   const visibleQuickActions = quickActions.slice(0, 6);
@@ -103,18 +104,19 @@ export function DetailLayout({
   return (
     <div className="flex flex-col gap-0">
       {/* Row 1 - Breadcrumb (top) */}
+      {breadcrumb && breadcrumb.length > 0 && (
       <div className="pb-3">
         <Breadcrumb>
           <BreadcrumbList>
-            {activeView.breadcrumb.map((b, i) => (
+            {breadcrumb.map((b, i) => (
               <div key={i} className="flex items-center gap-1.5">
                 {i > 0 && <BreadcrumbSeparator className="text-muted-foreground/50" />}
                 <BreadcrumbItem>
-                  {i === activeView.breadcrumb.length - 1 ? (
+                  {i === breadcrumb.length - 1 ? (
                     <BreadcrumbPage className="text-[13px] text-muted-foreground">{b.label}</BreadcrumbPage>
                   ) : (
                     <BreadcrumbLink
-                      onClick={() => b.module && navigateCompat(b.module as never)}
+                      onClick={() => b.module && goToModule(b.module as never)}
                       className="cursor-pointer text-[13px] text-muted-foreground hover:text-foreground"
                     >
                       {b.label}
@@ -126,6 +128,7 @@ export function DetailLayout({
           </BreadcrumbList>
         </Breadcrumb>
       </div>
+      )}
 
       {/* Rows 2–4 - Header block (Peak-End peak moment) */}
       <div className="animate-slide-up border-b border-border pb-4">

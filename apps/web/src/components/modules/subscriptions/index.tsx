@@ -2,17 +2,16 @@
 
 import { useState, useCallback } from "react";
 import { useAppStore } from "@/lib/store/app-store";
-import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
-import { resolveModuleView, type ModuleRouteState } from "@/lib/navigation/module-route-state";
+import { useAppNavigation } from "@/lib/navigation/use-app-navigation";
+import type { ModuleRouteState } from "@/lib/navigation/module-route-state";
 import { ContractsList } from "./contracts-list";
 import { ContractDetail } from "./contract-detail";
 import { AddContractDrawer } from "./add-contract-drawer";
 import { CONTRACTS, type Contract } from "./_helpers";
 
-export function SubscriptionsModule({ route }: { route?: ModuleRouteState } = {}) {
-  const { activeView } = useAppStore();
-  const { navigateCompat } = useNavigateCompat();
-  const view = resolveModuleView(route, activeView, "subscriptions");
+export function SubscriptionsModule({ route }: { route: ModuleRouteState }) {
+  const { goToModule, goToDetail, goToCreate, goToTab } = useAppNavigation();
+  const view = route;
   const [contracts, setContracts] = useState<Contract[]>(CONTRACTS);
 
   const addContract = useCallback((c: Contract) => {
@@ -26,7 +25,7 @@ export function SubscriptionsModule({ route }: { route?: ModuleRouteState } = {}
   const drawerOpen = view.view === "create";
   const closeDrawer = () => {
     if (view.view === "create") {
-      navigateCompat("subscriptions");
+      goToModule("subscriptions");
     }
   };
 
@@ -34,7 +33,7 @@ export function SubscriptionsModule({ route }: { route?: ModuleRouteState } = {}
     <>
       <ContractsList
         contracts={contracts}
-        onCreate={() => navigateCompat("subscriptions", "create")}
+        onCreate={() => goToModule("subscriptions", "create")}
       />
       <AddContractDrawer open={drawerOpen} onClose={closeDrawer} onAdd={addContract} />
     </>

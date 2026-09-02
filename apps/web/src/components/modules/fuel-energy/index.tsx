@@ -1,8 +1,8 @@
 "use client";
 import { useState, useCallback, useEffect } from "react";
 import { useAppStore } from "@/lib/store/app-store";
-import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
-import { resolveModuleView, type ModuleRouteState } from "@/lib/navigation/module-route-state";
+import { useAppNavigation } from "@/lib/navigation/use-app-navigation";
+import type { ModuleRouteState } from "@/lib/navigation/module-route-state";
 import type { FuelEntry, Vehicle, Driver } from "@/lib/types";
 import { toast } from "sonner";
 import { FuelList } from "./fuel-list";
@@ -13,10 +13,9 @@ import { AnomalyAlerts } from "./anomaly-alerts";
 
 type SecondaryView = "list" | "analytics" | "anomalies";
 
-export function FuelEnergyModule({ route }: { route?: ModuleRouteState } = {}) {
-  const { activeView } = useAppStore();
-  const { navigateCompat } = useNavigateCompat();
-  const view = resolveModuleView(route, activeView, "fuel-energy");
+export function FuelEnergyModule({ route }: { route: ModuleRouteState }) {
+  const { goToModule, goToDetail, goToCreate, goToTab } = useAppNavigation();
+  const view = route;
   const [secondary, setSecondary] = useState<SecondaryView>("list");
   const [fuelEntries, setFuelEntries] = useState<FuelEntry[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
@@ -100,7 +99,7 @@ export function FuelEnergyModule({ route }: { route?: ModuleRouteState } = {}) {
   const drawerOpen = view.module === "fuel-energy" && view.view === "create";
   const closeDrawer = () => {
     if (view.module === "fuel-energy" && view.view === "create") {
-      navigateCompat("fuel-energy");
+      goToModule("fuel-energy");
     }
   };
 
@@ -115,7 +114,7 @@ export function FuelEnergyModule({ route }: { route?: ModuleRouteState } = {}) {
           fuelEntries={fuelEntries}
           vehicles={vehicles}
           drivers={drivers}
-          onCreate={() => navigateCompat("fuel-energy", "create")}
+          onCreate={() => goToModule("fuel-energy", "create")}
           onOpenAnalytics={() => setSecondary("analytics")}
           onOpenAnomalies={() => setSecondary("anomalies")}
           onUpdate={updateFuelEntry}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useAppStore, type ModuleId } from "@/lib/store/app-store";
-import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
+import { useAppNavigation } from "@/lib/navigation/use-app-navigation";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
 import {
@@ -296,7 +296,7 @@ export function Header() {
     currentRole, setTourOpen,
     toggleMobileSidebar, logout, setAnnounceOpen, authUser,
   } = useAppStore();
-  const { navigateCompat: navigate } = useNavigateCompat();
+  const { goToModule: navigate } = useAppNavigation();
   const [switchingRole, setSwitchingRole] = useState<string | null>(null);
 
   // Real session switch, replacing what used to be a client-only setRole()
@@ -945,7 +945,8 @@ function formatDay(d: Date): string {
  * (e.g. chat) is open to avoid overlap.
  */
 export function MobileQuickAddFab({ hidden }: { hidden?: boolean }) {
-  const { currentRole, navigate, setCommandOpen, authUser } = useAppStore();
+  const { currentRole, setCommandOpen, authUser } = useAppStore();
+  const { goToModule } = useAppNavigation();
   const actions = getQuickAddActions(currentRole.id);
   const displayName = authUser?.name?.trim() || currentRole.name;
   if (hidden) return null;
@@ -968,7 +969,7 @@ export function MobileQuickAddFab({ hidden }: { hidden?: boolean }) {
           return (
             <DropdownMenuItem
               key={a.label}
-              onClick={() => navigate(a.module, a.view ?? "list")}
+              onClick={() => goToModule(a.module, a.view ?? "list")}
               className="gap-2 text-[13px]"
             >
               <a.icon className="h-4 w-4 shrink-0 text-muted-foreground" />

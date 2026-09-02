@@ -1,18 +1,17 @@
 "use client";
 import { useState, useCallback, useEffect } from "react";
 import { useAppStore } from "@/lib/store/app-store";
-import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
-import { resolveModuleView, type ModuleRouteState } from "@/lib/navigation/module-route-state";
+import { useAppNavigation } from "@/lib/navigation/use-app-navigation";
+import type { ModuleRouteState } from "@/lib/navigation/module-route-state";
 import { VehiclesList } from "./vehicles-list";
 import { VehicleDetail } from "./vehicle-detail";
 import { VehicleOnboarding } from "./vehicle-onboarding";
 import type { Vehicle } from "@/lib/types";
 import { toast } from "sonner";
 
-export function VehiclesModule({ route }: { route?: ModuleRouteState } = {}) {
-  const { activeView } = useAppStore();
-  const { navigateCompat } = useNavigateCompat();
-  const view = resolveModuleView(route, activeView, "vehicles");
+export function VehiclesModule({ route }: { route: ModuleRouteState }) {
+  const { goToModule, goToDetail, goToCreate, goToTab } = useAppNavigation();
+  const view = route;
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loaded, setLoaded] = useState(false);
 
@@ -76,7 +75,7 @@ export function VehiclesModule({ route }: { route?: ModuleRouteState } = {}) {
   if (view.module === "vehicles" && view.view === "create") {
     return (
       <VehicleOnboarding
-        onClose={() => navigateCompat("vehicles")}
+        onClose={() => goToModule("vehicles")}
         onAdd={addVehicle}
       />
     );
@@ -85,7 +84,7 @@ export function VehiclesModule({ route }: { route?: ModuleRouteState } = {}) {
   return (
     <VehiclesList
       vehicles={vehicles}
-      onCreate={() => navigateCompat("vehicles", "create")}
+      onCreate={() => goToModule("vehicles", "create")}
       onBulkCreate={() =>
         toast("Bulk vehicle import", {
           description: "Upload a CSV to add multiple vehicles at once",

@@ -2,18 +2,17 @@
 
 import { useState, useCallback } from "react";
 import { useAppStore } from "@/lib/store/app-store";
-import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
-import { resolveModuleView, type ModuleRouteState } from "@/lib/navigation/module-route-state";
+import { useAppNavigation } from "@/lib/navigation/use-app-navigation";
+import type { ModuleRouteState } from "@/lib/navigation/module-route-state";
 import { SurveysList } from "./surveys-list";
 import { SurveyDetail } from "./survey-detail";
 import { SurveyBuilder } from "./survey-builder";
 import { SURVEYS, type Survey, type SurveyQuestion } from "./_helpers";
 import { toastInfo } from "@/lib/toast";
 
-export function SurveysModule({ route }: { route?: ModuleRouteState } = {}) {
-  const { activeView } = useAppStore();
-  const { navigateCompat } = useNavigateCompat();
-  const view = resolveModuleView(route, activeView, "surveys");
+export function SurveysModule({ route }: { route: ModuleRouteState }) {
+  const { goToModule, goToDetail, goToCreate, goToTab } = useAppNavigation();
+  const view = route;
   const [surveys, setSurveys] = useState<Survey[]>(SURVEYS);
   const [buildingSurvey, setBuildingSurvey] = useState<Survey | null>(null);
 
@@ -76,7 +75,7 @@ export function SurveysModule({ route }: { route?: ModuleRouteState } = {}) {
             if (prev.some((s) => s.id === surveyId)) return prev;
             return [buildingSurvey!, ...prev];
           });
-          navigateCompat("surveys");
+          goToModule("surveys");
         }}
       />
     </>

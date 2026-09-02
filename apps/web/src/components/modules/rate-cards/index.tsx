@@ -7,8 +7,8 @@ import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { SearchInput } from "@/components/shared/toolbar";
 import { useAppStore } from "@/lib/store/app-store";
-import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
-import { resolveModuleView, type ModuleRouteState } from "@/lib/navigation/module-route-state";
+import { useAppNavigation } from "@/lib/navigation/use-app-navigation";
+import type { ModuleRouteState } from "@/lib/navigation/module-route-state";
 import type { RateCard } from "@/lib/types";
 import {
   VEHICLE_TYPES,
@@ -46,9 +46,8 @@ function statusVariant(status: RateCardStatus): "solid" | "outline" | "muted" | 
   return "muted";
 }
 
-export function RateCardsModule({ route }: { route?: ModuleRouteState } = {}) {
-  const { activeView } = useAppStore();
-  const view = resolveModuleView(route, activeView, "rate-cards");
+export function RateCardsModule({ route }: { route: ModuleRouteState }) {
+  const view = route;
   const [editRecord, setEditRecord] = useState<RateCard | null>(null);
   const [editOpen, setEditOpen] = useState(false);
 
@@ -172,7 +171,7 @@ export function RateCardsModule({ route }: { route?: ModuleRouteState } = {}) {
 }
 
 interface RateCardsListProps {
-  route?: ModuleRouteState;
+  route: ModuleRouteState;
   rateCards: RateCard[];
   onEdit?: (rc: RateCard) => void;
   onCreate: (payload: RateCardPayload) => Promise<boolean>;
@@ -181,9 +180,8 @@ interface RateCardsListProps {
 }
 
 function RateCardsList({ route, rateCards, onEdit, onCreate, onDelete, onDuplicate }: RateCardsListProps) {
-  const { activeView } = useAppStore();
-  const { navigateCompat, navigateDetailCompat } = useNavigateCompat();
-  const view = resolveModuleView(route, activeView, "rate-cards");
+  const { goToModule, goToDetail, goToCreate, goToTab } = useAppNavigation();
+  const view = route;
 
   const [search, setSearch] = useState("");
   const [vehicleFilter, setVehicleFilter] = useState<Set<string>>(new Set());
@@ -193,7 +191,7 @@ function RateCardsList({ route, rateCards, onEdit, onCreate, onDelete, onDuplica
   const drawerOpen = view.view === "create";
   const closeDrawer = () => {
     if (view.view === "create") {
-      navigateCompat("rate-cards");
+      goToModule("rate-cards");
     }
   };
 
@@ -303,7 +301,7 @@ function RateCardsList({ route, rateCards, onEdit, onCreate, onDelete, onDuplica
   ];
 
   const rowActions = [
-    { label: "View", onClick: (r: RateCard) => navigateDetailCompat("rate-cards", r.id) },
+    { label: "View", onClick: (r: RateCard) => goToDetail("rate-cards", r.id) },
     { label: "Edit", onClick: (r: RateCard) => onEdit ? onEdit(r) : toast("Edit rate card", { description: r.name }) },
     {
       label: "Duplicate",
@@ -371,7 +369,7 @@ function RateCardsList({ route, rateCards, onEdit, onCreate, onDelete, onDuplica
                 <DropdownMenuItem onClick={() => toast("Excel export queued", { description: "Stubbed" })}>Excel</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-            <Btn variant="primary" icon={<Plus className="h-3.5 w-3.5" />} onClick={() => navigateCompat("rate-cards", "create")}>
+            <Btn variant="primary" icon={<Plus className="h-3.5 w-3.5" />} onClick={() => goToModule("rate-cards", "create")}>
               Create Rate Card
             </Btn>
           </>
@@ -476,13 +474,13 @@ function RateCardsList({ route, rateCards, onEdit, onCreate, onDelete, onDuplica
         <DataTable
           data={filtered}
           columns={columns}
-          onRowClick={(r) => navigateDetailCompat("rate-cards", r.id)}
+          onRowClick={(r) => goToDetail("rate-cards", r.id)}
           rowActions={rowActions}
           bulkActions={bulkActions}
           emptyTitle="No rate cards yet"
           emptyDescription="Create your first rate card to start pricing lanes consistently."
           emptyAction={
-            <Btn variant="primary" icon={<Plus className="h-3.5 w-3.5" />} onClick={() => navigateCompat("rate-cards", "create")}>
+            <Btn variant="primary" icon={<Plus className="h-3.5 w-3.5" />} onClick={() => goToModule("rate-cards", "create")}>
               Create Rate Card
             </Btn>
           }

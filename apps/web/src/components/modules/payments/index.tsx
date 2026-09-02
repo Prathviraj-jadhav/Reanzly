@@ -1,8 +1,8 @@
 "use client";
 import { useState } from "react";
 import { useAppStore } from "@/lib/store/app-store";
-import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
-import { resolveModuleView, type ModuleRouteState } from "@/lib/navigation/module-route-state";
+import { useAppNavigation } from "@/lib/navigation/use-app-navigation";
+import type { ModuleRouteState } from "@/lib/navigation/module-route-state";
 import { PaymentsList } from "./payments-list";
 import { VoucherDetail } from "./voucher-detail";
 import { AddVoucherDrawer } from "./add-voucher-drawer";
@@ -12,10 +12,9 @@ import { usePaymentsData } from "./use-payments-data";
 
 type View = "list" | "receivables" | "credit-debit";
 
-export function PaymentsModule({ route }: { route?: ModuleRouteState } = {}) {
-  const { activeView } = useAppStore();
-  const { navigateCompat } = useNavigateCompat();
-  const routeView = resolveModuleView(route, activeView, "payments");
+export function PaymentsModule({ route }: { route: ModuleRouteState }) {
+  const { goToModule, goToDetail, goToCreate, goToTab } = useAppNavigation();
+  const routeView = route;
   const [secondaryView, setSecondaryView] = useState<View>("list");
   const [initialVoucherType, setInitialVoucherType] = useState<string>("Advance");
   const { payments, loaded, addPayment, updatePayment } = usePaymentsData();
@@ -36,13 +35,13 @@ export function PaymentsModule({ route }: { route?: ModuleRouteState } = {}) {
   const drawerOpen = routeView.view === "create";
   const closeDrawer = () => {
     if (routeView.view === "create") {
-      navigateCompat("payments");
+      goToModule("payments");
     }
   };
 
   const handleCreate = (voucherType: string) => {
     setInitialVoucherType(voucherType);
-    navigateCompat("payments", "create");
+    goToModule("payments", "create");
   };
 
   return (

@@ -1,8 +1,8 @@
 "use client";
 import { useState, useCallback, useEffect } from "react";
 import { useAppStore } from "@/lib/store/app-store";
-import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
-import { resolveModuleView, type ModuleRouteState } from "@/lib/navigation/module-route-state";
+import { useAppNavigation } from "@/lib/navigation/use-app-navigation";
+import type { ModuleRouteState } from "@/lib/navigation/module-route-state";
 import type { LorryReceipt } from "@/lib/types";
 import { toast } from "sonner";
 import { LorryReceiptsList } from "./lorry-receipts-list";
@@ -10,10 +10,9 @@ import { LRDetail } from "./lr-detail";
 import { AddConsignmentDrawer } from "./add-consignment-drawer";
 import { EditLRDrawer } from "./edit-lr-drawer";
 
-export function LorryReceiptsModule({ route }: { route?: ModuleRouteState } = {}) {
-  const { activeView } = useAppStore();
-  const { navigateCompat } = useNavigateCompat();
-  const view = resolveModuleView(route, activeView, "lorry-receipts");
+export function LorryReceiptsModule({ route }: { route: ModuleRouteState }) {
+  const { goToModule, goToDetail, goToCreate, goToTab } = useAppNavigation();
+  const view = route;
 
   const [lrs, setLrs] = useState<LorryReceipt[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -97,7 +96,7 @@ export function LorryReceiptsModule({ route }: { route?: ModuleRouteState } = {}
 
   const closeDrawer = () => {
     if (view.module === "lorry-receipts" && view.view === "create") {
-      navigateCompat("lorry-receipts");
+      goToModule("lorry-receipts");
     }
   };
 
@@ -105,7 +104,7 @@ export function LorryReceiptsModule({ route }: { route?: ModuleRouteState } = {}
     <>
       <LorryReceiptsList
         lrs={lrs}
-        onCreate={() => navigateCompat("lorry-receipts", "create")}
+        onCreate={() => goToModule("lorry-receipts", "create")}
         onEdit={openEdit}
       />
       <AddConsignmentDrawer

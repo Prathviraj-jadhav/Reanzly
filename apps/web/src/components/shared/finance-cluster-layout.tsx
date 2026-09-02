@@ -1,14 +1,14 @@
 "use client";
 
-import { ModuleClusterTabs, type ClusterTab } from "@/components/shared/module-cluster-tabs";
-import { useAppStore } from "@/lib/store/app-store";
+import { AppClusterTabs, type AppClusterTab } from "@/components/shared/app-cluster-tabs";
+import { useActiveModuleFromPath } from "@/lib/navigation/use-app-navigation";
 
-const INVOICE_CLUSTER_TABS: ClusterTab[] = [
+const INVOICE_CLUSTER_TABS: AppClusterTab[] = [
   { id: "invoice", label: "Overview" },
   { id: "rate-cards", label: "Rate Cards" },
 ];
 
-const EXPENSES_CLUSTER_TABS: ClusterTab[] = [
+const EXPENSES_CLUSTER_TABS: AppClusterTab[] = [
   { id: "expenses", label: "Overview" },
   { id: "approvals", label: "Approvals" },
 ];
@@ -17,27 +17,23 @@ function FinanceClusterLayout({
   tabs,
   children,
 }: {
-  tabs: ClusterTab[];
+  tabs: AppClusterTab[];
   children: React.ReactNode;
 }) {
-  const activeView = useAppStore((s) => s.activeView);
-  const clusterActive = tabs.some((t) => t.id === activeView.module)
-    ? activeView.module
-    : tabs[0]!.id;
+  const { module } = useActiveModuleFromPath();
+  const clusterActive = tabs.some((t) => t.id === module) ? module : tabs[0]!.id;
 
   return (
-    <ModuleClusterTabs tabs={tabs} active={clusterActive}>
+    <AppClusterTabs tabs={tabs} active={clusterActive}>
       {children}
-    </ModuleClusterTabs>
+    </AppClusterTabs>
   );
 }
 
-/** Invoice ↔ rate-cards cluster (B0R-4). */
 export function InvoiceClusterLayout({ children }: { children: React.ReactNode }) {
   return <FinanceClusterLayout tabs={INVOICE_CLUSTER_TABS}>{children}</FinanceClusterLayout>;
 }
 
-/** Expenses ↔ approvals cluster (B0R-4). */
 export function ExpensesClusterLayout({ children }: { children: React.ReactNode }) {
   return <FinanceClusterLayout tabs={EXPENSES_CLUSTER_TABS}>{children}</FinanceClusterLayout>;
 }

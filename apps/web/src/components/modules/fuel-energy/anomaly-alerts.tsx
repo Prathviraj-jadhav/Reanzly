@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import type { FuelEntry, Vehicle } from "@/lib/types";
-import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
+import { useAppNavigation } from "@/lib/navigation/use-app-navigation";
 import { formatDate, formatINR, formatNumber, relativeTime } from "./_helpers";
 
 interface AnomalyAlertsProps {
@@ -27,7 +27,7 @@ interface AnomalyAlertsProps {
 const ANOMALY_TYPES = ["Overfill", "Mileage Gap", "Price Outlier", "Duplicate Entry", "Off-hours Refuel"];
 
 export function AnomalyAlerts({ fuelEntries, vehicles, onBack }: AnomalyAlertsProps) {
-  const { navigateDetailCompat: navigateDetail } = useNavigateCompat();
+    const { goToDetail: navigateDetail } = useAppNavigation();
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("");
 

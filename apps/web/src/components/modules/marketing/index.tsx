@@ -2,8 +2,8 @@
 
 import { useState, useCallback } from "react";
 import { useAppStore } from "@/lib/store/app-store";
-import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
-import { resolveModuleView, type ModuleRouteState } from "@/lib/navigation/module-route-state";
+import { useAppNavigation } from "@/lib/navigation/use-app-navigation";
+import type { ModuleRouteState } from "@/lib/navigation/module-route-state";
 import { CampaignsList } from "./campaigns-list";
 import { CampaignDetail } from "./campaign-detail";
 import { NewCampaignWizard } from "./new-campaign-wizard";
@@ -15,10 +15,9 @@ import {
 } from "./_helpers";
 import { toastInfo, toastSuccess } from "@/lib/toast";
 
-export function MarketingModule({ route }: { route?: ModuleRouteState } = {}) {
-  const { activeView } = useAppStore();
-  const { navigateCompat, navigateDetailCompat } = useNavigateCompat();
-  const view = resolveModuleView(route, activeView, "marketing");
+export function MarketingModule({ route }: { route: ModuleRouteState }) {
+  const { goToModule, goToDetail, goToCreate, goToTab } = useAppNavigation();
+  const view = route;
   const [campaigns, setCampaigns] = useState<Campaign[]>(CAMPAIGNS);
   const [wizardOpen, setWizardOpen] = useState(false);
 
@@ -29,7 +28,7 @@ export function MarketingModule({ route }: { route?: ModuleRouteState } = {}) {
   const handleCreate = (campaign: Campaign) => {
     setCampaigns((prev) => [campaign, ...prev]);
     setWizardOpen(false);
-    navigateDetailCompat("marketing", campaign.id);
+    goToDetail("marketing", campaign.id);
   };
 
   const duplicateCampaign = useCallback((id: string) => {
@@ -116,7 +115,7 @@ export function MarketingModule({ route }: { route?: ModuleRouteState } = {}) {
         onCancel={cancelCampaign}
         onPauseBulk={(ids) => setStatusBulk(ids, "Paused")}
         onNavigateToMarketplace={() => {
-          navigateCompat("broker-marketplace");
+          goToModule("broker-marketplace");
           toastInfo("Reanzly Marketplace", "Opening broker marketplace - promote your business.");
         }}
       />

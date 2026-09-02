@@ -4,8 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 import { PageHeader } from "@/components/shared/page-header";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/lib/store/app-store";
-import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
-import { resolveModuleView, type ModuleRouteState } from "@/lib/navigation/module-route-state";
+import { useAppNavigation } from "@/lib/navigation/use-app-navigation";
+import type { ModuleRouteState } from "@/lib/navigation/module-route-state";
 import {
   Banknote,
   CalendarClock,
@@ -32,10 +32,9 @@ import { OverviewTab } from "./overview";
 import { ReimbursementsTab } from "./reimbursements";
 import { LoansTab } from "./loans-advances";
 
-export function PayrollModule({ route }: { route?: ModuleRouteState } = {}) {
-  const { activeView } = useAppStore();
-  const { navigateCompat } = useNavigateCompat();
-  const view = resolveModuleView(route, activeView, "payroll");
+export function PayrollModule({ route }: { route: ModuleRouteState }) {
+  const { goToModule, goToDetail, goToCreate, goToTab } = useAppNavigation();
+  const view = route;
   const resolvedTab = (view.tab as PayrollTab | undefined) ?? "overview";
   const [tab, setTab] = useState<PayrollTab>(resolvedTab);
 
@@ -59,9 +58,9 @@ export function PayrollModule({ route }: { route?: ModuleRouteState } = {}) {
   const onTabChange = useCallback(
     (next: PayrollTab) => {
       setTab(next);
-      navigateCompat("payroll", "list", undefined, next === "overview" ? undefined : next);
+      goToModule("payroll", "list", undefined, next === "overview" ? undefined : next);
     },
-    [navigateCompat],
+    [goToModule],
   );
 
   useEffect(() => {

@@ -11,7 +11,7 @@ import {
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { useAppStore } from "@/lib/store/app-store";
-import { useModuleNavigation } from "@/lib/navigation/navigate-compat";
+import { useAppNavigation } from "@/lib/navigation/use-app-navigation";
 import {
   FileQuestion,
   MessageSquare,
@@ -48,7 +48,7 @@ interface SurveyDetailProps {
 }
 
 export function SurveyDetail({ surveyId, surveys, onBuild }: SurveyDetailProps) {
-  const { navigate } = useModuleNavigation();
+    const { goToModule: navigate } = useAppNavigation();
   const [tab, setTab] = useState<SurveyTab>("overview");
 
   const survey = useMemo(

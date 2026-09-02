@@ -17,7 +17,7 @@ import {
   authSignup,
   authErrorMessage,
 } from "@/lib/auth-api";
-import { navigateCompatStatic } from "@/lib/navigation/navigate-compat";
+import { pushModulePath } from "@/lib/navigation/use-app-navigation";
 
 // ===== NAVIGATION TYPES =====
 // New module ids introduced for in-parallel module builds:
@@ -818,7 +818,7 @@ export const useAppStore = create<AppState>()(
       // visitors can explore real modules without signing up.
       demoEnter: (moduleId) => {
         get().login("", "owner", "app", "Reanzly Logistics Pvt Ltd");
-        navigateCompatStatic(moduleId, "list");
+        pushModulePath(moduleId, "list");
       },
 
       toggleModuleProvisioned: (moduleId) => {

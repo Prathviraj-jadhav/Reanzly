@@ -4,8 +4,8 @@ import { useMemo, useState, useEffect, useCallback } from "react";
 import { PageHeader } from "@/components/shared/page-header";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/lib/store/app-store";
-import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
-import { resolveModuleView, type ModuleRouteState } from "@/lib/navigation/module-route-state";
+import { useAppNavigation } from "@/lib/navigation/use-app-navigation";
+import type { ModuleRouteState } from "@/lib/navigation/module-route-state";
 import {
   ShieldCheck,
   FileText,
@@ -35,10 +35,9 @@ import { AuditLogTab } from "./audit";
 import { ComplianceCalendarTab } from "./compliance-calendar";
 import { KpiTile } from "./_helpers";
 
-export function ComplianceModule({ route }: { route?: ModuleRouteState } = {}) {
-  const { activeView } = useAppStore();
-  const { navigateCompat } = useNavigateCompat();
-  const view = resolveModuleView(route, activeView, "compliance");
+export function ComplianceModule({ route }: { route: ModuleRouteState }) {
+  const { goToModule, goToDetail, goToCreate, goToTab } = useAppNavigation();
+  const view = route;
   const resolvedTab = (view.tab as ComplianceTab | undefined) ?? "calendar";
   const [tab, setTab] = useState<ComplianceTab>(resolvedTab);
 
@@ -49,9 +48,9 @@ export function ComplianceModule({ route }: { route?: ModuleRouteState } = {}) {
   const onTabChange = useCallback(
     (next: ComplianceTab) => {
       setTab(next);
-      navigateCompat("compliance", "list", undefined, next === "calendar" ? undefined : next);
+      goToModule("compliance", "list", undefined, next === "calendar" ? undefined : next);
     },
-    [navigateCompat],
+    [goToModule],
   );
 
   const kpis = useMemo(() => {

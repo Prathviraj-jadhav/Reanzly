@@ -2,7 +2,7 @@
 
 import { X, Truck, Navigation, Clock, Gauge, User, ArrowRight, ExternalLink } from "lucide-react";
 import type { Vehicle, Trip } from "@/lib/types";
-import { useAppStore } from "@/lib/store/app-store";
+import { useAppNavigation } from "@/lib/navigation/use-app-navigation";
 import { StatusBadge, vehicleStatusBadge } from "@/components/shared/status-badge";
 import { formatDateTime, relativeTime } from "./_helpers";
 
@@ -14,7 +14,7 @@ interface VehicleSummaryPanelProps {
 }
 
 export function VehicleSummaryPanel({ vehicle, trip, open, onClose }: VehicleSummaryPanelProps) {
-  const { navigateDetail } = useAppStore();
+  const { goToDetail } = useAppNavigation();
   if (!open || !vehicle) return null;
 
   const badge = vehicleStatusBadge(vehicle.status);
@@ -92,7 +92,7 @@ export function VehicleSummaryPanel({ vehicle, trip, open, onClose }: VehicleSum
             label="Assigned Trip"
             value={
               <button
-                onClick={() => navigateDetail("trips", trip.tripId)}
+                onClick={() => goToDetail("trips", trip.tripId)}
                 className="inline-flex items-center gap-1 font-mono text-[11px] text-foreground underline-offset-2 hover:underline"
               >
                 <span>{trip.tripId}</span>
@@ -124,7 +124,7 @@ export function VehicleSummaryPanel({ vehicle, trip, open, onClose }: VehicleSum
       {/* Footer actions */}
       <div className="flex items-center gap-2 border-t border-border p-3">
         <button
-          onClick={() => navigateDetail("vehicles", vehicle.id)}
+          onClick={() => goToDetail("vehicles", vehicle.id)}
           className="inline-flex h-8 flex-1 items-center justify-center gap-1.5 rounded-[5px] border border-border bg-background text-[12px] font-medium text-foreground hover:bg-accent"
         >
           <span>Vehicle Profile</span>
@@ -132,7 +132,7 @@ export function VehicleSummaryPanel({ vehicle, trip, open, onClose }: VehicleSum
         </button>
         {trip && (
           <button
-            onClick={() => navigateDetail("trips", trip.tripId)}
+            onClick={() => goToDetail("trips", trip.tripId)}
             className="inline-flex h-8 flex-1 items-center justify-center gap-1.5 rounded-[5px] bg-foreground text-[12px] font-medium text-background hover:bg-foreground/90"
           >
             <span>Open Trip</span>

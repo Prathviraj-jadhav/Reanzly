@@ -11,7 +11,7 @@ import {
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { useAppStore } from "@/lib/store/app-store";
-import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
+import { useAppNavigation } from "@/lib/navigation/use-app-navigation";
 import type { RateCard } from "@/lib/types";
 import { EditRateCardDrawer } from "./edit-rate-card-drawer";
 import { Pencil, Calculator, Copy, IndianRupee, Percent, Truck, Route as RouteIcon, Calendar, Tag, Trash2 } from "lucide-react";
@@ -48,7 +48,7 @@ function statusVariant(status: RateCard["status"]): "solid" | "outline" | "muted
 }
 
 export function RateCardDetail({ rateCardId, rateCards, onEdit, onUpdate, onDelete, onDuplicate }: RateCardDetailProps) {
-  const { navigateCompat: navigate } = useNavigateCompat();
+    const { goToModule: navigate } = useAppNavigation();
   const [activeTab, setActiveTab] = useState("overview");
   const [editOpen, setEditOpen] = useState(false);
   const rateCard = rateCards.find((r) => r.id === rateCardId);

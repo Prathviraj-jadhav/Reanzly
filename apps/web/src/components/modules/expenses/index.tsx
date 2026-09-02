@@ -1,7 +1,7 @@
 "use client";
 import { useState, useCallback, useEffect } from "react";
 import { useAppStore } from "@/lib/store/app-store";
-import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
+import { useAppNavigation } from "@/lib/navigation/use-app-navigation";
 import type { Expense } from "@/lib/types";
 import { toast } from "sonner";
 import { ExpensesList } from "./expenses-list";
@@ -9,12 +9,11 @@ import { ExpenseDetail } from "./expense-detail";
 import { AddExpenseDrawer } from "./add-expense-drawer";
 import { ExpenseAnalytics } from "./expense-analytics";
 
-import { resolveModuleView, type ModuleRouteState } from "@/lib/navigation/module-route-state";
+import type { ModuleRouteState } from "@/lib/navigation/module-route-state";
 
-export function ExpensesModule({ route }: { route?: ModuleRouteState } = {}) {
-  const { activeView } = useAppStore();
-  const { navigateCompat } = useNavigateCompat();
-  const view = resolveModuleView(route, activeView, "expenses");
+export function ExpensesModule({ route }: { route: ModuleRouteState }) {
+  const { goToModule, goToDetail, goToCreate, goToTab } = useAppNavigation();
+  const view = route;
   // Local secondary view: list vs analytics
   const [showAnalytics, setShowAnalytics] = useState(false);
   // Real, database-backed expenses (src/app/api/expenses) - previously
@@ -76,7 +75,7 @@ export function ExpensesModule({ route }: { route?: ModuleRouteState } = {}) {
   const drawerOpen = view.view === "create";
   const closeDrawer = () => {
     if (view.view === "create") {
-      navigateCompat("expenses");
+      goToModule("expenses");
     }
   };
 
@@ -87,7 +86,7 @@ export function ExpensesModule({ route }: { route?: ModuleRouteState } = {}) {
       ) : (
         <ExpensesList
           expenses={expenses}
-          onCreate={() => navigateCompat("expenses", "create")}
+          onCreate={() => goToModule("expenses", "create")}
           onOpenAnalytics={() => setShowAnalytics(true)}
           onUpdate={updateExpense}
           onAdd={addExpense}

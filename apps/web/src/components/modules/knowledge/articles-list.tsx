@@ -5,7 +5,7 @@ import { DataTable, type Column } from "@/components/shared/data-table";
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { useAppStore } from "@/lib/store/app-store";
-import { useModuleNavigation } from "@/lib/navigation/navigate-compat";
+import { useAppNavigation } from "@/lib/navigation/use-app-navigation";
 import {
   Plus,
   Download,
@@ -61,7 +61,7 @@ const CATEGORY_ICON: Record<ArticleCategory, React.ComponentType<{ className?: s
 };
 
 export function ArticlesList({ articles, onCreate }: ArticlesListProps) {
-  const { navigateDetail } = useModuleNavigation();
+    const { goToDetail: navigateDetail } = useAppNavigation();
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<Set<ArticleCategory>>(new Set());
   const [statusFilter, setStatusFilter] = useState<Set<ArticleStatus>>(new Set());

@@ -8,7 +8,7 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { SavageInput, SavageTextarea } from "@/components/shared/savage-input";
 import { DataTable, type Column } from "@/components/shared/data-table";
 import { useAppStore } from "@/lib/store/app-store";
-import { useModuleNavigation } from "@/lib/navigation/navigate-compat";
+import { useAppNavigation } from "@/lib/navigation/use-app-navigation";
 import type { Driver } from "@/lib/types";
 import { VEHICLES } from "@/lib/mock-data";
 import { Car, Plus, ArrowUpRight, Calendar, ArrowRightLeft } from "lucide-react";
@@ -22,7 +22,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export function DriverVehicleAssignmentTab({ driver }: { driver: Driver }) {
-  const { navigateDetail } = useModuleNavigation();
+    const { goToDetail: navigateDetail } = useAppNavigation();
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const [vehicles, setVehicles] = useState<any[]>([]);

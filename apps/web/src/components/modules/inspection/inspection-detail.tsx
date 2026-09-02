@@ -3,7 +3,7 @@ import { useCallback, useState, useMemo, useEffect } from "react";
 import { DetailLayout, InfoRow, InfoSection, StatCard } from "@/components/shared/detail-layout";
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge, inspectionResultBadge } from "@/components/shared/status-badge";
-import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
+import { useAppNavigation } from "@/lib/navigation/use-app-navigation";
 import type { Inspection, Vehicle, Driver, Issue } from "@/lib/types";
 import {
   Pencil,
@@ -62,7 +62,7 @@ export function InspectionDetail({
   issues,
   onUpdate: onUpdateReal,
 }: InspectionDetailProps) {
-  const { navigateCompat: navigate, navigateDetailCompat: navigateDetail } = useNavigateCompat();
+    const { goToModule: navigate, goToDetail: navigateDetail } = useAppNavigation();
   const [activeTab, setActiveTab] = useState(initialTab || "overview");
   const inspection = inspections.find((i) => i.inspectionId === inspectionId);
   const [editing, setEditing] = useState(false);

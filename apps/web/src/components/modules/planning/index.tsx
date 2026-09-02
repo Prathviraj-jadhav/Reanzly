@@ -4,8 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/shared/page-header";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/lib/store/app-store";
-import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
-import { resolveModuleView, type ModuleRouteState } from "@/lib/navigation/module-route-state";
+import { useAppNavigation } from "@/lib/navigation/use-app-navigation";
+import type { ModuleRouteState } from "@/lib/navigation/module-route-state";
 import {
   CalendarRange,
   AlertTriangle,
@@ -23,10 +23,9 @@ import { usePlanningData } from "./use-planning-data";
 import { ScheduleView } from "./schedule-view";
 import { ResourceList } from "./resource-list";
 
-export function PlanningModule({ route }: { route?: ModuleRouteState } = {}) {
-  const { activeView } = useAppStore();
-  const { navigateCompat } = useNavigateCompat();
-  const view = resolveModuleView(route, activeView, "planning");
+export function PlanningModule({ route }: { route: ModuleRouteState }) {
+  const { goToModule, goToDetail, goToCreate, goToTab } = useAppNavigation();
+  const view = route;
   const resolvedTab = (view.tab as PlanningTab | undefined) ?? "week";
   const [tab, setTab] = useState<PlanningTab>(resolvedTab);
   const [weekStart, setWeekStart] = useState<Date>(() => startOfWeek());
@@ -39,9 +38,9 @@ export function PlanningModule({ route }: { route?: ModuleRouteState } = {}) {
   const onTabChange = useCallback(
     (next: PlanningTab) => {
       setTab(next);
-      navigateCompat("planning", "list", undefined, next === "week" ? undefined : next);
+      goToModule("planning", "list", undefined, next === "week" ? undefined : next);
     },
-    [navigateCompat],
+    [goToModule],
   );
 
   const { resources, allocations, conflictIds } = data;

@@ -6,7 +6,7 @@ import { DataTable, type Column } from "@/components/shared/data-table";
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { useAppStore } from "@/lib/store/app-store";
-import { useModuleNavigation } from "@/lib/navigation/navigate-compat";
+import { useAppNavigation } from "@/lib/navigation/use-app-navigation";
 import {
   Plus,
   Download,
@@ -79,7 +79,7 @@ export function CampaignsList({
   onPauseBulk,
   onNavigateToMarketplace,
 }: CampaignsListProps) {
-  const { navigateDetail } = useModuleNavigation();
+  const { goToModule, goToDetail, goToCreate, goToTab } = useAppNavigation();
   const [section, setSection] = useState<SectionTab>("campaigns");
   const [search, setSearch] = useState("");
   const [channelFilter, setChannelFilter] = useState<Set<string>>(new Set());
@@ -262,8 +262,8 @@ export function CampaignsList({
   ];
 
   const rowActions = [
-    { label: "View campaign", onClick: (c: Campaign) => navigateDetail("marketing", c.id) },
-    { label: "Edit journey", onClick: (c: Campaign) => navigateDetail("marketing", c.id) },
+    { label: "View campaign", onClick: (c: Campaign) => goToDetail("marketing", c.id) },
+    { label: "Edit journey", onClick: (c: Campaign) => goToDetail("marketing", c.id) },
     {
       label: "Duplicate",
       onClick: (c: Campaign) => onDuplicate(c.id),
@@ -436,7 +436,7 @@ export function CampaignsList({
           <DataTable
             data={filtered}
             columns={columns}
-            onRowClick={(c) => navigateDetail("marketing", c.id)}
+            onRowClick={(c) => goToDetail("marketing", c.id)}
             rowActions={rowActions}
             bulkActions={bulkActions}
             initialSort={{ key: "sent", dir: "desc" }}

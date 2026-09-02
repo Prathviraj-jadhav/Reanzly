@@ -1,9 +1,10 @@
 "use client";
 
 import { useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { useAppStore, type ModuleId } from "@/lib/store/app-store";
-import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
-import { isModuleMigrated } from "@/lib/navigation/routing-config";
+import { useAppNavigation } from "@/lib/navigation/use-app-navigation";
+import { useRecentRoutesStore } from "@/lib/store/recent-routes-store";
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from "@/components/ui/command";
 import {
   LayoutDashboard, KanbanSquare, Truck, Map, Car, FileText,
@@ -14,6 +15,7 @@ import {
   Boxes, Handshake, Store, Gavel, CalendarRange,
 } from "lucide-react";
 import { TRIPS, VEHICLES, DRIVERS, CUSTOMERS, INVOICES, ISSUES, INSPECTIONS } from "@/lib/mock-data";
+import { moduleToPath } from "@/lib/navigation/module-paths";
 
 interface ModuleShortcut {
   id: ModuleId;
@@ -60,11 +62,18 @@ const MODULE_MAP: Record<string, ModuleShortcut> = Object.fromEntries(
   MODULE_SHORTCUTS.map((m) => [m.id, m])
 );
 
-const FALLBACK_RECENTS: ModuleId[] = ["dashboard", "trips", "vehicles"];
+const FALLBACK_RECENTS: { href: string; label: string }[] = [
+  { href: moduleToPath("dashboard"), label: "Dashboard" },
+  { href: moduleToPath("trips"), label: "Trips" },
+  { href: moduleToPath("vehicles"), label: "Vehicles" },
+];
 
 export function CommandPalette() {
-  const { commandOpen, setCommandOpen, navigate, navigateDetail, history, activeView } = useAppStore();
-  const { navigateCompat, navigateDetailCompat } = useNavigateCompat();
+  const router = useRouter();
+  const { commandOpen, setCommandOpen } = useAppStore();
+  const { goToModule, goToDetail } = useAppNavigation();
+  const recentRoutes = useRecentRoutesStore((s) => s.routes);
+  const recordVisit = useRecentRoutesStore((s) => s.recordVisit);
 
   const go = (
     module: ModuleId,
@@ -72,40 +81,28 @@ export function CommandPalette() {
     id?: string,
     tab?: string,
   ) => {
-    if (isModuleMigrated(module)) {
-      navigateCompat(module, view, id, tab);
-    } else {
-      navigate(module, view, id, tab);
-    }
+    const label = MODULE_MAP[module]?.label ?? module;
+    const href = moduleToPath(module, view, id, tab);
+    recordVisit(href, label);
+    goToModule(module, view, id, tab);
     setCommandOpen(false);
   };
 
   const goDetail = (module: ModuleId, id: string, tab?: string) => {
-    if (isModuleMigrated(module)) {
-      navigateDetailCompat(module, id, tab);
-    } else {
-      navigateDetail(module, id, tab);
-    }
+    const label = MODULE_MAP[module]?.label ?? module;
+    const href = moduleToPath(module, "detail", id, tab);
+    recordVisit(href, label);
+    goToDetail(module, id, tab);
     setCommandOpen(false);
   };
 
-  const recents = useMemo(() => {
-    const seen = new Set<ModuleId>();
-    seen.add(activeView.module);
-    const out: ModuleId[] = [];
-    for (let i = history.length - 1; i >= 0 && out.length < 3; i--) {
-      const m = history[i].module;
-      if (!seen.has(m)) {
-        seen.add(m);
-        out.push(m);
-      }
-    }
-    return out.length > 0 ? out : FALLBACK_RECENTS;
-  }, [history, activeView.module]);
-
-  const recentItems = recents
-    .map((id) => MODULE_MAP[id])
-    .filter((m): m is ModuleShortcut => Boolean(m));
+  const recentItems = useMemo(() => {
+    const fromStore = recentRoutes.slice(0, 3).map((r) => ({
+      href: r.href,
+      label: r.label,
+    }));
+    return fromStore.length > 0 ? fromStore : FALLBACK_RECENTS;
+  }, [recentRoutes]);
 
   return (
     <CommandDialog open={commandOpen} onOpenChange={setCommandOpen}>
@@ -115,15 +112,18 @@ export function CommandPalette() {
 
         {recentItems.length > 0 && (
           <CommandGroup heading="Recent">
-            {recentItems.map((m) => (
+            {recentItems.map((r) => (
               <CommandItem
-                key={`recent-${m.id}`}
-                onSelect={() => go(m.id)}
+                key={r.href}
+                onSelect={() => {
+                  recordVisit(r.href, r.label);
+                  router.push(r.href);
+                  setCommandOpen(false);
+                }}
                 className="gap-2"
               >
                 <Clock className="h-4 w-4 text-muted-foreground" />
-                <m.icon className="h-4 w-4 text-muted-foreground" />
-                <span>{m.label}</span>
+                <span>{r.label}</span>
               </CommandItem>
             ))}
           </CommandGroup>

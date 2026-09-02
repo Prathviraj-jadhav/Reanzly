@@ -46,7 +46,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
+import { useAppNavigation } from "@/lib/navigation/use-app-navigation";
 import { useAppStore } from "@/lib/store/app-store";
 import {
   DropdownMenu,
@@ -85,7 +85,7 @@ interface TripDetailProps {
 }
 
 export function TripDetail({ tripId, trips, onUpdate }: TripDetailProps) {
-  const { navigateCompat, navigateDetailCompat } = useNavigateCompat();
+  const { goToModule, goToDetail, goToCreate, goToTab } = useAppNavigation();
   const [activeTab, setActiveTab] = useState("overview");
   const [currentStatus, setCurrentStatus] = useState<TripStatus | null>(null);
   const [editOpen, setEditOpen] = useState(false);
@@ -110,7 +110,7 @@ export function TripDetail({ tripId, trips, onUpdate }: TripDetailProps) {
         <p className="text-[14px] text-muted-foreground">
           Trip <span className="tabular">{tripId}</span> not found.
         </p>
-        <Btn variant="outline" onClick={() => navigateCompat("trips")}>
+        <Btn variant="outline" onClick={() => goToModule("trips")}>
           Back to Trips
         </Btn>
       </div>
@@ -546,6 +546,7 @@ function FinancialTab({
   rateValue: number;
   linkedInvoice: ReturnType<typeof INVOICES.find>;
 }) {
+  const { goToDetail } = useAppNavigation();
   const seed = parseInt(trip.tripId.replace(/\D/g, "")) || 1;
   const gst = Math.round(trip.freightAmount * 0.05);
   const total = trip.freightAmount + additionalCharges + gst;
@@ -702,7 +703,7 @@ function FinancialTab({
           title="Linked Invoice"
           action={
             linkedInvoice && (
-              <Btn size="sm" onClick={() => useAppStore.getState().navigateDetail("invoice", linkedInvoice.invoiceNumber)}>
+              <Btn size="sm" onClick={() => goToDetail("invoice", linkedInvoice.invoiceNumber)}>
                 Open
               </Btn>
             )

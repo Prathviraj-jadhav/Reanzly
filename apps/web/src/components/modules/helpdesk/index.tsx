@@ -2,8 +2,8 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { useAppStore } from "@/lib/store/app-store";
-import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
-import { resolveModuleView, type ModuleRouteState } from "@/lib/navigation/module-route-state";
+import { useAppNavigation } from "@/lib/navigation/use-app-navigation";
+import type { ModuleRouteState } from "@/lib/navigation/module-route-state";
 import type { HelpdeskTicket } from "./_helpers";
 import { TicketsList } from "./tickets-list";
 import { TicketDetail } from "./ticket-detail";
@@ -16,10 +16,9 @@ import {
   pilotErrorMessage,
 } from "@/lib/pilot-api";
 
-export function HelpdeskModule({ route }: { route?: ModuleRouteState } = {}) {
-  const { activeView } = useAppStore();
-  const { navigateCompat } = useNavigateCompat();
-  const view = resolveModuleView(route, activeView, "helpdesk");
+export function HelpdeskModule({ route }: { route: ModuleRouteState }) {
+  const { goToModule, goToDetail, goToCreate, goToTab } = useAppNavigation();
+  const view = route;
 
   const [tickets, setTickets] = useState<HelpdeskTicket[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -64,7 +63,7 @@ export function HelpdeskModule({ route }: { route?: ModuleRouteState } = {}) {
   const drawerOpen = view.view === "create";
   const closeDrawer = () => {
     if (view.view === "create") {
-      navigateCompat("helpdesk");
+      goToModule("helpdesk");
     }
   };
 
@@ -74,7 +73,7 @@ export function HelpdeskModule({ route }: { route?: ModuleRouteState } = {}) {
 
   return (
     <>
-      <TicketsList tickets={tickets} onCreate={() => navigateCompat("helpdesk", "create")} onUpdate={updateTicket} />
+      <TicketsList tickets={tickets} onCreate={() => goToModule("helpdesk", "create")} onUpdate={updateTicket} />
       <AddTicketDrawer open={drawerOpen} onClose={closeDrawer} onAdd={addTicket} />
     </>
   );

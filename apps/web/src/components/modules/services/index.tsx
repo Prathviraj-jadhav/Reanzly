@@ -1,17 +1,16 @@
 "use client";
 import { useState, useCallback, useEffect } from "react";
 import { useAppStore } from "@/lib/store/app-store";
-import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
-import { resolveModuleView, type ModuleRouteState } from "@/lib/navigation/module-route-state";
+import { useAppNavigation } from "@/lib/navigation/use-app-navigation";
+import type { ModuleRouteState } from "@/lib/navigation/module-route-state";
 import { ServicesList, ServiceDueList } from "./services-list";
 import { AddServiceProgramDrawer } from "./add-service-program-drawer";
 import { EditServiceProgramDrawer } from "./edit-service-program-drawer";
 import { type ServiceProgram } from "./_helpers";
 
-export function ServicesModule({ route }: { route?: ModuleRouteState } = {}) {
-  const { activeView } = useAppStore();
-  const { navigateCompat } = useNavigateCompat();
-  const view = resolveModuleView(route, activeView, "services");
+export function ServicesModule({ route }: { route: ModuleRouteState }) {
+  const { goToModule, goToDetail, goToCreate, goToTab } = useAppNavigation();
+  const view = route;
   const [showDue, setShowDue] = useState(false);
   const [programs, setPrograms] = useState<ServiceProgram[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -30,7 +29,7 @@ export function ServicesModule({ route }: { route?: ModuleRouteState } = {}) {
   const drawerOpen = view.module === "services" && view.view === "create";
   const closeDrawer = () => {
     if (view.module === "services" && view.view === "create") {
-      navigateCompat("services");
+      goToModule("services");
     }
   };
 
@@ -54,7 +53,7 @@ export function ServicesModule({ route }: { route?: ModuleRouteState } = {}) {
         <ServicesList
           programs={programs}
           loaded={loaded}
-          onCreate={() => navigateCompat("services", "create")}
+          onCreate={() => goToModule("services", "create")}
           onOpenDue={() => setShowDue(true)}
           onEdit={openEdit}
         />

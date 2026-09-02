@@ -1,8 +1,8 @@
 "use client";
 import { useState, useCallback, useEffect } from "react";
 import { useAppStore } from "@/lib/store/app-store";
-import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
-import { resolveModuleView, type ModuleRouteState } from "@/lib/navigation/module-route-state";
+import { useAppNavigation } from "@/lib/navigation/use-app-navigation";
+import type { ModuleRouteState } from "@/lib/navigation/module-route-state";
 import type { WorkOrder, Vehicle, Vendor, Issue } from "@/lib/types";
 import { toast } from "sonner";
 import { MaintenanceList } from "./maintenance-list";
@@ -10,10 +10,9 @@ import { WorkOrderDetail } from "./work-order-detail";
 import { AddWorkOrderDrawer } from "./add-work-order-drawer";
 import { PartsInventory } from "./parts-inventory";
 
-export function MaintenanceModule({ route }: { route?: ModuleRouteState } = {}) {
-  const { activeView } = useAppStore();
-  const { navigateCompat } = useNavigateCompat();
-  const view = resolveModuleView(route, activeView, "maintenance");
+export function MaintenanceModule({ route }: { route: ModuleRouteState }) {
+  const { goToModule, goToDetail, goToCreate, goToTab } = useAppNavigation();
+  const view = route;
   const [showParts, setShowParts] = useState(false);
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
@@ -92,20 +91,20 @@ export function MaintenanceModule({ route }: { route?: ModuleRouteState } = {}) 
   const drawerOpen = view.module === "maintenance" && view.view === "create";
   const closeDrawer = () => {
     if (view.module === "maintenance" && view.view === "create") {
-      navigateCompat("maintenance");
+      goToModule("maintenance");
     }
   };
 
   return (
     <>
       {showParts ? (
-        <PartsInventory onBack={() => setShowParts(false)} onCreate={() => navigateCompat("maintenance", "create")} />
+        <PartsInventory onBack={() => setShowParts(false)} onCreate={() => goToModule("maintenance", "create")} />
       ) : (
         <MaintenanceList
           workOrders={workOrders}
           vehicles={vehicles}
           vendors={vendors}
-          onCreate={() => navigateCompat("maintenance", "create")}
+          onCreate={() => goToModule("maintenance", "create")}
           onOpenParts={() => setShowParts(true)}
           onUpdate={updateWorkOrder}
           onAdd={addWorkOrder}

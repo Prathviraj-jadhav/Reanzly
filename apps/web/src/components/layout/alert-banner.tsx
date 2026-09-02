@@ -1,6 +1,8 @@
 "use client";
 
 import { useAppStore } from "@/lib/store/app-store";
+import { useAppNavigation } from "@/lib/navigation/use-app-navigation";
+import { isRoutingMigrationEnabled } from "@/lib/navigation/routing-config";
 import { cn } from "@/lib/utils";
 import { X, Info, AlertTriangle, AlertOctagon, ArrowRight } from "lucide-react";
 import { toastInfo } from "@/lib/toast";
@@ -29,7 +31,7 @@ export function AlertBanner() {
   const dismiss = useAppStore((s) => s.dismissSystemAlert);
   const navigate = useAppStore((s) => s.navigate);
   const setAnnounceOpen = useAppStore((s) => s.setAnnounceOpen);
-  const setSettingsTab = useAppStore((s) => s.setSettingsTab);
+  const { goToModule } = useAppNavigation();
 
   if (!alert) return null;
   if (dismissed.includes(alert.id)) return null;
@@ -69,9 +71,14 @@ export function AlertBanner() {
         <button
           onClick={() => {
             if (alert.actionModule) {
-              navigate(alert.actionModule);
-              if (alert.actionModule === "settings" && alert.actionSettingsTab) {
-                setSettingsTab(alert.actionSettingsTab);
+              if (isRoutingMigrationEnabled()) {
+                if (alert.actionModule === "settings" && alert.actionSettingsTab) {
+                  goToModule("settings", "list", undefined, alert.actionSettingsTab);
+                } else {
+                  goToModule(alert.actionModule);
+                }
+              } else {
+                navigate(alert.actionModule);
               }
             } else {
               setAnnounceOpen(true);

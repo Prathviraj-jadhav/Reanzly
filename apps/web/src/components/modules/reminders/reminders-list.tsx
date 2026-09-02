@@ -5,7 +5,7 @@ import { DataTable, type Column } from "@/components/shared/data-table";
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge, reminderStatusBadge } from "@/components/shared/status-badge";
 import { useAppStore } from "@/lib/store/app-store";
-import { useModuleNavigation } from "@/lib/navigation/navigate-compat";
+import { useAppNavigation } from "@/lib/navigation/use-app-navigation";
 import { VEHICLES, DRIVERS } from "@/lib/mock-data";
 import type { Reminder } from "@/lib/types";
 import {
@@ -54,7 +54,7 @@ const DAYS_FILTERS = [
 ];
 
 export function RemindersList({ reminders, onCreate, onUpdate }: RemindersListProps) {
-  const { navigateDetail } = useModuleNavigation();
+    const { goToDetail: navigateDetail } = useAppNavigation();
   const [editing, setEditing] = useState<Reminder | null>(null);
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<Set<string>>(new Set());

@@ -4,18 +4,18 @@ import { useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAppStore, type ModuleId } from "@/lib/store/app-store";
 import { moduleToPath } from "./module-paths";
-import { isModuleMigrated } from "./routing-config";
+import { isRoutingMigrationEnabled } from "./routing-config";
 
 /**
- * Back navigation for detail screens: migrated modules use the list route
- * (browser-history friendly); unmigrated modules keep legacy navigateBack().
+ * Back navigation for detail screens: migrated modules use the list route;
+ * legacy SPA uses store navigateBack() when migration flag is OFF.
  */
 export function useMigratedNavBack(module: ModuleId) {
   const router = useRouter();
   const navigateBack = useAppStore((s) => s.navigateBack);
 
   return useCallback(() => {
-    if (isModuleMigrated(module)) {
+    if (isRoutingMigrationEnabled()) {
       router.push(moduleToPath(module));
       return;
     }

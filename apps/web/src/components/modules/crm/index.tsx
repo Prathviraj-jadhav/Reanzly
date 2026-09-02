@@ -4,8 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 import { PageHeader } from "@/components/shared/page-header";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/lib/store/app-store";
-import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
-import { resolveModuleView, type ModuleRouteState } from "@/lib/navigation/module-route-state";
+import { useAppNavigation } from "@/lib/navigation/use-app-navigation";
+import type { ModuleRouteState } from "@/lib/navigation/module-route-state";
 import { Pipeline } from "./pipeline";
 import { Leads } from "./leads";
 import { Accounts } from "./accounts";
@@ -15,10 +15,9 @@ import { Reports } from "./reports";
 import { CRM_TABS, type CrmTab } from "./_helpers";
 import { useCrmStore } from "./_store";
 
-export function CRMModule({ route }: { route?: ModuleRouteState } = {}) {
-  const { activeView } = useAppStore();
-  const { navigateCompat } = useNavigateCompat();
-  const view = resolveModuleView(route, activeView, "crm");
+export function CRMModule({ route }: { route: ModuleRouteState }) {
+  const { goToModule, goToDetail, goToCreate, goToTab } = useAppNavigation();
+  const view = route;
   const resolvedTab = (view.tab as CrmTab | undefined) ?? "pipeline";
   const [tab, setTab] = useState<CrmTab>(resolvedTab);
   const loaded = useCrmStore((s) => s.loaded);
@@ -35,9 +34,9 @@ export function CRMModule({ route }: { route?: ModuleRouteState } = {}) {
   const onTabChange = useCallback(
     (next: CrmTab) => {
       setTab(next);
-      navigateCompat("crm", "list", undefined, next === "pipeline" ? undefined : next);
+      goToModule("crm", "list", undefined, next === "pipeline" ? undefined : next);
     },
-    [navigateCompat],
+    [goToModule],
   );
 
   if (!loaded) {

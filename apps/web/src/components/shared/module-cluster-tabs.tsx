@@ -4,17 +4,10 @@ import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useAppStore, type ModuleId } from "@/lib/store/app-store";
 import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
-import { isModuleMigrated } from "@/lib/navigation/routing-config";
 
 /**
- * Shared tab-strip shell for a "cluster" of related standalone modules that
- * used to each have their own top-level sidebar entry (cluttering the "More"
- * drawer with pages nobody could tell apart from one another). The sidebar
- * now only ever links to the cluster's home module (e.g. "Vehicles") - this
- * strip is how you move between the sibling pages instead.
- *
- * B0R-2 mixed mode: migrated tabs use App Router URLs; unmigrated siblings
- * fall back to legacy `navigate()` at `/dashboard`.
+ * Rollback-only cluster tab strip (ModuleRouter / legacy SPA).
+ * App Router cluster layouts use URL tabs directly.
  */
 export interface ClusterTab {
   id: ModuleId;
@@ -30,19 +23,11 @@ export function ModuleClusterTabs({
   active: ModuleId;
   children: React.ReactNode;
 }) {
-  const router = useRouter();
   const legacyNavigate = useAppStore((s) => s.navigate);
   const { navigateCompat } = useNavigateCompat();
 
   const onTabClick = (moduleId: ModuleId) => {
-    if (isModuleMigrated(moduleId)) {
-      navigateCompat(moduleId);
-      return;
-    }
-    legacyNavigate(moduleId);
-    if (typeof window !== "undefined" && window.location.pathname.startsWith("/app/")) {
-      router.push("/dashboard?legacy=1");
-    }
+    navigateCompat(moduleId);
   };
 
   return (

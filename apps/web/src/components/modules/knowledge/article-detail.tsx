@@ -4,7 +4,7 @@ import { DetailLayout, InfoRow, InfoSection, StatCard } from "@/components/share
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { useAppStore } from "@/lib/store/app-store";
-import { useModuleNavigation } from "@/lib/navigation/navigate-compat";
+import { useAppNavigation } from "@/lib/navigation/use-app-navigation";
 import {
   Pencil,
   FileDown,
@@ -100,7 +100,7 @@ function useArticle(articleId: string) {
 }
 
 export function ArticleDetail({ articleId, initialTab }: ArticleDetailProps) {
-  const { navigate, navigateDetail } = useModuleNavigation();
+  const { goToModule, goToDetail, goToCreate, goToTab } = useAppNavigation();
   const [activeTab, setActiveTab] = useState(initialTab || "content");
   const [feedbackVote, setFeedbackVote] = useState<"up" | "down" | null>(null);
   const { article, setArticle, loading } = useArticle(articleId);
@@ -128,7 +128,7 @@ export function ArticleDetail({ articleId, initialTab }: ArticleDetailProps) {
         <p className="text-[14px] text-muted-foreground">
           Article <span className="tabular">{articleId}</span> not found.
         </p>
-        <Btn variant="outline" onClick={() => navigate("knowledge")}>Back to Knowledge Base</Btn>
+        <Btn variant="outline" onClick={() => goToModule("knowledge")}>Back to Knowledge Base</Btn>
       </div>
     );
   }
@@ -349,7 +349,7 @@ export function ArticleDetail({ articleId, initialTab }: ArticleDetailProps) {
                 return (
                   <button
                     key={r.id}
-                    onClick={() => navigateDetail("knowledge", r.id)}
+                    onClick={() => goToDetail("knowledge", r.id)}
                     className="group flex items-center justify-between gap-3 rounded-[6px] border border-border bg-card px-4 py-3 hover:bg-accent transition-colors text-left"
                   >
                     <div className="flex items-center gap-2.5 min-w-0">

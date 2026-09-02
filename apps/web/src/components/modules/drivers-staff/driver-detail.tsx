@@ -6,7 +6,7 @@ import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { SavageInput, SavageTextarea } from "@/components/shared/savage-input";
 import { useAppStore } from "@/lib/store/app-store";
-import { useModuleNavigation } from "@/lib/navigation/navigate-compat";
+import { useAppNavigation } from "@/lib/navigation/use-app-navigation";
 import type { Driver } from "@/lib/types";
 import {
   User, Truck, Car, Send, Pencil, Star,
@@ -52,7 +52,8 @@ interface DriverDetailProps {
 }
 
 export function DriverDetail({ driverId, drivers, onUpdate }: DriverDetailProps) {
-  const { navigate, navigateDetail, setActiveConversation, setChatOpen } = useAppStore();
+  const { goToModule, goToDetail } = useAppNavigation();
+  const { setActiveConversation, setChatOpen } = useAppStore();
   const [activeTab, setActiveTab] = useState("overview");
   const [editOpen, setEditOpen] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
@@ -75,7 +76,7 @@ export function DriverDetail({ driverId, drivers, onUpdate }: DriverDetailProps)
         <p className="text-[14px] text-muted-foreground">
           Employee <span className="tabular">{driverId}</span> not found.
         </p>
-        <Btn variant="outline" onClick={() => navigate("drivers-staff")}>
+        <Btn variant="outline" onClick={() => goToModule("drivers-staff")}>
           Back to Drivers & Staff
         </Btn>
       </div>
@@ -83,9 +84,9 @@ export function DriverDetail({ driverId, drivers, onUpdate }: DriverDetailProps)
   }
 
   const handleSendMessage = () => {
-    // Use the operations channel as the driver's active conversation (mock).
     setActiveConversation("c1");
     setChatOpen(true);
+    goToModule("chat");
     toast(`Chat opened with ${driver.name}`, { description: "Operations channel selected" });
   };
 
@@ -143,7 +144,7 @@ export function DriverDetail({ driverId, drivers, onUpdate }: DriverDetailProps)
             <button
               onClick={() => {
                 const v = vehicles.find((ve) => ve.name === driver.assignedVehicle);
-                if (v) navigateDetail("vehicles", v.id);
+                if (v) goToDetail("vehicles", v.id);
               }}
               className="inline-flex items-center gap-1 text-foreground hover:underline tabular"
             >

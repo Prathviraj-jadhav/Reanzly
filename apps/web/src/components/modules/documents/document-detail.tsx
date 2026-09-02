@@ -4,7 +4,7 @@ import { DetailLayout, InfoRow, InfoSection, StatCard } from "@/components/share
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge, docStatusBadge } from "@/components/shared/status-badge";
 import { useAppStore } from "@/lib/store/app-store";
-import { useModuleNavigation } from "@/lib/navigation/navigate-compat";
+import { useAppNavigation } from "@/lib/navigation/use-app-navigation";
 import type { DocumentRecord, Vehicle, Driver, Customer, Vendor } from "@/lib/types";
 import {
   Pencil,
@@ -46,7 +46,7 @@ interface DocumentDetailProps {
 }
 
 export function DocumentDetail({ documentId, documents, onUpdate: onUpdateReal }: DocumentDetailProps) {
-  const { navigate, navigateDetail } = useModuleNavigation();
+  const { goToModule, goToDetail, goToCreate, goToTab } = useAppNavigation();
   const [activeTab, setActiveTab] = useState("overview");
   const doc = documents.find((d) => d.id === documentId);
   const [editing, setEditing] = useState(false);
@@ -79,7 +79,7 @@ export function DocumentDetail({ documentId, documents, onUpdate: onUpdateReal }
         <p className="text-[14px] text-muted-foreground">
           Document <span className="tabular">{documentId}</span> not found.
         </p>
-        <Btn variant="outline" onClick={() => navigate("documents")}>Back to Documents</Btn>
+        <Btn variant="outline" onClick={() => goToModule("documents")}>Back to Documents</Btn>
       </div>
     );
   }
@@ -124,7 +124,7 @@ export function DocumentDetail({ documentId, documents, onUpdate: onUpdateReal }
       label: "Delete",
       onClick: () => {
         toast(`Deleted document`, { description: doc.name });
-        navigate("documents");
+        goToModule("documents");
       },
     },
   ];
@@ -183,7 +183,7 @@ export function DocumentDetail({ documentId, documents, onUpdate: onUpdateReal }
               <div className="px-4 py-3">
                 {linkedEntity ? (
                   <button
-                    onClick={() => navigateDetail(linkedEntity!.module, linkedEntity!.id)}
+                    onClick={() => goToDetail(linkedEntity!.module, linkedEntity!.id)}
                     className="w-full flex items-center justify-between gap-3 rounded-[5px] border border-border px-3 py-2.5 hover:bg-accent transition-colors text-left"
                   >
                     <div className="flex items-center gap-2.5 min-w-0">

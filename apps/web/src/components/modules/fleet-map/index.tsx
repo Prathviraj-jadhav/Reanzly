@@ -6,7 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { PageHeader } from "@/components/shared/page-header";
 import { Btn } from "@/components/shared/btn";
 import { toast } from "sonner";
-import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
+import { useAppNavigation } from "@/lib/navigation/use-app-navigation";
 import type { Vehicle, Trip, Driver } from "@/lib/types";
 import {
   Shield,
@@ -44,7 +44,7 @@ const OsmMap = dynamic(() => import("./osm-map"), {
 
 export function FleetMapModule() {
   const searchParams = useSearchParams();
-  const { navigateCompat } = useNavigateCompat();
+  const { goToModule, goToDetail, goToCreate, goToTab } = useAppNavigation();
   const urlVehicleId = searchParams.get("vehicle");
   // Real, database-backed vehicles/trips/drivers (src/app/api/*) -
   // previously read directly from mock-data.ts. Read-only here (Fleet Map
@@ -89,12 +89,12 @@ export function FleetMapModule() {
   const updateVehicleSelection = useCallback(
     (id: string | null) => {
       if (id) {
-        navigateCompat("fleet-map", "list", id);
+        goToModule("fleet-map", "list", id);
       } else {
-        navigateCompat("fleet-map");
+        goToModule("fleet-map");
       }
     },
-    [navigateCompat],
+    [goToModule],
   );
 
   // ---- Geofence drawer ----

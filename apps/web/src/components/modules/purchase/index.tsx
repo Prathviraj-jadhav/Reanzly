@@ -1,17 +1,16 @@
 "use client";
 import { useState, useCallback, useEffect } from "react";
 import { useAppStore } from "@/lib/store/app-store";
-import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
-import { resolveModuleView, type ModuleRouteState } from "@/lib/navigation/module-route-state";
+import { useAppNavigation } from "@/lib/navigation/use-app-navigation";
+import type { ModuleRouteState } from "@/lib/navigation/module-route-state";
 import type { PurchaseOrder } from "./_helpers";
 import { POList } from "./po-list";
 import { PODetail } from "./po-detail";
 import { AddPODrawer } from "./add-po-drawer";
 
-export function PurchaseModule({ route }: { route?: ModuleRouteState } = {}) {
-  const { activeView } = useAppStore();
-  const { navigateCompat } = useNavigateCompat();
-  const view = resolveModuleView(route, activeView, "purchase");
+export function PurchaseModule({ route }: { route: ModuleRouteState }) {
+  const { goToModule, goToDetail, goToCreate, goToTab } = useAppNavigation();
+  const view = route;
   const [orders, setOrders] = useState<PurchaseOrder[]>([]);
   const [loaded, setLoaded] = useState(false);
 
@@ -40,13 +39,13 @@ export function PurchaseModule({ route }: { route?: ModuleRouteState } = {}) {
   const drawerOpen = view.view === "create";
   const closeDrawer = () => {
     if (view.view === "create") {
-      navigateCompat("purchase");
+      goToModule("purchase");
     }
   };
 
   return (
     <>
-      <POList purchaseOrders={orders} loaded={loaded} onCreate={() => navigateCompat("purchase", "create")} onUpdate={updatePO} />
+      <POList purchaseOrders={orders} loaded={loaded} onCreate={() => goToModule("purchase", "create")} onUpdate={updatePO} />
       <AddPODrawer open={drawerOpen} onClose={closeDrawer} onAdd={addPO} />
     </>
   );

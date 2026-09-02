@@ -4,8 +4,8 @@ import { PageHeader } from "@/components/shared/page-header";
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { useAppStore } from "@/lib/store/app-store";
-import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
-import { resolveModuleView, type ModuleRouteState } from "@/lib/navigation/module-route-state";
+import { useAppNavigation } from "@/lib/navigation/use-app-navigation";
+import type { ModuleRouteState } from "@/lib/navigation/module-route-state";
 import {
   Plus, CalendarClock, Star, Clock, MoreHorizontal,
   Edit3, Trash2, Play, Pause, Sparkles,
@@ -31,10 +31,9 @@ import { useReportsData } from "./use-reports-data";
 
 type ReportsTab = "library" | "scheduled" | "custom" | "data";
 
-export function ReportsModule({ route }: { route?: ModuleRouteState } = {}) {
-  const { activeView } = useAppStore();
-  const { navigateCompat } = useNavigateCompat();
-  const view = resolveModuleView(route, activeView, "reports");
+export function ReportsModule({ route }: { route: ModuleRouteState }) {
+  const { goToModule, goToDetail, goToCreate, goToTab } = useAppNavigation();
+  const view = route;
   const resolvedTab = (view.tab as ReportsTab | undefined) ?? "library";
   const {
     scheduled, custom, loaded,
@@ -69,9 +68,9 @@ export function ReportsModule({ route }: { route?: ModuleRouteState } = {}) {
     (next: ReportsTab) => {
       setActiveTab(next);
       setGenerated(null);
-      navigateCompat("reports", "list", undefined, next === "library" ? undefined : next);
+      goToModule("reports", "list", undefined, next === "library" ? undefined : next);
     },
-    [navigateCompat],
+    [goToModule],
   );
 
   const filteredReports = useMemo(() => {
@@ -88,7 +87,7 @@ export function ReportsModule({ route }: { route?: ModuleRouteState } = {}) {
     const report = REPORT_TYPES.find((r) => r.id === form.reportId);
     if (!report) return;
     setGenerated({ report, form });
-    navigateCompat("reports", "detail", report.id);
+    goToModule("reports", "detail", report.id);
   };
 
   const handleSchedule = async (form: ScheduleForm) => {
@@ -176,7 +175,7 @@ export function ReportsModule({ route }: { route?: ModuleRouteState } = {}) {
           form={generated.form}
           onBack={() => {
             setGenerated(null);
-            navigateCompat("reports");
+            goToModule("reports");
           }}
           onSchedule={openScheduleFromGenerated}
           onSaveCustom={handleSaveCustom}

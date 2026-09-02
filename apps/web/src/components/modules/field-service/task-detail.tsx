@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { DetailLayout, InfoRow, InfoSection, StatCard } from "@/components/shared/detail-layout";
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
-import { useModuleNavigation } from "@/lib/navigation/navigate-compat";
+import { useAppNavigation } from "@/lib/navigation/use-app-navigation";
 import type { FieldTask, ChecklistItem, PartUsed, TimeEntry } from "./_helpers";
 import {
   Pencil,
@@ -65,7 +65,7 @@ interface TaskDetailProps {
 }
 
 export function TaskDetail({ taskId, onUpdate }: TaskDetailProps) {
-  const { navigate } = useModuleNavigation();
+    const { goToModule: navigate } = useAppNavigation();
   const [activeTab, setActiveTab] = useState("overview");
   const [task, setTask] = useState<FieldTask | null>(null);
   const [loading, setLoading] = useState(true);

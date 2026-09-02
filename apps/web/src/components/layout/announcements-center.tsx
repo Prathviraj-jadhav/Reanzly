@@ -2,6 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { useAppStore } from "@/lib/store/app-store";
+import { useAppNavigation } from "@/lib/navigation/use-app-navigation";
+import { isRoutingMigrationEnabled } from "@/lib/navigation/routing-config";
 import { cn } from "@/lib/utils";
 import {
   X, Megaphone, AlertTriangle, AlertOctagon, Info, Bell,
@@ -106,7 +108,7 @@ export function AnnouncementsCenter() {
   const markAllNotifRead = useAppStore((s) => s.markAllNotifRead);
   const navigate = useAppStore((s) => s.navigate);
   const dismissSystemAlert = useAppStore((s) => s.dismissSystemAlert);
-  const setSettingsTab = useAppStore((s) => s.setSettingsTab);
+  const { goToModule } = useAppNavigation();
   const [section, setSection] = useState<Section>("alerts");
 
   const unreadCount = notifications.filter((n) => !n.read).length;
@@ -193,9 +195,14 @@ export function AnnouncementsCenter() {
               alert={systemAlert}
               onAction={() => {
                 if (systemAlert?.actionModule) {
-                  navigate(systemAlert.actionModule);
-                  if (systemAlert.actionModule === "settings" && systemAlert.actionSettingsTab) {
-                    setSettingsTab(systemAlert.actionSettingsTab);
+                  if (isRoutingMigrationEnabled()) {
+                    if (systemAlert.actionModule === "settings" && systemAlert.actionSettingsTab) {
+                      goToModule("settings", "list", undefined, systemAlert.actionSettingsTab);
+                    } else {
+                      goToModule(systemAlert.actionModule);
+                    }
+                  } else {
+                    navigate(systemAlert.actionModule);
                   }
                   setOpen(false);
                 }

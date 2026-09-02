@@ -11,11 +11,8 @@ function currentAppPath(pathname: string, search: string): string {
 }
 
 /**
- * Dual-write navigation adapter for incremental App Router migration.
- *
- * - Migrated modules: `router.push()` drives browser history; Zustand
- *   `activeView` is synced without the legacy 20-entry stack.
- * - Unmigrated modules: legacy `navigate()` only (SPA at `/dashboard`).
+ * Rollback-only dual-write navigation adapter (B0R-8P).
+ * Used by legacy AppShell / ModuleRouter paths when `NEXT_PUBLIC_ROUTING_MIGRATION=0`.
  */
 export function useNavigateCompat() {
   const router = useRouter();
@@ -60,10 +57,7 @@ export function useNavigateCompat() {
   return { navigateCompat, navigateDetailCompat, isNavigatingFromCompat: () => inFlightRef.current };
 }
 
-/**
- * Module-family navigation: routes migrated targets through App Router,
- * unmigrated targets through legacy Zustand navigate().
- */
+/** Rollback-only module navigation for legacy SPA module components. */
 export function useModuleNavigation() {
   const legacy = useAppStore();
   const { navigateCompat, navigateDetailCompat } = useNavigateCompat();
@@ -84,7 +78,7 @@ export function useModuleNavigation() {
   };
 }
 
-/** Imperative helper for non-hook call sites (e.g. future header migration). */
+/** Rollback-only imperative helper for demoEnter and legacy paths. */
 export function navigateCompatStatic(
   module: ModuleId,
   view: ViewState["view"] = "list",

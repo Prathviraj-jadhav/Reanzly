@@ -9,7 +9,7 @@ import {
 } from "@/components/shared/detail-layout";
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
-import { useModuleNavigation } from "@/lib/navigation/navigate-compat";
+import { useAppNavigation } from "@/lib/navigation/use-app-navigation";
 import {
   Repeat,
   Banknote,
@@ -46,7 +46,7 @@ interface ContractDetailProps {
 }
 
 export function ContractDetail({ contractId, contracts }: ContractDetailProps) {
-  const { navigate, navigateDetail } = useModuleNavigation();
+  const { goToModule, goToDetail, goToCreate, goToTab } = useAppNavigation();
   const [tab, setTab] = useState<SubscriptionTab>("overview");
 
   const contract = useMemo(
@@ -60,7 +60,7 @@ export function ContractDetail({ contractId, contracts }: ContractDetailProps) {
         <p className="text-[14px] text-muted-foreground">
           Contract <span className="tabular">{contractId}</span> not found.
         </p>
-        <Btn variant="outline" onClick={() => navigate("subscriptions")}>
+        <Btn variant="outline" onClick={() => goToModule("subscriptions")}>
           Back to Subscriptions
         </Btn>
       </div>
@@ -92,7 +92,7 @@ export function ContractDetail({ contractId, contracts }: ContractDetailProps) {
     { label: "Pause billing", onClick: () => toastInfo("Billing paused", "Auto-billing suspended until manually resumed.") },
     { label: "Send renewal notice", onClick: () => toastInfo("Renewal notice sent", `${contract.customer} notified by email + WhatsApp.`) },
     { label: "Download contract", onClick: () => toastInfo("PDF generated", "Contract document exported with e-sign audit trail.") },
-    { label: "View customer", onClick: () => navigateDetail("customers", contract.customerCode) },
+    { label: "View customer", onClick: () => goToDetail("customers", contract.customerCode) },
     { label: "Cancel contract", onClick: () => toastInfo("Cancellation", "Effective end of current billing cycle.") },
   ];
 

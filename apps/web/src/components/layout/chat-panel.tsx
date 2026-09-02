@@ -28,7 +28,7 @@ import {
 import { ChatChannelBrowser } from "@/components/modules/chat/chat-channel-browser";
 import { ChatForwardDialog } from "@/components/modules/chat/chat-forward-dialog";
 import { ChatNewDmDialog } from "@/components/modules/chat/chat-new-dm-dialog";
-import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
+import { useAppNavigation } from "@/lib/navigation/use-app-navigation";
 
 /**
  * ChatPanel - compact slide-in chat for quick access.
@@ -38,7 +38,7 @@ import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
  */
 export function ChatPanel() {
   const { chatOpen, setChatOpen, currentRole, authUser } = useAppStore();
-  const { navigateCompat } = useNavigateCompat();
+  const { goToModule, goToDetail, goToCreate, goToTab } = useAppNavigation();
   // Real signup name when available, falling back to the role archetype's
   // demo persona name for quick-login / live-demo sessions.
   const displayName = authUser?.name?.trim() || currentRole.name;
@@ -106,7 +106,7 @@ export function ChatPanel() {
 
   const handleOpenFullChat = () => {
     setChatOpen(false);
-    navigateCompat("chat");
+    goToModule("chat");
   };
 
   const onMentionClick = (entityId: string, _name: string) => {

@@ -34,8 +34,8 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import type { Task } from "@/lib/types";
 import { useAppStore } from "@/lib/store/app-store";
-import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
-import { resolveModuleView, type ModuleRouteState } from "@/lib/navigation/module-route-state";
+import { useAppNavigation } from "@/lib/navigation/use-app-navigation";
+import type { ModuleRouteState } from "@/lib/navigation/module-route-state";
 import { OperationsBoard } from "./operations-board";
 import { OperationsReports } from "./operations-reports";
 import { TaskDetailDrawer } from "./task-detail-drawer";
@@ -51,10 +51,10 @@ import {
 
 type Tab = "board" | "reports";
 
-export function OperationsHubModule({ route }: { route?: ModuleRouteState } = {}) {
+export function OperationsHubModule({ route }: { route: ModuleRouteState }) {
   const { currentRole, authUser, activeView } = useAppStore();
-  const { navigateCompat } = useNavigateCompat();
-  const view = resolveModuleView(route, activeView, "operations-hub");
+  const { goToModule, goToDetail, goToCreate, goToTab } = useAppNavigation();
+  const view = route;
   const resolvedTab = (view.tab as Tab | undefined) ?? "board";
   // Real signup name when available, falling back to the role archetype's
   // demo persona name for quick-login / live-demo sessions.
@@ -83,9 +83,9 @@ export function OperationsHubModule({ route }: { route?: ModuleRouteState } = {}
   const onTabChange = useCallback(
     (next: Tab) => {
       setTab(next);
-      navigateCompat("operations-hub", "list", undefined, next === "board" ? undefined : next);
+      goToModule("operations-hub", "list", undefined, next === "board" ? undefined : next);
     },
-    [navigateCompat],
+    [goToModule],
   );
 
   // "" means "not yet chosen" - falls back to the real active sprint once

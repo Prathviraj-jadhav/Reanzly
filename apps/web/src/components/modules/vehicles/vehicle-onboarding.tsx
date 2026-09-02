@@ -3,6 +3,7 @@ import { useState, useMemo, useRef, useEffect } from "react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Btn } from "@/components/shared/btn";
 import { useAppStore } from "@/lib/store/app-store";
+import { useAppNavigation } from "@/lib/navigation/use-app-navigation";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
@@ -45,7 +46,7 @@ interface VehicleOnboardingProps {
 }
 
 export function VehicleOnboarding({ onClose, onAdd }: VehicleOnboardingProps) {
-  const { navigateDetail } = useAppStore();
+  const { goToDetail } = useAppNavigation();
   const [form, setForm] = useState<VehicleOnboardingForm>(EMPTY_VEHICLE_FORM);
   const [activeSection, setActiveSection] = useState<SectionId>("details");
   const sectionRefs = useRef<Record<SectionId, HTMLDivElement | null>>({

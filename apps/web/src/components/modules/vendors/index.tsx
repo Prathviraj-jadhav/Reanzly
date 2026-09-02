@@ -1,18 +1,17 @@
 "use client";
 import { useState, useCallback, useEffect } from "react";
 import { useAppStore } from "@/lib/store/app-store";
-import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
-import { resolveModuleView, type ModuleRouteState } from "@/lib/navigation/module-route-state";
+import { useAppNavigation } from "@/lib/navigation/use-app-navigation";
+import type { ModuleRouteState } from "@/lib/navigation/module-route-state";
 import { VendorsList } from "./vendors-list";
 import { VendorDetail } from "./vendor-detail";
 import { AddVendorDrawer } from "./add-vendor-drawer";
 import type { Vendor } from "@/lib/types";
 import { toast } from "sonner";
 
-export function VendorsModule({ route }: { route?: ModuleRouteState } = {}) {
-  const { activeView } = useAppStore();
-  const { navigateCompat } = useNavigateCompat();
-  const view = resolveModuleView(route, activeView, "vendors");
+export function VendorsModule({ route }: { route: ModuleRouteState }) {
+  const { goToModule, goToDetail, goToCreate, goToTab } = useAppNavigation();
+  const view = route;
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [loaded, setLoaded] = useState(false);
 
@@ -75,7 +74,7 @@ export function VendorsModule({ route }: { route?: ModuleRouteState } = {}) {
   const drawerOpen = view.view === "create";
   const closeDrawer = () => {
     if (view.view === "create") {
-      navigateCompat("vendors");
+      goToModule("vendors");
     }
   };
 
@@ -83,7 +82,7 @@ export function VendorsModule({ route }: { route?: ModuleRouteState } = {}) {
     <>
       <VendorsList
         vendors={vendors}
-        onCreate={() => navigateCompat("vendors", "create")}
+        onCreate={() => goToModule("vendors", "create")}
         onUpdate={updateVendor}
         onAdd={addVendor}
       />

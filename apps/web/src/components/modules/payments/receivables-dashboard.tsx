@@ -2,7 +2,7 @@
 import { useState, useMemo } from "react";
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
-import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
+import { useAppNavigation } from "@/lib/navigation/use-app-navigation";
 import { INVOICES } from "@/lib/mock-data";
 import type { Invoice } from "@/lib/types";
 import {
@@ -39,7 +39,7 @@ interface ReceivablesDashboardProps {
 }
 
 export function ReceivablesDashboard({ onBack }: ReceivablesDashboardProps) {
-  const { navigateDetailCompat: navigateDetail } = useNavigateCompat();
+    const { goToDetail: navigateDetail } = useAppNavigation();
   const [activeBucket, setActiveBucket] = useState<string | null>(null);
   const [reminderConfigs, setReminderConfigs] = useState<ReminderConfig[]>(
     DEFAULT_REMINDER_CONFIGS,

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { DetailLayout, InfoRow, InfoSection, StatCard } from "@/components/shared/detail-layout";
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
-import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
+import { useAppNavigation } from "@/lib/navigation/use-app-navigation";
 import {
   type ApprovalRequest,
   type ApproverStep,
@@ -65,7 +65,7 @@ interface ApprovalDetailProps {
 }
 
 export function ApprovalDetail({ requestId, requests, onAction, initialTab }: ApprovalDetailProps) {
-  const { navigateCompat: navigate } = useNavigateCompat();
+    const { goToModule: navigate } = useAppNavigation();
   const [activeTab, setActiveTab] = useState(initialTab ?? "overview");
   const [comment, setComment] = useState("");
   const [decision, setDecision] = useState<"approve" | "reject" | "delegate" | "">("");

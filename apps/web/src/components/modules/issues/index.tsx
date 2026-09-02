@@ -1,18 +1,17 @@
 "use client";
 import { useState, useCallback, useEffect } from "react";
 import { useAppStore } from "@/lib/store/app-store";
-import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
-import { resolveModuleView, type ModuleRouteState } from "@/lib/navigation/module-route-state";
+import { useAppNavigation } from "@/lib/navigation/use-app-navigation";
+import type { ModuleRouteState } from "@/lib/navigation/module-route-state";
 import type { Issue, Vehicle, Driver, Inspection, WorkOrder } from "@/lib/types";
 import { toast } from "sonner";
 import { IssuesList } from "./issues-list";
 import { IssueDetail } from "./issue-detail";
 import { AddIssueDrawer } from "./add-issue-drawer";
 
-export function IssuesModule({ route }: { route?: ModuleRouteState } = {}) {
-  const { activeView } = useAppStore();
-  const { navigateCompat } = useNavigateCompat();
-  const view = resolveModuleView(route, activeView, "issues");
+export function IssuesModule({ route }: { route: ModuleRouteState }) {
+  const { goToModule, goToDetail, goToCreate, goToTab } = useAppNavigation();
+  const view = route;
   const [issues, setIssues] = useState<Issue[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
@@ -94,7 +93,7 @@ export function IssuesModule({ route }: { route?: ModuleRouteState } = {}) {
   const drawerOpen = view.module === "issues" && view.view === "create";
   const closeDrawer = () => {
     if (view.module === "issues" && view.view === "create") {
-      navigateCompat("issues");
+      goToModule("issues");
     }
   };
 
@@ -104,7 +103,7 @@ export function IssuesModule({ route }: { route?: ModuleRouteState } = {}) {
         issues={issues}
         vehicles={vehicles}
         drivers={drivers}
-        onCreate={() => navigateCompat("issues", "create")}
+        onCreate={() => goToModule("issues", "create")}
         onUpdate={updateIssue}
         onAdd={addIssue}
       />

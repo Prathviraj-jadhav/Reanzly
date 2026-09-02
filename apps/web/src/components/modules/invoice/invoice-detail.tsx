@@ -9,7 +9,7 @@ import {
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { useAppStore } from "@/lib/store/app-store";
-import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
+import { useAppNavigation } from "@/lib/navigation/use-app-navigation";
 import type { Invoice, Customer, Payment } from "@/lib/types";
 import { EditInvoiceDrawer } from "./edit-invoice-drawer";
 import {
@@ -89,7 +89,7 @@ export function InvoiceDetail({
   onRelease,
   onAssign,
 }: InvoiceDetailProps) {
-  const { navigateCompat: navigate, navigateDetailCompat: navigateDetail } = useNavigateCompat();
+    const { goToModule: navigate, goToDetail: navigateDetail } = useAppNavigation();
   const [activeTab, setActiveTab] = useState("invoice");
   const [editOpen, setEditOpen] = useState(false);
 
@@ -325,7 +325,7 @@ function InvoiceViewTab({
   meta?: InvoiceMeta;
   onAssign?: (invoice: Invoice, contactIds: string[]) => void;
 }) {
-  const { navigateCompat: navigate } = useNavigateCompat();
+    const { goToModule: navigate } = useAppNavigation();
   // Deterministic line items derived from invoice
   const seed = parseInt(invoice.id.replace(/\D/g, "")) || 1;
   const lineItems = useMemo(() => {

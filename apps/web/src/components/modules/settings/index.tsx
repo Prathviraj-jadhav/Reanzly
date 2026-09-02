@@ -8,8 +8,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAppStore, type SettingsTab } from "@/lib/store/app-store";
-import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
-import { resolveModuleView, type ModuleRouteState } from "@/lib/navigation/module-route-state";
+import { useAppNavigation } from "@/lib/navigation/use-app-navigation";
+import type { ModuleRouteState } from "@/lib/navigation/module-route-state";
 import { SETTINGS_SECTIONS } from "./_helpers";
 import { ProfileSection } from "./sections/profile";
 import { NotificationsSection } from "./sections/notifications";
@@ -29,21 +29,20 @@ const ICONS: Record<string, LucideIcon> = {
 };
 
 
-export function SettingsModule({ route }: { route?: ModuleRouteState } = {}) {
-  const { activeView } = useAppStore();
-  const { navigateCompat } = useNavigateCompat();
-  const view = resolveModuleView(route, activeView, "settings");
+export function SettingsModule({ route }: { route: ModuleRouteState }) {
+  const { goToModule, goToDetail, goToCreate, goToTab } = useAppNavigation();
+  const view = route;
   const activeTab = (view.tab as SettingsTab | undefined) ?? "profile";
 
   const onTabChange = useCallback(
     (tab: SettingsTab) => {
       if (tab === "access-matrix") {
-        navigateCompat("access-matrix");
+        goToModule("access-matrix");
         return;
       }
-      navigateCompat("settings", "list", undefined, tab === "profile" ? undefined : tab);
+      goToModule("settings", "list", undefined, tab === "profile" ? undefined : tab);
     },
-    [navigateCompat],
+    [goToModule],
   );
 
 

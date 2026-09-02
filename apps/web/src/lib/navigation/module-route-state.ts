@@ -8,6 +8,10 @@ export interface ModuleRouteState {
   tab?: string;
 }
 
+/**
+ * @deprecated B0R-8P — App Router pages pass explicit `route` props.
+ * Rollback-only: use `legacyResolveModuleView` from `legacy-module-route.ts`.
+ */
 export function resolveModuleView(
   route: ModuleRouteState | undefined,
   activeView: ViewState,

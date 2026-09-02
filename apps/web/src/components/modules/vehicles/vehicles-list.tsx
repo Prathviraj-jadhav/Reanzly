@@ -8,7 +8,7 @@ import {
   vehicleStatusBadge,
 } from "@/components/shared/status-badge";
 import { useAppStore } from "@/lib/store/app-store";
-import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
+import { useAppNavigation } from "@/lib/navigation/use-app-navigation";
 import type { Vehicle, Driver } from "@/lib/types";
 import {
   Plus,
@@ -48,7 +48,7 @@ interface VehiclesListProps {
 
 export function VehiclesList({ vehicles, onCreate, onBulkCreate, onUpdate }: VehiclesListProps) {
   const { currentRole } = useAppStore();
-  const { navigateDetailCompat, navigateCompat } = useNavigateCompat();
+  const { goToModule, goToDetail, goToCreate, goToTab } = useAppNavigation();
   const [activeTab, setActiveTab] = useState<TabId>("all");
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<Set<string>>(new Set());
@@ -539,7 +539,7 @@ export function VehiclesList({ vehicles, onCreate, onBulkCreate, onUpdate }: Veh
   const rowActions = [
     {
       label: "View Details",
-      onClick: (v: Vehicle) => navigateDetailCompat("vehicles", v.id),
+      onClick: (v: Vehicle) => goToDetail("vehicles", v.id),
     },
     {
       label: "Edit",
@@ -566,7 +566,7 @@ export function VehiclesList({ vehicles, onCreate, onBulkCreate, onUpdate }: Veh
         toast(`Locating ${v.name} on map`, {
           description: v.location ? `Last seen near ${v.location}` : "No GPS lock available",
         });
-        navigateCompat("fleet-map", "list", v.id);
+        goToModule("fleet-map", "list", v.id);
       },
     },
   ];
@@ -806,7 +806,7 @@ export function VehiclesList({ vehicles, onCreate, onBulkCreate, onUpdate }: Veh
         <DataTable
           data={filtered}
           columns={columns}
-          onRowClick={(v) => navigateDetailCompat("vehicles", v.id)}
+          onRowClick={(v) => goToDetail("vehicles", v.id)}
           rowActions={rowActions}
           bulkActions={bulkActions}
           emptyTitle={emptyState.title}

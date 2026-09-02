@@ -1,8 +1,8 @@
 "use client";
 import { useState, useCallback, useEffect } from "react";
 import { useAppStore } from "@/lib/store/app-store";
-import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
-import { resolveModuleView, type ModuleRouteState } from "@/lib/navigation/module-route-state";
+import { useAppNavigation } from "@/lib/navigation/use-app-navigation";
+import type { ModuleRouteState } from "@/lib/navigation/module-route-state";
 import type { KnowledgeArticle } from "./_helpers";
 import { ArticlesList } from "./articles-list";
 import { ArticleDetail } from "./article-detail";
@@ -14,10 +14,9 @@ import {
   pilotErrorMessage,
 } from "@/lib/pilot-api";
 
-export function KnowledgeModule({ route }: { route?: ModuleRouteState } = {}) {
-  const { activeView } = useAppStore();
-  const { navigateCompat } = useNavigateCompat();
-  const view = resolveModuleView(route, activeView, "knowledge");
+export function KnowledgeModule({ route }: { route: ModuleRouteState }) {
+  const { goToModule, goToDetail, goToCreate, goToTab } = useAppNavigation();
+  const view = route;
 
   const [articles, setArticles] = useState<KnowledgeArticle[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -50,7 +49,7 @@ export function KnowledgeModule({ route }: { route?: ModuleRouteState } = {}) {
   const drawerOpen = view.view === "create";
   const closeDrawer = () => {
     if (view.view === "create") {
-      navigateCompat("knowledge");
+      goToModule("knowledge");
     }
   };
 
@@ -60,7 +59,7 @@ export function KnowledgeModule({ route }: { route?: ModuleRouteState } = {}) {
 
   return (
     <>
-      <ArticlesList articles={articles} onCreate={() => navigateCompat("knowledge", "create")} />
+      <ArticlesList articles={articles} onCreate={() => goToModule("knowledge", "create")} />
       <AddArticleDrawer open={drawerOpen} onClose={closeDrawer} onAdd={addArticle} />
     </>
   );

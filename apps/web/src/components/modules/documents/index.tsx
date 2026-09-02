@@ -1,18 +1,17 @@
 "use client";
 import { useState, useCallback, useEffect } from "react";
 import { useAppStore } from "@/lib/store/app-store";
-import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
-import { resolveModuleView, type ModuleRouteState } from "@/lib/navigation/module-route-state";
+import { useAppNavigation } from "@/lib/navigation/use-app-navigation";
+import type { ModuleRouteState } from "@/lib/navigation/module-route-state";
 import type { DocumentRecord } from "@/lib/types";
 import { toast } from "sonner";
 import { DocumentsList } from "./documents-list";
 import { DocumentDetail } from "./document-detail";
 import { UploadDocumentDrawer } from "./upload-document-drawer";
 
-export function DocumentsModule({ route }: { route?: ModuleRouteState } = {}) {
-  const { activeView } = useAppStore();
-  const { navigateCompat } = useNavigateCompat();
-  const view = resolveModuleView(route, activeView, "documents");
+export function DocumentsModule({ route }: { route: ModuleRouteState }) {
+  const { goToModule, goToDetail, goToCreate, goToTab } = useAppNavigation();
+  const view = route;
   const [documents, setDocuments] = useState<DocumentRecord[]>([]);
   const [loaded, setLoaded] = useState(false);
 
@@ -68,13 +67,13 @@ export function DocumentsModule({ route }: { route?: ModuleRouteState } = {}) {
   const drawerOpen = view.view === "create";
   const closeDrawer = () => {
     if (view.view === "create") {
-      navigateCompat("documents");
+      goToModule("documents");
     }
   };
 
   return (
     <>
-      <DocumentsList onCreate={() => navigateCompat("documents", "create")} documents={documents} onUpdate={updateDocument} />
+      <DocumentsList onCreate={() => goToModule("documents", "create")} documents={documents} onUpdate={updateDocument} />
       <UploadDocumentDrawer open={drawerOpen} onClose={closeDrawer} onAdd={addDocument} />
     </>
   );

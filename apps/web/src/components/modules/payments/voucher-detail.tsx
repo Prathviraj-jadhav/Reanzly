@@ -9,7 +9,7 @@ import {
 import { Btn } from "@/components/shared/btn";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { useAppStore } from "@/lib/store/app-store";
-import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
+import { useAppNavigation } from "@/lib/navigation/use-app-navigation";
 import { INVOICES, TRIPS, DRIVERS } from "@/lib/mock-data";
 import type { Payment, Invoice, Trip, Driver } from "@/lib/types";
 import {
@@ -60,7 +60,7 @@ interface VoucherDetailProps {
 }
 
 export function VoucherDetail({ voucherId, payments, loaded = true, onUpdate }: VoucherDetailProps) {
-  const { navigateCompat: navigate, navigateDetailCompat: navigateDetail } = useNavigateCompat();
+    const { goToModule: navigate, goToDetail: navigateDetail } = useAppNavigation();
   const [activeTab, setActiveTab] = useState("overview");
   const payment = payments.find((p) => p.id === voucherId);
   const [editing, setEditing] = useState(false);
@@ -345,7 +345,7 @@ function LinkedTab({
   trip?: Trip;
   driver?: Driver;
 }) {
-  const { navigateDetailCompat: navigateDetail } = useNavigateCompat();
+    const { goToDetail: navigateDetail } = useAppNavigation();
 
   return (
     <div className="flex flex-col gap-4">

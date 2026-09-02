@@ -1,8 +1,8 @@
 "use client";
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useAppStore } from "@/lib/store/app-store";
-import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
-import { resolveModuleView, type ModuleRouteState } from "@/lib/navigation/module-route-state";
+import { useAppNavigation } from "@/lib/navigation/use-app-navigation";
+import type { ModuleRouteState } from "@/lib/navigation/module-route-state";
 import { TripsList } from "./trips-list";
 import { TripDetail } from "./trip-detail";
 import { TripExecutionDetail } from "./trip-execution-detail";
@@ -11,10 +11,9 @@ import { TripPlanningDrawer } from "./trip-planning-drawer";
 import type { Trip } from "@/lib/types";
 import { toast } from "sonner";
 
-export function TripsModule({ route }: { route?: ModuleRouteState } = {}) {
-  const { activeView } = useAppStore();
-  const { navigateCompat } = useNavigateCompat();
-  const view = resolveModuleView(route, activeView, "trips");
+export function TripsModule({ route }: { route: ModuleRouteState }) {
+  const { goToModule, goToDetail, goToCreate, goToTab } = useAppNavigation();
+  const view = route;
   const [planOpen, setPlanOpen] = useState(false);
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -69,7 +68,7 @@ export function TripsModule({ route }: { route?: ModuleRouteState } = {}) {
 
   const closeJobDrawer = () => {
     if (view.module === "trips" && view.view === "create") {
-      navigateCompat("trips");
+      goToModule("trips");
     }
   };
 
@@ -89,7 +88,7 @@ export function TripsModule({ route }: { route?: ModuleRouteState } = {}) {
     <>
       <TripsList
         trips={trips}
-        onCreateJobOrder={() => navigateCompat("trips", "create")}
+        onCreateJobOrder={() => goToModule("trips", "create")}
         onPlanTrip={() => setPlanOpen(true)}
         onUpdate={updateTrip}
       />

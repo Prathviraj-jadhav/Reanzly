@@ -61,6 +61,8 @@ import { PartnerProgrammeModule } from "./partner-programme";
 import { FinancialServicesModule } from "./financial-services";
 import { ModuleClusterTabs, type ClusterTab } from "@/components/shared/module-cluster-tabs";
 import { ProvisionedGate } from "@/components/shared/provisioned-gate";
+import { legacyResolveModuleView } from "@/lib/navigation/legacy-module-route";
+import type { ViewState } from "@/lib/store/app-store";
 
 // Module clusters: groups of standalone modules that used to each be their
 // own top-level sidebar/"More"-drawer entry - a wall of nearly-indistinguishable
@@ -153,7 +155,7 @@ const CLUSTER_BY_MODULE: Map<ModuleId, ClusterTab[]> = new Map(
 export function ModuleRouter() {
   const { activeView } = useAppStore();
 
-  const rendered = renderModule(activeView.module);
+  const rendered = renderModule(activeView.module, activeView);
   const cluster = CLUSTER_BY_MODULE.get(activeView.module);
   if (cluster) {
     return (
@@ -165,59 +167,60 @@ export function ModuleRouter() {
   return rendered;
 }
 
-function renderModule(module: ModuleId) {
+function renderModule(module: ModuleId, activeView: ViewState) {
+  const route = legacyResolveModuleView(activeView, module);
   switch (module) {
     case "dashboard": return <DashboardModule />;
-    case "operations-hub": return <OperationsHubModule />;
-    case "trips": return <TripsModule />;
+    case "operations-hub": return <OperationsHubModule route={route} />;
+    case "trips": return <TripsModule route={route} />;
     case "fleet-map": return <FleetMapModule />;
-    case "vehicles": return <VehiclesModule />;
-    case "lorry-receipts": return <LorryReceiptsModule />;
-    case "invoice": return <InvoiceModule />;
-    case "expenses": return <ExpensesModule />;
-    case "payments": return <PaymentsModule />;
-    case "customers": return <CustomersModule />;
-    case "vendors": return <VendorsModule />;
-    case "drivers-staff": return <DriversStaffModule />;
-    case "inspection": return <InspectionModule />;
-    case "issues": return <IssuesModule />;
-    case "maintenance": return <MaintenanceModule />;
-    case "services": return <ServicesModule />;
-    case "fuel-energy": return <FuelEnergyModule />;
-    case "reminders": return <RemindersModule />;
-    case "documents": return <DocumentsModule />;
-    case "reports": return <ReportsModule />;
-    case "settings": return <SettingsModule />;
+    case "vehicles": return <VehiclesModule route={route} />;
+    case "lorry-receipts": return <LorryReceiptsModule route={route} />;
+    case "invoice": return <InvoiceModule route={route} />;
+    case "expenses": return <ExpensesModule route={route} />;
+    case "payments": return <PaymentsModule route={route} />;
+    case "customers": return <CustomersModule route={route} />;
+    case "vendors": return <VendorsModule route={route} />;
+    case "drivers-staff": return <DriversStaffModule route={route} />;
+    case "inspection": return <InspectionModule route={route} />;
+    case "issues": return <IssuesModule route={route} />;
+    case "maintenance": return <MaintenanceModule route={route} />;
+    case "services": return <ServicesModule route={route} />;
+    case "fuel-energy": return <FuelEnergyModule route={route} />;
+    case "reminders": return <RemindersModule route={route} />;
+    case "documents": return <DocumentsModule route={route} />;
+    case "reports": return <ReportsModule route={route} />;
+    case "settings": return <SettingsModule route={route} />;
     case "automation": return <AutomationModule />;
     case "system-design": return <SystemDesignModule />;
-    case "chat": return <ChatModule />;
+    case "chat": return <ChatModule route={route} />;
     case "access-matrix": return <AccessMatrixModule />;
-    case "pod": return <PODModule />;
-    case "rate-cards": return <RateCardsModule />;
-    case "financial-ops": return <LedgerModule />;
-    case "warehouse": return <WarehouseModule />;
-    case "compliance": return <ComplianceModule />;
-    case "payroll": return <PayrollModule />;
-    case "workshop": return <WorkshopModule />;
+    case "pod": return <PODModule route={route} />;
+    case "rate-cards": return <RateCardsModule route={route} />;
+    case "financial-ops": return <LedgerModule route={route} />;
+    case "warehouse": return <WarehouseModule route={route} />;
+    case "compliance": return <ComplianceModule route={route} />;
+    case "payroll": return <PayrollModule route={route} />;
+    case "workshop": return <WorkshopModule route={route} />;
     case "superadmin": return <SuperadminModule />;
-    case "crm": return <CRMModule />;
-    case "hr": return <HRModule />;
-    case "ledger": return <LedgerModule />;
+    case "crm": return <CRMModule route={route} />;
+    case "hr": return <HRModule route={route} />;
+    case "ledger": return <LedgerModule route={route} />;
     case "broker-console": return <RouterProvisionedGate moduleId="broker-console"><BrokerConsoleModule /></RouterProvisionedGate>;
     case "broker-marketplace": return <RouterProvisionedGate moduleId="broker-marketplace"><BrokerMarketplaceModule /></RouterProvisionedGate>;
     case "broker-settlements": return <RouterProvisionedGate moduleId="broker-settlements"><BrokerSettlementsModule /></RouterProvisionedGate>;
-    case "document-studio": return <DocumentStudioModule />;
+    case "document-studio": return <DocumentStudioModule route={route} />;
     case "integrations": return <IntegrationsModule />;
-    case "helpdesk": return <HelpdeskModule />;
-    case "field-service": return <FieldServiceModule />;
-    case "approvals": return <ApprovalsModule />;
-    case "knowledge": return <KnowledgeModule />;
-    case "planning": return <PlanningModule />;
-    case "purchase": return <PurchaseModule />;
-    case "quality": return <QualityModule />;
-    case "subscriptions": return <SubscriptionsModule />;
-    case "surveys": return <SurveysModule />;
-    case "marketing": return <MarketingModule />;
+    case "helpdesk": return <HelpdeskModule route={route} />;
+    case "field-service": return <FieldServiceModule route={route} />;
+    case "approvals": return <ApprovalsModule route={route} />;
+    case "knowledge": return <KnowledgeModule route={route} />;
+    case "planning": return <PlanningModule route={route} />;
+    case "purchase": return <PurchaseModule route={route} />;
+    case "quality": return <QualityModule route={route} />;
+    case "subscriptions": return <SubscriptionsModule route={route} />;
+    case "surveys": return <SurveysModule route={route} />;
+    case "marketing": return <MarketingModule route={route} />;
     // App Store (browse/install Reanzly's own modules) and Integrations
     // (connect third-party tools) used to be two separate destinations for
     // what users experienced as the same "connect things to Reanzly"

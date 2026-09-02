@@ -4,8 +4,8 @@ import { useState, useEffect, useCallback } from "react";
 import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/shared/page-header";
 import { useAppStore } from "@/lib/store/app-store";
-import { useNavigateCompat } from "@/lib/navigation/navigate-compat";
-import { resolveModuleView, type ModuleRouteState } from "@/lib/navigation/module-route-state";
+import { useAppNavigation } from "@/lib/navigation/use-app-navigation";
+import type { ModuleRouteState } from "@/lib/navigation/module-route-state";
 import { resolveLedgerSubView, type LedgerSubView } from "@/lib/navigation/ledger-subviews";
 import { LedgerDashboard } from "./dashboard";
 import { ChartOfAccountsView } from "./chart-of-accounts";
@@ -37,10 +37,9 @@ const SUB_NAV: SubNavItem[] = [
   { id: "statements", label: "Statements" },
 ];
 
-export function LedgerModule({ route }: { route?: ModuleRouteState } = {}) {
-  const { activeView } = useAppStore();
-  const { navigateCompat } = useNavigateCompat();
-  const view = resolveModuleView(route, activeView, "ledger");
+export function LedgerModule({ route }: { route: ModuleRouteState }) {
+  const { goToModule, goToDetail, goToCreate, goToTab } = useAppNavigation();
+  const view = route;
   const resolvedSubView = resolveLedgerSubView(view.tab);
   const [active, setActive] = useState<LedgerSubView>(resolvedSubView);
 
@@ -51,9 +50,9 @@ export function LedgerModule({ route }: { route?: ModuleRouteState } = {}) {
   const onSubViewChange = useCallback(
     (next: LedgerSubView) => {
       setActive(next);
-      navigateCompat("ledger", "list", undefined, next === "dashboard" ? undefined : next);
+      goToModule("ledger", "list", undefined, next === "dashboard" ? undefined : next);
     },
-    [navigateCompat],
+    [goToModule],
   );
 
   return (
