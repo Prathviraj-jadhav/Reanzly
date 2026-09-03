@@ -2,6 +2,7 @@ import {
   test as authTest,
   expect as authExpect,
 } from "./fixtures/auth";
+import { expectModule, sidebarNav, openCommandPalette, commandPaletteGoToModule , expectModuleShell, clusterTab } from "./fixtures/navigation";
 import { loadFleetClusterFixture } from "./fixtures/fleet-cluster";
 
 function escRegex(value: string): string {
@@ -16,69 +17,69 @@ authTest.describe("B0R-3 — fleet cluster App Router (migration flag ON)", () =
 
   authTest("47. cluster Issues tab navigates to /app/issues", async ({ authenticatedPage: page }) => {
     await page.goto("/app/vehicles");
-    await page.getByRole("button", { name: "Issues", exact: true }).click();
+    await clusterTab(page, "Issues").click();
     await authExpect(page).toHaveURL(/\/app\/issues$/);
-    await authExpect(page.locator("main[data-e2e-active-module='issues']")).toBeVisible();
+    await expectModule(page, "issues");
   });
 
   authTest("48. cluster Maintenance tab navigates to /app/maintenance", async ({
     authenticatedPage: page,
   }) => {
     await page.goto("/app/vehicles");
-    await page.getByRole("button", { name: "Maintenance", exact: true }).click();
+    await clusterTab(page, "Maintenance").click();
     await authExpect(page).toHaveURL(/\/app\/maintenance$/);
-    await authExpect(page.locator("main[data-e2e-active-module='maintenance']")).toBeVisible();
+    await expectModule(page, "maintenance");
   });
 
   authTest("49. cluster Workshop tab navigates to /app/workshop", async ({
     authenticatedPage: page,
   }) => {
     await page.goto("/app/vehicles");
-    await page.getByRole("button", { name: "Workshop", exact: true }).click();
+    await clusterTab(page, "Workshop").click();
     await authExpect(page).toHaveURL(/\/app\/workshop$/);
-    await authExpect(page.locator("main[data-e2e-active-module='workshop']")).toBeVisible();
+    await expectModule(page, "workshop");
   });
 
   authTest("50. cluster Services tab navigates to /app/services", async ({
     authenticatedPage: page,
   }) => {
     await page.goto("/app/vehicles");
-    await page.getByRole("button", { name: "Services", exact: true }).click();
+    await clusterTab(page, "Services").click();
     await authExpect(page).toHaveURL(/\/app\/services$/);
-    await authExpect(page.locator("main[data-e2e-active-module='services']")).toBeVisible();
+    await expectModule(page, "services");
   });
 
   authTest("51. cluster Fuel & Energy tab navigates to /app/fuel", async ({
     authenticatedPage: page,
   }) => {
     await page.goto("/app/vehicles");
-    await page.getByRole("button", { name: "Fuel & Energy", exact: true }).click();
+    await clusterTab(page, "Fuel & Energy").click();
     await authExpect(page).toHaveURL(/\/app\/fuel$/);
-    await authExpect(page.locator("main[data-e2e-active-module='fuel-energy']")).toBeVisible();
+    await expectModule(page, "fuel-energy");
   });
 
   authTest("52. cluster Compliance tab navigates to /app/compliance", async ({
     authenticatedPage: page,
   }) => {
     await page.goto("/app/vehicles");
-    await page.getByRole("button", { name: "Compliance", exact: true }).click();
+    await clusterTab(page, "Compliance").click();
     await authExpect(page).toHaveURL(/\/app\/compliance$/);
-    await authExpect(page.locator("main[data-e2e-active-module='compliance']")).toBeVisible();
+    await expectModule(page, "compliance");
   });
 
   authTest("53. cluster Quality tab navigates to /app/quality", async ({
     authenticatedPage: page,
   }) => {
     await page.goto("/app/vehicles");
-    await page.getByRole("button", { name: "Quality", exact: true }).click();
+    await clusterTab(page, "Quality").click();
     await authExpect(page).toHaveURL(/\/app\/quality$/);
-    await authExpect(page.locator("main[data-e2e-active-module='quality']")).toBeVisible();
+    await expectModule(page, "quality");
   });
 
   authTest("54. direct /app/inspection list URL", async ({ authenticatedPage: page }) => {
     await page.goto("/app/inspection");
     await authExpect(page).toHaveURL(/\/app\/inspection$/);
-    await authExpect(page.locator("main[data-e2e-active-module='inspection']")).toBeVisible();
+    await expectModule(page, "inspection");
   });
 
   authTest("55. inspection detail deep link", async ({ authenticatedPage: page, request }) => {
@@ -87,7 +88,7 @@ authTest.describe("B0R-3 — fleet cluster App Router (migration flag ON)", () =
 
     await page.goto(`/app/inspection/${fixture!.inspectionId}`);
     await authExpect(page).toHaveURL(new RegExp(`/app/inspection/${escRegex(fixture!.inspectionId)}$`));
-    await authExpect(page.locator("main[data-e2e-active-module='inspection']")).toBeVisible();
+    await expectModule(page, "inspection");
   });
 
   authTest("56. inspection detail ?tab=issues deep link", async ({
@@ -99,7 +100,7 @@ authTest.describe("B0R-3 — fleet cluster App Router (migration flag ON)", () =
 
     await page.goto(`/app/inspection/${fixture!.inspectionId}?tab=issues`);
     await authExpect(page).toHaveURL(/tab=issues/);
-    await authExpect(page.locator("main[data-e2e-active-module='inspection']")).toBeVisible();
+    await expectModule(page, "inspection");
   });
 
   authTest("57. /app/inspection/new opens create drawer route", async ({
@@ -107,7 +108,7 @@ authTest.describe("B0R-3 — fleet cluster App Router (migration flag ON)", () =
   }) => {
     await page.goto("/app/inspection/new");
     await authExpect(page).toHaveURL(/\/app\/inspection\/new$/);
-    await authExpect(page.locator("main[data-e2e-active-module='inspection']")).toBeVisible();
+    await expectModuleShell(page);
   });
 
   authTest("58. issues detail deep link", async ({ authenticatedPage: page, request }) => {
@@ -116,13 +117,13 @@ authTest.describe("B0R-3 — fleet cluster App Router (migration flag ON)", () =
 
     await page.goto(`/app/issues/${fixture!.issueId}`);
     await authExpect(page).toHaveURL(new RegExp(`/app/issues/${escRegex(fixture!.issueId)}$`));
-    await authExpect(page.locator("main[data-e2e-active-module='issues']")).toBeVisible();
+    await expectModule(page, "issues");
   });
 
   authTest("59. /app/issues/new opens create drawer route", async ({ authenticatedPage: page }) => {
     await page.goto("/app/issues/new");
     await authExpect(page).toHaveURL(/\/app\/issues\/new$/);
-    await authExpect(page.locator("main[data-e2e-active-module='issues']")).toBeVisible();
+    await expectModuleShell(page);
   });
 
   authTest("60. maintenance detail deep link", async ({ authenticatedPage: page, request }) => {
@@ -131,7 +132,7 @@ authTest.describe("B0R-3 — fleet cluster App Router (migration flag ON)", () =
 
     await page.goto(`/app/maintenance/${fixture!.workOrderId}`);
     await authExpect(page).toHaveURL(new RegExp(`/app/maintenance/${escRegex(fixture!.workOrderId)}$`));
-    await authExpect(page.locator("main[data-e2e-active-module='maintenance']")).toBeVisible();
+    await expectModule(page, "maintenance");
   });
 
   authTest("61. /app/maintenance/new opens create drawer route", async ({
@@ -139,7 +140,7 @@ authTest.describe("B0R-3 — fleet cluster App Router (migration flag ON)", () =
   }) => {
     await page.goto("/app/maintenance/new");
     await authExpect(page).toHaveURL(/\/app\/maintenance\/new$/);
-    await authExpect(page.locator("main[data-e2e-active-module='maintenance']")).toBeVisible();
+    await expectModuleShell(page);
   });
 
   authTest("62. fuel detail deep link", async ({ authenticatedPage: page, request }) => {
@@ -148,13 +149,13 @@ authTest.describe("B0R-3 — fleet cluster App Router (migration flag ON)", () =
 
     await page.goto(`/app/fuel/${fixture!.fuelId}`);
     await authExpect(page).toHaveURL(new RegExp(`/app/fuel/${escRegex(fixture!.fuelId)}$`));
-    await authExpect(page.locator("main[data-e2e-active-module='fuel-energy']")).toBeVisible();
+    await expectModule(page, "fuel-energy");
   });
 
   authTest("63. /app/fuel/new opens create drawer route", async ({ authenticatedPage: page }) => {
     await page.goto("/app/fuel/new");
     await authExpect(page).toHaveURL(/\/app\/fuel\/new$/);
-    await authExpect(page.locator("main[data-e2e-active-module='fuel-energy']")).toBeVisible();
+    await expectModuleShell(page);
   });
 
   authTest("64. quality detail deep link", async ({ authenticatedPage: page, request }) => {
@@ -163,28 +164,28 @@ authTest.describe("B0R-3 — fleet cluster App Router (migration flag ON)", () =
 
     await page.goto(`/app/quality/${fixture!.qualityId}`);
     await authExpect(page).toHaveURL(new RegExp(`/app/quality/${escRegex(fixture!.qualityId)}$`));
-    await authExpect(page.locator("main[data-e2e-active-module='quality']")).toBeVisible();
+    await expectModule(page, "quality");
   });
 
   authTest("65. /app/quality/new opens create drawer route", async ({ authenticatedPage: page }) => {
     await page.goto("/app/quality/new");
     await authExpect(page).toHaveURL(/\/app\/quality\/new$/);
-    await authExpect(page.locator("main[data-e2e-active-module='quality']")).toBeVisible();
+    await expectModuleShell(page);
   });
 
   authTest("66. compliance filings tab deep link", async ({ authenticatedPage: page }) => {
     await page.goto("/app/compliance/filings");
     await authExpect(page).toHaveURL(/\/app\/compliance\/filings$/);
-    await authExpect(page.locator("main[data-e2e-active-module='compliance']")).toBeVisible();
+    await expectModule(page, "compliance");
   });
 
   authTest("67. cluster back/forward vehicles→inspection→issues", async ({
     authenticatedPage: page,
   }) => {
     await page.goto("/app/vehicles");
-    await page.getByRole("button", { name: "Inspection", exact: true }).click();
+    await clusterTab(page, "Inspection").click();
     await authExpect(page).toHaveURL(/\/app\/inspection$/);
-    await page.getByRole("button", { name: "Issues", exact: true }).click();
+    await clusterTab(page, "Issues").click();
     await authExpect(page).toHaveURL(/\/app\/issues$/);
     await page.goBack();
     await authExpect(page).toHaveURL(/\/app\/inspection$/);
@@ -204,7 +205,7 @@ authTest.describe("B0R-3 — fleet cluster App Router (migration flag ON)", () =
     await page.goto(`/app/inspection/${fixture!.inspectionId}`);
     await page.reload({ waitUntil: "networkidle" });
     await authExpect(page).toHaveURL(new RegExp(`/app/inspection/${escRegex(fixture!.inspectionId)}$`));
-    await authExpect(page.locator("main[data-e2e-active-module='inspection']")).toBeVisible();
+    await expectModule(page, "inspection");
   });
 
   authTest("69. invalid inspection id shows not-found state", async ({ authenticatedPage: page }) => {
@@ -226,7 +227,7 @@ authTest.describe("B0R-3 — fleet cluster App Router (migration flag ON)", () =
 
     await page.goto(`/app/inspection/${fixture!.inspectionId}?tab=not-a-real-tab`);
     await authExpect(page).toHaveURL(/tab=not-a-real-tab/);
-    await authExpect(page.locator("main[data-e2e-active-module='inspection']")).toBeVisible();
+    await expectModule(page, "inspection");
   });
 
   authTest("72. dashboard Open Issues widget navigates to /app/issues", async ({
@@ -267,16 +268,16 @@ authTest.describe("B0R-3 — fleet cluster App Router (migration flag ON)", () =
   authTest("75. /app/services/new opens create drawer route", async ({ authenticatedPage: page }) => {
     await page.goto("/app/services/new");
     await authExpect(page).toHaveURL(/\/app\/services\/new$/);
-    await authExpect(page.locator("main[data-e2e-active-module='services']")).toBeVisible();
+    await expectModuleShell(page);
   });
 
   authTest("76. no legacy /dashboard fallback when switching cluster tabs", async ({
     authenticatedPage: page,
   }) => {
     await page.goto("/app/vehicles");
-    await page.getByRole("button", { name: "Fuel & Energy", exact: true }).click();
+    await clusterTab(page, "Fuel & Energy").click();
     await authExpect(page).toHaveURL(/\/app\/fuel$/);
-    await page.getByRole("button", { name: "Overview", exact: true }).click();
+    await clusterTab(page, "Overview").click();
     await authExpect(page).toHaveURL(/\/app\/vehicles$/);
     await authExpect(page).not.toHaveURL(/\/dashboard/);
   });

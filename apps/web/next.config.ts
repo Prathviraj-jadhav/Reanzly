@@ -5,6 +5,7 @@ const apiOrigin = process.env.API_PROXY_ORIGIN ?? "http://localhost:4000";
 const nextConfig: NextConfig = {
   output: "standalone",
   reactStrictMode: false,
+  distDir: process.env.NEXT_DIST_DIR ?? ".next",
   transpilePackages: ["@reanzly/contracts", "@reanzly/shared", "@reanzly/database", "@reanzly/auth"],
   async rewrites() {
     return [

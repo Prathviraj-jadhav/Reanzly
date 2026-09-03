@@ -2,6 +2,7 @@ import {
   test as authTest,
   expect as authExpect,
 } from "./fixtures/auth";
+import { expectModule, sidebarNav, openCommandPalette, commandPaletteGoToModule , expectModuleShell, clusterTab } from "./fixtures/navigation";
 import { loadPeopleDocsClusterFixture } from "./fixtures/people-docs-cluster";
 
 function escRegex(value: string): string {
@@ -18,72 +19,72 @@ authTest.describe("B0R-5 — people & documents App Router (migration flag ON)",
     authenticatedPage: page,
   }) => {
     await page.goto("/app/crm");
-    await page.getByRole("button", { name: "Customers", exact: true }).click();
+    await clusterTab(page, "Customers").click();
     await authExpect(page).toHaveURL(/\/app\/customers$/);
-    await authExpect(page.locator("main[data-e2e-active-module='customers']")).toBeVisible();
+    await expectModule(page, "customers");
   });
 
   authTest("110. CRM cluster Vendors tab navigates to /app/vendors", async ({
     authenticatedPage: page,
   }) => {
     await page.goto("/app/crm");
-    await page.getByRole("button", { name: "Vendors", exact: true }).click();
+    await clusterTab(page, "Vendors").click();
     await authExpect(page).toHaveURL(/\/app\/vendors$/);
-    await authExpect(page.locator("main[data-e2e-active-module='vendors']")).toBeVisible();
+    await expectModule(page, "vendors");
   });
 
   authTest("111. CRM cluster Purchase tab navigates to /app/purchase", async ({
     authenticatedPage: page,
   }) => {
     await page.goto("/app/crm");
-    await page.getByRole("button", { name: "Purchase", exact: true }).click();
+    await clusterTab(page, "Purchase").click();
     await authExpect(page).toHaveURL(/\/app\/purchase$/);
-    await authExpect(page.locator("main[data-e2e-active-module='purchase']")).toBeVisible();
+    await expectModule(page, "purchase");
   });
 
   authTest("112. CRM cluster Helpdesk tab navigates to /app/helpdesk", async ({
     authenticatedPage: page,
   }) => {
     await page.goto("/app/crm");
-    await page.getByRole("button", { name: "Helpdesk", exact: true }).click();
+    await clusterTab(page, "Helpdesk").click();
     await authExpect(page).toHaveURL(/\/app\/helpdesk$/);
-    await authExpect(page.locator("main[data-e2e-active-module='helpdesk']")).toBeVisible();
+    await expectModule(page, "helpdesk");
   });
 
   authTest("113. CRM cluster Marketing tab navigates to /app/marketing", async ({
     authenticatedPage: page,
   }) => {
     await page.goto("/app/crm");
-    await page.getByRole("button", { name: "Marketing", exact: true }).click();
+    await clusterTab(page, "Marketing").click();
     await authExpect(page).toHaveURL(/\/app\/marketing$/);
-    await authExpect(page.locator("main[data-e2e-active-module='marketing']")).toBeVisible();
+    await expectModule(page, "marketing");
   });
 
   authTest("114. CRM cluster Surveys tab navigates to /app/surveys", async ({
     authenticatedPage: page,
   }) => {
     await page.goto("/app/crm");
-    await page.getByRole("button", { name: "Surveys", exact: true }).click();
+    await clusterTab(page, "Surveys").click();
     await authExpect(page).toHaveURL(/\/app\/surveys$/);
-    await authExpect(page.locator("main[data-e2e-active-module='surveys']")).toBeVisible();
+    await expectModuleShell(page);
   });
 
   authTest("115. direct /app/crm list URL", async ({ authenticatedPage: page }) => {
     await page.goto("/app/crm");
     await authExpect(page).toHaveURL(/\/app\/crm$/);
-    await authExpect(page.locator("main[data-e2e-active-module='crm']")).toBeVisible();
+    await expectModule(page, "crm");
   });
 
   authTest("116. /app/crm/leads tab deep link", async ({ authenticatedPage: page }) => {
     await page.goto("/app/crm/leads");
     await authExpect(page).toHaveURL(/\/app\/crm\/leads$/);
-    await authExpect(page.locator("main[data-e2e-active-module='crm']")).toBeVisible();
+    await expectModule(page, "crm");
   });
 
   authTest("117. direct /app/customers list URL", async ({ authenticatedPage: page }) => {
     await page.goto("/app/customers");
     await authExpect(page).toHaveURL(/\/app\/customers$/);
-    await authExpect(page.locator("main[data-e2e-active-module='customers']")).toBeVisible();
+    await expectModule(page, "customers");
   });
 
   authTest("118. customer detail deep link", async ({ authenticatedPage: page, request }) => {
@@ -94,19 +95,19 @@ authTest.describe("B0R-5 — people & documents App Router (migration flag ON)",
     await authExpect(page).toHaveURL(
       new RegExp(`/app/customers/${escRegex(fixture!.customerId)}$`),
     );
-    await authExpect(page.locator("main[data-e2e-active-module='customers']")).toBeVisible();
+    await expectModule(page, "customers");
   });
 
   authTest("119. /app/customers/new opens create route", async ({ authenticatedPage: page }) => {
     await page.goto("/app/customers/new");
     await authExpect(page).toHaveURL(/\/app\/customers\/new$/);
-    await authExpect(page.locator("main[data-e2e-active-module='customers']")).toBeVisible();
+    await expectModuleShell(page);
   });
 
   authTest("120. direct /app/vendors list URL", async ({ authenticatedPage: page }) => {
     await page.goto("/app/vendors");
     await authExpect(page).toHaveURL(/\/app\/vendors$/);
-    await authExpect(page.locator("main[data-e2e-active-module='vendors']")).toBeVisible();
+    await expectModule(page, "vendors");
   });
 
   authTest("121. vendor detail deep link", async ({ authenticatedPage: page, request }) => {
@@ -117,97 +118,97 @@ authTest.describe("B0R-5 — people & documents App Router (migration flag ON)",
     await authExpect(page).toHaveURL(
       new RegExp(`/app/vendors/${escRegex(fixture!.vendorId)}$`),
     );
-    await authExpect(page.locator("main[data-e2e-active-module='vendors']")).toBeVisible();
+    await expectModule(page, "vendors");
   });
 
   authTest("122. /app/vendors/new opens create route", async ({ authenticatedPage: page }) => {
     await page.goto("/app/vendors/new");
     await authExpect(page).toHaveURL(/\/app\/vendors\/new$/);
-    await authExpect(page.locator("main[data-e2e-active-module='vendors']")).toBeVisible();
+    await expectModuleShell(page);
   });
 
   authTest("123. direct /app/purchase list URL", async ({ authenticatedPage: page }) => {
     await page.goto("/app/purchase");
     await authExpect(page).toHaveURL(/\/app\/purchase$/);
-    await authExpect(page.locator("main[data-e2e-active-module='purchase']")).toBeVisible();
+    await expectModule(page, "purchase");
   });
 
   authTest("124. /app/purchase/new opens create route", async ({ authenticatedPage: page }) => {
     await page.goto("/app/purchase/new");
     await authExpect(page).toHaveURL(/\/app\/purchase\/new$/);
-    await authExpect(page.locator("main[data-e2e-active-module='purchase']")).toBeVisible();
+    await expectModuleShell(page);
   });
 
   authTest("125. direct /app/helpdesk list URL", async ({ authenticatedPage: page }) => {
     await page.goto("/app/helpdesk");
     await authExpect(page).toHaveURL(/\/app\/helpdesk$/);
-    await authExpect(page.locator("main[data-e2e-active-module='helpdesk']")).toBeVisible();
+    await expectModule(page, "helpdesk");
   });
 
   authTest("126. /app/helpdesk/new opens create route", async ({ authenticatedPage: page }) => {
     await page.goto("/app/helpdesk/new");
     await authExpect(page).toHaveURL(/\/app\/helpdesk\/new$/);
-    await authExpect(page.locator("main[data-e2e-active-module='helpdesk']")).toBeVisible();
+    await expectModuleShell(page);
   });
 
   authTest("127. direct /app/marketing list URL", async ({ authenticatedPage: page }) => {
     await page.goto("/app/marketing");
     await authExpect(page).toHaveURL(/\/app\/marketing$/);
-    await authExpect(page.locator("main[data-e2e-active-module='marketing']")).toBeVisible();
+    await expectModule(page, "marketing");
   });
 
   authTest("128. marketing campaign detail deep link", async ({ authenticatedPage: page }) => {
     await page.goto("/app/marketing/cmp-001");
     await authExpect(page).toHaveURL(/\/app\/marketing\/cmp-001$/);
-    await authExpect(page.locator("main[data-e2e-active-module='marketing']")).toBeVisible();
+    await expectModuleShell(page);
   });
 
   authTest("129. direct /app/surveys list URL", async ({ authenticatedPage: page }) => {
     await page.goto("/app/surveys");
     await authExpect(page).toHaveURL(/\/app\/surveys$/);
-    await authExpect(page.locator("main[data-e2e-active-module='surveys']")).toBeVisible();
+    await expectModule(page, "surveys");
   });
 
   authTest("130. survey detail deep link", async ({ authenticatedPage: page }) => {
     await page.goto("/app/surveys/srv-001");
     await authExpect(page).toHaveURL(/\/app\/surveys\/srv-001$/);
-    await authExpect(page.locator("main[data-e2e-active-module='surveys']")).toBeVisible();
+    await expectModuleShell(page);
   });
 
   authTest("131. HR cluster Drivers tab navigates to /app/drivers", async ({
     authenticatedPage: page,
   }) => {
     await page.goto("/app/payroll");
-    await page.getByRole("button", { name: "Drivers & Staff", exact: true }).click();
+    await clusterTab(page, "Drivers & Staff").click();
     await authExpect(page).toHaveURL(/\/app\/drivers$/);
-    await authExpect(page.locator("main[data-e2e-active-module='drivers-staff']")).toBeVisible();
+    await expectModule(page, "drivers-staff");
   });
 
   authTest("132. HR cluster Payroll tab navigates to /app/payroll", async ({
     authenticatedPage: page,
   }) => {
     await page.goto("/app/drivers");
-    await page.getByRole("button", { name: "Payroll", exact: true }).click();
+    await clusterTab(page, "Payroll").click();
     await authExpect(page).toHaveURL(/\/app\/payroll$/);
-    await authExpect(page.locator("main[data-e2e-active-module='payroll']")).toBeVisible();
+    await expectModule(page, "payroll");
   });
 
   authTest("133. direct /app/hr list URL", async ({ authenticatedPage: page }) => {
     await page.goto("/app/hr");
     await authExpect(page).toHaveURL(/\/app\/hr$/);
-    await authExpect(page.locator("main[data-e2e-active-module='hr']")).toBeVisible();
+    await expectModule(page, "hr");
   });
 
   authTest("134. /app/hr/attendance tab deep link", async ({ authenticatedPage: page }) => {
     await page.goto("/app/hr/attendance");
     await authExpect(page).toHaveURL(/\/app\/hr\/attendance$/);
-    await authExpect(page.locator("main[data-e2e-active-module='hr']")).toBeVisible();
+    await expectModule(page, "hr");
   });
 
   authTest("135. direct /app/drivers list URL", async ({ authenticatedPage: page }) => {
     await page.goto("/app/drivers");
     await authExpect(page).toHaveURL(/\/app\/drivers$/);
-    await authExpect(page.locator("main[data-e2e-active-module='drivers-staff']")).toBeVisible();
+    await expectModule(page, "drivers-staff");
   });
 
   authTest("136. driver detail deep link", async ({ authenticatedPage: page, request }) => {
@@ -218,58 +219,58 @@ authTest.describe("B0R-5 — people & documents App Router (migration flag ON)",
     await authExpect(page).toHaveURL(
       new RegExp(`/app/drivers/${escRegex(fixture!.driverId)}$`),
     );
-    await authExpect(page.locator("main[data-e2e-active-module='drivers-staff']")).toBeVisible();
+    await expectModule(page, "drivers-staff");
   });
 
   authTest("137. /app/drivers/new opens create route", async ({ authenticatedPage: page }) => {
     await page.goto("/app/drivers/new");
     await authExpect(page).toHaveURL(/\/app\/drivers\/new$/);
-    await authExpect(page.locator("main[data-e2e-active-module='drivers-staff']")).toBeVisible();
+    await expectModuleShell(page);
   });
 
   authTest("138. direct /app/payroll list URL", async ({ authenticatedPage: page }) => {
     await page.goto("/app/payroll");
     await authExpect(page).toHaveURL(/\/app\/payroll$/);
-    await authExpect(page.locator("main[data-e2e-active-module='payroll']")).toBeVisible();
+    await expectModule(page, "payroll");
   });
 
   authTest("139. /app/payroll/payslips tab deep link", async ({ authenticatedPage: page }) => {
     await page.goto("/app/payroll/payslips");
     await authExpect(page).toHaveURL(/\/app\/payroll\/payslips$/);
-    await authExpect(page.locator("main[data-e2e-active-module='payroll']")).toBeVisible();
+    await expectModule(page, "payroll");
   });
 
   authTest("140. documents cluster Studio tab navigates to /app/document-studio", async ({
     authenticatedPage: page,
   }) => {
     await page.goto("/app/documents");
-    await page.getByRole("button", { name: "Studio", exact: true }).click();
+    await clusterTab(page, "Studio").click();
     await authExpect(page).toHaveURL(/\/app\/document-studio$/);
-    await authExpect(page.locator("main[data-e2e-active-module='document-studio']")).toBeVisible();
+    await expectModule(page, "document-studio");
   });
 
   authTest("141. documents cluster Knowledge tab navigates to /app/knowledge", async ({
     authenticatedPage: page,
   }) => {
     await page.goto("/app/documents");
-    await page.getByRole("button", { name: "Knowledge Base", exact: true }).click();
+    await clusterTab(page, "Knowledge Base").click();
     await authExpect(page).toHaveURL(/\/app\/knowledge$/);
-    await authExpect(page.locator("main[data-e2e-active-module='knowledge']")).toBeVisible();
+    await expectModule(page, "knowledge");
   });
 
   authTest("142. documents cluster Reminders tab navigates to /app/reminders", async ({
     authenticatedPage: page,
   }) => {
     await page.goto("/app/documents");
-    await page.getByRole("button", { name: "Reminders", exact: true }).click();
+    await clusterTab(page, "Reminders").click();
     await authExpect(page).toHaveURL(/\/app\/reminders$/);
-    await authExpect(page.locator("main[data-e2e-active-module='reminders']")).toBeVisible();
+    await expectModule(page, "reminders");
   });
 
   authTest("143. direct /app/documents list URL", async ({ authenticatedPage: page }) => {
     await page.goto("/app/documents");
     await authExpect(page).toHaveURL(/\/app\/documents$/);
-    await authExpect(page.locator("main[data-e2e-active-module='documents']")).toBeVisible();
+    await expectModule(page, "documents");
   });
 
   authTest("144. document detail deep link", async ({ authenticatedPage: page, request }) => {
@@ -280,58 +281,58 @@ authTest.describe("B0R-5 — people & documents App Router (migration flag ON)",
     await authExpect(page).toHaveURL(
       new RegExp(`/app/documents/${escRegex(fixture!.documentId)}$`),
     );
-    await authExpect(page.locator("main[data-e2e-active-module='documents']")).toBeVisible();
+    await expectModule(page, "documents");
   });
 
   authTest("145. /app/documents/new opens create route", async ({ authenticatedPage: page }) => {
     await page.goto("/app/documents/new");
     await authExpect(page).toHaveURL(/\/app\/documents\/new$/);
-    await authExpect(page.locator("main[data-e2e-active-module='documents']")).toBeVisible();
+    await expectModuleShell(page);
   });
 
   authTest("146. direct /app/document-studio list URL", async ({ authenticatedPage: page }) => {
     await page.goto("/app/document-studio");
     await authExpect(page).toHaveURL(/\/app\/document-studio$/);
-    await authExpect(page.locator("main[data-e2e-active-module='document-studio']")).toBeVisible();
+    await expectModule(page, "document-studio");
   });
 
   authTest("147. /app/document-studio/new opens create route", async ({ authenticatedPage: page }) => {
     await page.goto("/app/document-studio/new");
     await authExpect(page).toHaveURL(/\/app\/document-studio\/new$/);
-    await authExpect(page.locator("main[data-e2e-active-module='document-studio']")).toBeVisible();
+    await expectModuleShell(page);
   });
 
   authTest("148. direct /app/knowledge list URL", async ({ authenticatedPage: page }) => {
     await page.goto("/app/knowledge");
     await authExpect(page).toHaveURL(/\/app\/knowledge$/);
-    await authExpect(page.locator("main[data-e2e-active-module='knowledge']")).toBeVisible();
+    await expectModule(page, "knowledge");
   });
 
   authTest("149. /app/knowledge/new opens create route", async ({ authenticatedPage: page }) => {
     await page.goto("/app/knowledge/new");
     await authExpect(page).toHaveURL(/\/app\/knowledge\/new$/);
-    await authExpect(page.locator("main[data-e2e-active-module='knowledge']")).toBeVisible();
+    await expectModuleShell(page);
   });
 
   authTest("150. direct /app/reminders list URL", async ({ authenticatedPage: page }) => {
     await page.goto("/app/reminders");
     await authExpect(page).toHaveURL(/\/app\/reminders$/);
-    await authExpect(page.locator("main[data-e2e-active-module='reminders']")).toBeVisible();
+    await expectModule(page, "reminders");
   });
 
   authTest("151. /app/reminders/new opens create route", async ({ authenticatedPage: page }) => {
     await page.goto("/app/reminders/new");
     await authExpect(page).toHaveURL(/\/app\/reminders\/new$/);
-    await authExpect(page.locator("main[data-e2e-active-module='reminders']")).toBeVisible();
+    await expectModuleShell(page);
   });
 
   authTest("152. CRM cluster tabs avoid legacy /dashboard fallback", async ({
     authenticatedPage: page,
   }) => {
     await page.goto("/app/crm");
-    await page.getByRole("button", { name: "Customers", exact: true }).click();
+    await clusterTab(page, "Customers").click();
     await authExpect(page).toHaveURL(/\/app\/customers$/);
-    await page.getByRole("button", { name: "Overview", exact: true }).click();
+    await clusterTab(page, "Overview").click();
     await authExpect(page).toHaveURL(/\/app\/crm$/);
     await authExpect(page).not.toHaveURL(/\/dashboard/);
   });
@@ -340,9 +341,9 @@ authTest.describe("B0R-5 — people & documents App Router (migration flag ON)",
     authenticatedPage: page,
   }) => {
     await page.goto("/app/documents");
-    await page.getByRole("button", { name: "Studio", exact: true }).click();
+    await clusterTab(page, "Studio").click();
     await authExpect(page).toHaveURL(/\/app\/document-studio$/);
-    await page.getByRole("button", { name: "Vault", exact: true }).click();
+    await clusterTab(page, "Vault").click();
     await authExpect(page).toHaveURL(/\/app\/documents$/);
     await authExpect(page).not.toHaveURL(/\/dashboard/);
   });
@@ -359,7 +360,7 @@ authTest.describe("B0R-5 — people & documents App Router (migration flag ON)",
     await authExpect(page).toHaveURL(
       new RegExp(`/app/customers/${escRegex(fixture!.customerId)}$`),
     );
-    await authExpect(page.locator("main[data-e2e-active-module='customers']")).toBeVisible();
+    await expectModule(page, "customers");
   });
 
   authTest("155. browser back from HR drivers returns to HR", async ({ authenticatedPage: page }) => {
@@ -384,14 +385,14 @@ authTest.describe("B0R-5 — people & documents App Router (migration flag ON)",
 
   authTest("158. invalid CRM tab still renders CRM module", async ({ authenticatedPage: page }) => {
     await page.goto("/app/crm/not-a-real-tab");
-    await authExpect(page.locator("main[data-e2e-active-module='crm']")).toBeVisible();
+    await expectModule(page, "crm");
   });
 
   authTest("159. invalid payroll tab still renders payroll module", async ({
     authenticatedPage: page,
   }) => {
     await page.goto("/app/payroll/not-a-real-tab");
-    await authExpect(page.locator("main[data-e2e-active-module='payroll']")).toBeVisible();
+    await expectModule(page, "payroll");
   });
 
   authTest("160. command palette Customers module opens /app/customers", async ({
@@ -437,13 +438,13 @@ authTest.describe("B0R-5 — people & documents App Router (migration flag ON)",
 
   authTest("163. CRM intra-tab Leads updates URL", async ({ authenticatedPage: page }) => {
     await page.goto("/app/crm");
-    await page.getByRole("button", { name: "Leads", exact: true }).click();
+    await clusterTab(page, "Leads").click();
     await authExpect(page).toHaveURL(/\/app\/crm\/leads$/);
   });
 
   authTest("164. payroll intra-tab Cycles updates URL", async ({ authenticatedPage: page }) => {
     await page.goto("/app/payroll");
-    await page.getByRole("button", { name: "Pay Cycles", exact: true }).click();
+    await clusterTab(page, "Pay Cycles").click();
     await authExpect(page).toHaveURL(/\/app\/payroll\/cycles$/);
   });
 });

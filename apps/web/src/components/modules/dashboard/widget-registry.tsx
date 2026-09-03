@@ -155,7 +155,7 @@ function ActiveTripsKpi(): ReactElement {
 }
 
 function OnTimeKpi(): ReactElement {
-  const { navigate } = useAppStore();
+  const { navigate } = useWidgetNavigation();
   const { stats, loaded } = useDashboardStats();
   const value = stats?.trips.onTimePct ?? 0;
   return (
@@ -171,7 +171,7 @@ function OnTimeKpi(): ReactElement {
 }
 
 function RevenueTodayKpi(): ReactElement {
-  const { navigate } = useAppStore();
+  const { navigate } = useWidgetNavigation();
   const { stats, loaded } = useDashboardStats();
   const value = stats?.invoices.revenuePeriod ?? 0;
   return (
@@ -202,7 +202,7 @@ function IdleVehiclesKpi(): ReactElement {
 }
 
 function OverdueInvoicesKpi(): ReactElement {
-  const { navigate } = useAppStore();
+  const { navigate } = useWidgetNavigation();
   const { stats, loaded } = useDashboardStats();
   const value = stats?.invoices.overdueCount ?? 0;
   return (
@@ -315,7 +315,7 @@ function ListRow({
 }
 
 function TodayPrioritiesList(): ReactElement {
-  const { navigate } = useAppStore();
+  const { navigate } = useWidgetNavigation();
   const { stats, loaded } = useDashboardStats();
   const items = useMemo(() => {
     if (!stats) return [];
@@ -434,7 +434,7 @@ function OverdueInspectionsList(): ReactElement {
 }
 
 function ServiceRemindersList(): ReactElement {
-  const { navigate } = useAppStore();
+  const { navigate } = useWidgetNavigation();
   const { stats } = useDashboardStats();
   const visible = stats?.reminders.upcoming.slice(0, 6) ?? [];
   return (
@@ -460,7 +460,7 @@ function ServiceRemindersList(): ReactElement {
 }
 
 function OnboardingTasksList(): ReactElement {
-  const { navigate } = useAppStore();
+  const { navigate } = useWidgetNavigation();
   const { stats } = useDashboardStats();
   const visible = stats?.hr.pendingOnboarding.slice(0, 6) ?? [];
   return (
@@ -739,7 +739,7 @@ function IssuesByCategoryChart(): ReactElement {
    ============================================================ */
 
 function ReanRecommendationsWidget(): ReactElement {
-  const { navigate } = useAppStore();
+  const { navigate } = useWidgetNavigation();
   return (
     <div className="flex flex-col gap-2">
       {REAN_RECOMMENDATIONS.map((r) => (
@@ -766,7 +766,7 @@ function ReanRecommendationsWidget(): ReactElement {
 }
 
 function ReanAnomaliesWidget(): ReactElement {
-  const { navigate } = useAppStore();
+  const { navigate } = useWidgetNavigation();
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between">
@@ -956,7 +956,7 @@ function MyCompletedWosTodayList(): ReactElement {
 }
 
 function RecurringDefectsList(): ReactElement {
-  const { navigateDetail } = useAppStore();
+  const { navigateDetail } = useWidgetNavigation();
   const { stats } = useDashboardStats();
   const visible = (stats?.issues.recurringDefects ?? []).filter((r) => r.count >= 2);
   const max = Math.max(...visible.map((r) => r.count), 1);
@@ -1006,7 +1006,7 @@ function InspectionsDueKpi(): ReactElement {
 
 function OpenIssuesBySeverityList(): ReactElement {
   const filter = useDashboardFilter();
-  const { navigateDetail } = useAppStore();
+  const { navigateDetail } = useWidgetNavigation();
   const { stats } = useDashboardStats();
   const visible = stats?.issues.bySeverity ?? [];
   const max = Math.max(...visible.map((r) => r.count), 1);
@@ -1033,7 +1033,7 @@ function OpenIssuesBySeverityList(): ReactElement {
 }
 
 function ExpiringDocsKpi(): ReactElement {
-  const { navigate } = useAppStore();
+  const { navigate } = useWidgetNavigation();
   const { stats, loaded } = useDashboardStats();
   const value = (stats?.documents.expiringSoonCount ?? 0) + (stats?.documents.expiredCount ?? 0);
   return (
@@ -1067,7 +1067,7 @@ function IncidentTrendChart(): ReactElement {
 }
 
 function DriverComplianceList(): ReactElement {
-  const { navigate } = useAppStore();
+  const { navigate } = useWidgetNavigation();
   const { stats } = useDashboardStats();
   const visible = stats?.hr.driverCompliance.slice(0, 6) ?? [];
   return (
@@ -1093,7 +1093,7 @@ function DriverComplianceList(): ReactElement {
 /* ---- hr-manager (6) ---- */
 
 function HeadcountKpi(): ReactElement {
-  const { navigate } = useAppStore();
+  const { navigate } = useWidgetNavigation();
   const { stats, loaded } = useDashboardStats();
   const value = stats?.hr.headcount ?? 0;
   return (
@@ -1107,7 +1107,7 @@ function HeadcountKpi(): ReactElement {
 }
 
 function PendingLeavesKpi(): ReactElement {
-  const { navigate } = useAppStore();
+  const { navigate } = useWidgetNavigation();
   const { stats, loaded } = useDashboardStats();
   const value = stats?.hr.pendingLeavesCount ?? 0;
   return (
@@ -1123,7 +1123,7 @@ function PendingLeavesKpi(): ReactElement {
 }
 
 function PayrollStatusKpi(): ReactElement {
-  const { navigate } = useAppStore();
+  const { navigate } = useWidgetNavigation();
   const { stats, loaded } = useDashboardStats();
   const status = stats?.hr.payrollStatus;
   return (
@@ -1138,7 +1138,7 @@ function PayrollStatusKpi(): ReactElement {
 }
 
 function OpenPositionsKpi(): ReactElement {
-  const { navigate } = useAppStore();
+  const { navigate } = useWidgetNavigation();
   const { stats, loaded } = useDashboardStats();
   const value = stats?.hr.openPositionsCount ?? 0;
   return (
@@ -1152,7 +1152,7 @@ function OpenPositionsKpi(): ReactElement {
 }
 
 function AttendanceTodayKpi(): ReactElement {
-  const { navigate } = useAppStore();
+  const { navigate } = useWidgetNavigation();
   const { stats, loaded } = useDashboardStats();
   const presentPct = stats?.hr.attendanceTodayPct ?? 0;
   const headcount = stats?.hr.headcount ?? 0;
@@ -1172,7 +1172,7 @@ function AttendanceTodayKpi(): ReactElement {
  *  faked. Driver license compliance (a real, adjacent signal) is covered
  *  by the "Driver Compliance" widget above. */
 function TrainingDueList(): ReactElement {
-  const { navigate } = useAppStore();
+  const { navigate } = useWidgetNavigation();
   return (
     <div className="py-6 text-center text-[11px] text-muted-foreground">
       No training-records module yet.
@@ -1187,7 +1187,7 @@ function TrainingDueList(): ReactElement {
    Employee.branchName) - see stats.branch. */
 
 function BranchRevenueKpi(): ReactElement {
-  const { navigate } = useAppStore();
+  const { navigate } = useWidgetNavigation();
   const { stats, loaded } = useDashboardStats();
   const value = stats?.branch.revenue ?? 0;
   return (
@@ -1215,7 +1215,7 @@ function BranchTripsKpi(): ReactElement {
 }
 
 function BranchStaffKpi(): ReactElement {
-  const { navigate } = useAppStore();
+  const { navigate } = useWidgetNavigation();
   const { stats, loaded } = useDashboardStats();
   const value = stats?.branch.staff ?? 0;
   return (
@@ -1318,7 +1318,7 @@ function GstPayableKpi(): ReactElement {
 }
 
 function TdsDeductedKpi(): ReactElement {
-  const { navigate } = useAppStore();
+  const { navigate } = useWidgetNavigation();
   return (
     <KpiCard label="TDS Deducted" value="—" icon={<Banknote className="h-4 w-4" />}
       progressLabel="no TDS ledger module yet" onClick={() => navigate("financial-ops")} />
@@ -1342,7 +1342,7 @@ function FilingsDueKpi(): ReactElement {
 }
 
 function BankBalanceKpi(): ReactElement {
-  const { navigate } = useAppStore();
+  const { navigate } = useWidgetNavigation();
   return (
     <KpiCard label="Bank Balance" value="—" icon={<Banknote className="h-4 w-4" />}
       progressLabel="no bank-account module yet" onClick={() => navigate("ledger")} />
@@ -2191,7 +2191,7 @@ function RecentActivitiesFeedList(): ReactElement {
 /* ---- Operations (8) ---- */
 
 function OnTimeDeliveryKpi(): ReactElement {
-  const { navigate } = useAppStore();
+  const { navigate } = useWidgetNavigation();
   const { stats, loaded } = useDashboardStats();
   const value = stats?.trips.onTimePct ?? 0;
   return (
@@ -2304,7 +2304,7 @@ function BrokerWinRateKpi(): ReactElement {
 }
 
 function OpenLoadsList(): ReactElement {
-  const { navigate } = useAppStore();
+  const { navigate } = useWidgetNavigation();
   const { stats } = useDashboardStats();
   const visible = stats?.broker.openLoads.slice(0, 5) ?? [];
   return (
@@ -2390,7 +2390,7 @@ function MonthlyRevenueChart(): ReactElement {
 }
 
 function TopDelinquentCustomersList(): ReactElement {
-  const { navigate } = useAppStore();
+  const { navigate } = useWidgetNavigation();
   const { stats, loaded } = useDashboardStats();
   const visible = stats?.customers.topDelinquent.slice(0, 5) ?? [];
   if (loaded && visible.length === 0) {
@@ -2459,7 +2459,7 @@ function FuelEfficiencyLeadersList(): ReactElement {
 /* ---- HR / People (5) ---- */
 
 function PendingLeavesList(): ReactElement {
-  const { navigate } = useAppStore();
+  const { navigate } = useWidgetNavigation();
   const { stats } = useDashboardStats();
   const visible = stats?.hr.pendingLeavesList.slice(0, 6) ?? [];
   return (
@@ -2498,7 +2498,7 @@ function AttritionTrendChart(): ReactElement {
 }
 
 function PendingOffersKpi(): ReactElement {
-  const { navigate } = useAppStore();
+  const { navigate } = useWidgetNavigation();
   const { stats, loaded } = useDashboardStats();
   const value = stats?.hr.pendingOffersCount ?? 0;
   return (
@@ -2512,7 +2512,7 @@ function PendingOffersKpi(): ReactElement {
 }
 
 function PendingOnboardingList(): ReactElement {
-  const { navigate } = useAppStore();
+  const { navigate } = useWidgetNavigation();
   const { stats } = useDashboardStats();
   const visible = stats?.hr.pendingOnboarding.slice(0, 5) ?? [];
   return (
@@ -2574,7 +2574,7 @@ function PendingAuditsKpi(): ReactElement {
 }
 
 function ExpiringLicensesList(): ReactElement {
-  const { navigate } = useAppStore();
+  const { navigate } = useWidgetNavigation();
   const { stats, loaded } = useDashboardStats();
   const visible = stats?.documents.expiringLicenses.slice(0, 5) ?? [];
   if (loaded && visible.length === 0) {
@@ -2606,7 +2606,7 @@ function ExpiringLicensesList(): ReactElement {
 /* ---- Helpdesk (2) ---- */
 
 function OpenTicketsKpi(): ReactElement {
-  const { navigate } = useAppStore();
+  const { navigate } = useWidgetNavigation();
   const { stats, loaded } = useDashboardStats();
   const value = stats?.tickets.openCount ?? 0;
   return (
@@ -2620,7 +2620,7 @@ function OpenTicketsKpi(): ReactElement {
 }
 
 function RecentTicketsList(): ReactElement {
-  const { navigate } = useAppStore();
+  const { navigate } = useWidgetNavigation();
   const { stats } = useDashboardStats();
   const visible = stats?.tickets.recent.slice(0, 5) ?? [];
   return (

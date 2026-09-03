@@ -2,6 +2,7 @@ import {
   test as authTest,
   expect as authExpect,
 } from "./fixtures/auth";
+import { expectModule, sidebarNav, openCommandPalette, commandPaletteGoToModule, clusterTab, expectModuleShell } from "./fixtures/navigation";
 
 function escRegex(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -16,19 +17,19 @@ authTest.describe("B0R-6 — platform & remaining desktop App Router (migration 
   authTest("165. direct /app/warehouse defaults to inventory", async ({ authenticatedPage: page }) => {
     await page.goto("/app/warehouse");
     await authExpect(page).toHaveURL(/\/app\/warehouse$/);
-    await authExpect(page.locator("main[data-e2e-active-module='warehouse']")).toBeVisible();
+    await expectModule(page, "warehouse");
     await authExpect(page.getByRole("button", { name: "Inventory", exact: true })).toBeVisible();
   });
 
   authTest("166. /app/warehouse/inbound tab deep link", async ({ authenticatedPage: page }) => {
     await page.goto("/app/warehouse/inbound");
     await authExpect(page).toHaveURL(/\/app\/warehouse\/inbound$/);
-    await authExpect(page.locator("main[data-e2e-active-module='warehouse']")).toBeVisible();
+    await expectModule(page, "warehouse");
   });
 
   authTest("167. warehouse tab click updates URL", async ({ authenticatedPage: page }) => {
     await page.goto("/app/warehouse");
-    await page.getByRole("button", { name: "Outbound", exact: true }).click();
+    await clusterTab(page, "Outbound").click();
     await authExpect(page).toHaveURL(/\/app\/warehouse\/outbound$/);
   });
 
@@ -40,7 +41,7 @@ authTest.describe("B0R-6 — platform & remaining desktop App Router (migration 
   authTest("169. direct /app/reports library", async ({ authenticatedPage: page }) => {
     await page.goto("/app/reports");
     await authExpect(page).toHaveURL(/\/app\/reports$/);
-    await authExpect(page.locator("main[data-e2e-active-module='reports']")).toBeVisible();
+    await expectModule(page, "reports");
   });
 
   authTest("170. /app/reports/scheduled tab deep link", async ({ authenticatedPage: page }) => {
@@ -58,33 +59,33 @@ authTest.describe("B0R-6 — platform & remaining desktop App Router (migration 
   authTest("172. direct /app/operations board", async ({ authenticatedPage: page }) => {
     await page.goto("/app/operations");
     await authExpect(page).toHaveURL(/\/app\/operations$/);
-    await authExpect(page.locator("main[data-e2e-active-module='operations-hub']")).toBeVisible();
+    await expectModule(page, "operations-hub");
   });
 
   authTest("173. operations cluster Field Service tab", async ({ authenticatedPage: page }) => {
     await page.goto("/app/operations");
-    await page.getByRole("button", { name: "Field Service", exact: true }).click();
+    await clusterTab(page, "Field Service").click();
     await authExpect(page).toHaveURL(/\/app\/field-service$/);
-    await authExpect(page.locator("main[data-e2e-active-module='field-service']")).toBeVisible();
+    await expectModule(page, "field-service");
   });
 
   authTest("174. operations cluster Planning tab", async ({ authenticatedPage: page }) => {
     await page.goto("/app/operations");
-    await page.getByRole("button", { name: "Planning", exact: true }).click();
+    await clusterTab(page, "Planning").click();
     await authExpect(page).toHaveURL(/\/app\/planning$/);
-    await authExpect(page.locator("main[data-e2e-active-module='planning']")).toBeVisible();
+    await expectModule(page, "planning");
   });
 
   authTest("175. /app/operations/reports tab deep link", async ({ authenticatedPage: page }) => {
     await page.goto("/app/operations/reports");
     await authExpect(page).toHaveURL(/\/app\/operations\/reports$/);
-    await authExpect(page.locator("main[data-e2e-active-module='operations-hub']")).toBeVisible();
+    await expectModule(page, "operations-hub");
   });
 
   authTest("176. direct /app/field-service list", async ({ authenticatedPage: page }) => {
     await page.goto("/app/field-service");
     await authExpect(page).toHaveURL(/\/app\/field-service$/);
-    await authExpect(page.locator("main[data-e2e-active-module='field-service']")).toBeVisible();
+    await expectModule(page, "field-service");
   });
 
   authTest("177. /app/field-service/new opens create route", async ({ authenticatedPage: page }) => {
@@ -102,13 +103,13 @@ authTest.describe("B0R-6 — platform & remaining desktop App Router (migration 
 
     await page.goto(`/app/field-service/${id!}`);
     await authExpect(page).toHaveURL(new RegExp(`/app/field-service/${escRegex(id!)}`));
-    await authExpect(page.locator("main[data-e2e-active-module='field-service']")).toBeVisible();
+    await expectModule(page, "field-service");
   });
 
   authTest("179. direct /app/planning week view", async ({ authenticatedPage: page }) => {
     await page.goto("/app/planning");
     await authExpect(page).toHaveURL(/\/app\/planning$/);
-    await authExpect(page.locator("main[data-e2e-active-module='planning']")).toBeVisible();
+    await expectModule(page, "planning");
   });
 
   authTest("180. /app/planning/resources tab deep link", async ({ authenticatedPage: page }) => {
@@ -120,8 +121,8 @@ authTest.describe("B0R-6 — platform & remaining desktop App Router (migration 
   authTest("181. direct /app/settings profile", async ({ authenticatedPage: page }) => {
     await page.goto("/app/settings");
     await authExpect(page).toHaveURL(/\/app\/settings$/);
-    await authExpect(page.locator("main[data-e2e-active-module='settings']")).toBeVisible();
-    await authExpect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
+    await expectModule(page, "settings");
+    await authExpect(page.getByRole("heading", { name: "Profile", exact: true })).toBeVisible();
   });
 
   authTest("182. /app/settings/billing tab deep link", async ({ authenticatedPage: page }) => {
@@ -132,41 +133,41 @@ authTest.describe("B0R-6 — platform & remaining desktop App Router (migration 
 
   authTest("183. settings cluster Subscriptions tab", async ({ authenticatedPage: page }) => {
     await page.goto("/app/settings");
-    await page.getByRole("button", { name: "Subscriptions", exact: true }).click();
+    await clusterTab(page, "Subscriptions").click();
     await authExpect(page).toHaveURL(/\/app\/settings\/subscriptions$/);
-    await authExpect(page.locator("main[data-e2e-active-module='subscriptions']")).toBeVisible();
+    await expectModule(page, "subscriptions");
   });
 
   authTest("184. settings cluster Access Matrix tab", async ({ authenticatedPage: page }) => {
     await page.goto("/app/settings");
-    await page.getByRole("button", { name: "Access Matrix", exact: true }).click();
+    await clusterTab(page, "Access Matrix").click();
     await authExpect(page).toHaveURL(/\/app\/settings\/access-matrix$/);
-    await authExpect(page.locator("main[data-e2e-active-module='access-matrix']")).toBeVisible();
+    await expectModule(page, "access-matrix");
   });
 
   authTest("185. settings cluster Automation tab", async ({ authenticatedPage: page }) => {
     await page.goto("/app/settings");
-    await page.getByRole("button", { name: "Automation", exact: true }).click();
+    await clusterTab(page, "Automation").click();
     await authExpect(page).toHaveURL(/\/app\/automation$/);
-    await authExpect(page.locator("main[data-e2e-active-module='automation']")).toBeVisible();
+    await expectModule(page, "automation");
   });
 
   authTest("186. settings cluster System Design tab", async ({ authenticatedPage: page }) => {
     await page.goto("/app/settings");
-    await page.getByRole("button", { name: "System Design", exact: true }).click();
+    await clusterTab(page, "System Design").click();
     await authExpect(page).toHaveURL(/\/app\/system-design$/);
-    await authExpect(page.locator("main[data-e2e-active-module='system-design']")).toBeVisible();
+    await expectModule(page, "system-design");
   });
 
   authTest("187. direct /app/chat list", async ({ authenticatedPage: page }) => {
     await page.goto("/app/chat");
     await authExpect(page).toHaveURL(/\/app\/chat$/);
-    await authExpect(page.locator("main[data-e2e-active-module='chat']")).toBeVisible();
+    await expectModule(page, "chat");
   });
 
   authTest("188. chat conversation selection updates URL", async ({ authenticatedPage: page }) => {
     await page.goto("/app/chat");
-    await authExpect(page.locator("main[data-e2e-active-module='chat']")).toBeVisible();
+    await expectModule(page, "chat");
     const convButtons = page.locator("div.scrollbar-thin button").filter({ has: page.locator("span") });
     authTest.skip((await convButtons.count()) < 2, "no conversations loaded");
     await convButtons.nth(1).click();
@@ -176,7 +177,7 @@ authTest.describe("B0R-6 — platform & remaining desktop App Router (migration 
   authTest("189. direct /app/integrations", async ({ authenticatedPage: page }) => {
     await page.goto("/app/integrations");
     await authExpect(page).toHaveURL(/\/app\/integrations$/);
-    await authExpect(page.locator("main[data-e2e-active-module='integrations']")).toBeVisible();
+    await expectModule(page, "integrations");
   });
 
   authTest("190. /app/app-store redirects to integrations", async ({ authenticatedPage: page }) => {
@@ -187,57 +188,57 @@ authTest.describe("B0R-6 — platform & remaining desktop App Router (migration 
   authTest("191. direct /app/automation", async ({ authenticatedPage: page }) => {
     await page.goto("/app/automation");
     await authExpect(page).toHaveURL(/\/app\/automation$/);
-    await authExpect(page.locator("main[data-e2e-active-module='automation']")).toBeVisible();
+    await expectModule(page, "automation");
   });
 
   authTest("192. direct /app/system-design", async ({ authenticatedPage: page }) => {
     await page.goto("/app/system-design");
     await authExpect(page).toHaveURL(/\/app\/system-design$/);
-    await authExpect(page.locator("main[data-e2e-active-module='system-design']")).toBeVisible();
+    await expectModule(page, "system-design");
   });
 
   authTest("193. direct /app/partner-programme", async ({ authenticatedPage: page }) => {
     await page.goto("/app/partner-programme");
     await authExpect(page).toHaveURL(/\/app\/partner-programme$/);
-    await authExpect(page.locator("main[data-e2e-active-module='partner-programme']")).toBeVisible();
+    await expectModule(page, "partner-programme");
   });
 
   authTest("194. direct /app/financial-services", async ({ authenticatedPage: page }) => {
     await page.goto("/app/financial-services");
     await authExpect(page).toHaveURL(/\/app\/financial-services$/);
-    await authExpect(page.locator("main[data-e2e-active-module='financial-services']")).toBeVisible();
+    await expectModule(page, "financial-services");
   });
 
   authTest("195. direct /app/broker/console", async ({ authenticatedPage: page }) => {
     await page.goto("/app/broker/console");
     await authExpect(page).toHaveURL(/\/app\/broker\/console$/);
-    await authExpect(page.locator("main[data-e2e-active-module='broker-console']")).toBeVisible();
+    await expectModule(page, "broker-console");
   });
 
   authTest("196. direct /app/broker/marketplace", async ({ authenticatedPage: page }) => {
     await page.goto("/app/broker/marketplace");
     await authExpect(page).toHaveURL(/\/app\/broker\/marketplace$/);
-    await authExpect(page.locator("main[data-e2e-active-module='broker-marketplace']")).toBeVisible();
+    await expectModule(page, "broker-marketplace");
   });
 
   authTest("197. direct /app/broker/settlements", async ({ authenticatedPage: page }) => {
     await page.goto("/app/broker/settlements");
     await authExpect(page).toHaveURL(/\/app\/broker\/settlements$/);
-    await authExpect(page.locator("main[data-e2e-active-module='broker-settlements']")).toBeVisible();
+    await expectModule(page, "broker-settlements");
   });
 
   authTest("198. warehouse hard refresh preserves tab", async ({ authenticatedPage: page }) => {
     await page.goto("/app/warehouse/pick-pack");
     await page.reload();
     await authExpect(page).toHaveURL(/\/app\/warehouse\/pick-pack$/);
-    await authExpect(page.locator("main[data-e2e-active-module='warehouse']")).toBeVisible();
+    await expectModule(page, "warehouse");
   });
 
   authTest("199. settings hard refresh preserves billing tab", async ({ authenticatedPage: page }) => {
     await page.goto("/app/settings/billing");
     await page.reload();
     await authExpect(page).toHaveURL(/\/app\/settings\/billing$/);
-    await authExpect(page.locator("main[data-e2e-active-module='settings']")).toBeVisible();
+    await authExpect(page.getByRole("button", { name: /Billing & Plan/i })).toBeVisible();
   });
 
   authTest("200. browser back from field-service detail to list", async ({ authenticatedPage: page, request }) => {
@@ -300,7 +301,7 @@ authTest.describe("B0R-6 — platform & remaining desktop App Router (migration 
   authTest("206. /app/settings/subscriptions/new create route", async ({ authenticatedPage: page }) => {
     await page.goto("/app/settings/subscriptions/new");
     await authExpect(page).toHaveURL(/\/app\/settings\/subscriptions\/new$/);
-    await authExpect(page.locator("main[data-e2e-active-module='subscriptions']")).toBeVisible();
+    await expectModuleShell(page);
   });
 
   authTest("207. invalid settings tab shows message", async ({ authenticatedPage: page }) => {
@@ -310,7 +311,7 @@ authTest.describe("B0R-6 — platform & remaining desktop App Router (migration 
 
   authTest("208. planning tab click updates URL", async ({ authenticatedPage: page }) => {
     await page.goto("/app/planning");
-    await page.getByRole("button", { name: "Day View", exact: true }).click();
+    await clusterTab(page, "Day View").click();
     await authExpect(page).toHaveURL(/\/app\/planning\/day$/);
   });
 });

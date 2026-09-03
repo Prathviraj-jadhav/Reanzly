@@ -6,6 +6,7 @@ import {
   E2E_OWNER_PASSWORD,
   loginViaApi,
 } from "./fixtures/auth";
+import { expectModule, sidebarNav, openCommandPalette, commandPaletteGoToModule } from "./fixtures/navigation";
 
 test.describe("B0R-1 App Router foundation — unauthenticated", () => {
   test("1. unauthenticated /app/dashboard redirects to login with returnTo", async ({ page }) => {
@@ -94,7 +95,7 @@ authTest.describe("B0R-1V — authenticated App Router (migration flag ON)", () 
     await authExpect(page).toHaveURL(/\/app\/dashboard$/);
     await authExpect(page.getByText("My Dashboards").first()).toBeVisible();
     await authExpect(page.getByRole("button", { name: "Dashboard" }).first()).toBeVisible();
-    await authExpect(page.locator("main[data-e2e-active-module='dashboard']")).toBeVisible();
+    await expectModule(page, "dashboard");
     await authExpect(page.getByText("Under construction")).toHaveCount(0);
   });
 
@@ -104,19 +105,19 @@ authTest.describe("B0R-1V — authenticated App Router (migration flag ON)", () 
     await page.reload({ waitUntil: "networkidle" });
     await authExpect(page).toHaveURL(/\/app\/dashboard$/);
     await authExpect(page.getByText("My Dashboards").first()).toBeVisible({ timeout: 30_000 });
-    await authExpect(page.locator("main[data-e2e-active-module='dashboard']")).toBeVisible();
+    await expectModule(page, "dashboard");
   });
 
   authTest("15. mixed mode: migrated Trips then Dashboard via sidebar", async ({
     authenticatedPage: page,
   }) => {
-    await page.getByRole("button", { name: "Trips", exact: true }).click();
-    await authExpect(page.locator("main[data-e2e-active-module='trips']")).toBeVisible();
+    await sidebarNav(page, "Trips").click();
+    await expectModule(page, "trips");
     await authExpect(page).toHaveURL(/\/app\/trips$/);
 
-    await page.getByRole("button", { name: "Dashboard", exact: true }).click();
+    await sidebarNav(page, "Dashboard").click();
     await authExpect(page).toHaveURL(/\/app\/dashboard$/);
-    await authExpect(page.locator("main[data-e2e-active-module='dashboard']")).toBeVisible();
+    await expectModule(page, "dashboard");
     await authExpect(page.getByText("My Dashboards").first()).toBeVisible();
   });
 
@@ -153,9 +154,7 @@ authTest.describe("B0R-1V — authenticated App Router (migration flag ON)", () 
     await authExpect(page).toHaveURL(/\/marketplace/);
     await page.goForward({ waitUntil: "domcontentloaded" });
     await authExpect(page).toHaveURL(/\/app\/dashboard$/, { timeout: 30_000 });
-    await authExpect(page.locator("main[data-e2e-active-module='dashboard']")).toBeVisible({
-      timeout: 30_000,
-    });
+    await expectModule(page, "dashboard"); // was: data-e2e-active-module with options
   });
 
   authTest("18. expired session redirects to login with returnTo", async ({
@@ -231,19 +230,15 @@ authTest.describe("B0R-1V — authenticated App Router (migration flag ON)", () 
   });
 });
 
-const migrationOff = (process.env.NEXT_PUBLIC_ROUTING_MIGRATION ?? "1") !== "1";
-(migrationOff ? test.describe : test.describe.skip)(
-  "B0R-1V — routing flag OFF (legacy SPA entry)",
-  () => {
-    test("24. legacy /dashboard stays on SPA when migration flag off", async ({ browser }) => {
-      if (process.env.PLAYWRIGHT_SKIP_AUTH === "1") test.skip();
-      const context = await browser.newContext();
-      const page = await context.newPage();
-      await loginViaApi(context.request);
-      await page.goto("/dashboard");
-      await expect(page).toHaveURL(/\/dashboard$/);
-      await expect(page.getByRole("button", { name: "Dashboard" }).first()).toBeVisible();
-      await context.close();
-    });
-  },
-);
+test.describe("B0R-1V — routing flag OFF (legacy SPA entry) @flag-off", () => {
+  test("24. legacy /dashboard stays on SPA when migration flag off", async ({ browser }) => {
+    if (process.env.PLAYWRIGHT_SKIP_AUTH === "1") test.skip();
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    await loginViaApi(context.request);
+    await page.goto("/dashboard");
+    await expect(page).toHaveURL(/\/dashboard$/);
+    await expect(page.getByRole("button", { name: "Dashboard" }).first()).toBeVisible();
+    await context.close();
+  });
+});

@@ -2,6 +2,7 @@ import {
   test as authTest,
   expect as authExpect,
 } from "./fixtures/auth";
+import { expectModule, sidebarNav, openCommandPalette, commandPaletteGoToModule , expectModuleShell, clusterTab } from "./fixtures/navigation";
 import { loadFinanceClusterFixture } from "./fixtures/finance-cluster";
 
 function escRegex(value: string): string {
@@ -18,24 +19,24 @@ authTest.describe("B0R-4 — finance cluster App Router (migration flag ON)", ()
     authenticatedPage: page,
   }) => {
     await page.goto("/app/invoice");
-    await page.getByRole("button", { name: "Rate Cards", exact: true }).click();
+    await clusterTab(page, "Rate Cards").click();
     await authExpect(page).toHaveURL(/\/app\/rate-cards$/);
-    await authExpect(page.locator("main[data-e2e-active-module='rate-cards']")).toBeVisible();
+    await expectModule(page, "rate-cards");
   });
 
   authTest("78. cluster Approvals tab navigates to /app/approvals", async ({
     authenticatedPage: page,
   }) => {
     await page.goto("/app/expenses");
-    await page.getByRole("button", { name: "Approvals", exact: true }).click();
+    await clusterTab(page, "Approvals").click();
     await authExpect(page).toHaveURL(/\/app\/approvals$/);
-    await authExpect(page.locator("main[data-e2e-active-module='approvals']")).toBeVisible();
+    await expectModule(page, "approvals");
   });
 
   authTest("79. direct /app/invoice list URL", async ({ authenticatedPage: page }) => {
     await page.goto("/app/invoice");
     await authExpect(page).toHaveURL(/\/app\/invoice$/);
-    await authExpect(page.locator("main[data-e2e-active-module='invoice']")).toBeVisible();
+    await expectModule(page, "invoice");
   });
 
   authTest("80. invoice detail deep link uses invoiceNumber", async ({
@@ -49,19 +50,19 @@ authTest.describe("B0R-4 — finance cluster App Router (migration flag ON)", ()
     await authExpect(page).toHaveURL(
       new RegExp(`/app/invoice/${escRegex(fixture!.invoiceNumber)}$`),
     );
-    await authExpect(page.locator("main[data-e2e-active-module='invoice']")).toBeVisible();
+    await expectModule(page, "invoice");
   });
 
   authTest("81. /app/invoice/new opens create route", async ({ authenticatedPage: page }) => {
     await page.goto("/app/invoice/new");
     await authExpect(page).toHaveURL(/\/app\/invoice\/new$/);
-    await authExpect(page.locator("main[data-e2e-active-module='invoice']")).toBeVisible();
+    await expectModuleShell(page);
   });
 
   authTest("82. direct /app/rate-cards list URL", async ({ authenticatedPage: page }) => {
     await page.goto("/app/rate-cards");
     await authExpect(page).toHaveURL(/\/app\/rate-cards$/);
-    await authExpect(page.locator("main[data-e2e-active-module='rate-cards']")).toBeVisible();
+    await expectModule(page, "rate-cards");
   });
 
   authTest("83. rate card detail deep link", async ({ authenticatedPage: page, request }) => {
@@ -72,19 +73,19 @@ authTest.describe("B0R-4 — finance cluster App Router (migration flag ON)", ()
     await authExpect(page).toHaveURL(
       new RegExp(`/app/rate-cards/${escRegex(fixture!.rateCardId)}$`),
     );
-    await authExpect(page.locator("main[data-e2e-active-module='rate-cards']")).toBeVisible();
+    await expectModule(page, "rate-cards");
   });
 
   authTest("84. /app/rate-cards/new opens create route", async ({ authenticatedPage: page }) => {
     await page.goto("/app/rate-cards/new");
     await authExpect(page).toHaveURL(/\/app\/rate-cards\/new$/);
-    await authExpect(page.locator("main[data-e2e-active-module='rate-cards']")).toBeVisible();
+    await expectModuleShell(page);
   });
 
   authTest("85. direct /app/expenses list URL", async ({ authenticatedPage: page }) => {
     await page.goto("/app/expenses");
     await authExpect(page).toHaveURL(/\/app\/expenses$/);
-    await authExpect(page.locator("main[data-e2e-active-module='expenses']")).toBeVisible();
+    await expectModule(page, "expenses");
   });
 
   authTest("86. expense detail deep link", async ({ authenticatedPage: page, request }) => {
@@ -95,19 +96,19 @@ authTest.describe("B0R-4 — finance cluster App Router (migration flag ON)", ()
     await authExpect(page).toHaveURL(
       new RegExp(`/app/expenses/${escRegex(fixture!.expenseId)}$`),
     );
-    await authExpect(page.locator("main[data-e2e-active-module='expenses']")).toBeVisible();
+    await expectModule(page, "expenses");
   });
 
   authTest("87. /app/expenses/new opens create route", async ({ authenticatedPage: page }) => {
     await page.goto("/app/expenses/new");
     await authExpect(page).toHaveURL(/\/app\/expenses\/new$/);
-    await authExpect(page.locator("main[data-e2e-active-module='expenses']")).toBeVisible();
+    await expectModuleShell(page);
   });
 
   authTest("88. direct /app/approvals list URL", async ({ authenticatedPage: page }) => {
     await page.goto("/app/approvals");
     await authExpect(page).toHaveURL(/\/app\/approvals$/);
-    await authExpect(page.locator("main[data-e2e-active-module='approvals']")).toBeVisible();
+    await expectModule(page, "approvals");
   });
 
   authTest("89. approval detail deep link", async ({ authenticatedPage: page, request }) => {
@@ -118,7 +119,7 @@ authTest.describe("B0R-4 — finance cluster App Router (migration flag ON)", ()
     await authExpect(page).toHaveURL(
       new RegExp(`/app/approvals/${escRegex(fixture!.approvalId)}$`),
     );
-    await authExpect(page.locator("main[data-e2e-active-module='approvals']")).toBeVisible();
+    await expectModule(page, "approvals");
   });
 
   authTest("90. approval detail ?tab=decision deep link", async ({
@@ -130,13 +131,13 @@ authTest.describe("B0R-4 — finance cluster App Router (migration flag ON)", ()
 
     await page.goto(`/app/approvals/${fixture!.approvalId}?tab=decision`);
     await authExpect(page).toHaveURL(/tab=decision/);
-    await authExpect(page.locator("main[data-e2e-active-module='approvals']")).toBeVisible();
+    await expectModule(page, "approvals");
   });
 
   authTest("91. direct /app/payments list URL", async ({ authenticatedPage: page }) => {
     await page.goto("/app/payments");
     await authExpect(page).toHaveURL(/\/app\/payments$/);
-    await authExpect(page.locator("main[data-e2e-active-module='payments']")).toBeVisible();
+    await expectModule(page, "payments");
   });
 
   authTest("92. payment detail deep link", async ({ authenticatedPage: page, request }) => {
@@ -147,13 +148,13 @@ authTest.describe("B0R-4 — finance cluster App Router (migration flag ON)", ()
     await authExpect(page).toHaveURL(
       new RegExp(`/app/payments/${escRegex(fixture!.paymentId)}$`),
     );
-    await authExpect(page.locator("main[data-e2e-active-module='payments']")).toBeVisible();
+    await expectModule(page, "payments");
   });
 
   authTest("93. /app/payments/new opens create route", async ({ authenticatedPage: page }) => {
     await page.goto("/app/payments/new");
     await authExpect(page).toHaveURL(/\/app\/payments\/new$/);
-    await authExpect(page.locator("main[data-e2e-active-module='payments']")).toBeVisible();
+    await expectModuleShell(page);
   });
 
   authTest("94. direct /app/ledger default dashboard subview", async ({
@@ -161,7 +162,7 @@ authTest.describe("B0R-4 — finance cluster App Router (migration flag ON)", ()
   }) => {
     await page.goto("/app/ledger");
     await authExpect(page).toHaveURL(/\/app\/ledger$/);
-    await authExpect(page.locator("main[data-e2e-active-module='ledger']")).toBeVisible();
+    await expectModule(page, "ledger");
     await authExpect(page.locator("main").getByRole("button", { name: "Dashboard", exact: true })).toHaveAttribute(
       "aria-current",
       "page",
@@ -190,9 +191,9 @@ authTest.describe("B0R-4 — finance cluster App Router (migration flag ON)", ()
 
   authTest("97. ledger tab click updates URL", async ({ authenticatedPage: page }) => {
     await page.goto("/app/ledger");
-    await page.getByRole("button", { name: "Chart of Accounts", exact: true }).click();
+    await clusterTab(page, "Chart of Accounts").click();
     await authExpect(page).toHaveURL(/\/app\/ledger\/coa$/);
-    await page.getByRole("button", { name: "Statements", exact: true }).click();
+    await clusterTab(page, "Statements").click();
     await authExpect(page).toHaveURL(/\/app\/ledger\/statements$/);
   });
 
@@ -208,7 +209,7 @@ authTest.describe("B0R-4 — finance cluster App Router (migration flag ON)", ()
     await authExpect(page).toHaveURL(
       new RegExp(`/app/invoice/${escRegex(fixture!.invoiceNumber)}$`),
     );
-    await authExpect(page.locator("main[data-e2e-active-module='invoice']")).toBeVisible();
+    await expectModule(page, "invoice");
   });
 
   authTest("99. browser back from invoice detail returns to list", async ({
@@ -278,9 +279,9 @@ authTest.describe("B0R-4 — finance cluster App Router (migration flag ON)", ()
     authenticatedPage: page,
   }) => {
     await page.goto("/app/invoice");
-    await page.getByRole("button", { name: "Rate Cards", exact: true }).click();
+    await clusterTab(page, "Rate Cards").click();
     await authExpect(page).toHaveURL(/\/app\/rate-cards$/);
-    await page.getByRole("button", { name: "Overview", exact: true }).click();
+    await clusterTab(page, "Overview").click();
     await authExpect(page).toHaveURL(/\/app\/invoice$/);
     await authExpect(page).not.toHaveURL(/\/dashboard/);
   });

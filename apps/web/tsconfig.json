@@ -33,7 +33,13 @@
     "next-env.d.ts",
     "**/*.ts",
     "**/*.tsx",
-    ".next/types/**/*.ts"
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts",
+    ".next/dev/dev/types/**/*.ts",
+    ".next-flag-off/dev/types/**/*.ts",
+    ".next-flag-off/dev/dev/types/**/*.ts",
+    ".next-e2e-flag-on/dev/types/**/*.ts",
+    ".next-e2e-flag-on/dev/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",

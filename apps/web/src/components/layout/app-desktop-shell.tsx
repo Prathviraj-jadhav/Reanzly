@@ -12,6 +12,8 @@ import { TourOverlay } from "./tour-overlay";
 import { CompanySwitcher } from "./company-switcher";
 import { ErrorBoundary } from "@/components/shared/error-boundary";
 import { useAppStore } from "@/lib/store/app-store";
+import { useActiveModuleFromPath } from "@/lib/navigation/use-app-navigation";
+import { isRoutingMigrationEnabled } from "@/lib/navigation/routing-config";
 import { useOnlineStatus } from "@/hooks/use-online-status";
 import { MessageSquare } from "lucide-react";
 
@@ -22,7 +24,11 @@ import { MessageSquare } from "lucide-react";
  * (Sidebar, Header, overlays) but renders `{children}` instead of ModuleRouter.
  */
 export function AppDesktopShell({ children }: { children: React.ReactNode }) {
-  const { chatOpen, setChatOpen, activeView } = useAppStore();
+  const { chatOpen, setChatOpen, activeView: legacyActiveView } = useAppStore();
+  const pathActive = useActiveModuleFromPath();
+  const activeModule = isRoutingMigrationEnabled()
+    ? pathActive.module
+    : legacyActiveView.module;
   useOnlineStatus();
 
   return (
@@ -33,7 +39,7 @@ export function AppDesktopShell({ children }: { children: React.ReactNode }) {
         <AlertBanner />
         <main
           className="scrollbar-thin flex flex-1 flex-col overflow-y-auto"
-          data-e2e-active-module={activeView.module}
+          data-e2e-active-module={activeModule}
         >
           <div className="mx-auto w-full max-w-[1440px] px-4 py-4 sm:px-5 sm:py-5 lg:px-8">
             <ErrorBoundary label="Module">{children}</ErrorBoundary>
@@ -43,7 +49,7 @@ export function AppDesktopShell({ children }: { children: React.ReactNode }) {
 
       <MobileQuickAddFab hidden={chatOpen} />
 
-      {!chatOpen && activeView.module !== "chat" && (
+      {!chatOpen && activeModule !== "chat" && (
         <button
           onClick={() => setChatOpen(true)}
           className="tap fixed bottom-5 right-5 z-30 flex h-11 w-11 items-center justify-center rounded-full border border-border bg-background text-foreground shadow-sm hover:bg-accent transition-colors"

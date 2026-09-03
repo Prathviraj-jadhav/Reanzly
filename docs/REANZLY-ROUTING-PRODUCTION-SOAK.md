@@ -1,8 +1,9 @@
 # Reanzly — Routing Production Soak
 
-**Status:** READY TO START AFTER DEPLOYMENT  
+**Status:** READY FOR DEPLOYMENT  
 **Created:** 2026-09-02  
-**Prerequisite:** B0R-8PV2 verification complete; B0R-8P critical E2E green; code counts at zero  
+**Updated:** 2026-09-03 (B0R-8PV3)  
+**Prerequisite:** B0R-8PV3 verification complete; full flag-ON routing E2E green (FAIL=0); B0R-8P critical E2E green; code counts at zero  
 **Blocks:** B0R-8B (legacy navigation decommission)
 
 ---

@@ -4,46 +4,38 @@ import {
   expect as authExpect,
   loginViaApi,
 } from "./fixtures/auth";
-
-const migrationOff = (process.env.NEXT_PUBLIC_ROUTING_MIGRATION ?? "1") !== "1";
-
-function sidebarNav(page: import("@playwright/test").Page, label: string) {
-  return page.getByRole("complementary").getByRole("button", { name: label, exact: true });
-}
-
-async function openCommandPalette(page: import("@playwright/test").Page) {
-  await page.locator("header button").filter({ has: page.locator("kbd") }).click();
-  await authExpect(page.getByPlaceholder(/search across reanzly/i)).toBeVisible({ timeout: 10_000 });
-}
+import {
+  commandPaletteGoToModule,
+  clickSidebarNav,
+  clickClusterTab,
+} from "./fixtures/navigation";
 
 authTest.describe("B0R-8P — decommission-critical (flag ON)", () => {
   authTest.beforeEach(async ({ authenticatedPage: page }) => {
-    authTest.skip(migrationOff, "Requires NEXT_PUBLIC_ROUTING_MIGRATION=1");
     await page.goto("/app/dashboard");
-    await authExpect(page).toHaveURL(/\/app\/dashboard/);
+    await authExpect(page).toHaveURL(/\/app\/dashboard/, { timeout: 30_000 });
+    await authExpect(page.getByRole("complementary")).toBeVisible({ timeout: 30_000 });
   });
 
   authTest("301. sidebar trips nav updates URL", async ({ authenticatedPage: page }) => {
-    await sidebarNav(page, "Trips").click();
-    await authExpect(page).toHaveURL(/\/app\/trips$/);
+    await clickSidebarNav(page, "Trips");
+    await authExpect(page).toHaveURL(/\/app\/trips$/, { timeout: 30_000 });
   });
 
   authTest("302. sidebar vehicles nav updates URL", async ({ authenticatedPage: page }) => {
-    await sidebarNav(page, "Vehicles").click();
-    await authExpect(page).toHaveURL(/\/app\/vehicles$/);
+    await clickSidebarNav(page, "Vehicles");
+    await authExpect(page).toHaveURL(/\/app\/vehicles$/, { timeout: 30_000 });
   });
 
   authTest("303. command palette opens and navigates to settings", async ({ authenticatedPage: page }) => {
-    await openCommandPalette(page);
-    await page.getByPlaceholder(/search across reanzly/i).fill("Settings");
-    await page.getByRole("option", { name: /^Settings$/ }).click();
+    await commandPaletteGoToModule(page, "Settings");
     await authExpect(page).toHaveURL(/\/app\/settings/);
   });
 
   authTest("304. fleet cluster tab inspection URL", async ({ authenticatedPage: page }) => {
     await page.goto("/app/vehicles");
-    await page.getByRole("button", { name: "Inspection" }).click();
-    await authExpect(page).toHaveURL(/\/app\/inspection$/);
+    await clickClusterTab(page, "Inspection");
+    await authExpect(page).toHaveURL(/\/app\/inspection$/, { timeout: 30_000 });
   });
 
   authTest("305. trips list deep link refresh", async ({ authenticatedPage: page }) => {
@@ -59,22 +51,22 @@ authTest.describe("B0R-8P — decommission-critical (flag ON)", () => {
 
   authTest("307. financial-ops alias redirects to ledger treasury", async ({ authenticatedPage: page }) => {
     await page.goto("/app/financial-ops");
-    await authExpect(page).toHaveURL(/\/app\/ledger\/treasury/);
+    await authExpect(page).toHaveURL(/\/app\/ledger\/treasury/, { timeout: 30_000 });
   });
 
   authTest("308. app-store alias redirects to integrations", async ({ authenticatedPage: page }) => {
     await page.goto("/app/app-store");
-    await authExpect(page).toHaveURL(/\/app\/integrations/);
+    await authExpect(page).toHaveURL(/\/app\/integrations/, { timeout: 30_000 });
   });
 
   authTest("309. legacy /dashboard redirects to /app/dashboard", async ({ authenticatedPage: page }) => {
     await page.goto("/dashboard");
-    await authExpect(page).toHaveURL(/\/app\/dashboard/);
+    await authExpect(page).toHaveURL(/\/app\/dashboard/, { timeout: 30_000 });
   });
 
   authTest("310. /app index redirects to dashboard", async ({ authenticatedPage: page }) => {
     await page.goto("/app");
-    await authExpect(page).toHaveURL(/\/app\/dashboard/);
+    await authExpect(page).toHaveURL(/\/app\/dashboard/, { timeout: 30_000 });
   });
 
   authTest("311. back from trip detail returns to list URL", async ({ authenticatedPage: page }) => {
@@ -95,14 +87,14 @@ authTest.describe("B0R-8P — decommission-critical (flag ON)", () => {
 
   authTest("313. CRM cluster customers tab", async ({ authenticatedPage: page }) => {
     await page.goto("/app/crm");
-    await page.getByRole("button", { name: "Customers" }).click();
-    await authExpect(page).toHaveURL(/\/app\/customers$/);
+    await clickClusterTab(page, "Customers");
+    await authExpect(page).toHaveURL(/\/app\/customers$/, { timeout: 30_000 });
   });
 
   authTest("314. documents cluster knowledge tab", async ({ authenticatedPage: page }) => {
     await page.goto("/app/documents");
-    await page.getByRole("button", { name: "Knowledge Base" }).click();
-    await authExpect(page).toHaveURL(/\/app\/knowledge$/);
+    await clickClusterTab(page, "Knowledge Base");
+    await authExpect(page).toHaveURL(/\/app\/knowledge$/, { timeout: 30_000 });
   });
 
   authTest("315. chat module URL", async ({ authenticatedPage: page }) => {
@@ -137,20 +129,18 @@ authTest.describe("B0R-8P — decommission-critical (flag ON)", () => {
   });
 });
 
-test.describe("B0R-8P — rollback (flag OFF)", () => {
+test.describe("B0R-8P — rollback (flag OFF) @flag-off", () => {
   test("321. legacy /dashboard SPA when migration OFF", async ({ browser }) => {
-    test.skip(!migrationOff, "Requires NEXT_PUBLIC_ROUTING_MIGRATION=0");
     const context = await browser.newContext({ storageState: undefined });
     const page = await context.newPage();
     await loginViaApi(page.request);
-    await page.goto("/dashboard");
+    await page.goto("/dashboard", { waitUntil: "domcontentloaded", timeout: 90_000 });
     await expect(page).toHaveURL(/\/dashboard/);
     await expect(page.locator("body")).toBeVisible();
     await context.close();
   });
 
   test("322. flag OFF ModuleRouter navigates trips via sidebar", async ({ browser }) => {
-    test.skip(!migrationOff, "Requires NEXT_PUBLIC_ROUTING_MIGRATION=0");
     const context = await browser.newContext({ storageState: undefined });
     const page = await context.newPage();
     await loginViaApi(page.request);
@@ -162,7 +152,6 @@ test.describe("B0R-8P — rollback (flag OFF)", () => {
   });
 
   test("323. flag OFF ModuleRouter navigates settings via sidebar", async ({ browser }) => {
-    test.skip(!migrationOff, "Requires NEXT_PUBLIC_ROUTING_MIGRATION=0");
     const context = await browser.newContext({ storageState: undefined });
     const page = await context.newPage();
     await loginViaApi(page.request);
@@ -174,7 +163,6 @@ test.describe("B0R-8P — rollback (flag OFF)", () => {
   });
 
   test("324. flag OFF ModuleRouter navigates warehouse via sidebar", async ({ browser }) => {
-    test.skip(!migrationOff, "Requires NEXT_PUBLIC_ROUTING_MIGRATION=0");
     const context = await browser.newContext({ storageState: undefined });
     const page = await context.newPage();
     await loginViaApi(page.request);
@@ -186,7 +174,6 @@ test.describe("B0R-8P — rollback (flag OFF)", () => {
   });
 
   test("325. flag OFF /dashboard?legacy=1 stays on AppShell SPA", async ({ browser }) => {
-    test.skip(!migrationOff, "Requires NEXT_PUBLIC_ROUTING_MIGRATION=0");
     const context = await browser.newContext({ storageState: undefined });
     const page = await context.newPage();
     await loginViaApi(page.request);

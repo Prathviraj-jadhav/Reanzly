@@ -9,6 +9,10 @@ node_modules
 **/.next/
 **/out/
 **/dist/
+apps/web/.next-e2e-flag-on/
+apps/web/.next-e2e-flag-on.bak/
+apps/web/.next-flag-off/
+apps/web/.next-flag-off.bak/
 apps/api/dist/
 apps/worker/dist/
 *.tsbuildinfo

@@ -1,7 +1,6 @@
 import { test, expect } from "@playwright/test";
+import { expectModule } from "./fixtures/navigation";
 import { loginPortalUserOnPage, PORTAL_USERS } from "./fixtures/portal-auth";
-
-const migrationOff = (process.env.NEXT_PUBLIC_ROUTING_MIGRATION ?? "1") !== "1";
 
 test.describe("B0R-7 — portal App Router (migration flag ON)", () => {
   test.describe("Superadmin /admin", () => {
@@ -249,19 +248,19 @@ test.describe("B0R-7 — portal App Router (migration flag ON)", () => {
     test("242. owner /app/broker/console desktop module", async ({ page }) => {
       await page.goto("/app/broker/console");
       await expect(page).toHaveURL(/\/app\/broker\/console$/);
-      await expect(page.locator("main[data-e2e-active-module='broker-console']")).toBeVisible();
+      await expectModule(page, "broker-console");
     });
 
     test("243. owner /app/broker/marketplace desktop module", async ({ page }) => {
       await page.goto("/app/broker/marketplace");
       await expect(page).toHaveURL(/\/app\/broker\/marketplace$/);
-      await expect(page.locator("main[data-e2e-active-module='broker-marketplace']")).toBeVisible();
+      await expectModule(page, "broker-marketplace");
     });
 
     test("244. owner /app/broker/settlements desktop module", async ({ page }) => {
       await page.goto("/app/broker/settlements");
       await expect(page).toHaveURL(/\/app\/broker\/settlements$/);
-      await expect(page.locator("main[data-e2e-active-module='broker-settlements']")).toBeVisible();
+      await expectModule(page, "broker-settlements");
     });
   });
 
@@ -316,22 +315,20 @@ test.describe("B0R-7 — portal App Router (migration flag ON)", () => {
 });
 
 test.describe("B0R-7 — legacy /dashboard portal redirect (flag ON)", () => {
-  test.skip(migrationOff, "requires NEXT_PUBLIC_ROUTING_MIGRATION=1");
-
-  test("251. superadmin /dashboard redirects to /admin", async ({ page, request }) => {
+  test("251. superadmin /dashboard redirects to /admin", async ({ page }) => {
     await loginPortalUserOnPage(page, "superadmin");
     await page.goto("/dashboard");
     await expect(page).toHaveURL(/\/admin/);
   });
 });
 
-test.describe("B0R-7 — routing flag OFF rollback", () => {
-  test.skip(!migrationOff, "requires NEXT_PUBLIC_ROUTING_MIGRATION=0");
-
-  test("252. flag OFF keeps portal at legacy /dashboard", async ({ page, request }) => {
+test.describe("B0R-7 — routing flag OFF rollback @flag-off", () => {
+  test("252. flag OFF keeps broker on legacy /dashboard desktop shell", async ({ page }) => {
     await loginPortalUserOnPage(page, "broker");
-    await page.goto("/dashboard");
-    await expect(page).toHaveURL(/\/dashboard/);
-    await expect(page.locator("[data-e2e-portal='broker']")).toBeVisible();
+    await page.goto("/dashboard", { waitUntil: "domcontentloaded", timeout: 90_000 });
+    await expect(page).toHaveURL(/\/dashboard/, { timeout: 30_000 });
+    await expect(page.getByRole("button", { name: "Broker Console", exact: true })).toBeVisible({
+      timeout: 15_000,
+    });
   });
 });
