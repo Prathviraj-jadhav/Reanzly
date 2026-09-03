@@ -1,7 +1,9 @@
-# Reanzly — Environment Matrix (B0D-0)
+# Reanzly — Environment Matrix (B0D-0 → B0D-1)
 
 Names only. No secret values.  
 Owners: where the variable should be stored/managed.
+
+**B0D-1:** After `.env.production` exposure, treat production values for `DATABASE_URL`, `DIRECT_URL`, and `NEXTAUTH_SECRET` as **ROTATE** before trusting injectors. See `docs/REANZLY-SECRET-ROTATION-RUNBOOK.md`. Vercel presence of this matrix: **NOT VERIFIED** from agent host.
 
 Legend: **B** = build-time (inlined / required at build), **R** = runtime, **Y/N** = yes/no.
 

@@ -1,7 +1,9 @@
-# Reanzly — CI/CD Runbook (B0D-0)
+# Reanzly — CI/CD Runbook (B0D-0 → B0D-1)
 
 Operator procedures for PR → merge → staging → production → rollback.  
 No secret values. Do not start B0R-8S soak until flag-ON smoke PASS.
+
+**B0D-1:** Secret hygiene + platform connection must clear `BLOCKED — OPERATOR ACTION REQUIRED` before production routing cutover. Do not push history rewrites without explicit authorization.
 
 ---
 
@@ -149,9 +151,18 @@ Protect `main`; use GitHub Environment `production` with required reviewers when
 
 ## 11. Related workflows (caution)
 
-| Workflow | Note |
-| -------- | ---- |
-| `ci-cd.yml` CD jobs | VPS Docker path; needs SSH secrets; may skip if host unreachable |
-| `restore-ssh.yml` | Self-hosted diagnostics; restrict who can run |
+| Workflow | Risk | Note |
+| -------- | ---- | ---- |
+| `ci-cd.yml` DevSecOps (Bun) | Medium | Duplicate CI vs npm `ci.yml`; lockfile drift |
+| `ci-cd.yml` SSH CD | **HIGH** | Writes remote `.env` from secrets; VPS TCP reachable in B0D-1 — disable only with approval |
+| `ci-cd.yml` self-hosted CD | Medium | Gated on `DEPLOY_MODE=self-hosted-runner` |
+| `restore-ssh.yml` | **HIGH** | Mutates `authorized_keys`, commits/pushes debug log — restrict/disable with approval |
 
 Prefer Vercel Git for frontend; do not duplicate deploy Actions unless benefit is clear.
+
+## 12. Secret exposure / push gate (B0D-1)
+
+1. Local HEAD may already delete `.env.production` while `origin/main` still tracks it — **authorize push** to clear tip exposure.  
+2. Rotate secrets per `docs/REANZLY-SECRET-ROTATION-RUNBOOK.md` before treating prod as clean.  
+3. History purge (filter-repo) is **documented only** until explicit rewrite + force-push authorization.  
+4. Never re-commit real env files; `.gitignore` must keep ignoring them.

@@ -23,11 +23,20 @@ server.log
 .next/standalone/.next/
 .next/standalone/public/
 
-# Environment files
+# Environment files (never commit real secrets)
 .env
 .env.*
 .env*.local
+.env.production
+.env.development
+.env.test
+.env.staging
+apps/*/.env
+apps/*/.env.*
+packages/*/.env
+packages/*/.env.*
 !.env.example
+!**/.env.example
 
 # Local verification / agent logs (may embed env metadata)
 *.log

@@ -1,12 +1,14 @@
-# Reanzly — Production Infrastructure & Ownership Baseline (B0D-0)
+# Reanzly — Production Infrastructure & Ownership Baseline (B0D-0 → B0D-1)
 
 **Date:** 2026-09-03  
-**Phase:** B0D-0  
-**Decision:** `B0D-0 READY FOR OPERATOR CONNECTION`  
+**Phase:** B0D-1 (extends B0D-0)  
+**Decision:** `B0D-1 BLOCKED — OPERATOR ACTION REQUIRED`  
 **Verified routing candidate SHA:** `a1ef307a3cf423255fba6f7eb73ab960f1ea686e`  
+**Local infra HEAD (unpushed chain):** includes `9a8896b` + B0D-1 secure-baseline commit  
 **Live flag-ON App Router:** **NOT proven** (`/dashboard` 200 legacy; `/app/dashboard` 404)
 
-Do not begin B0R-8B. Do not start soak until flag-ON production deploy + smoke PASS.
+Do not begin B0R-8B. Do not start soak until flag-ON production deploy + smoke PASS.  
+See `docs/REANZLY-B0D1-SECURITY-INFRA-VERIFICATION.md` and `docs/REANZLY-SECRET-ROTATION-RUNBOOK.md`.
 
 ---
 
@@ -22,7 +24,8 @@ Do not begin B0R-8B. Do not start soak until flag-ON production deploy + smoke P
 | DNS `www` | CNAME → `cname.vercel-dns.com` |
 | DNS apex | A → `76.76.21.21` (Vercel anycast) |
 | Routing topology | Legacy SPA `/dashboard` **200**; `/app/dashboard` **404** |
-| Public health | `GET /api/health` → **200** JSON `{ status: "ok" }` |
+| Public health | `GET /api/health` → **200** JSON `status=operational`, `version=3.1.0` (not git SHA) |
+| Fastify via rewrite | `GET /api/v1/health` → **404** (no live Fastify origin evidenced) |
 
 ### Documented alternate / VPS path (`DEPLOYMENT_INFO.md`)
 
@@ -37,7 +40,7 @@ Repo documents a **self-hosted Ubuntu VPS** path:
 | App | Next.js `:3000` + Socket.IO chat `:3003` |
 | Historical DB note | SQLite `db/custom.db` (superseded in schema by PostgreSQL) |
 
-**Status from this host:** SSH deploy key **MISSING**; VPS reachability / live role of VPS behind `www` **NOT VERIFIED**. Public DNS for `www`/`reanzly.com` points at **Vercel**, not the documented VPS IP.
+**Status from this host (B0D-1):** SSH deploy key **MISSING**. TCP `151.106.96.77:65002` and `:443` **REACHABLE**. Public DNS for `www`/`reanzly.com` points at **Vercel**, not the VPS IP → VPS is **LEGACY/SIDELINED for public www**; whether Docker services remain ACTIVE for non-www roles is **UNKNOWN** without SSH.
 
 ### Application topology (repo)
 
@@ -56,7 +59,7 @@ Optional / co-located (Docker/Caddy designs):
   → apps/slm-engine (optional Rust; not required for routing soak)
 ```
 
-**Render:** No `render.yaml`, no Render service IDs/hooks in repo. Render is **not evidenced** as current production host.
+**Render:** **NO** — no `render.yaml`, no Render service IDs/hooks in repo. Do **not** create Render infra unless operator confirms.
 
 ---
 
@@ -68,9 +71,10 @@ Optional / co-located (Docker/Caddy designs):
 | Owner (from URL) | Personal account `Prathviraj-jadhav` |
 | Repository | `Reanzly` |
 | Default / production branch (local) | `main` |
-| `gh auth status` | **NOT AVAILABLE** (not logged in) |
+| `gh auth status` | **NOT AVAILABLE** (not logged in; no interactive login in B0D-1) |
 | Org vs personal | **Personal** (recommend company org — do not transfer automatically) |
 | Environments `staging` / `production` | **NOT VERIFIED** (API inaccessible without auth) |
+| Secret tip on origin | `origin/main` @ `a1ef307` **still tracks** `.env.production`; local HEAD deleted it (push not authorized) |
 
 ### Existing workflows
 
@@ -123,7 +127,7 @@ Node **20** (repo `engines`: `>=20.9.0 <25`).
 | Account type | Personal team slug `prathviraj-jadhavs-projects` | Documented → **BUSINESS CONTINUITY RISK** |
 | Framework | `nextjs` (`vercel.json`) | Repo |
 | Build | `bash scripts/build-vercel.sh` | Repo |
-| Install | `bun install` (`vercel.json`) — note monorepo root also has `package-lock.json` / npm workspaces | Repo conflict risk |
+| Install | `bun install` (`vercel.json`) — root also has `package-lock.json` **and** `bun.lock`; CI uses **npm** | **Bun vs npm parity risk** (document; align before relying on build parity) |
 | Production domain | `www.reanzly.com` / `reanzly.com` | Live DNS + HTTP |
 | Git integration | **NOT VERIFIED** from this host | Need operator Vercel dashboard |
 | CLI | **NOT INSTALLED** | This host |
@@ -163,9 +167,10 @@ Auth API for production: default **`v1`** (Fastify via `/api/v1`). Do **not** se
 | Env vars | `DATABASE_URL`, `DIRECT_URL` (optional `DATABASE_REPLICA_URL`) |
 | Provider class | **Supabase** (documented in `.env.example` pooler/direct host pattern; local production env template present) |
 | Connection strings | **NOT PRINTED** |
-| `prisma/migrations` | **ABSENT** |
+| `prisma/migrations` | **ABSENT** — tracked debt **B0D-DB1** |
 | Scripts | `db:push` uses `prisma db push --accept-data-loss`; `db:migrate` / `db:reset` exist |
 | Production migrate strategy | **Do not** auto-run `db push` or destructive migrate in CI/CD. Introduce versioned migrations before schema-changing releases. |
+| B0R-8S | **NO DB SCHEMA CHANGE** |
 | Backup status | **NOT VERIFIED** |
 
 ---
@@ -198,10 +203,10 @@ Recommend: company org, ≥2 admins, least-privilege developer access, no sole p
 
 | Field | Status |
 | ----- | ------ |
-| DNS provider account | **unknown / NOT VERIFIED** |
+| DNS provider account | **Hostinger-associated (NS/SOA/SPF clues)** — login **NOT VERIFIED** |
 | Account access from Cursor | **NOT VERIFIED** |
 
-No DNS mutations performed in B0D-0.
+No DNS mutations performed in B0D-0/B0D-1.
 
 ---
 
@@ -261,9 +266,9 @@ Prefer **Vercel Git integration** over custom Actions deploy tokens. Prefer **no
 | Vercel deployment metadata / dashboard | Primary for live frontend SHA + Deployment ID |
 | `VERCEL_GIT_COMMIT_SHA` (build env) | Available in Vercel builds; surface via operator tools |
 | GitHub Actions run ID | CI/CD audit trail |
-| `/api/health` | Currently `{ status: "ok" }` only — **propose** optional non-sensitive `gitSha` later; **not implemented** in B0D-0 |
+| `/api/health` | Returns app `version` (e.g. `3.1.0`) — **propose** optional non-sensitive `gitSha` later; **not implemented** |
 
-Until operator access exists, live SHA remains **NOT RETRIEVED**.
+Until operator access exists, live Deployment ID + Git SHA remain **NOT RETRIEVED**.
 
 ---
 
@@ -271,10 +276,10 @@ Until operator access exists, live SHA remains **NOT RETRIEVED**.
 
 | Surface | Endpoint | Notes |
 | ------- | -------- | ----- |
-| Frontend liveness | `GET /api/health` | Public; OK |
+| Frontend liveness | `GET /api/health` | Public; **200 operational** (B0D-1 re-probe) |
 | App pages | `/`, `/login`, `/dashboard` | Smoke |
 | Flag-ON proof | `/app/dashboard` must not 404 after cutover | Soak gate |
-| Fastify | `GET /v1/health` | Via `/api/v1/health` when proxy configured |
+| Fastify | `GET /v1/health` | Via `/api/v1/health` — **404 live** until `API_PROXY_ORIGIN` points at real Fastify |
 | Docker compose | wget `localhost:3000/api/health` | VPS path |
 | Chat | No public health standardized | internal |
 | Worker | In-process; no separate HTTP health | |
@@ -308,28 +313,29 @@ Only if backend image/SHA changed. B0R-8S should keep backend unchanged.
 | Vercel | Yes (frontend) | No (CLI missing) | Personal team (docs) | unknown | Login + env + deploy |
 | Render | No (not evidenced) | N/A | N/A | N/A | None unless adopted |
 | Supabase/DB | Yes (prod data) | No | **NOT VERIFIED** | unknown | Org access + backups |
-| DNS | Yes (domain control) | No | **unknown** | unknown | Identify registrar |
-| VPS SSH | Only if using Docker path | No (key missing) | Documented personal deploy key | none here | Optional for www-on-Vercel |
+| DNS | Yes (domain control) | No | **Hostinger-associated (inferred)** | unknown | Confirm account login |
+| VPS SSH | Only if using Docker path | No (key missing; TCP reachable) | Documented personal deploy key | none here | Optional for www-on-Vercel |
 
 ---
 
 ## P. Remaining Blockers
 
-1. **SECURITY BLOCKER:** `.env.production` was tracked in git (contains real credentials). Must untrack, rotate credentials, scrub history as authorized.  
+1. **SECURITY BLOCKER:** `.env.production` still on **remote tip** `origin/main`; historical blobs remain. Local untrack not pushed. **Rotate** DB + NextAuth secrets (see secret rotation runbook). History purge (**option A**) needs explicit authorization after rotation.  
 2. GitHub / Vercel / Supabase / DNS operator access not available from this environment.  
-3. Cannot verify or set Production `NEXT_PUBLIC_ROUTING_MIGRATION=1`.  
+3. Cannot verify or set Production `NEXT_PUBLIC_ROUTING_MIGRATION=1` (and must not for B0D-1).  
 4. Cannot retrieve live Deployment ID / SHA.  
-5. No Prisma migration history — schema deploy risk.  
-6. Dual topology docs (Vercel live vs VPS CD) — clarify source of truth with operators.  
-7. `vercel.json` `bun install` vs npm workspaces/`package-lock.json` — reconcile before relying on CI parity with Vercel builds.  
-8. Personal-account SPOF on GitHub + Vercel (docs) → **BUSINESS CONTINUITY RISK**.
+5. No Prisma migration history — **B0D-DB1** debt; B0R-8S must not change schema.  
+6. Dual topology (Vercel live www vs reachable VPS CD) — clarify source of truth; legacy CD / `restore-ssh.yml` = HIGH risk until approved disable.  
+7. `vercel.json` `bun install` vs npm CI / dual lockfiles — reconcile before build parity claims.  
+8. Personal-account SPOF on GitHub + Vercel → **BUSINESS CONTINUITY RISK**.
 
 ---
 
 ## Related status
 
 ```text
-B0R-8S: DEPLOYMENT PENDING
+B0D-1: BLOCKED — OPERATOR ACTION REQUIRED
+B0R-8S: DEPLOYMENT PENDING (do not start)
 B0R-8B: BLOCKED
 Production soak: NOT STARTED
 ```
