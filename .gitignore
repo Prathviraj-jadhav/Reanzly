@@ -25,8 +25,16 @@ server.log
 
 # Environment files
 .env
+.env.*
 .env*.local
 !.env.example
+
+# Local verification / agent logs (may embed env metadata)
+*.log
+apps/web/playwright-report.json
+apps/web/playwright-report/
+_tmp-*/
+_tmp-*.txt
 
 # Database & SQLite files
 /db/*.db
